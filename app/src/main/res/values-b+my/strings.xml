@@ -14,8 +14,8 @@
     <string name="new_update_format" formatted="true">အပ်ဒိတ်အသစ်! \n%1$s -&gt; %2$s</string>
     <string name="filler" formatted="true">စစ်ထုတ်မှု</string>
     <string name="duration_format" formatted="true">%d မိနစ်</string>
-    <string name="app_name">MIISSA TV 360</string>
-    <string name="play_with_app_name">MIISSA TV 360 ဖြင့်ကြည့်ရန်</string>
+    <string name="app_name">MISSA TV 360</string>
+    <string name="play_with_app_name">MISSA TV 360 ဖြင့်ကြည့်ရန်</string>
     <string name="title_home">ပင်မ</string>
     <string name="title_search">ရှာရန်</string>
     <string name="search_hint">ရှာရန်…</string>
