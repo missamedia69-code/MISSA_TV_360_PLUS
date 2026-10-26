@@ -38,5 +38,13 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Compile Android debug APK
-        run: ./gradlew :app:assemblePrereleaseDebug --stacktrace
+      - name: Run unit tests and compile Android debug APK
+        run: ./gradlew :app:testPrereleaseDebugUnitTest :app:assemblePrereleaseDebug --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: missa-tv-360-prerelease-debug
+          path: app/build/outputs/apk/prerelease/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7

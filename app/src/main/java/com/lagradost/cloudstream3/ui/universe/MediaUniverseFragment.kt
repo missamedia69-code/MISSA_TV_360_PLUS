@@ -34,9 +34,12 @@ import com.lagradost.cloudstream3.ui.setRecycledViewPool
 import com.google.android.material.button.MaterialButton
 import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
 import com.lagradost.cloudstream3.utils.UIHelper.getResourceColor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -55,41 +58,9 @@ class MediaUniverseFragment : Fragment() {
         private const val REQUEST_TIMEOUT_MS = 18_000L
         private const val SEARCH_TIMEOUT_MS = 35_000L
         private const val MAX_CATALOG_ITEMS = 100
-        private const val MAX_METADATA_ITEMS = 32
+        private const val MAX_METADATA_ITEMS = 24
+        private const val DETAIL_TIMEOUT_MS = 6_000L
 
-        private val movieTypes = setOf(
-            TvType.Movie, TvType.AnimeMovie, TvType.Documentary, TvType.Torrent, TvType.Video
-        )
-        private val seriesTypes = setOf(
-            TvType.TvSeries, TvType.Anime, TvType.Cartoon, TvType.OVA, TvType.AsianDrama
-        )
-        private val audioTypes = setOf(TvType.Audio, TvType.Music, TvType.AudioBook)
-
-        private val shortKeywords = Regex(
-            "(court[ -]?m[eé]trage|short[ -]?film|shortfilm|shorts|film court)",
-            RegexOption.IGNORE_CASE
-        )
-        private val kidsKeywords = Regex(
-            "(enfant|jeunesse|kids|children|family|familial|tout public)",
-            RegexOption.IGNORE_CASE
-        )
-        private val sportsKeywords = Regex(
-            "(sport|football|soccer|basket|basketball|tennis|rugby|formula ?1|f1|match|league|champions|nba|ufc|live sport)",
-            RegexOption.IGNORE_CASE
-        )
-        private val radioKeywords = Regex(
-            "(radio|fm\\b|am\\b|station|broadcast|webradio|radio stream)",
-            RegexOption.IGNORE_CASE
-        )
-        private val familyTags = Regex(
-            "(family|familial|children|child|kids|jeunesse|enfant|tout public)",
-            RegexOption.IGNORE_CASE
-        )
-        private val safeRating = Regex(
-            "(^|[^A-Z0-9])(TV-Y7?|TV-G|G|0\\+|3\\+|6\\+|7\\+)([^A-Z0-9]|$)",
-            RegexOption.IGNORE_CASE
-        )
-        private val durationSuffix = Regex("(\\d{1,3})\\s*(min|minutes|mn)\\b", RegexOption.IGNORE_CASE)
     }
 
     private val universeId: String
@@ -272,7 +243,13 @@ class MediaUniverseFragment : Fragment() {
     private fun loadContinueWatching() {
         viewLifecycleOwner.lifecycleScope.launch {
             val resume = withContext(Dispatchers.IO) {
-                runCatching { HomeViewModel.getResumeWatching().orEmpty().take(24) }.getOrDefault(emptyList())
+                try {
+                    HomeViewModel.getResumeWatching().orEmpty().take(24)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
             }
             if (!isAdded) return@launch
             resumeHeader.isVisible = resume.isNotEmpty()
@@ -328,13 +305,20 @@ class MediaUniverseFragment : Fragment() {
                 )
                 if (query.isNotBlank()) resultHeader.text = getString(R.string.universe_search_results_for, query.trim())
                 else resultHeader.setText(if (universeId == "home") R.string.universe_home_catalogue else R.string.universe_catalogue_results)
-            } catch (error: Exception) {
-                emptyMessage.setText(R.string.universe_catalogue_error)
-                emptyMessage.isVisible = true
-                resultList.isVisible = false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (isAdded) {
+                    emptyMessage.setText(R.string.universe_catalogue_error)
+                    emptyMessage.isVisible = true
+                    resultList.isVisible = false
+                }
             } finally {
-                loading.isVisible = false
-                searchButton.isEnabled = true
+                // A cancelled older request must not hide the loading indicator for a newer query.
+                if (isAdded && currentCoroutineContext().isActive) {
+                    loading.isVisible = false
+                    searchButton.isEnabled = true
+                }
             }
         }
     }
@@ -345,9 +329,10 @@ class MediaUniverseFragment : Fragment() {
             .filter { it.hasMainPage }
             .map { repository ->
                 async(Dispatchers.IO) {
-                    withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
-                        semaphore.withPermit {
-                            runCatching {
+                    // Do not spend the provider timeout waiting for a semaphore slot.
+                    semaphore.withPermit {
+                        withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
+                            try {
                                 when (val response = repository.getMainPage(1)) {
                                     is Resource.Success -> response.value
                                         .filterNotNull()
@@ -355,9 +340,13 @@ class MediaUniverseFragment : Fragment() {
                                         .flatMap { section -> section.list }
                                     else -> emptyList()
                                 }
-                            }.getOrDefault(emptyList())
-                        }
-                    }.orEmpty()
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                        }.orEmpty()
+                    }
                 }
             }
             .awaitAll()
@@ -371,17 +360,21 @@ class MediaUniverseFragment : Fragment() {
         val semaphore = Semaphore(4)
         withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
             repositories
-                // Some plugins misdeclare supportedTypes. Query every source and classify each result
-                // centrally, so the menu does not depend on provider metadata being perfect.
+                // Query every source, then classify results centrally; the source is metadata only.
                 .map { repository ->
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
-                            runCatching {
+                            try {
                                 when (val response = repository.search(query, 1)) {
                                     is Resource.Success -> response.value.items
                                     else -> emptyList()
                                 }
-                            }.getOrDefault(emptyList())
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                // An unavailable plugin must not hide results from other plugins.
+                                emptyList()
+                            }
                         }
                     }
                 }
@@ -394,76 +387,60 @@ class MediaUniverseFragment : Fragment() {
         items: List<SearchResponse>,
         repositories: List<APIRepository>
     ): List<SearchResponse> {
-        val unique = items.filter { it.type != TvType.NSFW }
+        val unique = items
+            .filter { it.type != TvType.NSFW && it.type != TvType.CustomMedia }
             .distinctBy { item -> "${item.apiName.lowercase(Locale.ROOT)}|${item.url}" }
-        if (universeId !in setOf("shorts", "kids")) {
+
+        val metadataUniverses = setOf("shorts", "kids", "live_tv", "sports", "radio")
+        if (universeId !in metadataUniverses) {
             return unique.filter { matchesUniverse(it, null) }
         }
 
-        // Duration, tags and age ratings are only present in LoadResponse for many providers.
-        // Enrich a bounded set to avoid requesting details for every item in a provider.
-        val candidates = unique.filter { item ->
-            val type = item.type
-            (type == null || type.let { movieTypes.contains(it) || seriesTypes.contains(it) }) &&
-                (universeId != "shorts" || shortKeywords.containsMatchIn(item.name) ||
-                    durationSuffix.containsMatchIn(item.name) || type == TvType.Movie || type == TvType.AnimeMovie)
-        }.take(MAX_METADATA_ITEMS)
+        // Enrich a bounded set of items for tags, age ratings and duration. The same classifier
+        // is used for results from every provider, so no plugin owns a top-level category.
+        val candidates = unique
+            .filter { item ->
+                MediaUniverseClassifier.shouldLoadDetails(universeId, item.type, item.name)
+            }
+            .take(MAX_METADATA_ITEMS)
         val repoByName = repositories.associateBy { it.name }
         val semaphore = Semaphore(4)
         return coroutineScope {
             candidates.map { item ->
                 async(Dispatchers.IO) {
                     val repository = repoByName[item.apiName]
-                    val details = if (repository == null) null else runCatching {
-                        withTimeoutOrNull(8_000L) {
+                    val details = if (repository == null) {
+                        null
+                    } else {
+                        try {
+                            // The timeout starts after a worker acquires a slot, not while queued.
                             semaphore.withPermit {
-                                when (val result = repository.load(item.url)) {
-                                    is Resource.Success -> result.value
-                                    else -> null
+                                withTimeoutOrNull(DETAIL_TIMEOUT_MS) {
+                                    when (val result = repository.load(item.url)) {
+                                        is Resource.Success -> result.value
+                                        else -> null
+                                    }
                                 }
                             }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            null
                         }
-                    }.getOrNull()
+                    }
                     if (matchesUniverse(item, details)) item else null
                 }
             }.awaitAll().filterNotNull()
         }
     }
 
-    private fun matchesUniverse(item: SearchResponse, details: LoadResponse?): Boolean {
-        val type = item.type
-        val name = item.name
-        val tags = details?.tags.orEmpty().joinToString(" ")
-        val rating = details?.contentRating.orEmpty()
-        return when (universeId) {
-            "home" -> type != TvType.NSFW && type != TvType.CustomMedia
-            "films" -> type?.let { it in movieTypes } == true
-            "series" -> type?.let { it in seriesTypes } == true
-            "shorts" -> {
-                val movieType = type == null || type.let { it in movieTypes }
-                val duration = details?.duration
-                movieType && (duration?.let { it in 1..40 } == true ||
-                    shortKeywords.containsMatchIn(name) ||
-                    shortKeywords.containsMatchIn(tags) ||
-                    (duration == null && durationSuffix.containsMatchIn(name) &&
-                        (durationSuffix.find(name)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 999) <= 40))
-            }
-            "kids" -> {
-                val safeType = type == null || type.let { it in movieTypes || it in seriesTypes }
-                val familyTagged = familyTags.containsMatchIn(tags)
-                val safeRated = safeRating.containsMatchIn(rating)
-                val titleTagged = kidsKeywords.containsMatchIn(name)
-                safeType && (familyTagged || safeRated || titleTagged)
-            }
-            "live_tv" -> type == TvType.Live &&
-                !sportsKeywords.containsMatchIn("${name} ${item.apiName}") &&
-                !radioKeywords.containsMatchIn("${name} ${item.apiName}")
-            "sports" -> type == TvType.Live && sportsKeywords.containsMatchIn("${name} ${item.apiName}")
-            "podcasts" -> type == TvType.Podcast
-            "radio" -> (type == TvType.Live || type?.let { it in audioTypes } == true) &&
-                (radioKeywords.containsMatchIn("${name} ${item.apiName}") || type?.let { it in audioTypes } == true) &&
-                type != TvType.Podcast
-            else -> false
-        }
-    }
+    private fun matchesUniverse(item: SearchResponse, details: LoadResponse?): Boolean =
+        MediaUniverseClassifier.matches(
+            universeId = universeId,
+            type = item.type,
+            title = item.name,
+            tags = details?.tags.orEmpty(),
+            contentRating = details?.contentRating,
+            durationMinutes = details?.duration
+        )
 }
