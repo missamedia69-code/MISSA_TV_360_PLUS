@@ -858,4 +858,20 @@
     <string name="universe_retro_import_error">Impossible d’importer ce fichier. Réessaie avec un fichier ROM compatible.</string>
     <string name="universe_retro_catalogue_notice">Le catalogue en ligne répertorie des jeux homebrew et des démos. Vérifie la licence de chaque entrée avant de télécharger ou redistribuer un fichier.</string>
     <string name="universe_shortcuts_title">Choisir un univers</string>
+
+    <!-- Integrated retro player -->
+    <string name="universe_retro_download_engine">Installer le moteur Game Boy</string>
+    <string name="universe_retro_engine_downloading">Téléchargement du moteur d’émulation…</string>
+    <string name="universe_retro_engine_ready">Moteur installé. Prêt à lancer le jeu.</string>
+    <string name="universe_retro_engine_failed">Impossible d’installer le moteur. Vérifie la connexion et réessaie.</string>
+    <string name="universe_retro_engine_incompatible">Le moteur intégré nécessite Android 7.0 ou version ultérieure sur une architecture compatible. Tu peux utiliser un émulateur externe.</string>
+    <string name="universe_retro_loading_game">Chargement du jeu…</string>
+    <string name="universe_retro_player_title">MISSA TV 360 · Jeux rétro</string>
+    <string name="universe_retro_pause">Pause</string>
+    <string name="universe_retro_resume">Reprendre</string>
+    <string name="universe_retro_exit">Quitter le jeu</string>
+    <string name="universe_retro_controls">Télécommande/manette : directions, A/Entrée, B, Start et Select. Retour quitte le jeu.</string>
+    <string name="universe_retro_engine_notice">Moteur SameBoy · licence MIT. Le cœur est téléchargé à la demande depuis le buildbot officiel Libretro. Les ROMs ne sont pas incluses.</string>
+    <string name="universe_retro_player_failed">Le jeu n’a pas pu être chargé avec ce moteur. Vérifie le format du fichier.</string>
+    <string name="universe_retro_external_engine">Ouvrir ce système avec un émulateur externe</string>
 </resources>
