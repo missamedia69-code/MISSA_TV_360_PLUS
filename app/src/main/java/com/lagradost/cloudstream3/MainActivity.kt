@@ -1421,8 +1421,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
             fixSystemBarsPadding(
                 tvTopNavigation,
-                heightResId = R.dimen.nav_view_height,
-                padTop = isLayout(TV or EMULATOR),
+                padTop = true,
+                padBottom = false,
                 overlayCutout = false
             )
 
