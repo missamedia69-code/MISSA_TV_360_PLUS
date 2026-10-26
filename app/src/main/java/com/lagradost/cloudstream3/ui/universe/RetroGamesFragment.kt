@@ -170,9 +170,7 @@ class RetroGamesFragment : Fragment() {
                             }
                         }
                         require(temporary.length() > 1024L) { "Fichier téléchargé invalide" }
-                        require(!destination.exists() || destination.delete()) {
-                            "Impossible de remplacer le fichier existant"
-                        }
+                        require(!destination.exists()) { "Le fichier existe déjà" }
                         require(temporary.renameTo(destination)) { "Impossible de finaliser le téléchargement" }
                         destination
                     } finally {
