@@ -11,6 +11,31 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
+        <HorizontalScrollView
+            android:id="@+id/tv_top_navigation"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:background="?attr/primaryBlackBackground"
+            android:clipToPadding="false"
+            android:fillViewport="false"
+            android:focusable="false"
+            android:overScrollMode="never"
+            android:scrollbars="none"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:id="@+id/tv_top_navigation_items"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
+        </HorizontalScrollView>
+
+
 
         <com.google.android.material.navigationrail.NavigationRailView
             android:id="@+id/nav_rail_view"
@@ -18,6 +43,7 @@
             android:layout_height="match_parent"
             android:background="?attr/primaryGrayBackground"
             android:descendantFocusability="afterDescendants"
+            android:visibility="gone"
             app:itemIconTint="@color/item_select_color"
             app:itemTextColor="@color/item_select_color"
             app:headerLayout="@layout/rail_header"
@@ -38,6 +64,7 @@
             android:id="@+id/nav_view"
             android:layout_height="@dimen/nav_view_height"
             android:layout_width="0dp"
+            android:visibility="gone"
             app:labelVisibilityMode="unlabeled"
             android:background="?attr/primaryGrayBackground"
 
@@ -57,17 +84,17 @@
             app:defaultNavHost="true"
             app:layout_constraintBottom_toTopOf="@+id/cast_mini_controller_holder"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/nav_rail_view"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tv_top_navigation"
             app:navGraph="@navigation/mobile_navigation" />
 
         <LinearLayout
             android:id="@+id/cast_mini_controller_holder"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            app:layout_constraintBottom_toTopOf="@+id/nav_view"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/nav_rail_view"
+            app:layout_constraintStart_toStartOf="parent"
             tools:layout_height="100dp">
             <!--com.google.android.gms.cast.framework.media.widget.MiniControllerFragment-->
             <fragment
