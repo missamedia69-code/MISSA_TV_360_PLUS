@@ -39,7 +39,6 @@
             app:expandedMaxWidth="220dp"
 
             app:headerLayout="@layout/rail_header"
-            app:itemActiveIndicatorStyle="@style/CustomIndicator"
             app:itemIconSize="24dp"
             app:itemIconTint="@color/item_select_color_tv"
 
