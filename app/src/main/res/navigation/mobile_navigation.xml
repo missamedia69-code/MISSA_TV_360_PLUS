@@ -291,21 +291,148 @@
 
     <fragment
         android:id="@+id/navigation_home"
-        android:name="com.lagradost.cloudstream3.ui.home.HomeFragment"
-        android:label="@string/title_home"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_home_title"
         app:enterAnim="@anim/enter_anim"
         app:exitAnim="@anim/exit_anim"
         app:popEnterAnim="@anim/enter_anim"
         app:popExitAnim="@anim/exit_anim"
-        tools:layout="@layout/fragment_home">
-        <action
-            android:id="@+id/action_navigation_home_to_navigation_quick_search"
-            app:destination="@id/navigation_quick_search"
-            app:enterAnim="@anim/enter_anim"
-            app:exitAnim="@anim/exit_anim"
-            app:popEnterAnim="@anim/enter_anim"
-            app:popExitAnim="@anim/exit_anim" />
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="home"
+            app:argType="string" />
     </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_films"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_films_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="films"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_series"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_series_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="series"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_shorts"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_shorts_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="shorts"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_kids"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_kids_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="kids"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_live_tv"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_live_tv_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="live_tv"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_sports"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_sports_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="sports"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_podcasts"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_podcasts_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="podcasts"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_radio"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_radio_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="radio"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_universe_retro_games"
+        android:name="com.lagradost.cloudstream3.ui.universe.RetroGamesFragment"
+        android:label="@string/universe_games_title"
+        app:enterAnim="@anim/enter_anim"
+        app:exitAnim="@anim/exit_anim"
+        app:popEnterAnim="@anim/enter_anim"
+        app:popExitAnim="@anim/exit_anim"
+        tools:layout="@layout/fragment_retro_games" />
 
     <fragment
         android:id="@+id/navigation_search"
