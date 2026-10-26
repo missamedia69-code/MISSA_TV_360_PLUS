@@ -269,8 +269,16 @@ class RetroGamePlayerActivity : AppCompatActivity() {
             require(extracted && temporary.isFile && temporary.length() >= MIN_CORE_BYTES) {
                 "Official archive did not contain the expected core"
             }
-            if (destination.exists()) destination.delete()
-            require(temporary.renameTo(destination)) { "Could not install core file" }
+            val backup = File(destination.parentFile, "$CORE_FILE_NAME.backup")
+            backup.delete()
+            if (destination.exists()) {
+                require(destination.renameTo(backup)) { "Could not preserve previous core file" }
+            }
+            if (!temporary.renameTo(destination)) {
+                if (backup.exists()) backup.renameTo(destination)
+                error("Could not install core file")
+            }
+            backup.delete()
             return destination
         } catch (error: Throwable) {
             temporary.delete()
