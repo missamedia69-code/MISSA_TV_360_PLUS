@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- libretro-kmp requires API 24; the application remains installable on API 23, where the embedded engine is disabled. -->
+    <uses-sdk tools:overrideLibrary="dev.kotlinds.libretrokmp" />
+
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- I dont remember, probs has to do with downloads -->
     <uses-permission android:name="android.permission.INTERNET" /> <!-- unless you only use cs3 as a player for downloaded stuff, you need this -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" /> <!-- Downloads -->
