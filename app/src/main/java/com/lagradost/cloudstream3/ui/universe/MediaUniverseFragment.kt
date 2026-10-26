@@ -179,7 +179,7 @@ class MediaUniverseFragment : Fragment() {
     private fun isTvLayout(): Boolean {
         val configuration = resources.configuration
         return configuration.smallestScreenWidthDp >= 600 ||
-            configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK ==
+            (configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK) ==
             android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
     }
 
@@ -274,7 +274,7 @@ class MediaUniverseFragment : Fragment() {
     private suspend fun fetchHomeItems(repositories: List<APIRepository>): List<SearchResponse> = coroutineScope {
         val semaphore = Semaphore(4)
         repositories
-            .filter { it.hasMainPage && it.api.supportedTypes.none { type -> type == TvType.NSFW } }
+            .filter { it.hasMainPage }
             .map { repository ->
                 async(Dispatchers.IO) {
                     withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
