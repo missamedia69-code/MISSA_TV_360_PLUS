@@ -114,6 +114,12 @@ class MediaUniverseFragment : Fragment() {
         shortcutsScroll = view.findViewById(R.id.universe_shortcuts_scroll)
         shortcutsContainer = view.findViewById(R.id.universe_shortcuts_container)
 
+        if (isTvLayout()) {
+            heroPanel.layoutParams = heroPanel.layoutParams.apply {
+                height = (300 * resources.displayMetrics.density).toInt()
+            }
+        }
+
         resultList.spanCount = if (isTvLayout()) 5 else 2
         resultList.layoutManager = GridLayoutManager(requireContext(), resultList.spanCount)
         resultList.isNestedScrollingEnabled = false
@@ -221,9 +227,8 @@ class MediaUniverseFragment : Fragment() {
                     )
                 )
                 setTextColor(
-                    requireContext().getResourceColor(
-                        if (index % 3 == 0) R.attr.black else R.attr.textColor
-                    )
+                    if (index % 3 == 0) android.graphics.Color.BLACK
+                    else requireContext().getResourceColor(R.attr.textColor)
                 )
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -401,6 +406,9 @@ class MediaUniverseFragment : Fragment() {
         val candidates = unique
             .filter { item ->
                 MediaUniverseClassifier.shouldLoadDetails(universeId, item.type, item.name)
+            }
+            .sortedByDescending { item ->
+                MediaUniverseClassifier.detailPriority(universeId, item.name)
             }
             .take(MAX_METADATA_ITEMS)
         val repoByName = repositories.associateBy { it.name }

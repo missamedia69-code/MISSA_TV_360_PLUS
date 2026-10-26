@@ -601,7 +601,11 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             val button = container.getChildAt(index) as? MaterialButton ?: return@forEachIndexed
             val selected = entry.destinationId == selectedId
             val fill = getResourceColor(if (selected) R.attr.colorPrimary else R.attr.iconGrayBackground)
-            val textColor = getResourceColor(if (selected) R.attr.black else R.attr.textColor)
+            val textColor = if (selected) {
+                android.graphics.Color.BLACK
+            } else {
+                getResourceColor(R.attr.textColor)
+            }
             button.backgroundTintList = ColorStateList.valueOf(fill)
             button.setTextColor(textColor)
             button.strokeColor = ColorStateList.valueOf(

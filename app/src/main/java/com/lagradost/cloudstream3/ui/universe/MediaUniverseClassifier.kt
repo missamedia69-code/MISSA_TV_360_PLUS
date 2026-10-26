@@ -24,7 +24,7 @@ internal object MediaUniverseClassifier {
         RegexOption.IGNORE_CASE
     )
     private val sportsKeywords = Regex(
-        "(sport|football|soccer|basket|basketball|tennis|rugby|formula ?1|f1|match|league|champions|nba|ufc|live sport)",
+        "(espn|bein(?: sport)?|sky sports|sport tv|sport|football|soccer|basket|basketball|tennis|rugby|formula ?1|f1|match|league|champions|nba|ufc|live sport)",
         RegexOption.IGNORE_CASE
     )
     private val radioKeywords = Regex(
@@ -54,6 +54,14 @@ internal object MediaUniverseClassifier {
             "kids" -> canBeMovie || canBeSeries
             else -> false
         }
+    }
+
+
+    fun detailPriority(universeId: String, title: String): Int = when (universeId) {
+        "shorts" -> (if (shortKeywords.containsMatchIn(title)) 4 else 0) +
+            (if (durationSuffix.containsMatchIn(title)) 2 else 0)
+        "kids" -> if (kidsKeywords.containsMatchIn(title)) 4 else 0
+        else -> 0
     }
 
     fun matches(

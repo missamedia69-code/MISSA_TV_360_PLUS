@@ -40,6 +40,7 @@ class MediaUniverseClassifierTest {
         assertFalse(MediaUniverseClassifier.matches("live_tv", TvType.Live, "Live football match"))
         assertFalse(MediaUniverseClassifier.matches("live_tv", TvType.Live, "BBC Radio 1"))
         assertTrue(MediaUniverseClassifier.matches("sports", TvType.Live, "Live football match"))
+        assertTrue(MediaUniverseClassifier.matches("sports", TvType.Live, "ESPN"))
         assertFalse(MediaUniverseClassifier.matches("sports", TvType.Movie, "Football documentary"))
     }
 
@@ -50,6 +51,14 @@ class MediaUniverseClassifierTest {
         assertFalse(MediaUniverseClassifier.matches("radio", TvType.Music, "A song by an artist"))
         assertFalse(MediaUniverseClassifier.matches("radio", TvType.Podcast, "Radio interview podcast"))
         assertTrue(MediaUniverseClassifier.matches("podcasts", TvType.Podcast, "Science interview"))
+    }
+
+    @Test
+    fun `metadata lookup prioritizes clearly labelled shorts and kids titles`() {
+        assertTrue(MediaUniverseClassifier.detailPriority("shorts", "A short film") >
+            MediaUniverseClassifier.detailPriority("shorts", "The story"))
+        assertTrue(MediaUniverseClassifier.detailPriority("kids", "Kids science") >
+            MediaUniverseClassifier.detailPriority("kids", "Crime drama"))
     }
 
     @Test
