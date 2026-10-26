@@ -49,11 +49,9 @@ internal object MediaUniverseClassifier {
             "shorts" -> canBeMovie && (
                 shortKeywords.containsMatchIn(title) ||
                     durationSuffix.containsMatchIn(title) ||
-                    type == TvType.Movie ||
-                    type == TvType.AnimeMovie
+                    type?.let { it in movieTypes } == true
                 )
             "kids" -> canBeMovie || canBeSeries
-            else -> false
             else -> false
         }
     }
