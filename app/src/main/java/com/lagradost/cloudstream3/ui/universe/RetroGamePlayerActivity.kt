@@ -282,11 +282,11 @@ class RetroGamePlayerActivity : AppCompatActivity() {
     }
 
     private fun createFrontend(): LibretroFrontend {
-        val systemDirectory = File(filesDir, "retro-system").apply { mkdirs() }
-        val saveDirectory = File(filesDir, "retro-saves").apply { mkdirs() }
+        val systemDir = File(filesDir, "retro-system").apply { mkdirs() }
+        val saveDir = File(filesDir, "retro-saves").apply { mkdirs() }
         return object : LibretroFrontend {
-            override val systemDirectory: String = systemDirectory.absolutePath
-            override val saveDirectory: String = saveDirectory.absolutePath
+            override val systemDirectory: String = systemDir.absolutePath
+            override val saveDirectory: String = saveDir.absolutePath
 
             override fun onVideoFrame(frame: VideoFrame) {
                 if (destroyed || frame.width <= 0 || frame.height <= 0) return
