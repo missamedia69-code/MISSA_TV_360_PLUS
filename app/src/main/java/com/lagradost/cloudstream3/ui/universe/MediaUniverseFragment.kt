@@ -346,13 +346,15 @@ class MediaUniverseFragment : Fragment() {
                 async(Dispatchers.IO) {
                     withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
                         semaphore.withPermit {
-                            when (val response = repository.getMainPage(1)) {
-                                is Resource.Success -> response.value
-                                    .filterNotNull()
-                                    .flatMap { page -> page.items }
-                                    .flatMap { section -> section.list }
-                                else -> emptyList()
-                            }
+                            runCatching {
+                                when (val response = repository.getMainPage(1)) {
+                                    is Resource.Success -> response.value
+                                        .filterNotNull()
+                                        .flatMap { page -> page.items }
+                                        .flatMap { section -> section.list }
+                                    else -> emptyList()
+                                }
+                            }.getOrDefault(emptyList())
                         }
                     }.orEmpty()
                 }
@@ -373,10 +375,12 @@ class MediaUniverseFragment : Fragment() {
                 .map { repository ->
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
-                            when (val response = repository.search(query, 1)) {
-                                is Resource.Success -> response.value.items
-                                else -> emptyList()
-                            }
+                            runCatching {
+                                when (val response = repository.search(query, 1)) {
+                                    is Resource.Success -> response.value.items
+                                    else -> emptyList()
+                                }
+                            }.getOrDefault(emptyList())
                         }
                     }
                 }
@@ -409,14 +413,16 @@ class MediaUniverseFragment : Fragment() {
             candidates.map { item ->
                 async(Dispatchers.IO) {
                     val repository = repoByName[item.apiName]
-                    val details = if (repository == null) null else withTimeoutOrNull(8_000L) {
-                        semaphore.withPermit {
-                            when (val result = repository.load(item.url)) {
-                                is Resource.Success -> result.value
-                                else -> null
+                    val details = if (repository == null) null else runCatching {
+                        withTimeoutOrNull(8_000L) {
+                            semaphore.withPermit {
+                                when (val result = repository.load(item.url)) {
+                                    is Resource.Success -> result.value
+                                    else -> null
+                                }
                             }
                         }
-                    }
+                    }.getOrNull()
                     if (matchesUniverse(item, details)) item else null
                 }
             }.awaitAll().filterNotNull()
