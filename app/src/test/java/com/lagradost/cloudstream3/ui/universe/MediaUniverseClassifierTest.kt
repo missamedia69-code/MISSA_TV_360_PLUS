@@ -37,7 +37,10 @@ class MediaUniverseClassifierTest {
     @Test
     fun `live television excludes sports and radio titles`() {
         assertTrue(MediaUniverseClassifier.matches("live_tv", TvType.Live, "News 24"))
+        assertTrue(MediaUniverseClassifier.matches("live_tv", TvType.Live, "Transport News"))
+        assertTrue(MediaUniverseClassifier.matches("live_tv", TvType.Live, "Radiology Live"))
         assertFalse(MediaUniverseClassifier.matches("live_tv", TvType.Live, "Live football match"))
+        assertFalse(MediaUniverseClassifier.matches("live_tv", TvType.Live, "Transport Sports News"))
         assertFalse(MediaUniverseClassifier.matches("live_tv", TvType.Live, "BBC Radio 1"))
         assertTrue(MediaUniverseClassifier.matches("sports", TvType.Live, "Live football match"))
         assertTrue(MediaUniverseClassifier.matches("sports", TvType.Live, "ESPN"))
