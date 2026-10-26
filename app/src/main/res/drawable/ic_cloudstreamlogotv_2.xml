@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/miissa_tv_360_banner"
+    android:src="@drawable/missa_tv_360_banner"
     android:gravity="fill" />
