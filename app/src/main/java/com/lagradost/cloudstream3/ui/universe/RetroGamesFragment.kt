@@ -186,7 +186,7 @@ class RetroGamesFragment : Fragment() {
                 renderCatalogue()
                 refreshLibrary()
             }.onFailure {
-                destination.delete()
+                // The partial file is cleaned up in the IO block; never delete a valid ROM here.
                 Toast.makeText(requireContext(), getString(R.string.universe_retro_import_error), Toast.LENGTH_LONG).show()
             }
         }
