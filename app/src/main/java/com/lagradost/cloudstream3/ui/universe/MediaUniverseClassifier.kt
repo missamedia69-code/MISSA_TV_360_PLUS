@@ -24,11 +24,11 @@ internal object MediaUniverseClassifier {
         RegexOption.IGNORE_CASE
     )
     private val sportsKeywords = Regex(
-        "(espn|bein(?: sport)?|sky sports|sport tv|sport|football|soccer|basket|basketball|tennis|rugby|formula ?1|f1|match|league|champions|nba|ufc|live sport)",
+        """\b(espn|bein(?:\s+sports?)?|sky\s+sports|sport\s*tv|sports?|football|soccer|basket(?:ball)?|tennis|rugby|formula\s*1|f1|match|league|champions|nba|ufc)\b""",
         RegexOption.IGNORE_CASE
     )
     private val radioKeywords = Regex(
-        "(radio|fm\\b|am\\b|station|broadcast|webradio|radio stream)",
+        """\b(radio|fm|am|station|broadcast|webradio)\b""",
         RegexOption.IGNORE_CASE
     )
     private val familyTags = Regex(
