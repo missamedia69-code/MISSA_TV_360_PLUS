@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/media_universe_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/primaryGrayBackground"
+    android:orientation="vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    tools:context=".ui.universe.MediaUniverseFragment">
+
+    <TextView
+        android:id="@+id/universe_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/google_sans"
+        android:textColor="?attr/textColor"
+        android:textSize="25sp"
+        android:textStyle="bold"
+        tools:text="Films" />
+
+    <TextView
+        android:id="@+id/universe_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:layout_marginBottom="8dp"
+        android:textColor="?attr/grayTextColor"
+        android:textSize="14sp"
+        tools:text="Un catalogue unique alimenté par tous les plugins compatibles." />
+
+    <FrameLayout
+        android:id="@+id/universe_hero_panel"
+        android:layout_width="match_parent"
+        android:layout_height="220dp"
+        android:layout_marginBottom="8dp"
+        android:background="@color/primaryBlackBackground"
+        android:focusable="false"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <ImageView
+            android:id="@+id/universe_hero_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/universe_featured_content"
+            android:scaleType="centerCrop"
+            tools:src="@drawable/default_cover" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/universe_hero_scrim" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/universe_featured"
+                android:textColor="@color/colorPrimaryDandelionYellow"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/universe_hero_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@color/whiteText"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                tools:text="Titre à la une" />
+
+            <Button
+                android:id="@+id/universe_hero_play"
+                style="@style/WhiteButton"
+                android:layout_width="wrap_content"
+                android:layout_height="42dp"
+                android:layout_marginTop="8dp"
+                android:minWidth="130dp"
+                android:text="@string/home_play"
+                android:textAllCaps="false" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/universe_resume_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:text="@string/continue_watching"
+        android:textColor="?attr/textColor"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <com.lagradost.cloudstream3.ui.AutofitRecyclerView
+        android:id="@+id/universe_resume_results"
+        android:layout_width="match_parent"
+        android:layout_height="108dp"
+        android:clipToPadding="false"
+        android:descendantFocusability="afterDescendants"
+        android:orientation="horizontal"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:visibility="gone"
+        app:spanCount="4"
+        tools:listitem="@layout/search_result_grid_expanded"
+        tools:visibility="visible" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/universe_search_input"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/search_background"
+            android:hint="@string/universe_search_hint"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:singleLine="true"
+            android:textColor="?attr/textColor"
+            android:textColorHint="?attr/grayTextColor" />
+
+        <Button
+            android:id="@+id/universe_search_button"
+            style="@style/WhiteButton"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_marginStart="8dp"
+            android:minWidth="88dp"
+            android:text="@string/universe_search_action"
+            android:textAllCaps="false" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/universe_results_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="4dp"
+        android:text="@string/universe_catalogue_results"
+        android:textColor="?attr/textColor"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <ProgressBar
+        android:id="@+id/universe_loading"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/universe_empty_message"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:padding="24dp"
+        android:text="@string/universe_empty_home"
+        android:textColor="?attr/grayTextColor"
+        android:visibility="gone" />
+
+    <com.lagradost.cloudstream3.ui.AutofitRecyclerView
+        android:id="@+id/universe_results"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="?attr/primaryBlackBackground"
+        android:clipToPadding="false"
+        android:descendantFocusability="afterDescendants"
+        android:orientation="vertical"
+        android:paddingStart="2dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="2dp"
+        app:spanCount="5"
+        tools:listitem="@layout/search_result_grid" />
+
+</LinearLayout>
