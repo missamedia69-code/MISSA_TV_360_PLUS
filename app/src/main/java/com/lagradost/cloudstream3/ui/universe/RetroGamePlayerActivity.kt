@@ -30,6 +30,8 @@ import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FilterInputStream
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Collections
@@ -37,6 +39,38 @@ import java.util.zip.ZipInputStream
 import java.util.concurrent.locks.LockSupport
 import kotlin.math.max
 import kotlin.math.min
+
+/**
+ * Caps bytes read from the network stream, including when the server omits Content-Length.
+ * At most one byte beyond the configured limit is consumed before the stream fails.
+ */
+private class LimitedInputStream(
+    input: InputStream,
+    private val maxBytes: Long
+) : FilterInputStream(input) {
+    private var bytesRead = 0L
+
+    override fun read(): Int {
+        val value = super.read()
+        if (value >= 0) {
+            bytesRead++
+            check(bytesRead <= maxBytes) { "Core archive exceeded the permitted size" }
+        }
+        return value
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (length == 0) return 0
+        val remainingPlusOne = (maxBytes - bytesRead + 1L).coerceAtLeast(1L)
+        val boundedLength = minOf(length.toLong(), remainingPlusOne).toInt()
+        val count = super.read(buffer, offset, boundedLength)
+        if (count > 0) {
+            bytesRead += count
+            check(bytesRead <= maxBytes) { "Core archive exceeded the permitted size" }
+        }
+        return count
+    }
+}
 
 /**
  * Integrated first-party gameplay surface for Game Boy and Game Boy Color.
@@ -203,9 +237,8 @@ class RetroGamePlayerActivity : AppCompatActivity() {
             require(declaredLength <= MAX_CORE_ARCHIVE_BYTES) {
                 "Core archive exceeded the permitted size"
             }
-            var downloadedBytes = 0L
             var extracted = false
-            ZipInputStream(BufferedInputStream(connection.inputStream)).use { archive ->
+            ZipInputStream(BufferedInputStream(LimitedInputStream(connection.inputStream, MAX_CORE_ARCHIVE_BYTES))).use { archive ->
                 val buffer = ByteArray(16 * 1024)
                 while (true) {
                     val entry = archive.nextEntry ?: break
@@ -217,11 +250,7 @@ class RetroGamePlayerActivity : AppCompatActivity() {
                                 while (true) {
                                     val count = archive.read(buffer)
                                     if (count < 0) break
-                                    downloadedBytes += count
                                     total += count
-                                    require(downloadedBytes <= MAX_CORE_ARCHIVE_BYTES) {
-                                        "Core archive exceeded the permitted size"
-                                    }
                                     require(total <= MAX_CORE_BYTES) { "Core exceeded the permitted size" }
                                     output.write(buffer, 0, count)
                                 }
@@ -233,10 +262,6 @@ class RetroGamePlayerActivity : AppCompatActivity() {
                     while (true) {
                         val count = archive.read(buffer)
                         if (count < 0) break
-                        downloadedBytes += count
-                        require(downloadedBytes <= MAX_CORE_ARCHIVE_BYTES) {
-                            "Core archive exceeded the permitted size"
-                        }
                     }
                     archive.closeEntry()
                 }
