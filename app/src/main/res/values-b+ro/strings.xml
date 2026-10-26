@@ -22,7 +22,7 @@
     <string name="new_update_format" formatted="true">Actualizare nouă găsită! \n%1$s -&gt; %2$s</string>
     <string name="filler" formatted="true">Filler</string>
     <string name="duration_format" formatted="true">%d min</string>
-    <!-- <string name="app_name">CloudStream</string> -->
+    <!-- <string name="app_name">MIISSA TV 360</string> -->
     <string name="title_home">Prima pagină</string>
     <string name="title_search">Căutare</string>
     <string name="title_downloads">Descărcări</string>
@@ -373,7 +373,7 @@
     <string name="library">Librărie</string>
     <string name="test_log">Log</string>
     <string name="browser">Browser</string>
-    <string name="play_with_app_name">Joacă cu CloudStream</string>
+    <string name="play_with_app_name">Joacă cu MIISSA TV 360</string>
     <string name="automatic_plugin_updates">Actualizare plugin automată</string>
     <string name="automatic_plugin_download">Descarcă plugin-uri automat</string>
     <string name="others">Altele</string>
