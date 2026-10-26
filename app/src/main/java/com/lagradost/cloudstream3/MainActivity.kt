@@ -775,9 +775,16 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             else -> null
         }
         if (targetView != null && isLayout(TV or EMULATOR)) {
-            val fromView = binding?.navRailView
+            // Horizontal TV navigation enters the selected screen with DPAD-down;
+            // the legacy rail (when used) enters it with DPAD-right.
+            val useTopNavigation = isLayout(TV or EMULATOR)
+            val fromView = if (useTopNavigation) binding?.navView else binding?.navRailView
             if (fromView != null) {
-                fromView.nextFocusRightId = targetView
+                if (useTopNavigation) {
+                    fromView.nextFocusDownId = targetView
+                } else {
+                    fromView.nextFocusRightId = targetView
+                }
 
                 for (focusView in arrayOf(
                     R.id.navigation_downloads,
@@ -786,7 +793,12 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     R.id.navigation_library,
                     R.id.navigation_settings,
                 )) {
-                    fromView.findViewById<View?>(focusView)?.nextFocusRightId = targetView
+                    val menuItemView = fromView.findViewById<View?>(focusView)
+                    if (useTopNavigation) {
+                        menuItemView?.nextFocusDownId = targetView
+                    } else {
+                        menuItemView?.nextFocusRightId = targetView
+                    }
                 }
             }
         }
