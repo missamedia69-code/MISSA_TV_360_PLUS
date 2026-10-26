@@ -88,9 +88,9 @@
     <string name="swipe_to_change_settings_des">Проведіть угору або вниз із лівого або правого боку, щоби змінити яскравість або гучність</string>
     <string name="autoplay_next_settings_des">Відтворювати наступний епізод після закінчення поточного</string>
     <string name="title_home">Головна</string>
-    <string name="app_name">MIISSA TV 360</string>
+    <string name="app_name">MISSA TV 360</string>
     <string name="filler" formatted="true">Філлер</string>
-    <string name="play_with_app_name">Відтворити в MIISSA TV 360</string>
+    <string name="play_with_app_name">Відтворити в MISSA TV 360</string>
     <string name="stream">Мережева трансляція</string>
     <string name="type_watching">Переглядаю</string>
     <string name="result_share">Поділитися</string>
