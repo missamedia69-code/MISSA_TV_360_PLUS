@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.ui.universe
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.view.LayoutInflater
@@ -30,7 +31,7 @@ import java.util.Locale
 /**
  * ROM library and homebrew downloads are deliberately separate from the video/audio player.
  * This screen downloads a small catalogue of official homebrew releases and imports local ROMs.
- * Gameplay is handed to an installed emulator until a native emulation core is bundled.
+ * Game Boy and Game Boy Color use the embedded SameBoy libretro core; other systems can use an external emulator.
  */
 class RetroGamesFragment : Fragment() {
     private data class CatalogueGame(
@@ -49,7 +50,7 @@ class RetroGamesFragment : Fragment() {
             fileName = "ucity.gbc",
             downloadUrl = "https://github.com/AntonioND/ucity/releases/download/v1.3/ucity.gbc",
             sourceUrl = "https://github.com/AntonioND/ucity",
-            licenceNote = "Homebrew gratuit — source officielle"
+            licenceNote = "Homebrew — vérifier licence source"
         ),
         CatalogueGame(
             title = "Big2Small",
@@ -269,6 +270,14 @@ class RetroGamesFragment : Fragment() {
     }
 
     private fun launchGame(file: File) {
+        val gameBoyExtensions = setOf("gb", "gbc", "dmg", "sgb")
+        if (Build.VERSION.SDK_INT >= 24 && file.extension.lowercase(Locale.ROOT) in gameBoyExtensions) {
+            startActivity(Intent(requireContext(), RetroGamePlayerActivity::class.java).apply {
+                putExtra(RetroGamePlayerActivity.EXTRA_ROM_PATH, file.absolutePath)
+            })
+            return
+        }
+
         try {
             val uri = FileProvider.getUriForFile(
                 requireContext(),
