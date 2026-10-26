@@ -566,8 +566,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             val button = container.getChildAt(index) ?: continue
             button.nextFocusLeftId = if (index == 0) button.id else container.getChildAt(index - 1).id
             button.nextFocusRightId = if (index == topNavigationEntries.lastIndex) button.id else container.getChildAt(index + 1).id
+            // From every tab, DPAD-down enters the page; DPAD-up from content returns to the bar.
+            button.nextFocusDownId = R.id.nav_host_fragment
         }
-        container.getChildAt(0)?.nextFocusDownId = R.id.nav_host_fragment
         binding?.navHostFragment?.nextFocusUpId = container.getChildAt(0)?.id ?: View.NO_ID
     }
 
