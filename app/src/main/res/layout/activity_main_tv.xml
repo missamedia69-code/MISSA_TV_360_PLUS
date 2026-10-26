@@ -21,7 +21,7 @@
             app:layout_constraintBottom_toTopOf="@+id/cast_mini_controller_holder"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/nav_view"
             app:navGraph="@navigation/mobile_navigation" />
 
         <com.google.android.material.navigationrail.NavigationRailView
@@ -30,6 +30,7 @@
             android:layout_height="match_parent"
             android:background="?attr/primaryGrayBackground"
             android:descendantFocusability="afterDescendants"
+            android:visibility="gone"
             android:maxWidth="@dimen/nav_rail_view_width"
             android:minWidth="@dimen/nav_rail_view_width"
             app:collapsedItemMinHeight="0dp"
@@ -61,15 +62,18 @@
             android:id="@+id/nav_view"
             android:layout_width="0dp"
             android:layout_height="@dimen/nav_view_height"
-            android:background="?attr/primaryGrayBackground"
-            android:visibility="gone"
-            app:itemIconTint="@color/item_select_color"
-            app:itemTextColor="@color/item_select_color"
-            app:labelVisibilityMode="unlabeled"
-
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
+            android:background="?attr/primaryBlackBackground"
+            android:visibility="visible"
+            app:itemActiveIndicatorColor="@color/colorPrimaryDandelionYellow"
+            app:itemActiveIndicatorStyle="@style/CustomIndicator"
+            app:itemHorizontalTranslationEnabled="false"
+            app:itemIconSize="22dp"
+            app:itemIconTint="@color/item_select_color_tv"
+            app:itemTextColor="@color/item_select_color_tv"
+            app:labelVisibilityMode="labeled"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             app:menu="@menu/bottom_nav_menu" />
 
         <LinearLayout
@@ -78,7 +82,7 @@
             android:layout_height="wrap_content"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/nav_rail_view"
+            app:layout_constraintStart_toStartOf="parent"
             tools:layout_height="100dp">
             <!--com.google.android.gms.cast.framework.media.widget.MiniControllerFragment-->
             <fragment
