@@ -294,15 +294,15 @@ class RetroGamePlayerActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (destroyed || isFinishing || isDestroyed) return@runOnUiThread
                     runCatching {
-                        val bitmap = Bitmap.createBitmap(
-                            pixels,
-                            frame.width,
-                            frame.height,
-                            Bitmap.Config.ARGB_8888
-                        )
-                        gameFrame.setImageBitmap(bitmap)
-                        currentBitmap?.recycle()
-                        currentBitmap = bitmap
+                        val bitmap = currentBitmap?.takeIf {
+                            !it.isRecycled && it.width == frame.width && it.height == frame.height
+                        } ?: Bitmap.createBitmap(frame.width, frame.height, Bitmap.Config.ARGB_8888).also {
+                            val oldBitmap = currentBitmap
+                            currentBitmap = it
+                            gameFrame.setImageBitmap(it)
+                            if (oldBitmap != null && !oldBitmap.isRecycled) oldBitmap.recycle()
+                        }
+                        bitmap.setPixels(pixels, 0, frame.width, 0, 0, frame.width, frame.height)
                     }
                 }
             }
