@@ -1,0 +1,408 @@
+package com.lagradost.cloudstream3.ui.universe
+
+import android.os.Bundle
+import android.view.KeyEvent
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.ProgressBar
+import android.widget.TextView
+import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
+import com.lagradost.cloudstream3.APIHolder.apis
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.mvvm.Resource
+import com.lagradost.cloudstream3.ui.APIRepository
+import com.lagradost.cloudstream3.ui.home.HomeViewModel
+import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_LOAD
+import com.lagradost.cloudstream3.ui.search.SearchAdapter
+import com.lagradost.cloudstream3.ui.search.SearchClickCallback
+import com.lagradost.cloudstream3.ui.search.SearchHelper
+import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
+
+/**
+ * A provider-agnostic catalogue screen. Every universe is a first-class navigation destination,
+ * while providers remain sources beneath the same catalogue and result adapter.
+ */
+class MediaUniverseFragment : Fragment() {
+    companion object {
+        const val ARG_UNIVERSE_ID = "universe_id"
+        private const val REQUEST_TIMEOUT_MS = 18_000L
+        private const val SEARCH_TIMEOUT_MS = 35_000L
+        private const val MAX_CATALOG_ITEMS = 100
+        private const val MAX_METADATA_ITEMS = 32
+
+        private val movieTypes = setOf(
+            TvType.Movie, TvType.AnimeMovie, TvType.Documentary, TvType.Torrent, TvType.Video
+        )
+        private val seriesTypes = setOf(
+            TvType.TvSeries, TvType.Anime, TvType.Cartoon, TvType.OVA, TvType.AsianDrama
+        )
+        private val audioTypes = setOf(TvType.Audio, TvType.Music, TvType.AudioBook)
+
+        private val shortKeywords = Regex(
+            "(court[ -]?m[eé]trage|short[ -]?film|shortfilm|shorts|film court)",
+            RegexOption.IGNORE_CASE
+        )
+        private val kidsKeywords = Regex(
+            "(enfant|jeunesse|kids|children|family|familial|tout public)",
+            RegexOption.IGNORE_CASE
+        )
+        private val sportsKeywords = Regex(
+            "(sport|football|soccer|basket|basketball|tennis|rugby|formula ?1|f1|match|league|champions|nba|ufc|live sport)",
+            RegexOption.IGNORE_CASE
+        )
+        private val radioKeywords = Regex(
+            "(radio|fm\\b|am\\b|station|broadcast|webradio|radio stream)",
+            RegexOption.IGNORE_CASE
+        )
+        private val familyTags = Regex(
+            "(family|familial|children|child|kids|jeunesse|enfant|tout public)",
+            RegexOption.IGNORE_CASE
+        )
+        private val safeRating = Regex(
+            "(^|[^A-Z0-9])(TV-Y7?|TV-G|G|0\\+|3\\+|6\\+|7\\+)([^A-Z0-9]|$)",
+            RegexOption.IGNORE_CASE
+        )
+        private val durationSuffix = Regex("(\\d{1,3})\\s*(min|minutes|mn)\\b", RegexOption.IGNORE_CASE)
+    }
+
+    private val universeId: String
+        get() = arguments?.getString(ARG_UNIVERSE_ID)?.lowercase(Locale.ROOT) ?: "home"
+
+    private var requestJob: kotlinx.coroutines.Job? = null
+    private var catalogueAdapter: SearchAdapter? = null
+    private var resumeAdapter: SearchAdapter? = null
+
+    private lateinit var universeTitle: TextView
+    private lateinit var universeDescription: TextView
+    private lateinit var heroPanel: View
+    private lateinit var heroImage: ImageView
+    private lateinit var heroTitle: TextView
+    private lateinit var heroPlay: Button
+    private lateinit var searchInput: EditText
+    private lateinit var searchButton: Button
+    private lateinit var loading: ProgressBar
+    private lateinit var emptyMessage: TextView
+    private lateinit var resultHeader: TextView
+    private lateinit var resultList: com.lagradost.cloudstream3.ui.AutofitRecyclerView
+    private lateinit var resumeHeader: TextView
+    private lateinit var resumeList: com.lagradost.cloudstream3.ui.AutofitRecyclerView
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View = inflater.inflate(R.layout.fragment_media_universe, container, false)
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        universeTitle = view.findViewById(R.id.universe_title)
+        universeDescription = view.findViewById(R.id.universe_description)
+        heroPanel = view.findViewById(R.id.universe_hero_panel)
+        heroImage = view.findViewById(R.id.universe_hero_image)
+        heroTitle = view.findViewById(R.id.universe_hero_title)
+        heroPlay = view.findViewById(R.id.universe_hero_play)
+        searchInput = view.findViewById(R.id.universe_search_input)
+        searchButton = view.findViewById(R.id.universe_search_button)
+        loading = view.findViewById(R.id.universe_loading)
+        emptyMessage = view.findViewById(R.id.universe_empty_message)
+        resultHeader = view.findViewById(R.id.universe_results_header)
+        resultList = view.findViewById(R.id.universe_results)
+        resumeHeader = view.findViewById(R.id.universe_resume_header)
+        resumeList = view.findViewById(R.id.universe_resume_results)
+
+        resultList.spanCount = if (isTvLayout()) 5 else 2
+        resultList.layoutManager = GridLayoutManager(requireContext(), resultList.spanCount)
+        resultList.isNestedScrollingEnabled = false
+        resultList.setRecycledViewPool(SearchAdapter.sharedPool)
+        catalogueAdapter = SearchAdapter(resultList, false) { callback ->
+            SearchHelper.handleSearchClickCallback(callback)
+        }
+        resultList.adapter = catalogueAdapter
+
+        resumeList.spanCount = if (isTvLayout()) 4 else 2
+        resumeList.layoutManager = GridLayoutManager(requireContext(), resumeList.spanCount)
+        resumeList.isNestedScrollingEnabled = false
+        resumeList.setRecycledViewPool(SearchAdapter.sharedPool)
+        resumeAdapter = SearchAdapter(resumeList, true) { callback ->
+            SearchHelper.handleSearchClickCallback(callback)
+        }
+        resumeList.adapter = resumeAdapter
+
+        configureHeader()
+        heroPanel.isVisible = universeId == "home"
+        resumeHeader.isVisible = universeId == "home"
+        resumeList.isVisible = universeId == "home"
+
+        searchButton.setOnClickListener { loadCatalogue(searchInput.text?.toString().orEmpty()) }
+        searchInput.setOnEditorActionListener { _, actionId, event ->
+            val submit = actionId == EditorInfo.IME_ACTION_SEARCH ||
+                (event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
+            if (submit) {
+                loadCatalogue(searchInput.text?.toString().orEmpty())
+                true
+            } else false
+        }
+
+        if (universeId == "home") loadContinueWatching()
+        loadCatalogue("")
+    }
+
+    override fun onDestroyView() {
+        requestJob?.cancel()
+        catalogueAdapter = null
+        resumeAdapter = null
+        super.onDestroyView()
+    }
+
+    private fun isTvLayout(): Boolean {
+        val configuration = resources.configuration
+        return configuration.smallestScreenWidthDp >= 600 ||
+            configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK ==
+            android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+    }
+
+    private fun configureHeader() {
+        val (title, description) = when (universeId) {
+            "films" -> R.string.universe_films_title to R.string.universe_films_description
+            "series" -> R.string.universe_series_title to R.string.universe_series_description
+            "shorts" -> R.string.universe_shorts_title to R.string.universe_shorts_description
+            "kids" -> R.string.universe_kids_title to R.string.universe_kids_description
+            "live_tv" -> R.string.universe_live_tv_title to R.string.universe_live_tv_description
+            "sports" -> R.string.universe_sports_title to R.string.universe_sports_description
+            "podcasts" -> R.string.universe_podcasts_title to R.string.universe_podcasts_description
+            "radio" -> R.string.universe_radio_title to R.string.universe_radio_description
+            else -> R.string.universe_home_title to R.string.universe_home_description
+        }
+        universeTitle.setText(title)
+        universeDescription.setText(description)
+        resultHeader.setText(if (universeId == "home") R.string.universe_home_catalogue else R.string.universe_catalogue_results)
+        searchInput.hint = getString(R.string.universe_search_hint)
+    }
+
+    private fun loadContinueWatching() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val resume = withContext(Dispatchers.IO) {
+                runCatching { HomeViewModel.getResumeWatching().orEmpty().take(24) }.getOrDefault(emptyList())
+            }
+            if (!isAdded) return@launch
+            resumeHeader.isVisible = resume.isNotEmpty()
+            resumeList.isVisible = resume.isNotEmpty()
+            resumeAdapter?.submitList(resume)
+        }
+    }
+
+    private fun loadCatalogue(query: String) {
+        requestJob?.cancel()
+        requestJob = viewLifecycleOwner.lifecycleScope.launch {
+            loading.isVisible = true
+            emptyMessage.isVisible = false
+            resultList.isVisible = false
+            heroPanel.isVisible = universeId == "home" && query.isBlank()
+            searchButton.isEnabled = false
+            try {
+                val repositories = withContext(Dispatchers.IO) {
+                    apis.withLock { apis.map { APIRepository(it) } }
+                }
+                val sourceItems = if (query.isBlank()) {
+                    fetchHomeItems(repositories)
+                } else {
+                    fetchSearchItems(repositories, query.trim())
+                }
+                val filtered = filterForUniverse(sourceItems, repositories)
+                    .distinctBy { item -> "${item.apiName.lowercase(Locale.ROOT)}|${item.url}" }
+                    .take(MAX_CATALOG_ITEMS)
+
+                if (universeId == "home" && query.isBlank()) {
+                    val featured = filtered.firstOrNull()
+                    heroPanel.isVisible = featured != null
+                    if (featured != null) {
+                        heroTitle.text = featured.name
+                        if (!featured.posterUrl.isNullOrBlank()) {
+                            heroImage.loadImage(featured.posterUrl, featured.posterHeaders)
+                        } else {
+                            heroImage.setImageResource(R.drawable.default_cover)
+                        }
+                        heroPlay.setOnClickListener { view ->
+                            SearchHelper.handleSearchClickCallback(
+                                SearchClickCallback(SEARCH_ACTION_LOAD, view, 0, featured)
+                            )
+                        }
+                    }
+                }
+                catalogueAdapter?.submitList(filtered)
+                resultList.isVisible = filtered.isNotEmpty()
+                emptyMessage.isVisible = filtered.isEmpty()
+                emptyMessage.setText(
+                    if (query.isBlank()) R.string.universe_empty_home
+                    else R.string.universe_empty_search
+                )
+                if (query.isNotBlank()) resultHeader.text = getString(R.string.universe_search_results_for, query.trim())
+                else resultHeader.setText(if (universeId == "home") R.string.universe_home_catalogue else R.string.universe_catalogue_results)
+            } catch (error: Exception) {
+                emptyMessage.setText(R.string.universe_catalogue_error)
+                emptyMessage.isVisible = true
+                resultList.isVisible = false
+            } finally {
+                loading.isVisible = false
+                searchButton.isEnabled = true
+            }
+        }
+    }
+
+    private suspend fun fetchHomeItems(repositories: List<APIRepository>): List<SearchResponse> = coroutineScope {
+        val semaphore = Semaphore(4)
+        repositories
+            .filter { it.hasMainPage && it.api.supportedTypes.none { type -> type == TvType.NSFW } }
+            .map { repository ->
+                async(Dispatchers.IO) {
+                    withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
+                        semaphore.withPermit {
+                            when (val response = repository.getMainPage(1)) {
+                                is Resource.Success -> response.value
+                                    .filterNotNull()
+                                    .flatMap { page -> page.items }
+                                    .flatMap { section -> section.list }
+                                else -> emptyList()
+                            }
+                        }
+                    }.orEmpty()
+                }
+            }
+            .awaitAll()
+            .flatten()
+    }
+
+    private suspend fun fetchSearchItems(
+        repositories: List<APIRepository>,
+        query: String
+    ): List<SearchResponse> = coroutineScope {
+        val semaphore = Semaphore(4)
+        withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
+            repositories
+                .filter { repository -> maySupportUniverse(repository) }
+                .map { repository ->
+                    async(Dispatchers.IO) {
+                        semaphore.withPermit {
+                            when (val response = repository.search(query, 1)) {
+                                is Resource.Success -> response.value.items
+                                else -> emptyList()
+                            }
+                        }
+                    }
+                }
+                .awaitAll()
+                .flatten()
+        }.orEmpty()
+    }
+
+    private fun maySupportUniverse(repository: APIRepository): Boolean {
+        val supported = repository.api.supportedTypes
+        if (supported.isEmpty() || universeId == "home") return true
+        val targetTypes = when (universeId) {
+            "films", "shorts", "kids" -> movieTypes
+            "series" -> seriesTypes
+            "live_tv", "sports" -> setOf(TvType.Live)
+            "podcasts" -> setOf(TvType.Podcast)
+            "radio" -> audioTypes + TvType.Live
+            else -> emptySet()
+        }
+        return supported.any { targetTypes.contains(it) }
+    }
+
+    private suspend fun filterForUniverse(
+        items: List<SearchResponse>,
+        repositories: List<APIRepository>
+    ): List<SearchResponse> {
+        val unique = items.filter { it.type != TvType.NSFW }
+            .distinctBy { item -> "${item.apiName.lowercase(Locale.ROOT)}|${item.url}" }
+        if (universeId !in setOf("shorts", "kids")) {
+            return unique.filter { matchesUniverse(it, null) }
+        }
+
+        // Duration, tags and age ratings are only present in LoadResponse for many providers.
+        // Enrich a bounded set to avoid requesting details for every item in a provider.
+        val candidates = unique.filter { item ->
+            val type = item.type
+            (type == null || movieTypes.contains(type) || seriesTypes.contains(type)) &&
+                (universeId != "shorts" || shortKeywords.containsMatchIn(item.name) ||
+                    durationSuffix.containsMatchIn(item.name) || type == TvType.Movie || type == TvType.AnimeMovie)
+        }.take(MAX_METADATA_ITEMS)
+        val repoByName = repositories.associateBy { it.name }
+        val semaphore = Semaphore(4)
+        return coroutineScope {
+            candidates.map { item ->
+                async(Dispatchers.IO) {
+                    val repository = repoByName[item.apiName]
+                    val details = if (repository == null) null else withTimeoutOrNull(8_000L) {
+                        semaphore.withPermit {
+                            when (val result = repository.load(item.url)) {
+                                is Resource.Success -> result.value
+                                else -> null
+                            }
+                        }
+                    }
+                    if (matchesUniverse(item, details)) item else null
+                }
+            }.awaitAll().filterNotNull()
+        }
+    }
+
+    private fun matchesUniverse(item: SearchResponse, details: LoadResponse?): Boolean {
+        val type = item.type
+        val name = item.name
+        val tags = details?.tags.orEmpty().joinToString(" ")
+        val rating = details?.contentRating.orEmpty()
+        return when (universeId) {
+            "home" -> type != TvType.NSFW && type != TvType.CustomMedia
+            "films" -> type in movieTypes
+            "series" -> type in seriesTypes
+            "shorts" -> {
+                val movieType = type == null || type in movieTypes
+                val duration = details?.duration
+                movieType && (duration?.let { it in 1..40 } == true ||
+                    shortKeywords.containsMatchIn(name) ||
+                    shortKeywords.containsMatchIn(tags) ||
+                    (duration == null && durationSuffix.containsMatchIn(name) &&
+                        (durationSuffix.find(name)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 999) <= 40))
+            }
+            "kids" -> {
+                val safeType = type == null || type in movieTypes || type in seriesTypes
+                val familyTagged = familyTags.containsMatchIn(tags)
+                val safeRated = safeRating.containsMatchIn(rating)
+                val titleTagged = kidsKeywords.containsMatchIn(name)
+                safeType && (familyTagged || safeRated || titleTagged)
+            }
+            "live_tv" -> type == TvType.Live &&
+                !sportsKeywords.containsMatchIn("${name} ${item.apiName}") &&
+                !radioKeywords.containsMatchIn("${name} ${item.apiName}")
+            "sports" -> type == TvType.Live && sportsKeywords.containsMatchIn("${name} ${item.apiName}")
+            "podcasts" -> type == TvType.Podcast
+            "radio" -> (type == TvType.Live || type in audioTypes) &&
+                (radioKeywords.containsMatchIn("${name} ${item.apiName}") || type in audioTypes) &&
+                type != TvType.Podcast
+            else -> false
+        }
+    }
+}
