@@ -557,14 +557,17 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }*/
 
         binding?.apply {
-            navRailView.isVisible = isNavVisible && isLandscape()
-            navView.isVisible = isNavVisible && !isLandscape()
+            // On TV and emulator screens, keep the primary navigation horizontal at the top.
+            // Phones retain the conventional bottom navigation bar.
+            val useTopNavigation = isLayout(TV or EMULATOR)
+            navRailView.isVisible = isNavVisible && isLandscape() && !useTopNavigation
+            navView.isVisible = isNavVisible && (!isLandscape() || useTopNavigation)
             navHostFragment.apply {
                 val marginPx = resources.getDimensionPixelSize(R.dimen.nav_rail_view_width)
                 layoutParams =
                     (navHostFragment.layoutParams as ViewGroup.MarginLayoutParams).apply {
                         marginStart =
-                            if (isNavVisible && isLandscape() && isLayout(TV or EMULATOR)) marginPx else 0
+                            if (isNavVisible && isLandscape() && !useTopNavigation) marginPx else 0
                     }
             }
 
@@ -1289,7 +1292,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             fixSystemBarsPadding(
                 navView,
                 heightResId = R.dimen.nav_view_height,
-                padTop = false,
+                padTop = isLayout(TV or EMULATOR),
                 overlayCutout = false
             )
 
