@@ -441,10 +441,10 @@ class RetroGamePlayerActivity : AppCompatActivity() {
         if (core == null) return super.dispatchKeyEvent(event)
 
         val button = when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_BUTTON_DPAD_UP -> JoypadButton.UP
-            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_BUTTON_DPAD_DOWN -> JoypadButton.DOWN
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_DPAD_LEFT -> JoypadButton.LEFT
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BUTTON_DPAD_RIGHT -> JoypadButton.RIGHT
+            KeyEvent.KEYCODE_DPAD_UP -> JoypadButton.UP
+            KeyEvent.KEYCODE_DPAD_DOWN -> JoypadButton.DOWN
+            KeyEvent.KEYCODE_DPAD_LEFT -> JoypadButton.LEFT
+            KeyEvent.KEYCODE_DPAD_RIGHT -> JoypadButton.RIGHT
             KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A -> JoypadButton.A
             KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_ESCAPE -> JoypadButton.B
             KeyEvent.KEYCODE_BUTTON_X -> JoypadButton.SELECT
