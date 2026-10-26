@@ -399,7 +399,7 @@ class MediaUniverseFragment : Fragment() {
         // Enrich a bounded set to avoid requesting details for every item in a provider.
         val candidates = unique.filter { item ->
             val type = item.type
-            (type == null || movieTypes.contains(type) || seriesTypes.contains(type)) &&
+            (type == null || type.let { movieTypes.contains(it) || seriesTypes.contains(it) }) &&
                 (universeId != "shorts" || shortKeywords.containsMatchIn(item.name) ||
                     durationSuffix.containsMatchIn(item.name) || type == TvType.Movie || type == TvType.AnimeMovie)
         }.take(MAX_METADATA_ITEMS)
@@ -430,10 +430,10 @@ class MediaUniverseFragment : Fragment() {
         val rating = details?.contentRating.orEmpty()
         return when (universeId) {
             "home" -> type != TvType.NSFW && type != TvType.CustomMedia
-            "films" -> type in movieTypes
-            "series" -> type in seriesTypes
+            "films" -> type?.let { it in movieTypes } == true
+            "series" -> type?.let { it in seriesTypes } == true
             "shorts" -> {
-                val movieType = type == null || type in movieTypes
+                val movieType = type == null || type.let { it in movieTypes }
                 val duration = details?.duration
                 movieType && (duration?.let { it in 1..40 } == true ||
                     shortKeywords.containsMatchIn(name) ||
@@ -442,7 +442,7 @@ class MediaUniverseFragment : Fragment() {
                         (durationSuffix.find(name)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 999) <= 40))
             }
             "kids" -> {
-                val safeType = type == null || type in movieTypes || type in seriesTypes
+                val safeType = type == null || type.let { it in movieTypes || it in seriesTypes }
                 val familyTagged = familyTags.containsMatchIn(tags)
                 val safeRated = safeRating.containsMatchIn(rating)
                 val titleTagged = kidsKeywords.containsMatchIn(name)
@@ -453,8 +453,8 @@ class MediaUniverseFragment : Fragment() {
                 !radioKeywords.containsMatchIn("${name} ${item.apiName}")
             "sports" -> type == TvType.Live && sportsKeywords.containsMatchIn("${name} ${item.apiName}")
             "podcasts" -> type == TvType.Podcast
-            "radio" -> (type == TvType.Live || type in audioTypes) &&
-                (radioKeywords.containsMatchIn("${name} ${item.apiName}") || type in audioTypes) &&
+            "radio" -> (type == TvType.Live || type?.let { it in audioTypes } == true) &&
+                (radioKeywords.containsMatchIn("${name} ${item.apiName}") || type?.let { it in audioTypes } == true) &&
                 type != TvType.Podcast
             else -> false
         }
