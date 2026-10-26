@@ -133,10 +133,12 @@ class RetroGamesFragment : Fragment() {
             val destination = File(getRetroDirectory(), game.fileName)
             Toast.makeText(requireContext(), "Téléchargement de ${game.title}…", Toast.LENGTH_SHORT).show()
             val result = withContext(Dispatchers.IO) {
+                val temporary = File(getRetroDirectory(), "${game.fileName}.part")
                 runCatching {
                     require(game.downloadUrl.startsWith("https://github.com/")) {
                         "URL de catalogue non autorisée"
                     }
+                    temporary.delete()
                     val connection = (URL(game.downloadUrl).openConnection() as HttpURLConnection).apply {
                         connectTimeout = 15_000
                         readTimeout = 25_000
@@ -146,9 +148,16 @@ class RetroGamesFragment : Fragment() {
                     try {
                         val responseCode = connection.responseCode
                         require(responseCode in 200..299) { "Téléchargement HTTP $responseCode" }
-                        val output = destination.outputStream().buffered()
+                        val finalUrl = connection.url
+                        require(finalUrl.protocol.equals("https", ignoreCase = true) &&
+                            (finalUrl.host.equals("github.com", ignoreCase = true) ||
+                                finalUrl.host.endsWith(".github.com", ignoreCase = true) ||
+                                finalUrl.host.equals("githubusercontent.com", ignoreCase = true) ||
+                                finalUrl.host.endsWith(".githubusercontent.com", ignoreCase = true))) {
+                            "Redirection de téléchargement non autorisée"
+                        }
                         connection.inputStream.buffered().use { input ->
-                            output.use { sink ->
+                            temporary.outputStream().buffered().use { sink ->
                                 val buffer = ByteArray(16 * 1024)
                                 var total = 0L
                                 while (true) {
@@ -160,11 +169,17 @@ class RetroGamesFragment : Fragment() {
                                 }
                             }
                         }
-                        require(destination.length() > 1024L) { "Fichier téléchargé invalide" }
+                        require(temporary.length() > 1024L) { "Fichier téléchargé invalide" }
+                        require(!destination.exists() || destination.delete()) {
+                            "Impossible de remplacer le fichier existant"
+                        }
+                        require(temporary.renameTo(destination)) { "Impossible de finaliser le téléchargement" }
                         destination
                     } finally {
                         connection.disconnect()
                     }
+                }.onFailure {
+                    temporary.delete()
                 }
             }
             if (!isAdded) return@launch
@@ -182,6 +197,7 @@ class RetroGamesFragment : Fragment() {
     private fun importRom(uri: Uri) {
         viewLifecycleOwner.lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
+                var temporary: File? = null
                 runCatching {
                     val displayName = requireContext().contentResolver.query(
                         uri,
@@ -203,10 +219,11 @@ class RetroGamesFragment : Fragment() {
                         "Format de jeu non pris en charge"
                     }
                     val destination = uniqueDestination(safeName)
+                    temporary = File(destination.parentFile, "${destination.name}.part")
                     val input = requireContext().contentResolver.openInputStream(uri)
                         ?: error("Impossible de lire le fichier")
                     input.buffered().use { source ->
-                        destination.outputStream().buffered().use { target ->
+                        temporary!!.outputStream().buffered().use { target ->
                             val buffer = ByteArray(16 * 1024)
                             var total = 0L
                             while (true) {
@@ -218,8 +235,11 @@ class RetroGamesFragment : Fragment() {
                             }
                         }
                     }
-                    require(destination.length() > 0L) { "Le fichier est vide" }
+                    require(temporary!!.length() > 0L) { "Le fichier est vide" }
+                    require(temporary!!.renameTo(destination)) { "Impossible de finaliser l'import" }
                     destination
+                }.onFailure {
+                    temporary?.delete()
                 }
             }
             if (!isAdded) return@launch
