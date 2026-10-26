@@ -1724,7 +1724,11 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         binding?.navView?.apply {
             itemRippleColor = rippleColor
-            itemActiveIndicatorColor = rippleColor
+            itemActiveIndicatorColor = if (isLayout(TV or EMULATOR)) {
+                ColorStateList.valueOf(getResourceColor(R.attr.colorPrimary, 1.0f))
+            } else {
+                rippleColor
+            }
             setupWithNavController(navController)
             setOnItemSelectedListener { item ->
                 onNavDestinationSelected(
