@@ -49,6 +49,7 @@ class RetroGamePlayerActivity : AppCompatActivity() {
         private const val CORE_FILE_NAME = "sameboy_libretro_android.so"
         private const val CORE_ZIP_NAME = "sameboy_libretro_android.so.zip"
         private const val MAX_CORE_BYTES = 16L * 1024L * 1024L
+        private const val MAX_CORE_ARCHIVE_BYTES = 32L * 1024L * 1024L
         private const val MIN_CORE_BYTES = 32L * 1024L
         private const val MAX_ROM_BYTES = 64L * 1024L * 1024L
         private const val FALLBACK_FPS = 59.7275
@@ -193,20 +194,34 @@ class RetroGamePlayerActivity : AppCompatActivity() {
             require(connection.responseCode in 200..299) {
                 "Core download returned HTTP ${connection.responseCode}"
             }
+            val finalUrl = connection.url
+            require(finalUrl.protocol.equals("https", ignoreCase = true) &&
+                finalUrl.host.equals("buildbot.libretro.com", ignoreCase = true)) {
+                "Core download redirected to an untrusted host"
+            }
+            val declaredLength = connection.contentLengthLong
+            require(declaredLength <= MAX_CORE_ARCHIVE_BYTES) {
+                "Core archive exceeded the permitted size"
+            }
+            var downloadedBytes = 0L
             var extracted = false
             ZipInputStream(BufferedInputStream(connection.inputStream)).use { archive ->
+                val buffer = ByteArray(16 * 1024)
                 while (true) {
                     val entry = archive.nextEntry ?: break
                     val name = entry.name.substringAfterLast('/')
                     if (!entry.isDirectory && name == CORE_FILE_NAME) {
                         FileOutputStream(temporary).use { fileOutput ->
                             BufferedOutputStream(fileOutput).use { output ->
-                                val buffer = ByteArray(16 * 1024)
                                 var total = 0L
                                 while (true) {
                                     val count = archive.read(buffer)
                                     if (count < 0) break
+                                    downloadedBytes += count
                                     total += count
+                                    require(downloadedBytes <= MAX_CORE_ARCHIVE_BYTES) {
+                                        "Core archive exceeded the permitted size"
+                                    }
                                     require(total <= MAX_CORE_BYTES) { "Core exceeded the permitted size" }
                                     output.write(buffer, 0, count)
                                 }
@@ -214,6 +229,14 @@ class RetroGamePlayerActivity : AppCompatActivity() {
                         }
                         extracted = true
                         break
+                    }
+                    while (true) {
+                        val count = archive.read(buffer)
+                        if (count < 0) break
+                        downloadedBytes += count
+                        require(downloadedBytes <= MAX_CORE_ARCHIVE_BYTES) {
+                            "Core archive exceeded the permitted size"
+                        }
                     }
                     archive.closeEntry()
                 }
