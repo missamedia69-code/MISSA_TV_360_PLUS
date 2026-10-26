@@ -814,4 +814,47 @@
     </plurals>
     <string name="player_is_live">Live</string>
     <string name="installed_plugins">Installed plugins</string>
+
+    <!-- MISSA TV 360 media universes -->
+    <string name="universe_home_title">Accueil</string>
+    <string name="universe_home_description">Une sélection issue de tous les plugins compatibles.</string>
+    <string name="universe_home_catalogue">À découvrir</string>
+    <string name="universe_films_title">Films</string>
+    <string name="universe_films_description">Les films proposés par les différentes sources, réunis dans un catalogue unique.</string>
+    <string name="universe_series_title">Séries</string>
+    <string name="universe_series_description">Les séries de tous les plugins compatibles, sans devoir choisir une source.</string>
+    <string name="universe_shorts_title">Courts-métrages</string>
+    <string name="universe_shorts_description">Films courts classés grâce à la durée et aux métadonnées disponibles.</string>
+    <string name="universe_kids_title">Enfants</string>
+    <string name="universe_kids_description">Contenus repérés grâce aux tags et classifications familiales fournis par les sources.</string>
+    <string name="universe_live_tv_title">TV en direct</string>
+    <string name="universe_live_tv_description">Chaînes et flux en direct proposés par les plugins compatibles.</string>
+    <string name="universe_sports_title">Sports en direct</string>
+    <string name="universe_sports_description">Flux sportifs identifiés à partir du type et des informations fournies par la source.</string>
+    <string name="universe_podcasts_title">Podcasts</string>
+    <string name="universe_podcasts_description">Émissions et épisodes audio signalés comme podcasts par les sources.</string>
+    <string name="universe_radio_title">Radio</string>
+    <string name="universe_radio_description">Stations et contenus audio compatibles avec les plugins installés.</string>
+    <string name="universe_games_title">Jeux rétro</string>
+    <string name="universe_games_description">Catalogue indépendant pour les jeux homebrew, les ROMs que tu possèdes et un moteur externe compatible.</string>
+    <string name="universe_search_hint">Rechercher dans tous les plugins…</string>
+    <string name="universe_search_action">Rechercher</string>
+    <string name="universe_catalogue_results">Catalogue unifié</string>
+    <string name="universe_search_results_for">Résultats pour « %1$s »</string>
+    <string name="universe_empty_home">Aucun contenu de page d’accueil n’a été renvoyé par les plugins. Essaie une recherche.</string>
+    <string name="universe_empty_search">Aucun résultat classé dans cet univers. Essaie un autre terme ou vérifie les plugins installés.</string>
+    <string name="universe_catalogue_error">Impossible de charger le catalogue pour le moment. Vérifie la connexion et réessaie.</string>
+    <string name="universe_featured_content">Contenu à la une</string>
+    <string name="universe_featured">À LA UNE</string>
+    <string name="universe_retro_import">Importer un jeu</string>
+    <string name="universe_retro_refresh">Actualiser la bibliothèque</string>
+    <string name="universe_retro_downloads">Catalogue homebrew en ligne</string>
+    <string name="universe_retro_title">Jeux rétro</string>
+    <string name="universe_retro_intro">Les jeux rétro restent indépendants du lecteur vidéo. Tu peux importer une ROM homebrew ou une sauvegarde de jeu que tu possèdes, puis la lancer dans un émulateur Android compatible.</string>
+    <string name="universe_retro_empty">Aucun jeu importé. Importe un fichier de jeu ou ouvre le catalogue homebrew pour parcourir des sources autorisées.</string>
+    <string name="universe_retro_engine_missing">Aucun moteur d’émulation intégré dans cette version. Installe un émulateur compatible avec ton système puis utilise « Ouvrir avec » pour lancer les jeux importés.</string>
+    <string name="universe_retro_open">Ouvrir avec un émulateur</string>
+    <string name="universe_retro_file_imported">Jeu ajouté à la bibliothèque</string>
+    <string name="universe_retro_import_error">Impossible d’importer ce fichier. Réessaie avec un fichier ROM compatible.</string>
+    <string name="universe_retro_catalogue_notice">Le catalogue en ligne répertorie des jeux homebrew et des démos. Vérifie la licence de chaque entrée avant de télécharger ou redistribuer un fichier.</string>
 </resources>
