@@ -857,4 +857,5 @@
     <string name="universe_retro_file_imported">Jeu ajouté à la bibliothèque</string>
     <string name="universe_retro_import_error">Impossible d’importer ce fichier. Réessaie avec un fichier ROM compatible.</string>
     <string name="universe_retro_catalogue_notice">Le catalogue en ligne répertorie des jeux homebrew et des démos. Vérifie la licence de chaque entrée avant de télécharger ou redistribuer un fichier.</string>
+    <string name="universe_shortcuts_title">Choisir un univers</string>
 </resources>
