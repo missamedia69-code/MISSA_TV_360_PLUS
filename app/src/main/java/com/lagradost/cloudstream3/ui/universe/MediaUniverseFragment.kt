@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -9,11 +10,13 @@ import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.lagradost.cloudstream3.APIHolder.apis
 import com.lagradost.cloudstream3.LoadResponse
@@ -27,6 +30,7 @@ import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_LOAD
 import com.lagradost.cloudstream3.ui.search.SearchAdapter
 import com.lagradost.cloudstream3.ui.search.SearchClickCallback
 import com.lagradost.cloudstream3.ui.search.SearchHelper
+import com.google.android.material.button.MaterialButton
 import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -108,6 +112,9 @@ class MediaUniverseFragment : Fragment() {
     private lateinit var resultList: com.lagradost.cloudstream3.ui.AutofitRecyclerView
     private lateinit var resumeHeader: TextView
     private lateinit var resumeList: com.lagradost.cloudstream3.ui.AutofitRecyclerView
+    private lateinit var shortcutsHeader: TextView
+    private lateinit var shortcutsScroll: android.widget.HorizontalScrollView
+    private lateinit var shortcutsContainer: LinearLayout
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -131,6 +138,9 @@ class MediaUniverseFragment : Fragment() {
         resultList = view.findViewById(R.id.universe_results)
         resumeHeader = view.findViewById(R.id.universe_resume_header)
         resumeList = view.findViewById(R.id.universe_resume_results)
+        shortcutsHeader = view.findViewById(R.id.universe_shortcuts_header)
+        shortcutsScroll = view.findViewById(R.id.universe_shortcuts_scroll)
+        shortcutsContainer = view.findViewById(R.id.universe_shortcuts_container)
 
         resultList.spanCount = if (isTvLayout()) 5 else 2
         resultList.layoutManager = GridLayoutManager(requireContext(), resultList.spanCount)
@@ -154,6 +164,9 @@ class MediaUniverseFragment : Fragment() {
         heroPanel.isVisible = universeId == "home"
         resumeHeader.isVisible = universeId == "home"
         resumeList.isVisible = universeId == "home"
+        shortcutsHeader.isVisible = universeId == "home"
+        shortcutsScroll.isVisible = universeId == "home"
+        if (universeId == "home") configureUniverseShortcuts()
 
         searchButton.setOnClickListener { loadCatalogue(searchInput.text?.toString().orEmpty()) }
         searchInput.setOnEditorActionListener { _, actionId, event ->
@@ -199,6 +212,60 @@ class MediaUniverseFragment : Fragment() {
         universeDescription.setText(description)
         resultHeader.setText(if (universeId == "home") R.string.universe_home_catalogue else R.string.universe_catalogue_results)
         searchInput.hint = getString(R.string.universe_search_hint)
+    }
+
+    private fun configureUniverseShortcuts() {
+        val entries = listOf(
+            R.id.navigation_universe_films to R.string.universe_films_title,
+            R.id.navigation_universe_series to R.string.universe_series_title,
+            R.id.navigation_universe_shorts to R.string.universe_shorts_title,
+            R.id.navigation_universe_kids to R.string.universe_kids_title,
+            R.id.navigation_universe_live_tv to R.string.universe_live_tv_title,
+            R.id.navigation_universe_sports to R.string.universe_sports_title,
+            R.id.navigation_universe_podcasts to R.string.universe_podcasts_title,
+            R.id.navigation_universe_radio to R.string.universe_radio_title,
+            R.id.navigation_universe_retro_games to R.string.universe_games_title
+        )
+        shortcutsContainer.removeAllViews()
+        val density = resources.displayMetrics.density
+        entries.forEachIndexed { index, entry ->
+            val button = MaterialButton(
+                requireContext(),
+                null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle
+            ).apply {
+                text = getString(entry.second)
+                isAllCaps = false
+                minWidth = 0
+                minimumWidth = 0
+                insetTop = 0
+                insetBottom = 0
+                cornerRadius = (10 * density).toInt()
+                strokeWidth = (1 * density).toInt()
+                setPadding((13 * density).toInt(), 0, (13 * density).toInt(), 0)
+                backgroundTintList = ColorStateList.valueOf(
+                    requireContext().getResourceColor(
+                        if (index % 3 == 0) R.attr.colorPrimary else R.attr.iconGrayBackground
+                    )
+                )
+                setTextColor(
+                    requireContext().getResourceColor(
+                        if (index % 3 == 0) R.attr.black else R.attr.textColor
+                    )
+                )
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    (42 * density).toInt()
+                ).apply {
+                    marginEnd = (7 * density).toInt()
+                }
+                setOnClickListener {
+                    runCatching { findNavController().navigate(entry.first) }
+                        .onFailure { com.lagradost.cloudstream3.mvvm.logError(it) }
+                }
+            }
+            shortcutsContainer.addView(button)
+        }
     }
 
     private fun loadContinueWatching() {
@@ -301,7 +368,8 @@ class MediaUniverseFragment : Fragment() {
         val semaphore = Semaphore(4)
         withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
             repositories
-                .filter { repository -> maySupportUniverse(repository) }
+                // Some plugins misdeclare supportedTypes. Query every source and classify each result
+                // centrally, so the menu does not depend on provider metadata being perfect.
                 .map { repository ->
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
@@ -315,20 +383,6 @@ class MediaUniverseFragment : Fragment() {
                 .awaitAll()
                 .flatten()
         }.orEmpty()
-    }
-
-    private fun maySupportUniverse(repository: APIRepository): Boolean {
-        val supported = repository.api.supportedTypes
-        if (supported.isEmpty() || universeId == "home") return true
-        val targetTypes = when (universeId) {
-            "films", "shorts", "kids" -> movieTypes
-            "series" -> seriesTypes
-            "live_tv", "sports" -> setOf(TvType.Live)
-            "podcasts" -> setOf(TvType.Podcast)
-            "radio" -> audioTypes + TvType.Live
-            else -> emptySet()
-        }
-        return supported.any { targetTypes.contains(it) }
     }
 
     private suspend fun filterForUniverse(
