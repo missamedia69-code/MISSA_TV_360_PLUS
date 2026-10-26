@@ -11,6 +11,31 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
+        <HorizontalScrollView
+            android:id="@+id/tv_top_navigation"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:background="?attr/primaryBlackBackground"
+            android:clipToPadding="false"
+            android:fillViewport="false"
+            android:focusable="false"
+            android:overScrollMode="never"
+            android:scrollbars="none"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:id="@+id/tv_top_navigation_items"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp" />
+        </HorizontalScrollView>
+
+
 
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/nav_host_fragment"
@@ -21,7 +46,7 @@
             app:layout_constraintBottom_toTopOf="@+id/cast_mini_controller_holder"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/nav_view"
+            app:layout_constraintTop_toBottomOf="@+id/tv_top_navigation"
             app:navGraph="@navigation/mobile_navigation" />
 
         <com.google.android.material.navigationrail.NavigationRailView
@@ -62,7 +87,7 @@
             android:layout_width="0dp"
             android:layout_height="@dimen/nav_view_height"
             android:background="?attr/primaryBlackBackground"
-            android:visibility="visible"
+            android:visibility="gone"
             app:itemActiveIndicatorStyle="@style/CustomIndicator"
             app:itemHorizontalTranslationEnabled="false"
             app:itemIconSize="22dp"
