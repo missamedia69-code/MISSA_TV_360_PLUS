@@ -57,6 +57,7 @@ import com.google.android.gms.cast.framework.SessionManager
 import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.navigationrail.NavigationRailView
 import com.google.android.material.snackbar.Snackbar
 import com.google.common.collect.Comparators.min
@@ -490,6 +491,135 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         navHostFragment.navController.currentDestination?.let { updateNavBar(it) }
     }
 
+    private data class TopNavigationEntry(
+        @IdRes val destinationId: Int,
+        val titleRes: Int
+    )
+
+    private val topNavigationEntries by lazy {
+        listOf(
+            TopNavigationEntry(R.id.navigation_home, R.string.universe_home_title),
+            TopNavigationEntry(R.id.navigation_universe_films, R.string.universe_films_title),
+            TopNavigationEntry(R.id.navigation_universe_series, R.string.universe_series_title),
+            TopNavigationEntry(R.id.navigation_universe_shorts, R.string.universe_shorts_title),
+            TopNavigationEntry(R.id.navigation_universe_kids, R.string.universe_kids_title),
+            TopNavigationEntry(R.id.navigation_universe_live_tv, R.string.universe_live_tv_title),
+            TopNavigationEntry(R.id.navigation_universe_sports, R.string.universe_sports_title),
+            TopNavigationEntry(R.id.navigation_universe_podcasts, R.string.universe_podcasts_title),
+            TopNavigationEntry(R.id.navigation_universe_radio, R.string.universe_radio_title),
+            TopNavigationEntry(R.id.navigation_universe_retro_games, R.string.universe_games_title),
+            TopNavigationEntry(R.id.navigation_search, R.string.title_search),
+            TopNavigationEntry(R.id.navigation_library, R.string.library),
+            TopNavigationEntry(R.id.navigation_downloads, R.string.title_downloads),
+            TopNavigationEntry(R.id.navigation_settings, R.string.title_settings),
+        )
+    }
+
+    private fun setupTopNavigation(navController: NavController) {
+        val container = binding?.root?.findViewById<LinearLayout>(R.id.tv_top_navigation_items)
+            ?: return
+        container.removeAllViews()
+        val density = resources.displayMetrics.density
+        topNavigationEntries.forEach { entry ->
+            val button = MaterialButton(
+                this,
+                null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle
+            ).apply {
+                id = View.generateViewId()
+                tag = entry.destinationId
+                text = getString(entry.titleRes)
+                isAllCaps = false
+                isFocusable = true
+                isFocusableInTouchMode = false
+                minWidth = 0
+                minimumWidth = 0
+                insetTop = 0
+                insetBottom = 0
+                cornerRadius = (10 * density).toInt()
+                strokeWidth = (1 * density).toInt()
+                setPadding((14 * density).toInt(), 0, (14 * density).toInt(), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    (42 * density).toInt()
+                ).apply {
+                    marginEnd = (6 * density).toInt()
+                }
+                setOnClickListener {
+                    if (navController.currentDestination?.id == entry.destinationId) return@setOnClickListener
+                    val options = NavOptions.Builder()
+                        .setLaunchSingleTop(true)
+                        .setRestoreState(true)
+                        .setPopUpTo(
+                            navController.graph.findStartDestination().id,
+                            inclusive = false,
+                            saveState = true
+                        )
+                        .build()
+                    runCatching { navController.navigate(entry.destinationId, null, options) }
+                        .onFailure { logError(it) }
+                }
+            }
+            container.addView(button)
+        }
+        for (index in topNavigationEntries.indices) {
+            val button = container.getChildAt(index) ?: continue
+            button.nextFocusLeftId = if (index == 0) button.id else container.getChildAt(index - 1).id
+            button.nextFocusRightId = if (index == topNavigationEntries.lastIndex) button.id else container.getChildAt(index + 1).id
+        }
+        container.getChildAt(0)?.nextFocusDownId = R.id.nav_host_fragment
+        binding?.navHostFragment?.nextFocusUpId = container.getChildAt(0)?.id ?: View.NO_ID
+    }
+
+    private fun selectedTopNavigationId(destinationId: Int): Int {
+        val direct = topNavigationEntries.firstOrNull { it.destinationId == destinationId }?.destinationId
+        if (direct != null) return direct
+        return when (destinationId) {
+            R.id.navigation_download_child, R.id.navigation_download_queue -> R.id.navigation_downloads
+            R.id.navigation_subtitles,
+            R.id.navigation_chrome_subtitles,
+            R.id.navigation_settings_player,
+            R.id.navigation_settings_updates,
+            R.id.navigation_settings_ui,
+            R.id.navigation_settings_account,
+            R.id.navigation_settings_providers,
+            R.id.navigation_settings_general,
+            R.id.navigation_settings_extensions,
+            R.id.navigation_settings_plugins,
+            R.id.navigation_test_providers -> R.id.navigation_settings
+            else -> R.id.navigation_home
+        }
+    }
+
+    private fun updateTopNavigation(destinationId: Int) {
+        val container = binding?.root?.findViewById<LinearLayout>(R.id.tv_top_navigation_items)
+            ?: return
+        val selectedId = selectedTopNavigationId(destinationId)
+        val density = resources.displayMetrics.density
+        topNavigationEntries.forEachIndexed { index, entry ->
+            val button = container.getChildAt(index) as? MaterialButton ?: return@forEachIndexed
+            val selected = entry.destinationId == selectedId
+            val fill = getResourceColor(if (selected) R.attr.colorPrimary else R.attr.iconGrayBackground)
+            val textColor = getResourceColor(if (selected) R.attr.black else R.attr.textColor)
+            button.backgroundTintList = ColorStateList.valueOf(fill)
+            button.setTextColor(textColor)
+            button.strokeColor = ColorStateList.valueOf(
+                getResourceColor(if (selected) R.attr.colorPrimary else R.attr.grayTextColor, if (selected) 1f else 0.25f)
+            )
+            button.elevation = if (selected) 2 * density else 0f
+            button.isSelected = selected
+            if (selected) {
+                container.post {
+                    val left = button.left
+                    val scroll = binding?.root?.findViewById<android.widget.HorizontalScrollView>(R.id.tv_top_navigation)
+                    scroll?.smoothScrollTo((left - dp(12)).coerceAtLeast(0), 0)
+                }
+            }
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     private fun updateNavBar(destination: NavDestination) {
         this.hideKeyboard()
 
@@ -503,6 +633,15 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         val isNavVisible = listOf(
             R.id.navigation_home,
+            R.id.navigation_universe_films,
+            R.id.navigation_universe_series,
+            R.id.navigation_universe_shorts,
+            R.id.navigation_universe_kids,
+            R.id.navigation_universe_live_tv,
+            R.id.navigation_universe_sports,
+            R.id.navigation_universe_podcasts,
+            R.id.navigation_universe_radio,
+            R.id.navigation_universe_retro_games,
             R.id.navigation_search,
             R.id.navigation_library,
             R.id.navigation_downloads,
@@ -557,53 +696,18 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }*/
 
         binding?.apply {
-            // On TV and emulator screens, keep the primary navigation horizontal at the top.
-            // Phones retain the conventional bottom navigation bar.
-            val useTopNavigation = isLayout(TV or EMULATOR)
-            navRailView.isVisible = isNavVisible && isLandscape() && !useTopNavigation
-            navView.isVisible = isNavVisible && (!isLandscape() || useTopNavigation)
+            // Every main universe uses the same horizontal navigation on mobile and TV.
+            navRailView.isVisible = false
+            navView.isVisible = false
+            tvTopNavigation.isVisible = isNavVisible
             navHostFragment.apply {
-                val marginPx = resources.getDimensionPixelSize(R.dimen.nav_rail_view_width)
                 layoutParams =
                     (navHostFragment.layoutParams as ViewGroup.MarginLayoutParams).apply {
-                        marginStart =
-                            if (isNavVisible && isLandscape() && !useTopNavigation) marginPx else 0
+                        marginStart = 0
+                        marginEnd = 0
                     }
             }
-
-            /**
-             * We need to make sure if we return to a sub-fragment,
-             * the correct navigation item is selected so that it does not
-             * highlight the wrong one in UI.
-             */
-            when (destination.id) {
-                in listOf(
-                    R.id.navigation_downloads,
-                    R.id.navigation_download_child,
-                    R.id.navigation_download_queue
-                ) -> {
-                    navRailView.menu.findItem(R.id.navigation_downloads).isChecked = true
-                    navView.menu.findItem(R.id.navigation_downloads).isChecked = true
-                }
-
-                in listOf(
-                    R.id.navigation_settings,
-                    R.id.navigation_subtitles,
-                    R.id.navigation_chrome_subtitles,
-                    R.id.navigation_settings_player,
-                    R.id.navigation_settings_updates,
-                    R.id.navigation_settings_ui,
-                    R.id.navigation_settings_account,
-                    R.id.navigation_settings_providers,
-                    R.id.navigation_settings_general,
-                    R.id.navigation_settings_extensions,
-                    R.id.navigation_settings_plugins,
-                    R.id.navigation_test_providers
-                ) -> {
-                    navRailView.menu.findItem(R.id.navigation_settings).isChecked = true
-                    navView.menu.findItem(R.id.navigation_settings).isChecked = true
-                }
-            }
+            updateTopNavigation(destination.id)
         }
     }
 
@@ -1315,6 +1419,13 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 padTop = false
             )
 
+            fixSystemBarsPadding(
+                tvTopNavigation,
+                heightResId = R.dimen.nav_view_height,
+                padTop = isLayout(TV or EMULATOR),
+                overlayCutout = false
+            )
+
             composeView.apply {
                 setContent {
                     CloudStreamThemeAppSettings {
@@ -1692,6 +1803,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         val navHostFragment =
             supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
+        setupTopNavigation(navController)
 
         navController.addOnDestinationChangedListener { _: NavController, navDestination: NavDestination, bundle: Bundle? ->
             // Intercept search and add a query
