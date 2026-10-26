@@ -58,8 +58,8 @@ class MediaUniverseFragment : Fragment() {
         private const val REQUEST_TIMEOUT_MS = 18_000L
         private const val SEARCH_TIMEOUT_MS = 35_000L
         private const val MAX_CATALOG_ITEMS = 100
-        private const val MAX_METADATA_ITEMS = 24
-        private const val DETAIL_TIMEOUT_MS = 6_000L
+        private const val MAX_METADATA_ITEMS = 20
+        private const val DETAIL_TIMEOUT_MS = 2_500L
 
     }
 
@@ -391,7 +391,7 @@ class MediaUniverseFragment : Fragment() {
             .filter { it.type != TvType.NSFW && it.type != TvType.CustomMedia }
             .distinctBy { item -> "${item.apiName.lowercase(Locale.ROOT)}|${item.url}" }
 
-        val metadataUniverses = setOf("shorts", "kids", "live_tv", "sports", "radio")
+        val metadataUniverses = setOf("shorts", "kids")
         if (universeId !in metadataUniverses) {
             return unique.filter { matchesUniverse(it, null) }
         }

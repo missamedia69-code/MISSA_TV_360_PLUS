@@ -53,9 +53,7 @@ internal object MediaUniverseClassifier {
                     type == TvType.AnimeMovie
                 )
             "kids" -> canBeMovie || canBeSeries
-            "live_tv", "sports", "radio" ->
-                type == TvType.Live || type in audioTypes ||
-                    (type == null && (sportsKeywords.containsMatchIn(title) || radioKeywords.containsMatchIn(title)))
+            else -> false
             else -> false
         }
     }
@@ -99,7 +97,7 @@ internal object MediaUniverseClassifier {
             "sports" -> type == TvType.Live && sportsKeywords.containsMatchIn(classificationText)
             "podcasts" -> type == TvType.Podcast
             "radio" -> {
-                val audioOrLive = type == null || type == TvType.Live || type in audioTypes
+                val audioOrLive = type == null || type?.let { it == TvType.Live || it in audioTypes } == true
                 audioOrLive && radioKeywords.containsMatchIn(classificationText) && type != TvType.Podcast
             }
             else -> false
