@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/missa_primary_btn_focus_foreground"
+    android:insetBottom="@dimen/dialog_buttons_inset"
+    android:insetTop="@dimen/dialog_buttons_inset" />

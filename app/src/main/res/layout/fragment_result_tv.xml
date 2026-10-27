@@ -324,7 +324,7 @@ https://developer.android.com/design/ui/tv/samples/jet-fit
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/result_play_movie_button"
-                        style="@style/ResultSmallButtonTV"
+                        style="@style/ResultPrimaryPlayButtonTV"
                         android:focusable="true"
                         android:nextFocusUp="@id/result_play_movie_button"
                         android:nextFocusDown="@id/result_description"
@@ -350,7 +350,7 @@ https://developer.android.com/design/ui/tv/samples/jet-fit
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/result_play_series_button"
-                        style="@style/ResultSmallButtonTV"
+                        style="@style/ResultPrimaryPlayButtonTV"
                         android:focusable="true"
                         android:nextFocusUp="@id/result_play_series_button"
                         android:nextFocusDown="@id/result_description"
@@ -376,7 +376,7 @@ https://developer.android.com/design/ui/tv/samples/jet-fit
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/result_resume_series_button"
-                        style="@style/ResultSmallButtonTV"
+                        style="@style/ResultPrimaryPlayButtonTV"
                         android:focusable="true"
                         android:nextFocusUp="@id/result_resume_series_button"
                         android:nextFocusDown="@id/result_description"

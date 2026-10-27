@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <stroke android:width="3dp" android:color="?attr/white" />
+    <stroke
+        android:width="@dimen/missa_focus_stroke_width"
+        android:color="?attr/missaAccentPrimary" />
 </shape>

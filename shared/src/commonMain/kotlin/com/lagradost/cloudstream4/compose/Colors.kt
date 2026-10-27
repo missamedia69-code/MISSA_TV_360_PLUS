@@ -19,10 +19,10 @@ object Colors {
 
     internal val whiteButton
         @Composable @ReadOnlyComposable get() = ButtonColors(
-            containerColor = MaterialTheme.colorScheme.onBackground,
-            contentColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContainerColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
-            disabledContentColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
         )
 
     internal val whiteChip
@@ -38,10 +38,10 @@ object Colors {
             disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
             disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
 
-            selectedContainerColor = MaterialTheme.colorScheme.onBackground,
-            selectedLabelColor = MaterialTheme.colorScheme.background,
-            selectedLeadingIconColor = MaterialTheme.colorScheme.background,
-            selectedTrailingIconColor = MaterialTheme.colorScheme.background,
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+            selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
         )
     internal val whiteChipFocused
         @Composable @ReadOnlyComposable get() = SelectableChipColors(
@@ -56,10 +56,10 @@ object Colors {
             disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
             disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
 
-            selectedContainerColor = MaterialTheme.colorScheme.onBackground,
-            selectedLabelColor = MaterialTheme.colorScheme.background,
-            selectedLeadingIconColor = MaterialTheme.colorScheme.background,
-            selectedTrailingIconColor = MaterialTheme.colorScheme.background,
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+            selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
         )
     internal val blackTextField @Composable get() = TextFieldDefaults.colors(
         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,

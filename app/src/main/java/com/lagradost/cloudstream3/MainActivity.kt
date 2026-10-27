@@ -1334,13 +1334,34 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }
 
         private fun isNonLeafFocusContainer(view: View): Boolean {
-            return view is RecyclerView ||
+            if (view is RecyclerView ||
                 view is ViewPager2 ||
+                view is android.widget.AdapterView<*> ||
                 view is androidx.fragment.app.FragmentContainerView ||
                 view is android.widget.ScrollView ||
                 view is android.widget.HorizontalScrollView ||
                 view is androidx.core.widget.NestedScrollView ||
-                view is androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                view is androidx.swiperefreshlayout.widget.SwipeRefreshLayout ||
+                view is com.google.android.material.tabs.TabLayout ||
+                view is android.webkit.WebView ||
+                view is androidx.coordinatorlayout.widget.CoordinatorLayout ||
+                view is com.google.android.material.appbar.AppBarLayout ||
+                view is androidx.appcompat.widget.Toolbar ||
+                view is androidx.appcompat.widget.SearchView ||
+                view is NavigationRailView ||
+                view is BottomNavigationView
+            ) {
+                return true
+            }
+            if (view is ViewGroup) {
+                val root = view.rootView
+                val rw = root?.width ?: 0
+                val rh = root?.height ?: 0
+                if (rw > 0 && rh > 0 && view.measuredWidth > rw * 0.85f && view.measuredHeight > rh * 0.5f) {
+                    return true
+                }
+            }
+            return false
         }
 
         private fun applyDynamicFocusOutlineStyle(focusOutline: View, targetView: View) {
@@ -1393,11 +1414,16 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             focusOutline.isVisible = visible
 
             if (visible && newFocus != null) {
-                // Prevent duplicate foreground focus rings (e.g. @drawable/outline_drawable) inside MainActivity
+                // Prevent duplicate foreground/background focus rings (e.g. @drawable/outline_drawable) inside MainActivity
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
                     newFocus.foreground is android.graphics.drawable.StateListDrawable
                 ) {
                     newFocus.foreground = null
+                }
+                if (newFocus !is MaterialButton &&
+                    newFocus.background is android.graphics.drawable.StateListDrawable
+                ) {
+                    newFocus.background = null
                 }
                 applyDynamicFocusOutlineStyle(focusOutline, newFocus)
             }

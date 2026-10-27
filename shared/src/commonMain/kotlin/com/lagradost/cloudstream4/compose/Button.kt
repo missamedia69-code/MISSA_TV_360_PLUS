@@ -88,7 +88,7 @@ fun BaseButton(
         modifier = modifier.onFocusChanged { newFocus ->
             hasFocus = canHaveFocus && newFocus.hasFocus
         },
-        border = if (hasFocus) BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground) else null
+        border = if (hasFocus) BorderStroke(2.dp, MaterialTheme.colorScheme.onBackground) else null
     ) {
         AnimatedVisibility(hasFocus) {
             Icon(

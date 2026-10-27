@@ -759,11 +759,12 @@
     </style>
 
     <style name="WhiteButton" parent="NiceButton">
-        <item name="strokeColor">?attr/iconGrayBackground</item>
-        <item name="backgroundTint">?attr/textColor</item>
-        <item name="iconTint">?attr/iconGrayBackground</item>
-        <item name="android:textColor">?attr/iconGrayBackground</item>
-        <item name="rippleColor">?attr/primaryBlackBackground</item>
+        <item name="strokeColor">?attr/missaAccentPrimary</item>
+        <item name="backgroundTint">?attr/missaAccentPrimary</item>
+        <item name="iconTint">?attr/missaOnAccentPrimary</item>
+        <item name="android:textColor">?attr/missaOnAccentPrimary</item>
+        <item name="rippleColor">?attr/missaRippleColor</item>
+        <item name="android:foreground">@drawable/missa_primary_btn_focus_foreground</item>
     </style>
     <!-- This is so shit, because android has no native way to either changing the layout (android:layout) or changing the layout_height for no reason.
     So the only way to shrink the buttons is by using insetTop+insetBottom along with the drawable.
@@ -776,7 +777,7 @@
     </style>
 
     <style name="WhiteButton.Dialog" parent="WhiteButton">
-        <item name="android:foreground">@drawable/outline_drawable_less_inset</item>
+        <item name="android:foreground">@drawable/missa_primary_btn_focus_foreground_inset</item>
         <item name="android:insetTop">@dimen/dialog_buttons_inset</item>
         <item name="android:insetBottom">@dimen/dialog_buttons_inset</item>
     </style>
@@ -1019,6 +1020,12 @@
         <item name="android:layout_marginStart">4dp</item>
         <item name="android:layout_marginEnd">4dp</item>
         <item name="android:layout_marginBottom">4dp</item>
+    </style>
+
+    <style name="ResultPrimaryPlayButtonTV" parent="ResultSmallButtonTV">
+        <item name="android:background">@drawable/missa_result_play_btn_tv</item>
+        <item name="iconTint">?attr/missaOnAccentPrimary</item>
+        <item name="rippleColor">?attr/missaRippleColor</item>
     </style>
 
     <style name="ResultMarqueeButtonText">

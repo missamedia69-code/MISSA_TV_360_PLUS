@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary Play / Resume CTA on TV media detail screens: always MISSA Yellow, with crisp contrasting focus halo -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/missaAccentPrimary" />
+            <stroke
+                android:width="@dimen/missa_focus_stroke_width"
+                android:color="?attr/textColor" />
+            <corners android:radius="@dimen/rounded_image_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/missaAccentPrimary" />
+            <corners android:radius="@dimen/rounded_image_radius" />
+        </shape>
+    </item>
+</selector>
