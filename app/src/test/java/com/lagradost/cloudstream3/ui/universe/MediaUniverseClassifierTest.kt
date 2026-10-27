@@ -204,4 +204,18 @@ class MediaUniverseClassifierTest {
         // [Home(0)] | [Films, Series, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Podcasts, Radio(3)] | [Games(4)]
         assertEquals(listOf(0, 1, 1, 1, 1, 2, 2, 3, 3, 4), groups)
     }
+
+    @Test
+    fun `contextual filter bar is hidden on Home and displayed inside Films and dedicated universes`() {
+        assertFalse(MediaUniverseFragment.shouldShowContextualFilterBar("home"))
+        assertFalse(MediaUniverseFragment.shouldShowContextualFilterBar("HOME"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("films"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("series"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("shorts"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("kids"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("live_tv"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("sports"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("podcasts"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("radio"))
+    }
 }

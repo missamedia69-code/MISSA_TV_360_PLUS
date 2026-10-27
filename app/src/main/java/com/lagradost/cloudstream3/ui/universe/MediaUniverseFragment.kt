@@ -69,6 +69,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         const val ARG_UNIVERSE_ID = "universe_id"
         private const val MAX_INLINE_CATEGORY_PILLS = 8
         private val focusMemoryByUniverse = ConcurrentHashMap<String, String>()
+
+        /** Contextual filter strip is hidden on Home and shown inside dedicated universes (Films, Series, …). */
+        fun shouldShowContextualFilterBar(universeId: String): Boolean =
+            universeId.lowercase(Locale.ROOT) != "home"
     }
 
     private val viewModel: MediaUniverseViewModel by activityViewModels()
@@ -76,6 +80,11 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private val universeId: String
         get() = arguments?.getString(ARG_UNIVERSE_ID)?.lowercase(Locale.ROOT) ?: "home"
 
+    /** Contextual category/source/search strip appears inside dedicated universes (Films, Series, …), not on Home. */
+    private val showContextualFilterBar: Boolean
+        get() = shouldShowContextualFilterBar(universeId)
+
+    private var stickyFilterBar: View? = null
     private var swipeRefresh: SwipeRefreshLayout? = null
     private var masterRecycler: RecyclerView? = null
     private var loadingBar: ProgressBar? = null
@@ -134,6 +143,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         HomeChildItemAdapter.updatePosterSize(ctx)
         SearchResultBuilder.updateCache(ctx)
 
+        stickyFilterBar = view.findViewById(R.id.universe_sticky_filter_bar)
         swipeRefresh = view.findViewById(R.id.universe_swipe_refresh)
         masterRecycler = view.findViewById(R.id.universe_master_recycler)
         loadingBar = view.findViewById(R.id.universe_loading_bar)
@@ -178,6 +188,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     override fun onDestroyView() {
         searchJob?.cancel()
+        stickyFilterBar = null
         swipeRefresh = null
         masterRecycler = null
         loadingBar = null
@@ -199,6 +210,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     private fun setupStickyFilterBar() {
+        stickyFilterBar?.isVisible = showContextualFilterBar
+        if (!showContextualFilterBar) {
+            inlineFilterPanel?.isVisible = false
+            return
+        }
+
         val ctx = requireContext()
         val def = MissaUniverses.byId(universeId)
         val isTv = MissaUiFactory.isTvLayoutMode()
@@ -431,61 +448,66 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         )
         lastProjection = projection
 
-        // 1. Update sticky category pills via DiffUtil (max 8 pills + "More…" sheet - HOME-08)
-        val cats = projection.availableCategories
-        val pillItems = ArrayList<CategoryFilterPillUi>()
-        if (cats.size > 1) {
-            pillItems.add(
-                CategoryFilterPillUi(
-                    key = null,
-                    label = ctx.getString(R.string.universe_all_categories),
-                    selected = selectedCategoryKey.isNullOrBlank()
-                )
-            )
-            val inlineCats = cats.take(MAX_INLINE_CATEGORY_PILLS)
-            for (c in inlineCats) {
+        // 1. Update sticky category pills via DiffUtil (hidden on Home; shown in Films & dedicated universes)
+        stickyFilterBar?.isVisible = showContextualFilterBar
+        if (showContextualFilterBar) {
+            val cats = projection.availableCategories
+            val pillItems = ArrayList<CategoryFilterPillUi>()
+            if (cats.size > 1) {
                 pillItems.add(
                     CategoryFilterPillUi(
-                        key = c.key,
-                        label = c.shortLabel,
-                        selected = selectedCategoryKey == c.key
+                        key = null,
+                        label = ctx.getString(R.string.universe_all_categories),
+                        selected = selectedCategoryKey.isNullOrBlank()
                     )
                 )
-            }
-            if (cats.size > MAX_INLINE_CATEGORY_PILLS) {
-                val overflowSelected = selectedCategoryKey != null && inlineCats.none { it.key == selectedCategoryKey }
-                pillItems.add(
-                    CategoryFilterPillUi(
-                        key = "__more__",
-                        label = ctx.getString(R.string.universe_more_categories),
-                        selected = overflowSelected,
-                        isOverflowMore = true
+                val inlineCats = cats.take(MAX_INLINE_CATEGORY_PILLS)
+                for (c in inlineCats) {
+                    pillItems.add(
+                        CategoryFilterPillUi(
+                            key = c.key,
+                            label = c.shortLabel,
+                            selected = selectedCategoryKey == c.key
+                        )
                     )
+                }
+                if (cats.size > MAX_INLINE_CATEGORY_PILLS) {
+                    val overflowSelected = selectedCategoryKey != null && inlineCats.none { it.key == selectedCategoryKey }
+                    pillItems.add(
+                        CategoryFilterPillUi(
+                            key = "__more__",
+                            label = ctx.getString(R.string.universe_more_categories),
+                            selected = overflowSelected,
+                            isOverflowMore = true
+                        )
+                    )
+                }
+            }
+            categoryPillAdapter?.submitList(pillItems)
+
+            // 2. Update multi-source pill button (HOME-08)
+            val sources = projection.availableSources
+            sourceFilterBtn?.isVisible = sources.isNotEmpty()
+            if (sources.isNotEmpty()) {
+                sourceFilterBtn?.text = when {
+                    selectedSources.isEmpty() -> ctx.getString(R.string.universe_all_sources, sources.size)
+                    selectedSources.size == 1 -> ctx.getString(R.string.universe_single_source, selectedSources.first())
+                    else -> ctx.getString(R.string.universe_multi_selected_sources, selectedSources.size)
+                }
+                sourceFilterBtn?.let { MissaUiFactory.stylePillSelection(it, selectedSources.isNotEmpty()) }
+            }
+
+            searchClearBtn?.isVisible = currentSearchQuery.isNotBlank() ||
+                !selectedCategoryKey.isNullOrBlank() ||
+                selectedSources.isNotEmpty()
+            toggleFilterBtn?.let {
+                MissaUiFactory.stylePillSelection(
+                    it,
+                    inlineFilterPanel?.isVisible == true || currentSearchQuery.isNotBlank()
                 )
             }
-        }
-        categoryPillAdapter?.submitList(pillItems)
-
-        // 2. Update multi-source pill button (HOME-08)
-        val sources = projection.availableSources
-        sourceFilterBtn?.isVisible = sources.isNotEmpty()
-        if (sources.isNotEmpty()) {
-            sourceFilterBtn?.text = when {
-                selectedSources.isEmpty() -> ctx.getString(R.string.universe_all_sources, sources.size)
-                selectedSources.size == 1 -> ctx.getString(R.string.universe_single_source, selectedSources.first())
-                else -> ctx.getString(R.string.universe_multi_selected_sources, selectedSources.size)
-            }
-            sourceFilterBtn?.let { MissaUiFactory.stylePillSelection(it, selectedSources.isNotEmpty()) }
-        }
-
-        searchClearBtn?.isVisible = currentSearchQuery.isNotBlank() ||
-            !selectedCategoryKey.isNullOrBlank() ||
-            selectedSources.isNotEmpty()
-        toggleFilterBtn?.let {
-            MissaUiFactory.stylePillSelection(
-                it,
-                inlineFilterPanel?.isVisible == true || currentSearchQuery.isNotBlank()
-            )
+        } else {
+            inlineFilterPanel?.isVisible = false
         }
 
         // 3. Build modular RecyclerView list items (HOME-01, HOME-02, HOME-05, HOME-06, HOME-07)
@@ -874,7 +896,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         focusMemoryByUniverse[universeId] = rowKey
     }
 
-    /** Moves TV D-pad focus into the remembered or primary content item of this universe (NAV-02). */
+    /** Moves TV D-pad focus into the contextual filter strip (in dedicated universes) or primary content (NAV-02). */
     fun requestPrimaryContentFocus(): Boolean {
         val rv = masterRecycler ?: return false
         val rememberedRowId = focusMemoryByUniverse[universeId]
@@ -885,6 +907,16 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 val vh = rv.findViewHolderForAdapterPosition(idx)
                 if (vh?.itemView?.requestFocus() == true) return true
             }
+        }
+        if (showContextualFilterBar && stickyFilterBar?.isVisible == true) {
+            val pillsRv = categoryPillsRecycler
+            if (pillsRv != null) {
+                for (i in 0 until pillsRv.childCount) {
+                    if (pillsRv.getChildAt(i)?.requestFocus() == true) return true
+                }
+            }
+            if (sourceFilterBtn?.isVisible == true && sourceFilterBtn?.requestFocus() == true) return true
+            if (toggleFilterBtn?.isVisible == true && toggleFilterBtn?.requestFocus() == true) return true
         }
         for (i in 0 until rv.childCount) {
             if (rv.getChildAt(i)?.requestFocus() == true) return true
