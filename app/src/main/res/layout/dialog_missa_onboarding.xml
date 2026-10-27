@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 3-step guided First-Launch Onboarding Wizard (FLOW-01) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/missa_universe_card_bg"
+    android:orientation="vertical"
+    android:padding="22dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/onboarding_step_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/missa_pill_360"
+            android:paddingStart="10dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="3dp"
+            android:textAppearance="@style/TextAppearance.Missa.Badge"
+            android:textColor="@color/missaOnRedLive"
+            tools:text="Étape 1 sur 3" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/onboarding_skip_btn"
+            style="@style/Widget.Missa.Pill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/missa_onboarding_skip" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/onboarding_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:accessibilityHeading="true"
+        android:textAppearance="@style/TextAppearance.Missa.ScreenTitle"
+        tools:text="Bienvenue sur MISSA TV 360 PLUS" />
+
+    <TextView
+        android:id="@+id/onboarding_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:lineSpacingExtra="3dp"
+        android:textAppearance="@style/TextAppearance.Missa.Body"
+        android:textColor="?attr/grayTextColor"
+        tools:text="Une interface cinéma unifiée pour 9 univers." />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/onboarding_data_saver_switch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:minHeight="48dp"
+        android:text="@string/missa_onboarding_data_saver_toggle"
+        android:textAppearance="@style/TextAppearance.Missa.Body"
+        android:visibility="gone" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/onboarding_open_extensions_btn"
+        style="@style/Widget.Missa.Button.Secondary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="@string/missa_onboarding_open_extensions"
+        android:visibility="gone"
+        app:icon="@drawable/ic_baseline_extension_24"
+        tools:visibility="visible" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:gravity="end|center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/onboarding_back_btn"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/missa_onboarding_back"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/onboarding_next_btn"
+            style="@style/Widget.Missa.Button.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/missa_onboarding_next" />
+    </LinearLayout>
+
+</LinearLayout>

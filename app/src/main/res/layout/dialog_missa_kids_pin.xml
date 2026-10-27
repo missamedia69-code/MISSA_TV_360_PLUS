@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Parental PIN Lock Dialog for Kids Universe (TRUST-01) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/kids_pin_dialog_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:accessibilityHeading="true"
+        android:text="@string/universe_kids_pin_title"
+        android:textAppearance="@style/TextAppearance.Missa.RowTitle" />
+
+    <TextView
+        android:id="@+id/kids_pin_dialog_desc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/universe_kids_pin_set_desc"
+        android:textAppearance="@style/TextAppearance.Missa.Body"
+        android:textColor="?attr/grayTextColor" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/kids_pin_input_layout"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:hint="@string/universe_kids_pin_hint">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/kids_pin_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="numberPassword"
+            android:maxLength="4"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Missa.RowTitle" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+</LinearLayout>

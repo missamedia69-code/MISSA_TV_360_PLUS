@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- XML Custom Radio Stream Dialog with Material TextInputLayout, Test Stream & Delete (RAD-03) -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/radio_dialog_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityHeading="true"
+            android:text="@string/universe_radio_add_stream"
+            android:textAppearance="@style/TextAppearance.Missa.RowTitle" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:hint="@string/universe_radio_dialog_name_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/radio_dialog_name_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapWords"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/radio_dialog_url_layout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:hint="@string/universe_radio_dialog_url_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/radio_dialog_url_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri"
+                android:maxLines="2"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:hint="@string/universe_radio_dialog_country_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/radio_dialog_country_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapCharacters"
+                android:maxLength="4"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Saved custom stations quick list for edit/delete -->
+        <LinearLayout
+            android:id="@+id/radio_custom_list_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="end|center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/radio_dialog_test_btn"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/universe_radio_test_stream"
+                app:icon="@drawable/ic_baseline_volume_up_24" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/radio_dialog_save_btn"
+                style="@style/Widget.Missa.Button.Primary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/universe_radio_save_and_play" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
