@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Top subtle bar shadow so top content stays crisp -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="@color/missaHeroScrimTopStart"
+                android:centerColor="@color/missaHeroScrimClear"
+                android:endColor="@color/missaHeroScrimClear" />
+        </shape>
+    </item>
+    <!-- Left-to-right cinema readability gradient over backdrop artwork -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:startColor="@color/missaHeroScrimLeftStart"
+                android:centerColor="@color/missaHeroScrimLeftMid"
+                android:endColor="@color/missaHeroScrimLeftEnd" />
+        </shape>
+    </item>
+    <!-- Bottom seamless fade into the active theme page background -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="90"
+                android:startColor="?attr/primaryBlackBackground"
+                android:centerColor="?attr/missaScrimPageFadeCenter"
+                android:endColor="@color/transparent" />
+        </shape>
+    </item>
+</layer-list>

@@ -122,4 +122,73 @@
     <color name="colorTestFail">#ea596e</color>
     <color name="colorTestWarning">#FF9800</color>
     <color name="playIconBackground">#B3000000</color>
+
+    <!-- MISSA TV 360 PLUS semantic color tokens (THEME-02 & THEME-03) -->
+    <color name="missaYellowPrimary">#F5BB00</color>
+    <color name="missaYellowPrimaryLight">#E0A800</color>
+    <color name="missaOnAccentDark">#141414</color>
+    <color name="missaGreenSuccessDark">#48E484</color>
+    <color name="missaGreenSuccessLight">#0A8744</color>
+    <color name="missaBadge360Bg">#009E49</color>
+    <color name="missaRedLive">#E53935</color>
+    <color name="missaOnRedLive">#FFFFFF</color>
+
+    <!-- Dark theme surfaces -->
+    <color name="missaDarkSurfaceCard">#191B22</color>
+    <color name="missaDarkSurfaceElevated">#21252F</color>
+    <color name="missaDarkSurfaceFocused">#282E3C</color>
+    <color name="missaDarkStrokeSubtle">#24FFFFFF</color>
+    <color name="missaDarkRipple">#28F5BB00</color>
+    <color name="missaDarkScrimFadeCenter">#B3111111</color>
+
+    <!-- AMOLED surfaces -->
+    <color name="missaAmoledSurfaceCard">#0D0E12</color>
+    <color name="missaAmoledLightSurfaceCard">#14161D</color>
+    <color name="missaAmoledSurfaceElevated">#161820</color>
+    <color name="missaAmoledSurfaceFocused">#202532</color>
+    <color name="missaAmoledScrimFadeCenter">#B3000000</color>
+
+    <!-- Light theme surfaces -->
+    <color name="missaLightSurfaceCard">#FFFFFF</color>
+    <color name="missaLightSurfaceElevated">#F3F4F8</color>
+    <color name="missaLightSurfaceFocused">#FFF6D6</color>
+    <color name="missaLightStrokeSubtle">#241F2329</color>
+    <color name="missaLightRipple">#26E0A800</color>
+    <color name="missaLightScrimFadeCenter">#B3E4E4E4</color>
+
+    <!-- Lavender surfaces -->
+    <color name="missaLavenderSurfaceElevated">#F3ECFF</color>
+    <color name="missaLavenderSurfaceFocused">#EDE2FF</color>
+    <color name="missaLavenderStrokeSubtle">#282D1B47</color>
+    <color name="missaLavenderScrimFadeCenter">#B3FDF0FB</color>
+
+    <!-- Dracula surfaces -->
+    <color name="missaDraculaSurfaceCard">#313444</color>
+    <color name="missaDraculaSurfaceElevated">#3C4052</color>
+    <color name="missaDraculaSurfaceFocused">#464A60</color>
+    <color name="missaDraculaStrokeSubtle">#2AF8F8F2</color>
+    <color name="missaDraculaScrimFadeCenter">#B3282A36</color>
+
+    <!-- SilentBlue surfaces -->
+    <color name="missaSilentBlueSurfaceCard">#1E2542</color>
+    <color name="missaSilentBlueSurfaceElevated">#283154</color>
+    <color name="missaSilentBlueSurfaceFocused">#333E68</color>
+    <color name="missaSilentBlueStrokeSubtle">#28E0E1F3</color>
+    <color name="missaSilentBlueScrimFadeCenter">#B3151A30</color>
+
+    <!-- Hero & Gamepad Cinema Overlay tokens (guaranteed contrast over dark backdrop media) -->
+    <color name="missaHeroBackdropFallback">#14171F</color>
+    <color name="missaHeroText">#F8F9FC</color>
+    <color name="missaHeroSubtext">#D8DCE6</color>
+    <color name="missaHeroEyebrowBg">#BF14171F</color>
+    <color name="missaHeroEyebrowStroke">#6648E484</color>
+    <color name="missaHeroScrimTopStart">#880B0C10</color>
+    <color name="missaHeroScrimClear">#000B0C10</color>
+    <color name="missaHeroScrimLeftStart">#EB0E1015</color>
+    <color name="missaHeroScrimLeftMid">#940E1015</color>
+    <color name="missaHeroScrimLeftEnd">#1A0E1015</color>
+    <color name="missaGamepadOverlayPanel">#8C10131A</color>
+    <color name="missaGamepadBtnFill">#731F2533</color>
+    <color name="missaGamepadBtnPressed">#B3F5BB00</color>
+    <color name="missaGamepadBtnStroke">#59FFFFFF</color>
 </resources>

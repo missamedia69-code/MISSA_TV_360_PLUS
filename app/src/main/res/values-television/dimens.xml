@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android TV 10-foot UI overrides (3m viewing distance) -->
+    <dimen name="missa_text_screen_title">28sp</dimen>
+    <dimen name="missa_text_row_title">19sp</dimen>
+    <dimen name="missa_text_body">15sp</dimen>
+    <dimen name="missa_text_caption">13sp</dimen>
+    <dimen name="missa_text_button">14sp</dimen>
+    <dimen name="missa_text_badge">12sp</dimen>
+
+    <!-- Capped at ~45% of 720p/1080p viewport so row 1 title always peeks -->
+    <dimen name="missa_hero_height">324dp</dimen>
+    <dimen name="missa_hero_padding">24dp</dimen>
+    <dimen name="missa_section_horizontal_padding">24dp</dimen>
+    <dimen name="missa_hub_card_width">196dp</dimen>
+    <dimen name="missa_hub_card_height">118dp</dimen>
+    <dimen name="missa_pill_horizontal_padding">14dp</dimen>
+    <dimen name="missa_search_grid_card_min_width">154dp</dimen>
+</resources>

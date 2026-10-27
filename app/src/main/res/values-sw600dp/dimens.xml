@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tablet / Large Mobile overrides (sw600dp, non-TV) -->
+    <dimen name="missa_text_screen_title">26sp</dimen>
+    <dimen name="missa_text_row_title">18sp</dimen>
+    <dimen name="missa_text_body">15sp</dimen>
+    <dimen name="missa_text_caption">13sp</dimen>
+    <dimen name="missa_text_button">14sp</dimen>
+    <dimen name="missa_text_badge">12sp</dimen>
+
+    <dimen name="missa_hero_height">310dp</dimen>
+    <dimen name="missa_hero_padding">22dp</dimen>
+    <dimen name="missa_section_horizontal_padding">20dp</dimen>
+    <dimen name="missa_hub_card_width">168dp</dimen>
+    <dimen name="missa_hub_card_height">108dp</dimen>
+    <dimen name="missa_search_grid_card_min_width">140dp</dimen>
+</resources>

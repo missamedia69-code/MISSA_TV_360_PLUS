@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Unified card surface with press ripple & single crisp yellow focus border (THEME-02, THEME-03, THEME-04, HOME-09) -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/missaRippleColor">
+    <item>
+        <selector>
+            <item android:state_focused="true">
+                <shape android:shape="rectangle">
+                    <solid android:color="?attr/missaSurfaceFocused" />
+                    <stroke
+                        android:width="@dimen/missa_focus_stroke_width"
+                        android:color="?attr/missaAccentPrimary" />
+                    <corners android:radius="@dimen/missa_card_radius" />
+                </shape>
+            </item>
+            <item android:state_selected="true">
+                <shape android:shape="rectangle">
+                    <solid android:color="?attr/missaSurfaceElevated" />
+                    <stroke
+                        android:width="1.5dp"
+                        android:color="?attr/missaAccentPrimary" />
+                    <corners android:radius="@dimen/missa_card_radius" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="?attr/missaSurfaceCard" />
+                    <stroke
+                        android:width="1dp"
+                        android:color="?attr/missaStrokeSubtle" />
+                    <corners android:radius="@dimen/missa_card_radius" />
+                </shape>
+            </item>
+        </selector>
+    </item>
+</ripple>

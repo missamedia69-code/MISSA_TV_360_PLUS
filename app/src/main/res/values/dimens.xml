@@ -32,4 +32,25 @@
     <dimen name="continue_watching_progress_size">25dp</dimen>
     <dimen name="circular_progress_thickness">2dp</dimen>
     <dimen name="download_header_progress_size">35dp</dimen>
+
+    <!-- MISSA TV 360 PLUS responsive typography & component tokens (THEME-05, HOME-01, HOME-09) -->
+    <dimen name="missa_text_screen_title">22sp</dimen>
+    <dimen name="missa_text_row_title">16sp</dimen>
+    <dimen name="missa_text_body">14sp</dimen>
+    <dimen name="missa_text_caption">12sp</dimen>
+    <dimen name="missa_text_button">13sp</dimen>
+    <dimen name="missa_text_badge">12sp</dimen>
+
+    <dimen name="missa_hero_height">268dp</dimen>
+    <dimen name="missa_hero_padding">16dp</dimen>
+    <dimen name="missa_section_horizontal_padding">16dp</dimen>
+    <dimen name="missa_hub_card_width">144dp</dimen>
+    <dimen name="missa_hub_card_height">96dp</dimen>
+    <dimen name="missa_pill_touch_height">48dp</dimen>
+    <dimen name="missa_pill_inset_vertical">6dp</dimen>
+    <dimen name="missa_pill_horizontal_padding">14dp</dimen>
+    <dimen name="missa_top_strip_fade_width">36dp</dimen>
+    <dimen name="missa_focus_stroke_width">3dp</dimen>
+    <dimen name="missa_card_radius">14dp</dimen>
+    <dimen name="missa_search_grid_card_min_width">116dp</dimen>
 </resources>
