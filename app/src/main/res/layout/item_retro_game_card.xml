@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/retro_card_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardBackgroundColor="?attr/missaSurfaceCard"
+    app:cardCornerRadius="@dimen/missa_card_radius"
+    app:cardElevation="0dp"
+    app:strokeColor="?attr/missaStrokeSubtle"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <!-- Top row: Cartridge emblem + Title + System / Size / License badges -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/missa_hub_card_bg">
+
+                <ImageView
+                    android:id="@+id/retro_card_artwork"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_missa_games"
+                    app:tint="?attr/missaAccentPrimary" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/retro_card_title"
+                    style="@style/TextAppearance.Missa.RowTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    tools:text="µCity" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/retro_card_system_badge"
+                        style="@style/TextAppearance.Missa.Badge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/missa_pill_surface_bg"
+                        android:paddingStart="8dp"
+                        android:paddingTop="2dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="2dp"
+                        android:textColor="?attr/missaAccentPrimary"
+                        tools:text="Game Boy Color" />
+
+                    <TextView
+                        android:id="@+id/retro_card_meta_badge"
+                        style="@style/TextAppearance.Missa.Caption"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        tools:text="GPL-3.0 • 128 KB" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Description / Genre -->
+        <TextView
+            android:id="@+id/retro_card_description"
+            style="@style/TextAppearance.Missa.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="?attr/missaTextSecondary"
+            tools:text="Full-featured open-source city-building simulation crafted for Game Boy Color." />
+
+        <!-- In-card Download Progress + Cancel (GAME-02) -->
+        <LinearLayout
+            android:id="@+id/retro_card_progress_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/retro_card_progress_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:indicatorColor="?attr/missaAccentPrimary"
+                app:trackColor="?attr/missaStrokeSubtle"
+                app:trackCornerRadius="4dp"
+                app:trackThickness="6dp" />
+
+            <TextView
+                android:id="@+id/retro_card_progress_text"
+                style="@style/TextAppearance.Missa.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="?attr/missaAccentPrimary"
+                tools:text="Downloading 65% (84 KB)" />
+        </LinearLayout>
+
+        <!-- Action Buttons Row (>=48dp touch targets, TV focusable) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retro_card_primary_btn"
+                style="@style/Widget.Missa.Button.Primary"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_weight="1"
+                tools:text="Play" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retro_card_secondary_btn"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginStart="8dp"
+                tools:text="Delete" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -1170,4 +1170,33 @@
     <string name="universe_retro_engine_notice">On-demand Libretro emulation (SameBoy, FCEUmm, Snes9x, mGBA, Genesis Plus GX) • No commercial ROMs bundled.</string>
     <string name="universe_retro_player_failed">The game could not start with this core. Verify the ROM file integrity.</string>
     <string name="universe_retro_external_engine">Open in external emulator</string>
+
+    <!-- Retro catalog filters, localized cards & immersive player extras -->
+    <string name="universe_retro_filter_all">All consoles</string>
+    <string name="universe_retro_filter_gb">Game Boy / GBC</string>
+    <string name="universe_retro_filter_nes">NES</string>
+    <string name="universe_retro_filter_snes">Super Nintendo</string>
+    <string name="universe_retro_filter_gba">Game Boy Advance</string>
+    <string name="universe_retro_filter_sega">Mega Drive / SMS</string>
+    <string name="universe_retro_source_code">Source</string>
+    <string name="universe_retro_delete_confirm">Remove “%1$s” from your installed library?</string>
+    <string name="universe_retro_engine_required_fmt">%1$s emulation core required (one-time download)</string>
+    <string name="universe_retro_install_engine_fmt">Install %1$s core</string>
+    <string name="universe_retro_player_title_fmt">MISSA TV 360 · %1$s</string>
+    <string name="universe_retro_touch_scale">Cycle button size</string>
+    <string name="universe_retro_touch_opacity_fmt">Overlay opacity: %1$d%%</string>
+    <string name="universe_retro_touch_scale_fmt">Overlay size: %1$s</string>
+    <string name="universe_retro_auto_resumed">Resumed from last session</string>
+    <string name="universe_retro_quit_confirm">Save session and quit to the Retro Games hub?</string>
+    <string name="universe_retro_dpad_desc">8-way directional pad</string>
+    <string name="universe_retro_game_ucity_genre">City-Building &amp; Strategy</string>
+    <string name="universe_retro_game_ucity_desc">Full-featured open-source city-building and urban simulation crafted specifically for Game Boy Color.</string>
+    <string name="universe_retro_game_big2small_genre">Puzzle &amp; Logic</string>
+    <string name="universe_retro_game_big2small_desc">Guide an elephant, goat and mouse to their goals across dozens of clever puzzle stages.</string>
+    <string name="universe_retro_game_roborun_genre">Action &amp; Platformer</string>
+    <string name="universe_retro_game_roborun_desc">Fast-paced 8-bit retro action runner and platformer built natively for the NES.</string>
+    <string name="universe_retro_game_libbet_genre">Arcade &amp; Maze</string>
+    <string name="universe_retro_game_libbet_desc">Classic Damian Yerrick homebrew blending tactical movement with bounce physics.</string>
+    <string name="universe_retro_game_240p_genre">AV &amp; Controller Suite</string>
+    <string name="universe_retro_game_240p_desc">Interactive open-source suite to test display geometry, colors and gamepad latency on GBA.</string>
 </resources>

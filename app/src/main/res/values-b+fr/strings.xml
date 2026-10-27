@@ -1126,4 +1126,33 @@
     <string name="universe_retro_engine_notice">Émulation Libretro à la demande (SameBoy, FCEUmm, Snes9x, mGBA, Genesis Plus GX) • Aucune ROM commerciale incluse.</string>
     <string name="universe_retro_player_failed">Le jeu n’a pas pu démarrer avec ce moteur. Vérifiez l’intégrité du fichier ROM.</string>
     <string name="universe_retro_external_engine">Ouvrir dans un émulateur externe</string>
+
+    <!-- Retro catalog filters, localized cards & immersive player extras -->
+    <string name="universe_retro_filter_all">Toutes les consoles</string>
+    <string name="universe_retro_filter_gb">Game Boy / GBC</string>
+    <string name="universe_retro_filter_nes">NES</string>
+    <string name="universe_retro_filter_snes">Super Nintendo</string>
+    <string name="universe_retro_filter_gba">Game Boy Advance</string>
+    <string name="universe_retro_filter_sega">Mega Drive / SMS</string>
+    <string name="universe_retro_source_code">Code source</string>
+    <string name="universe_retro_delete_confirm">Supprimer « %1$s » de votre bibliothèque installée ?</string>
+    <string name="universe_retro_engine_required_fmt">Moteur d’émulation %1$s requis (téléchargement unique)</string>
+    <string name="universe_retro_install_engine_fmt">Installer le moteur %1$s</string>
+    <string name="universe_retro_player_title_fmt">MISSA TV 360 · %1$s</string>
+    <string name="universe_retro_touch_scale">Taille des touches</string>
+    <string name="universe_retro_touch_opacity_fmt">Opacité des touches : %1$d%%</string>
+    <string name="universe_retro_touch_scale_fmt">Taille des touches : %1$s</string>
+    <string name="universe_retro_auto_resumed">Reprise automatique de la session précédente</string>
+    <string name="universe_retro_quit_confirm">Sauvegarder la session et retourner aux Jeux Rétro ?</string>
+    <string name="universe_retro_dpad_desc">Croix directionnelle 8 directions</string>
+    <string name="universe_retro_game_ucity_genre">Gestion &amp; Construction</string>
+    <string name="universe_retro_game_ucity_desc">Jeu open-source complet de construction et de gestion urbaine conçu pour la Game Boy Color.</string>
+    <string name="universe_retro_game_big2small_genre">Puzzle &amp; Réflexion</string>
+    <string name="universe_retro_game_big2small_desc">Guidez éléphant, chèvre et souris vers leurs objectifs à travers des dizaines de niveaux malins.</string>
+    <string name="universe_retro_game_roborun_genre">Action &amp; Plateforme</string>
+    <string name="universe_retro_game_roborun_desc">Jeu d’action et de course rétro rapide développé nativement pour la console 8-bit NES.</string>
+    <string name="universe_retro_game_libbet_genre">Arcade &amp; Labyrinthe</string>
+    <string name="universe_retro_game_libbet_desc">Classique homebrew de Damian Yerrick mêlant déplacements tactiques et physique de rebond.</string>
+    <string name="universe_retro_game_240p_genre">Suite Audio/Vidéo &amp; Manette</string>
+    <string name="universe_retro_game_240p_desc">Suite interactive open-source pour tester l’affichage, les couleurs et la latence manette sur GBA.</string>
 </resources>

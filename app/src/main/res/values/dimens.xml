@@ -53,4 +53,8 @@
     <dimen name="missa_focus_stroke_width">3dp</dimen>
     <dimen name="missa_card_radius">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">116dp</dimen>
+    <dimen name="missa_retro_dpad_size">156dp</dimen>
+    <dimen name="missa_retro_action_btn_size">54dp</dimen>
+    <dimen name="missa_retro_shoulder_btn_width">76dp</dimen>
+    <dimen name="missa_retro_shoulder_btn_height">48dp</dimen>
 </resources>
