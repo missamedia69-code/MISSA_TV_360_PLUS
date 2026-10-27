@@ -164,6 +164,7 @@ import com.lagradost.cloudstream3.utils.SnackbarHelper.showSnackbar
 import com.lagradost.cloudstream3.utils.TvChannelUtils
 import com.lagradost.cloudstream3.utils.UIHelper.changeStatusBarState
 import com.lagradost.cloudstream3.utils.UIHelper.checkWrite
+import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UIHelper.dismissSafe
 import com.lagradost.cloudstream3.utils.UIHelper.enableEdgeToEdgeCompat
 import com.lagradost.cloudstream3.utils.UIHelper.fixSystemBarsPadding
@@ -1319,6 +1320,53 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             }
         }
 
+        private fun isInsideComposeView(view: View?): Boolean {
+            var cur: Any? = view
+            while (cur is View) {
+                if (cur is androidx.compose.ui.platform.ComposeView ||
+                    cur.javaClass.name.contains("ComposeView")
+                ) {
+                    return true
+                }
+                cur = cur.parent
+            }
+            return false
+        }
+
+        private fun isNonLeafFocusContainer(view: View): Boolean {
+            return view is RecyclerView ||
+                view is ViewPager2 ||
+                view is androidx.fragment.app.FragmentContainerView ||
+                view is android.widget.ScrollView ||
+                view is android.widget.HorizontalScrollView ||
+                view is androidx.core.widget.NestedScrollView ||
+                view is androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        }
+
+        private fun applyDynamicFocusOutlineStyle(focusOutline: View, targetView: View) {
+            if (focusOutline is ImageView && focusOutline.drawable != null) {
+                focusOutline.setImageDrawable(null)
+            }
+            val ctx = targetView.context
+            val strokePx = ctx.resources.getDimensionPixelSize(R.dimen.missa_focus_stroke_width)
+            val strokeColor = ctx.colorFromAttribute(R.attr.missaAccentPrimary)
+            val radiusPx = when {
+                targetView is MaterialButton -> targetView.cornerRadius.toFloat()
+                targetView is CardView -> targetView.radius
+                targetView.id == R.id.universe_card_root ->
+                    ctx.resources.getDimension(R.dimen.missa_card_radius)
+                else -> ctx.resources.getDimension(R.dimen.rounded_image_radius)
+            }
+            val shape = (focusOutline.background as? android.graphics.drawable.GradientDrawable)
+                ?: android.graphics.drawable.GradientDrawable().also {
+                    it.shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    it.setColor(android.graphics.Color.TRANSPARENT)
+                    focusOutline.background = it
+                }
+            shape.cornerRadius = radiusPx
+            shape.setStroke(strokePx, strokeColor)
+        }
+
         @MainThread
         fun updateFocusView(newFocus: View?, same: Boolean = false) {
             val focusOutline = focusOutline.get() ?: return
@@ -1335,27 +1383,48 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
             val wasGone = focusOutline.isGone
 
-            val visible =
-                newFocus != null && newFocus.measuredHeight > 0 && newFocus.measuredWidth > 0 && newFocus.isShown && newFocus.tag != "tv_no_focus_tag"
+            val visible = newFocus != null &&
+                newFocus.measuredHeight > 0 &&
+                newFocus.measuredWidth > 0 &&
+                newFocus.isShown &&
+                newFocus.tag != "tv_no_focus_tag" &&
+                !isInsideComposeView(newFocus) &&
+                !isNonLeafFocusContainer(newFocus)
             focusOutline.isVisible = visible
+
+            if (visible && newFocus != null) {
+                // Prevent duplicate foreground focus rings (e.g. @drawable/outline_drawable) inside MainActivity
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
+                    newFocus.foreground is android.graphics.drawable.StateListDrawable
+                ) {
+                    newFocus.foreground = null
+                }
+                applyDynamicFocusOutlineStyle(focusOutline, newFocus)
+            }
 
             if (!exactlyTheSame) {
                 val animOk = (newFocus ?: lastView)?.context?.let { MissaUiFactory.areAnimationsEnabled(it) } ?: true
+                val rootWidth = focusOutline.rootView.width.takeIf { it > 0 } ?: Int.MAX_VALUE
+                val focusScale = if (visible && newFocus != null && newFocus.measuredWidth <= rootWidth * 0.7f) {
+                    1.05f
+                } else {
+                    1.0f
+                }
                 if (animOk) {
                     lastView?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(130)?.start()
                     if (visible && newFocus != null) {
-                        newFocus.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150).start()
+                        newFocus.animate().scaleX(focusScale).scaleY(focusScale).setDuration(150).start()
                     }
                 } else {
                     lastView?.apply { scaleX = 1.0f; scaleY = 1.0f }
                     if (visible && newFocus != null) {
-                        newFocus.scaleX = 1.05f
-                        newFocus.scaleY = 1.05f
+                        newFocus.scaleX = focusScale
+                        newFocus.scaleY = focusScale
                     }
                 }
             }
 
-            if (newFocus != null) {
+            if (visible && newFocus != null) {
                 lastFocus = WeakReference(newFocus)
                 val parent = newFocus.parent
                 var targetDx = 0
@@ -1408,14 +1477,24 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     }
                 }
 
+                val sx = newFocus.scaleX
+                val sy = newFocus.scaleY
+                val insetL = ((newFocus as? MaterialButton)?.insetLeft ?: 0) * sx
+                val insetT = ((newFocus as? MaterialButton)?.insetTop ?: 0) * sy
+                val insetR = ((newFocus as? MaterialButton)?.insetRight ?: 0) * sx
+                val insetB = ((newFocus as? MaterialButton)?.insetBottom ?: 0) * sy
+                val visualWidth = ((newFocus.measuredWidth * sx) - insetL - insetR).toInt().coerceAtLeast(1)
+                val visualHeight = ((newFocus.measuredHeight * sy) - insetT - insetB).toInt().coerceAtLeast(1)
+
                 val out = IntArray(2)
                 newFocus.getLocationInWindow(out)
                 val (screenX, screenY) = out
-                var (x, y) = screenX.toFloat() to screenY.toFloat()
+                var x = screenX.toFloat() + insetL
+                val y = screenY.toFloat() + insetT
                 val (currentX, currentY) = focusOutline.translationX to focusOutline.translationY
 
                 if (!newFocus.isLtr()) {
-                    x = x - focusOutline.rootView.width + newFocus.measuredWidth
+                    x = x - focusOutline.rootView.width + visualWidth
                 }
                 x -= targetDx
 
@@ -1440,8 +1519,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 val end = FocusTarget(
                     x = x,
                     y = y,
-                    width = newFocus.measuredWidth,
-                    height = newFocus.measuredHeight
+                    width = visualWidth,
+                    height = visualHeight
                 )
 
                 // if they are the same within then snap, aka scrolling

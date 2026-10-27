@@ -426,7 +426,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             searchQuery = currentSearchQuery,
             selectedCategoryKey = selectedCategoryKey,
             selectedSources = selectedSources,
-            showAllRows = showAllRows
+            showAllRows = showAllRows,
+            localizedContext = ctx
         )
         lastProjection = projection
 

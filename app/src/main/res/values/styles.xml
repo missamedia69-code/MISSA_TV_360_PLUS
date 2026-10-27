@@ -89,7 +89,7 @@
     </style>
 
     <style name="AppThemeTvOverlay">
-        <item name="focusBackground">@drawable/outline_drawable_less</item>
+        <item name="focusBackground">?android:attr/selectableItemBackground</item>
     </style>
 
     <style name="ListViewStyle" parent="Widget.AppCompat.ListView">

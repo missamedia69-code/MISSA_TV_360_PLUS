@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Unified card surface with press ripple & single crisp yellow focus border (THEME-02, THEME-03, THEME-04, HOME-09) -->
+<!-- Unified card surface with press ripple; TV focus ring is rendered once by MainActivity.TvFocus (THEME-02, THEME-04, HOME-09) -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="?attr/missaRippleColor">
     <item>
@@ -8,8 +8,8 @@
                 <shape android:shape="rectangle">
                     <solid android:color="?attr/missaSurfaceFocused" />
                     <stroke
-                        android:width="@dimen/missa_focus_stroke_width"
-                        android:color="?attr/missaAccentPrimary" />
+                        android:width="1dp"
+                        android:color="?attr/missaStrokeSubtle" />
                     <corners android:radius="@dimen/missa_card_radius" />
                 </shape>
             </item>

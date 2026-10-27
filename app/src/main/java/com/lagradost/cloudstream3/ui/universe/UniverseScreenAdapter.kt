@@ -487,22 +487,37 @@ internal class UniverseScreenAdapter(
                 dotsContainer.removeAllViews()
                 return
             }
+            val activeWidthPx = 18.toPx
+            val inactiveWidthPx = 6.toPx
+            val dotHeightPx = 6.toPx
             if (dotsContainer.childCount != total) {
                 dotsContainer.removeAllViews()
-                repeat(total) {
+                repeat(total) { idx ->
                     val dot = View(itemView.context).apply {
                         layoutParams = LinearLayout.LayoutParams(
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT
+                            if (idx == activeIndex) activeWidthPx else inactiveWidthPx,
+                            dotHeightPx
                         ).apply {
                             marginStart = 5.toPx
                         }
+                        isFocusable = false
+                        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                     }
                     dotsContainer.addView(dot)
                 }
             }
             for (i in 0 until dotsContainer.childCount) {
                 val dot = dotsContainer.getChildAt(i)
+                val targetWidthPx = if (i == activeIndex) activeWidthPx else inactiveWidthPx
+                val lp = (dot.layoutParams as? LinearLayout.LayoutParams)
+                    ?: LinearLayout.LayoutParams(targetWidthPx, dotHeightPx).apply {
+                        marginStart = 5.toPx
+                    }
+                if (lp.width != targetWidthPx || lp.height != dotHeightPx) {
+                    lp.width = targetWidthPx
+                    lp.height = dotHeightPx
+                    dot.layoutParams = lp
+                }
                 dot.setBackgroundResource(
                     if (i == activeIndex) R.drawable.missa_hero_dot_active
                     else R.drawable.missa_hero_dot_inactive

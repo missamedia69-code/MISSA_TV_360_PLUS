@@ -542,9 +542,10 @@ class MediaUniverseViewModel : ViewModel() {
         searchQuery: String = "",
         selectedCategoryKey: String? = null,
         selectedSources: Set<String> = emptySet(),
-        showAllRows: Boolean = false
+        showAllRows: Boolean = false,
+        localizedContext: Context? = null
     ): UniverseScreenProjection {
-        val ctx = context
+        val ctx = localizedContext ?: context
         val definition = MissaUniverses.byId(universeId)
         val baseSourceEntries = overrideEntries ?: snapshot.entries
 

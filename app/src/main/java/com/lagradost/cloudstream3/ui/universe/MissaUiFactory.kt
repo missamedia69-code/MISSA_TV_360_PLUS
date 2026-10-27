@@ -157,6 +157,8 @@ object MissaUiFactory {
     /**
      * Applies unified active/inactive semantic pill colors without recreating the View,
      * keeping RecyclerView focus stable and TalkBack selection state accurate.
+     * Note: Focus ring rendering on TV is handled centrally by MainActivity.TvFocus so pills
+     * never display a duplicate yellow cursor.
      */
     fun stylePillSelection(button: MaterialButton, selected: Boolean, isFocusedOverride: Boolean = button.isFocused) {
         val ctx = button.context
@@ -167,6 +169,7 @@ object MissaUiFactory {
         val strokeSubtle = ctx.colorFromAttribute(R.attr.missaStrokeSubtle)
         val primaryText = ctx.colorFromAttribute(R.attr.textColor)
         val ripple = ctx.colorFromAttribute(R.attr.missaRippleColor)
+        val standaloneTvFocus = isFocusedOverride && !usesGlobalAnimatedFocusOutline(ctx)
 
         button.isSelected = selected
         button.rippleColor = ColorStateList.valueOf(ripple)
@@ -175,7 +178,7 @@ object MissaUiFactory {
             button.backgroundTintList = ColorStateList.valueOf(accentPrimary)
             button.setTextColor(onAccentPrimary)
             button.iconTint = ColorStateList.valueOf(onAccentPrimary)
-            button.strokeWidth = if (isFocusedOverride) 3.toPx else 0
+            button.strokeWidth = if (standaloneTvFocus) 3.toPx else 0
             button.strokeColor = ColorStateList.valueOf(primaryText)
         } else {
             button.backgroundTintList = ColorStateList.valueOf(
@@ -183,9 +186,9 @@ object MissaUiFactory {
             )
             button.setTextColor(primaryText)
             button.iconTint = ColorStateList.valueOf(primaryText)
-            button.strokeWidth = if (isFocusedOverride) 3.toPx else 1.toPx
+            button.strokeWidth = if (standaloneTvFocus) 3.toPx else 1.toPx
             button.strokeColor = ColorStateList.valueOf(
-                if (isFocusedOverride) accentPrimary else strokeSubtle
+                if (standaloneTvFocus) accentPrimary else strokeSubtle
             )
         }
 
@@ -193,6 +196,20 @@ object MissaUiFactory {
             button,
             if (selected) ctx.getString(R.string.missa_a11y_selected) else null
         )
+    }
+
+    private fun usesGlobalAnimatedFocusOutline(context: Context): Boolean {
+        if (!isTvLayoutMode() || !com.lagradost.cloudstream3.MainActivity.ANIMATED_OUTLINE) {
+            return false
+        }
+        var cur: Context? = context
+        while (cur is android.content.ContextWrapper) {
+            if (cur is com.lagradost.cloudstream3.MainActivity) return true
+            val base = cur.baseContext
+            if (base === cur) break
+            cur = base
+        }
+        return cur is com.lagradost.cloudstream3.MainActivity
     }
 
     /**
@@ -213,6 +230,8 @@ object MissaUiFactory {
     /**
      * Attaches subtle tactile press feedback (0.97x) and unified TV focus scale (1.05x)
      * while honoring system reduced-motion settings (THEME-04 & THEME-08).
+     * When hosted inside MainActivity with ANIMATED_OUTLINE active, TvFocus owns focus scaling
+     * and focus-ring rendering so views are never double-scaled or double-outlined.
      */
     fun attachInteractiveMotion(view: View, focusScale: Float = 1.05f) {
         view.setOnTouchListener { v, event ->
@@ -233,12 +252,14 @@ object MissaUiFactory {
             if (v is MaterialButton && v.tag == "missa_pill") {
                 stylePillSelection(v, v.isSelected, hasFocus)
             }
-            if (isTvLayoutMode() && areAnimationsEnabled(v.context)) {
-                val target = if (hasFocus) focusScale else 1f
-                v.animate().scaleX(target).scaleY(target).setDuration(140L).start()
-            } else if (!hasFocus) {
-                v.scaleX = 1f
-                v.scaleY = 1f
+            if (!usesGlobalAnimatedFocusOutline(v.context)) {
+                if (isTvLayoutMode() && areAnimationsEnabled(v.context)) {
+                    val target = if (hasFocus) focusScale else 1f
+                    v.animate().scaleX(target).scaleY(target).setDuration(140L).start()
+                } else if (!hasFocus) {
+                    v.scaleX = 1f
+                    v.scaleY = 1f
+                }
             }
         }
     }
