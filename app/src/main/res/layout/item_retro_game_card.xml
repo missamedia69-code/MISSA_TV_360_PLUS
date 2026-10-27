@@ -28,7 +28,7 @@
             <FrameLayout
                 android:layout_width="56dp"
                 android:layout_height="56dp"
-                android:background="@drawable/missa_hub_card_bg">
+                android:background="@drawable/missa_universe_card_bg">
 
                 <ImageView
                     android:id="@+id/retro_card_artwork"
@@ -36,7 +36,7 @@
                     android:layout_height="32dp"
                     android:layout_gravity="center"
                     android:importantForAccessibility="no"
-                    android:src="@drawable/ic_missa_games"
+                    android:src="@drawable/ic_missa_gamepad"
                     app:tint="?attr/missaAccentPrimary" />
             </FrameLayout>
 
@@ -68,7 +68,7 @@
                         style="@style/TextAppearance.Missa.Badge"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/missa_pill_surface_bg"
+                        android:background="@drawable/missa_eyebrow_pill_bg"
                         android:paddingStart="8dp"
                         android:paddingTop="2dp"
                         android:paddingEnd="8dp"
@@ -99,7 +99,7 @@
             android:layout_marginTop="10dp"
             android:ellipsize="end"
             android:maxLines="2"
-            android:textColor="?attr/missaTextSecondary"
+            android:textColor="?attr/grayTextColor"
             tools:text="Full-featured open-source city-building simulation crafted for Game Boy Color." />
 
         <!-- In-card Download Progress + Cancel (GAME-02) -->

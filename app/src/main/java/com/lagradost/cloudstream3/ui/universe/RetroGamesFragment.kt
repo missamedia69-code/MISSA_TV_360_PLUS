@@ -838,7 +838,7 @@ class RetroGamesFragment : Fragment() {
                 onDeleteFile: (String, String) -> Unit
             ) {
                 val ctx = itemView.context
-                artwork.setImageResource(R.drawable.ic_missa_games)
+                artwork.setImageResource(R.drawable.ic_missa_gamepad)
                 title.text = item.title
                 systemBadge.text = item.systemLabel
                 val engineBadge = ctx.getString(
@@ -868,7 +868,7 @@ class RetroGamesFragment : Fragment() {
                 onOpenSource: (String) -> Unit
             ) {
                 val game = item.game
-                artwork.setImageResource(R.drawable.ic_missa_games)
+                artwork.setImageResource(R.drawable.ic_missa_gamepad)
                 title.text = game.title
                 systemBadge.text = game.platformLabel
                 metaBadge.text = listOf(game.licenceNote, game.genre, formatBytes(game.estimatedBytes))

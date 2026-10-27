@@ -40,7 +40,7 @@ class MissaRetroDpadView @JvmOverloads constructor(
     private val baseStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = context.resources.displayMetrics.density * 1.5f
-        color = context.getResourceColor(R.attr.missaTextPrimary, 0.24f)
+        color = context.getResourceColor(R.attr.textColor, 0.24f)
     }
 
     private val crossPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -55,7 +55,7 @@ class MissaRetroDpadView @JvmOverloads constructor(
 
     private val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = context.getResourceColor(R.attr.missaTextPrimary, 0.88f)
+        color = context.getResourceColor(R.attr.textColor, 0.88f)
     }
 
     private val activeArrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

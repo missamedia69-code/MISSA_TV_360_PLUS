@@ -163,4 +163,45 @@ class MediaUniverseClassifierTest {
         assertEquals(MissaCategory.RADIO_AFRICA, radioCats.first())
         assertTrue(radioCats.contains(MissaCategory.RADIO_ALL))
     }
+
+    @Test
+    fun `english and french provider sections map to identical MissaCategory keys`() {
+        val enSeries = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "series",
+            title = "Arcane",
+            sectionName = "Trending Drama Series",
+            tags = listOf("Animation", "Sci-Fi"),
+            effectiveType = TvType.TvSeries
+        )
+        val frSeries = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "series",
+            title = "Arcane",
+            sectionName = "Séries Tendances Drame",
+            tags = listOf("Animation", "Science-Fiction"),
+            effectiveType = TvType.TvSeries
+        )
+        assertEquals(enSeries, frSeries)
+    }
+
+    @Test
+    fun `retro game player maps each supported console extension to its official Libretro core`() {
+        assertEquals("sameboy_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("gb")?.coreFileName)
+        assertEquals("sameboy_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("GBC")?.coreFileName)
+        assertEquals("fceumm_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("nes")?.coreFileName)
+        assertEquals("snes9x_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("sfc")?.coreFileName)
+        assertEquals("snes9x_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("smc")?.coreFileName)
+        assertEquals("mgba_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("gba")?.coreFileName)
+        assertEquals("genesis_plus_gx_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("md")?.coreFileName)
+        assertEquals("genesis_plus_gx_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("sms")?.coreFileName)
+        assertEquals(null, RetroGamePlayerActivity.resolveCoreSpec("iso"))
+    }
+
+    @Test
+    fun `navigation universes cover all 9 content universes plus Home with family separators`() {
+        assertEquals(9, MissaUniverses.CONTENT_UNIVERSES.size)
+        assertEquals(10, MissaUniverses.NAVIGATION_UNIVERSES.size)
+        val groups = MissaUniverses.NAVIGATION_UNIVERSES.map { it.familyGroup }
+        // [Home(0)] | [Films, Series, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Podcasts, Radio(3)] | [Games(4)]
+        assertEquals(listOf(0, 1, 1, 1, 1, 2, 2, 3, 3, 4), groups)
+    }
 }

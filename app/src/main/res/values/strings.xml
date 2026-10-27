@@ -1189,6 +1189,7 @@
     <string name="universe_retro_auto_resumed">Resumed from last session</string>
     <string name="universe_retro_quit_confirm">Save session and quit to the Retro Games hub?</string>
     <string name="universe_retro_dpad_desc">8-way directional pad</string>
+    <string name="missa_a11y_selected">Selected</string>
     <string name="universe_retro_game_ucity_genre">City-Building &amp; Strategy</string>
     <string name="universe_retro_game_ucity_desc">Full-featured open-source city-building and urban simulation crafted specifically for Game Boy Color.</string>
     <string name="universe_retro_game_big2small_genre">Puzzle &amp; Logic</string>

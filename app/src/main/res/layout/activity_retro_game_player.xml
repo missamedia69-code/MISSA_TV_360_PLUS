@@ -22,7 +22,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:background="@drawable/missa_pill_surface_bg"
+        android:background="@drawable/missa_eyebrow_pill_bg"
         android:gravity="center"
         android:orientation="vertical"
         android:padding="20dp">
@@ -63,7 +63,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:background="@drawable/missa_scrim_top"
+        android:background="@drawable/missa_gamepad_overlay_bg"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="14dp"
@@ -94,7 +94,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="?attr/missaTextSecondary"
+                android:textColor="?attr/grayTextColor"
                 tools:text="µCity" />
         </LinearLayout>
 

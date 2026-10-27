@@ -59,7 +59,7 @@
                     style="@style/TextAppearance.Missa.Caption"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/missa_pill_surface_bg"
+                    android:background="@drawable/missa_eyebrow_pill_bg"
                     android:ellipsize="end"
                     android:maxLines="2"
                     android:maxWidth="220dp"

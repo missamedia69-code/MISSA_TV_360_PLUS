@@ -1145,6 +1145,7 @@
     <string name="universe_retro_auto_resumed">Reprise automatique de la session précédente</string>
     <string name="universe_retro_quit_confirm">Sauvegarder la session et retourner aux Jeux Rétro ?</string>
     <string name="universe_retro_dpad_desc">Croix directionnelle 8 directions</string>
+    <string name="missa_a11y_selected">Sélectionné</string>
     <string name="universe_retro_game_ucity_genre">Gestion &amp; Construction</string>
     <string name="universe_retro_game_ucity_desc">Jeu open-source complet de construction et de gestion urbaine conçu pour la Game Boy Color.</string>
     <string name="universe_retro_game_big2small_genre">Puzzle &amp; Réflexion</string>

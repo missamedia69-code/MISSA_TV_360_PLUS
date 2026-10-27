@@ -191,7 +191,7 @@ object MissaUiFactory {
 
         ViewCompat.setStateDescription(
             button,
-            if (selected) ctx.getString(R.string.selected) else null
+            if (selected) ctx.getString(R.string.missa_a11y_selected) else null
         )
     }
 
