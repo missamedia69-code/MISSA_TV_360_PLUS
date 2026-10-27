@@ -438,16 +438,16 @@ internal object MediaUniverseClassifier {
                 if (effectiveType == TvType.Anime || effectiveType == TvType.OVA || containsAny(text, "anime", "animé", "animation")) {
                     categories.add(MissaCategory.GENRE_ANIMATION)
                 }
-                if (effectiveType == TvType.AsianDrama || containsAny(text, "k-drama", "kdrama", "drama")) {
+                if (effectiveType == TvType.AsianDrama || containsAny(text, "k-drama", "kdrama", "drama", "drame")) {
                     categories.add(MissaCategory.SERIES_INTL)
                 }
-                if (containsAny(text, "action", "aventure", "adventure", "sci-fi", "fantastique", "fantasy")) {
+                if (containsAny(text, "action", "aventure", "adventure", "science-fiction", "sci-fi", "fantastique", "fantasy")) {
                     categories.add(MissaCategory.GENRE_ACTION)
                 }
                 if (containsAny(text, "comédie", "comedie", "comedy")) {
                     categories.add(MissaCategory.GENRE_COMEDY)
                 }
-                if (containsAny(text, "thriller", "policier", "crime", "enquête", "mystère")) {
+                if (containsAny(text, "thriller", "policier", "crime", "enquête", "mystère", "mystery")) {
                     categories.add(MissaCategory.GENRE_THRILLER)
                 }
                 if (categories.isEmpty()) categories.add(MissaCategory.SERIES_CATALOG)
