@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 3-row Shimmer skeleton + live provider progress counter (HOME-05) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/missa_section_horizontal_padding"
+    android:paddingTop="12dp"
+    android:paddingEnd="@dimen/missa_section_horizontal_padding"
+    android:paddingBottom="24dp">
+
+    <TextView
+        android:id="@+id/shimmer_progress_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/missa_eyebrow_pill_bg"
+        android:paddingStart="12dp"
+        android:paddingTop="5dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="5dp"
+        android:text="@string/missa_loading_catalog"
+        android:textAppearance="@style/TextAppearance.Missa.Caption"
+        android:textColor="?attr/missaAccentSuccess"
+        tools:text="Chargement des sources… 3/7" />
+
+    <com.facebook.shimmer.ShimmerFrameLayout
+        android:id="@+id/universe_shimmer_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Hero placeholder -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:layout_marginBottom="18dp"
+                android:background="@drawable/missa_shimmer_placeholder" />
+
+            <!-- Skeleton Row 1 -->
+            <View
+                android:layout_width="160dp"
+                android:layout_height="18dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/missa_shimmer_placeholder" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="18dp"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+            </LinearLayout>
+
+            <!-- Skeleton Row 2 -->
+            <View
+                android:layout_width="140dp"
+                android:layout_height="18dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/missa_shimmer_placeholder" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="18dp"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+            </LinearLayout>
+
+            <!-- Skeleton Row 3 -->
+            <View
+                android:layout_width="180dp"
+                android:layout_height="18dp"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/missa_shimmer_placeholder" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="156dp"
+                    android:background="@drawable/missa_shimmer_placeholder" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.facebook.shimmer.ShimmerFrameLayout>
+
+</LinearLayout>

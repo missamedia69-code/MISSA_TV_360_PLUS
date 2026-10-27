@@ -240,6 +240,7 @@ dependencies {
     implementation(libs.preference.ktx)
     implementation(libs.material)
     implementation(libs.constraintlayout)
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
     // Coil Image Loading
     implementation(libs.bundles.coil)

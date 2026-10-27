@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hub shortcut card: dimens-driven size (larger on TV), ripple, localized plurals & LIVE badge (HOME-09, THEME-05) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/universe_card_root"
+    android:layout_width="@dimen/missa_hub_card_width"
+    android:layout_height="@dimen/missa_hub_card_height"
+    android:layout_marginEnd="10dp"
+    android:background="@drawable/missa_universe_card_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="bottom"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/universe_card_icon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:importantForAccessibility="no"
+            app:tint="?attr/missaAccentPrimary"
+            tools:src="@drawable/baseline_theaters_24" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/universe_card_live_dot"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/missa_live_pill_bg"
+            android:paddingStart="6dp"
+            android:paddingTop="1dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="1dp"
+            android:text="@string/universe_live_badge"
+            android:textAppearance="@style/TextAppearance.Missa.Badge"
+            android:textColor="?attr/missaOnAccentLive"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/universe_card_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/missa_eyebrow_pill_bg"
+            android:paddingStart="7dp"
+            android:paddingTop="1dp"
+            android:paddingEnd="7dp"
+            android:paddingBottom="1dp"
+            android:textAppearance="@style/TextAppearance.Missa.Badge"
+            android:textColor="?attr/missaAccentSuccess"
+            android:visibility="gone"
+            tools:text="42 titres"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/universe_card_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="@style/TextAppearance.Missa.RowTitle"
+        tools:text="Films" />
+
+    <TextView
+        android:id="@+id/universe_card_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="@style/TextAppearance.Missa.Caption"
+        tools:text="Cinéma &amp; longs-métrages" />
+
+</LinearLayout>

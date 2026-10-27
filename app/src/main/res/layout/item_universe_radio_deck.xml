@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dedicated Radio Console Card with 48dp icon buttons that fit cleanly at 360dp (RAD-02, RAD-03) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/radio_player_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="@dimen/missa_section_horizontal_padding"
+    android:layout_marginTop="8dp"
+    android:layout_marginEnd="@dimen/missa_section_horizontal_padding"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/missa_universe_card_bg"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_missa_radio"
+            app:tint="?attr/missaAccentSuccess" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/radio_station_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:accessibilityHeading="true"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/universe_radio_player_title"
+                android:textAppearance="@style/TextAppearance.Missa.RowTitle" />
+
+            <TextView
+                android:id="@+id/radio_station_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@string/universe_radio_player_idle"
+                android:textAppearance="@style/TextAppearance.Missa.Caption"
+                android:textColor="?attr/missaAccentSuccess" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/radio_live_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/missa_live_pill_bg"
+            android:paddingStart="8dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="3dp"
+            android:text="@string/universe_live_badge"
+            android:textAppearance="@style/TextAppearance.Missa.Badge"
+            android:textColor="?attr/missaOnAccentLive"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <!-- Transport bar: strictly 48dp icon buttons + compact Add Stream pill -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/radio_prev_button"
+            style="@style/Widget.Missa.Button.Icon"
+            android:contentDescription="@string/universe_radio_prev_station"
+            app:icon="@drawable/baseline_skip_previous_24" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/radio_play_pause_button"
+            style="@style/Widget.Missa.Button.Primary"
+            android:layout_width="52dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:contentDescription="@string/universe_radio_play_pause"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+            app:icon="@drawable/ic_baseline_play_arrow_24"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/radio_next_button"
+            style="@style/Widget.Missa.Button.Icon"
+            android:layout_marginStart="4dp"
+            android:contentDescription="@string/universe_radio_next_station"
+            app:icon="@drawable/ic_baseline_skip_next_24" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/radio_stop_button"
+            style="@style/Widget.Missa.Button.Icon"
+            android:layout_marginStart="4dp"
+            android:contentDescription="@string/universe_radio_stop"
+            app:icon="@drawable/baseline_stop_24" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/radio_favorite_button"
+            style="@style/Widget.Missa.Button.Icon"
+            android:layout_marginStart="4dp"
+            android:contentDescription="@string/universe_radio_favorite_toggle"
+            app:icon="@drawable/ic_baseline_bookmark_border_24" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/radio_sleep_button"
+            style="@style/Widget.Missa.Button.Icon"
+            android:contentDescription="@string/universe_radio_sleep_timer"
+            app:icon="@drawable/ic_baseline_tune_24" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/radio_add_stream_button"
+            style="@style/Widget.Missa.Pill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/universe_radio_add_stream"
+            app:icon="@drawable/add_24px" />
+    </LinearLayout>
+
+</LinearLayout>
