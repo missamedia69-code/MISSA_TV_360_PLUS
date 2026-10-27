@@ -84,7 +84,7 @@
         android:banner="@drawable/missa_tv_360_banner"
         android:fullBackupContent="@xml/backup_descriptor"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:icon="@drawable/missa_launcher_foreground"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:largeHeap="true"
         android:pageSizeCompat="enabled"

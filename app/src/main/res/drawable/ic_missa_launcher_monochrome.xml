@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MISSA TV 360 PLUS Monochrome Vector Icon for Android 13+ Themed Icons (THEME-01) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="@color/transparent"
+        android:pathData="M41,26 L49,36 M61,26 L53,36"
+        android:strokeColor="@color/white"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.4" />
+    <path
+        android:fillColor="@color/white"
+        android:pathData="M41,25.5m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0 M61,25.5m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+
+    <path
+        android:fillColor="@color/transparent"
+        android:pathData="M65,37 L34,37 C30.7,37 28,39.7 28,43 L28,64 C28,67.3 30.7,70 34,70 L66,70 C69.3,70 72,67.3 72,64 L72,57"
+        android:strokeColor="@color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="4.4" />
+
+    <path
+        android:fillColor="@color/transparent"
+        android:pathData="M50,70 L50,76 M40,76 L60,76"
+        android:strokeColor="@color/white"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.8" />
+
+    <path
+        android:fillColor="@color/transparent"
+        android:pathData="M46,54 L66,43 M49,59 L68,48.5 M56,62 L70,54"
+        android:strokeColor="@color/white"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.0" />
+
+    <path
+        android:fillColor="@color/transparent"
+        android:pathData="M77,40m-7.5,0a7.5,7.5 0,1 1,15 0a7.5,7.5 0,1 1,-15 0"
+        android:strokeColor="@color/white"
+        android:strokeWidth="3.2" />
+</vector>

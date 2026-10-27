@@ -1,112 +1,65 @@
-# CloudStream
+# MISSA TV 360 PLUS
 
-**⚠️ Warning: By default, this app doesn't provide any video sources; you have to install extensions to add functionality to the app.**
-<p align="left"><a href="https://github.com/recloudstream/cloudstream/releases/download/pre-release/app-prerelease-release.apk"><img src=".github/images/download-cloudstream-pre.png" alt="Download Cloudstream Pre-Release" width=430/></a></p>
+**Plateforme multimédia & rétro-gaming unifiée pour Android Mobile, Tablette et Android TV.**  
+*Unified Cinema, Live TV, Direct Radio & Retro Gaming Platform for Android Phone, Tablet & Android TV.*
 
-[![Discord](https://invidget.switchblade.xyz/5Hus6fM)](https://discord.gg/5Hus6fM)
+> **Note importante / Disclaimer** : Par défaut, MISSA TV 360 PLUS n'embarque aucune source vidéo commerciale ni aucune ROM commerciale. Les flux vidéo/audio reposent sur les extensions compatibles installées par l'utilisateur, tandis que les stations de radio directes et le catalogue de jeux rétro open-source (homebrew) fonctionnent immédiatement.
 
+---
 
-## Table of Contents: 
-+ [About Us:](#about_us)
-+ [Installation Steps:](#install_rules)
-+ [Contributing:](#contributing)
-+ [Issues:](#issues)
-  + [Bugs Reports:](#bug_report)
-  + [Enhancement:](#enhancment)
-+ [Extension Development:](#extensions)
-+ [Language Support:](#languages)
-+ [Further Sources](#contact_and_sources)
+## Les 9 Univers MISSA TV 360 PLUS
 
+MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agrégation intelligente et dédupliquée autour de **9 univers thématiques** (auxquels s'ajoute l'Accueil unifié) :
 
-<a id="about_us"></a>
+1. **Films** (`navigation_universe_films`) — Longs métrages agrégés, classés par catégories éditoriales stables (`MissaCategoryKey`).
+2. **Séries** (`navigation_universe_series`) — Séries TV, animes et feuilletons multi-sources avec mémoire de source préférée.
+3. **Courts métrages** (`navigation_universe_shorts`) — Formats courts, mini-documentaires et créations indépendantes.
+4. **Jeunesse / Enfants** (`navigation_universe_kids`) — Sélection familiale filtrée avec **verrouillage parental par code PIN** (`TRUST-01`).
+5. **TV en direct** (`navigation_universe_live_tv`) — Chaînes live, zapping instantané `CH+` / `CH-` à la télécommande, dernière chaîne mémorisée et favoris en tête (`FLOW-02`).
+6. **Sports** (`navigation_universe_sports`) — Directs sportifs, compétitions et rediffusions.
+7. **Podcasts** (`navigation_universe_podcasts`) — Émissions audio, chroniques et livres audio.
+8. **Radio directe** (`navigation_universe_radio`) — Stations africaines (Cameroun, Côte d'Ivoire, Sénégal, RDC…) et internationales en lecture directe via **AndroidX Media3 `MediaSessionService`** (notification système, écran verrouillé, mini-lecteur persistant, minuterie de veille et flux personnalisés `M3U8`/`MP3`/`AAC`).
+9. **Jeux Rétro** (`navigation_universe_retro_games`) — Catalogue homebrew libre + import de ROMs légales avec émulation **Libretro** à la demande (Game Boy / GBC, NES, Super Nintendo, GBA, Mega Drive / Master System), croix directionnelle 8 directions multi-touch, états de sauvegarde automatiques et menu Pause navigable à la télécommande.
 
-## About us: 
+---
 
-**CloudStream is a media center that prioritizes and emphasizes complete freedom and flexibility for users and developers.** 
+## Architecture & Points Clés UI/UX
 
-CloudStream is an extension-based multimedia player with tracking support. There are extensions to view videos from: 
+- **Compatibilité 100 % Extensions CloudStream** : Les plugins existants (`MainAPI`, `PluginManager`, `APIHolder`) fonctionnent en arrière-plan sans aucune modification requise.
+- **Système de Design Sémantique (`THEME-01..08`)** :
+  - Tokens d'attributs sémantiques `missa*` supportés sur les **8 modes de thème** (`AppTheme`, `AmoledMode`, `LightMode`, `AmoledModeLight`, `DraculaMode`, `SilentBlueMode`, `LavenderMode`, `MonetMode`).
+  - Échelle typographique `TextAppearance.Missa.*` (`@font/google_sans`, `>= 12sp` mobile, variantes `values-sw600dp/` et `values-television/`).
+  - Composants unifiés `Widget.Missa.{Pill,Button.Primary,Button.Secondary,Button.Icon}` et anneau de focus TV unique `3dp` jaune MISSA.
+- **Performance & Mode Économie de Données (`HOME-02`, `HOME-13`, `FLOW-03`)** :
+  - `RecyclerView` modulaire (`ListAdapter` + `DiffUtil` avec payloads sans perte de focus), carrousel `ViewPager2`, squelette `Shimmer` progressif et cache catalogue sur disque (`< 1s` au démarrage à froid).
+  - Mode **Data Saver** réduisant la concurrence réseau et gelant l'auto-rotation du carrousel sur connexions mobiles limitées.
+- **Internationalisation & Accessibilité (`I18N-01..02`, `A11Y-01`)** :
+  - Filtrage par clés stables `MissaCategoryKey` indépendant de la langue active, parité complète `values/strings.xml` (EN) et `values-b+fr/strings.xml` (FR) avec `<plurals>`.
+  - Support TalkBack (`accessibilityHeading`, descriptions dynamiques, cibles tactiles `>= 48dp`) et mise à l'échelle des polices jusqu'à `130 %`.
 
-+ [Librevox (audio-books)](https://librivox.org/) 
-+ [Youtube](https://www.youtube.com/)
-+ [Twitch](https://www.twitch.tv/)
-+ [iptv-org (A collection of publicly available IPTV (Internet Protocol television) channels from all over the world.)](https://github.com/iptv-org/iptv) 
-+ [nginx](https://nginx.org/)
-+ And more... 
+---
 
+## Compilation & Tests / Build & CI
 
-**Please don't create illegal extensions or use any that host any copyrighted media.** For more details about our stance on the DMCA and EUCD, you can read about it on our organization: [reCloudStream](https://github.com/recloudstream)
+Prérequis : **JDK 17+** et **Android SDK (API 37)**.
 
-#### Important Copyright Note: 
+```bash
+# Exécuter les tests unitaires JUnit4 (classifieur, déduplication, filtres, parité i18n)
+./gradlew :app:testPrereleaseDebugUnitTest
 
-Our documentation is unmaintained and open to contributions; therefore, apps and sources, extensions in recommended sources, and recommended apps are not officially moderated or endorsed by CloudStream; if you or another copyright owner identify an extension that breaches your copyright, please let us know. 
+# Générer l'APK de debug Prerelease
+./gradlew :app:assemblePrereleaseDebug
+```
 
+Le workflow GitHub Actions (`.github/workflows/missa-tv-ci.yml`) compile automatiquement le projet, exécute la suite de tests unitaires et publie l'artefact APK `missa-tv-360-prerelease-debug`.
 
-#### Features:
-+ **AdFree**, No ads whatsoever
-+ No tracking/analytics
-+ Bookmarks
-+ Phone and TV support
-+ Chromecast
-+ Extension system for personal customization
+---
 
+## Crédits & Licence Open-Source
 
-<a id="install_rules"></a>
+MISSA TV 360 PLUS est distribué sous licence **GNU General Public License v3.0 (GPL-3.0)** et s'appuie sur l'écosystème open-source suivant :
 
-## Installation: 
-
-Our documentation provides the steps to install and configure CloudStream for your streaming needs.
-
-[Getting Started With CloudStream:](https://recloudstream.github.io/csdocs/)
-
-<a id="contributing"></a>
-
-## Contributing:
-We **happily** accept any contributions to our project. To find out where you can start contributing towards the project, please look [at our issues tab](/cloudstream/issues)
-
-
-
-<a id="issues"></a> 
- 
-### Issues: 
-While we **actively** accept issues and pull requests, we do require you fill out an [template](https://github.com/recloudstream/cloudstream/issues/new/choose) for issues. These include the following:
-
-<a id="bug_report"></a>
-
-- [Bug Report Template: ](https://github.com/recloudstream/cloudstream/issues/new?assignees=&labels=bug&projects=&template=application-bug.yml)
-  - For bug reports, we want as much info as possible, including your downloaded version of CloudeStream, device and updated version (if possible, current API),
-    expected behavior of the program, and the actual behavior that the program did, most importantly we require clear, reproducible steps of the bug. If your bug can't be       reproduced, it is unlikely we'll work on your issue.
-    
-<a id="enhancment"></a>
-  
-- [Feature Request Template: ](https://github.com/recloudstream/cloudstream/issues/new?assignees=&labels=enhancement&projects=&template=feature-request.yml)
-  - Before adding a feature request, please check to see if a feature request already has been requested.  
-
-
-### Extensions:
- 
-**Further details on creating extensions for CloudStream are found in our documentation.**
-
-[Guide: For Extension Developers](https://recloudstream.github.io/csdocs/devs/gettingstarted/) 
-
-<a id="contact_and_sources"></a>
-
-## Further Sources: 
-
-As well as providing clear install steps, our [website](https://dweb.link/ipns/cloudstream.on.fleek.co/) includes a wide variety of other tools, such as: 
-- [Troubleshooting](https://recloudstream.github.io/csdocs/troubleshooting/)
-- [Further CloudStream Repositories](https://recloudstream.github.io/csdocs/repositories/) 
-- Set-Up for other devices, such as:
-  - [Android TV](https://recloudstream.github.io/csdocs/other-devices/tv/)
-  - [Windows](https://recloudstream.github.io/csdocs/other-devices/windows/)
-  - [Linux](https://recloudstream.github.io/csdocs/other-devices/linux/)
-- And more...
-
-<a id="languages"> </a>  
-
-### Supported languages:
-
-Even if you can't contribute to the code or documentation, we always look for those who can contribute to translation and language support. Your contribution is exceptionally appreciated; you can check our translation from the figure below. 
-
-<a href="https://hosted.weblate.org/engage/cloudstream/">
-  <img src="https://hosted.weblate.org/widgets/cloudstream/-/app/multi-auto.svg" alt="Translation status" />
-</a>
+- Base moteur & système d'extensions : [reCloudStream / CloudStream](https://github.com/recloudstream/cloudstream) (GPL-3.0)
+- Pont d'émulation Libretro Kotlin Multiplatform : [kotlinds / libretro-kmp](https://github.com/kotlinds/libretro-kmp) & cœurs officiels Libretro (SameBoy, FCEUmm, Snes9x, mGBA, Genesis Plus GX)
+- Lecture audio & session média : [AndroidX Media3](https://developer.android.com/media/media3) (Apache-2.0)
+- Jeux homebrew du catalogue libre : *µCity* (AntonioND, GPL-3.0), *Big2Small* (mdsteele, GPL-3.0), *RoboRun NES* (heaven-hm, GPL-3.0), *Libbet & the Magic Floor* & *240p Test Suite Mini* (Damian Yerrick / pinobatch, Zlib/GPL)
