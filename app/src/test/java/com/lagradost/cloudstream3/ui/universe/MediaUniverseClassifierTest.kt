@@ -198,7 +198,7 @@ class MediaUniverseClassifierTest {
 
     @Test
     fun `navigation universes cover all 9 content universes plus Home with family separators`() {
-        assertEquals(9, MissaUniverses.CONTENT_UNIVERSES.size)
+        assertEquals(9, MissaUniverses.HUB_SHORTCUTS.size)
         assertEquals(10, MissaUniverses.NAVIGATION_UNIVERSES.size)
         val groups = MissaUniverses.NAVIGATION_UNIVERSES.map { it.familyGroup }
         // [Home(0)] | [Films, Series, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Podcasts, Radio(3)] | [Games(4)]

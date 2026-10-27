@@ -780,7 +780,7 @@ class RetroGamesFragment : Fragment() {
         }
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-            onBindViewHolder(holder, position, emptyList())
+            onBindViewHolder(holder, position, mutableListOf())
         }
 
         override fun onBindViewHolder(
@@ -828,8 +828,8 @@ class RetroGamesFragment : Fragment() {
             private val secondaryBtn: MaterialButton = view.findViewById(R.id.retro_card_secondary_btn)
 
             init {
-                MissaUiFactory.attachPressFeedback(primaryBtn)
-                MissaUiFactory.attachPressFeedback(secondaryBtn)
+                MissaUiFactory.attachInteractiveMotion(primaryBtn)
+                MissaUiFactory.attachInteractiveMotion(secondaryBtn)
             }
 
             fun bindInstalled(
