@@ -432,7 +432,7 @@
     <string name="plugins_disabled" formatted="true">Désactivé : %d</string>
     <string name="plugins_not_downloaded" formatted="true">Non téléchargé : %d</string>
     <string name="plugins_updated" formatted="true">%d plugins mis-à-jour</string>
-    <string name="download_all_plugins_from_repo">Avertissement : CloudStream 3 décline toute responsabilité concernant l’utilisation d’extensions tierces et ne fournit aucun support pour celles-ci !</string>
+    <string name="download_all_plugins_from_repo">Avertissement : MISSA TV 360 décline toute responsabilité concernant l’utilisation d’extensions tierces et ne fournit aucun support officiel pour celles-ci.</string>
     <string name="single_plugin_disabled" formatted="true">%s (Désactivé)</string>
     <string name="tracks">Pistes</string>
     <string name="audio_tracks">Pistes audio</string>
@@ -445,7 +445,7 @@
     <string name="apk_installer_package_installer">Installateur de paquet</string>
     <string name="plugin">plugins</string>
     <string name="delete_repository_plugins">Cela supprimera également tous les plugins du repository</string>
-    <string name="blank_repo_message">CloudStream n\'a aucun site installé par défaut. Vous devez installer les sites à partir de dépôts. \n \nRejoignez notre Discord ou cherchez en ligne.</string>
+    <string name="blank_repo_message">MISSA TV 360 n\'installe aucun site externe par défaut. Ajoutez un dépôt d\'extensions compatibles pour alimenter Films, Séries, TV en direct et Podcasts, ou profitez immédiatement de la Radio et des Jeux rétro.</string>
     <string name="extension_language">Langage</string>
     <string name="enable_skip_op_from_database_des">Afficher les popups skip pour les intro / fins</string>
     <string name="apk_installer_legacy">Ancienne méthode d\'installation</string>
@@ -564,10 +564,10 @@
     <string name="toast_copied">Copié !</string>
     <string name="repo_copy_label">Nom du dépôt et adresse internet</string>
     <string name="favorite">Favori</string>
-    <string name="biometric_warning">Vos données CloudStream viennent d\'être sauvegardées. Bien que cette éventualité soit très faible, tous les appareils peuvent se comporter différemment. Dans le rare cas où l\'accès à l\'application est bloqué, effacez complètement les données de l\'application et restaurez à partir d\'une sauvegarde. Nous sommes sincèrement désolés pour les désagréments occasionnés par cette situation.</string>
+    <string name="biometric_warning">Vos données MISSA TV 360 viennent d\'être sauvegardées. Dans le rare cas où l\'accès à l\'application serait bloqué, effacez les données de l\'application et restaurez à partir d\'une sauvegarde.</string>
     <string name="battery_dialog_title">Désactiver l\'optimisation de la batterie</string>
-    <string name="app_info_intent_error">Impossible d\'ouvrir les informations de l\'application CloudStream.</string>
-    <string name="biometric_authentication_title">Déverrouiller CloudStream</string>
+    <string name="app_info_intent_error">Impossible d\'ouvrir les informations de l\'application MISSA TV 360.</string>
+    <string name="biometric_authentication_title">Déverrouiller MISSA TV 360</string>
     <string name="music_singular">Musique</string>
     <string name="resume_remaining" formatted="true">%s \nrestants</string>
     <string name="clipboard_permission_error">Erreur d\'accès au presse-papiers, veuillez réessayer.</string>
@@ -578,7 +578,7 @@
     <string name="clipboard_unknown_error">Erreur de copie, Veuillez copier le logcat et contacter le support de l\'application.</string>
     <string name="biometric_setting_summary">Déverrouiller l\'appli avec l\'empreinte digitale, l\'identification faciale, le code PIN, le motif et le mot de passe.</string>
     <string name="biometric_prompt_description">Après quelques tentatives infructueuses, le message se fermera. Redémarrez simplement l’application pour réessayer.</string>
-    <string name="battery_dialog_message">Pour garantir des téléchargements ininterrompus et des notifications pour les émissions de télévision auxquelles vous êtes abonné, CloudStream a besoin d\'une autorisation pour fonctionner en arrière-plan. En appuyant sur OK, une boite de dialogue sera affiché. Appuyé sur \'autoriser\'.\n\nVeuillez noter que cette autorisation ne signifie pas que CS3 épuisera votre batterie. Il ne fonctionnera en arrière-plan que lorsque cela sera nécessaire, par exemple lors de la réception de notifications ou du téléchargement de vidéos à partir d\'extensions officielles.</string>
+    <string name="battery_dialog_message">Pour garantir des téléchargements ininterrompus et des notifications, MISSA TV 360 a besoin d\'une autorisation pour fonctionner en arrière-plan. En appuyant sur OK, appuyez sur « Autoriser ». Cela n\'épuisera pas votre batterie.</string>
     <string name="app_unrestricted_toast">L\'utilisation de la batterie de l\'application est déjà réglée sur illimitée</string>
     <string name="unfavorite">Supprimer des favoris</string>
     <string name="custom_media_singular">Média</string>
@@ -599,7 +599,7 @@
     <string name="delete_format" formatted="true">Supprimer (%1$d | %2$s)</string>
     <string name="open_downloaded_repo">Ouvrir le dépôt</string>
     <string name="device_pin_counter_text">Code expire dans %1$dm %2$ds</string>
-    <string name="cs3wiki">Wiki de CloudStream</string>
+    <string name="cs3wiki">Aide &amp; Documentation</string>
     <string name="device_pin_expired_message">Le code PIN est maintenant expiré !</string>
     <string name="qr_image">Image du code QR</string>
     <string name="delete_plugin">Supprimer l\'extension</string>
@@ -767,4 +767,363 @@
     <string name="edit_profile_image_url">URL</string>
     <string name="edit_profile_image_picker">Choisir une image</string>
     <string name="edit_profile_image_default">Images par défaut</string>
+
+    <!-- MISSA TV 360 PLUS — Traduction française complète (I18N-01 & I18N-02) -->
+    <string name="universe_home_title">Accueil</string>
+    <string name="universe_home_description">Cinéma, séries, directs, audio et jeux rétro réunis sur une seule plateforme.</string>
+    <string name="universe_home_catalogue">Sélection &amp; recommandations</string>
+    <string name="universe_films_title">Films</string>
+    <string name="universe_films_description">Longs-métrages, nouveautés et classiques issus de toutes vos sources compatibles.</string>
+    <string name="universe_series_title">Séries</string>
+    <string name="universe_series_description">Séries, saisons et épisodes unifiés depuis toutes vos extensions compatibles.</string>
+    <string name="universe_shorts_title">Courts</string>
+    <string name="universe_shorts_description">Créations et films au format court identifiés par durée et métadonnées.</string>
+    <string name="universe_kids_title">Enfants</string>
+    <string name="universe_kids_description">Films et séries jeunesse sélectionnés pour les plus jeunes et la famille.</string>
+    <string name="universe_live_tv_title">TV Direct</string>
+    <string name="universe_live_tv_description">Chaînes généralistes, info et thématiques avec lancement immédiat du direct.</string>
+    <string name="universe_sports_title">Sports</string>
+    <string name="universe_sports_description">Matchs, compétitions et chaînes sportives en direct dans un espace dédié.</string>
+    <string name="universe_podcasts_title">Podcasts</string>
+    <string name="universe_podcasts_description">Découvrez des émissions audio, parcourez les épisodes et reprenez votre écoute.</string>
+    <string name="universe_radio_title">Radio</string>
+    <string name="universe_radio_description">Stations de radio d’Afrique, du Cameroun et du monde en écoute directe.</string>
+    <string name="universe_games_title">Jeux rétro</string>
+    <string name="universe_games_description">Catalogue indépendant de jeux rétro libres, téléchargement dédié et émulation intégrée.</string>
+
+    <!-- Eyebrow badges -->
+    <string name="universe_eyebrow_home">★ À L’AFFICHE · CINÉMA &amp; SÉRIES</string>
+    <string name="universe_eyebrow_films">🎬 UNIVERS FILMS</string>
+    <string name="universe_eyebrow_series">📺 UNIVERS SÉRIES</string>
+    <string name="universe_eyebrow_shorts">🎞️ COURTS-MÉTRAGES</string>
+    <string name="universe_eyebrow_kids">🌟 SÉLECTION JEUNESSE &amp; FAMILLE</string>
+    <string name="universe_eyebrow_live_tv">🔴 TV EN DIRECT</string>
+    <string name="universe_eyebrow_sports">⚽ SPORTS EN DIRECT</string>
+    <string name="universe_eyebrow_podcasts">🎙️ PODCASTS &amp; ÉMISSIONS</string>
+    <string name="universe_eyebrow_radio">📻 RADIO EN ÉCOUTE DIRECTE</string>
+    <string name="universe_eyebrow_games">🕹️ JEUX RÉTRO</string>
+
+    <string name="universe_card_films_sub">Cinéma &amp; longs-métrages</string>
+    <string name="universe_card_series_sub">Saisons &amp; épisodes</string>
+    <string name="universe_card_shorts_sub">Formats courts ≤ 40 min</string>
+    <string name="universe_card_kids_sub">Jeunesse &amp; famille</string>
+    <string name="universe_card_live_tv_sub">Chaînes en direct</string>
+    <string name="universe_card_sports_sub">Matchs &amp; événements</string>
+    <string name="universe_card_podcasts_sub">Émissions &amp; épisodes</string>
+    <string name="universe_card_radio_sub">Écoute directe</string>
+    <string name="universe_card_games_sub">Catalogue &amp; émulation</string>
+
+    <string name="universe_hero_watch">Regarder</string>
+    <string name="universe_hero_watch_live">Regarder le direct</string>
+    <string name="universe_hero_listen_live">Écouter en direct</string>
+    <string name="universe_hero_listen">Écouter</string>
+    <string name="universe_hero_more_info">Plus d’infos</string>
+    <string name="universe_hero_next">Suivant</string>
+    <string name="universe_hero_manage_plugins">Configurer mes sources</string>
+    <string name="universe_hero_onboarding_badge">BIENVENUE SUR MISSA TV 360</string>
+    <string name="universe_hero_onboarding_title">Votre cinéma, vos directs et vos radios classés par univers</string>
+    <string name="universe_hero_onboarding_plot">MISSA TV 360 rassemble automatiquement les films, séries, courts-métrages, contenus jeunesse, chaînes TV, sports en direct, podcasts et radios de vos extensions. Configurez vos sources en 3 étapes ou explorez immédiatement la Radio et les Jeux rétro.</string>
+
+    <string name="universe_resume_watching_title">Reprendre la lecture</string>
+    <string name="universe_resume_listening_title">Reprendre l’écoute</string>
+    <string name="universe_resume_removed">Retiré de « Reprendre la lecture »</string>
+    <string name="universe_resume_undo">Annuler</string>
+    <string name="universe_resume_clear_all">Tout effacer</string>
+    <string name="universe_resume_clear_confirm">Effacer tout l’historique de reprise de cet univers ?</string>
+    <string name="universe_shortcuts_title">Explorer les univers</string>
+    <string name="universe_see_all">Voir tout</string>
+    <string name="universe_show_more_rows">Afficher plus de catégories (+%1$d)</string>
+    <string name="universe_all_categories">Tout</string>
+    <string name="universe_more_categories">Plus…</string>
+    <string name="universe_all_sources">Sources : Toutes (%1$d)</string>
+    <string name="universe_multi_selected_sources">Sources (%1$d)</string>
+    <string name="universe_single_source">Source : %1$s</string>
+    <string name="universe_choose_source">Filtrer par source en arrière-plan</string>
+    <string name="universe_filter_sources_hint">Rechercher une source…</string>
+    <string name="universe_apply_filters">Appliquer</string>
+    <string name="universe_all_sources_option">Toutes les sources compatibles</string>
+    <string name="universe_multi_sources_badge">%1$d sources</string>
+    <string name="universe_items_count">%1$d titres</string>
+    <string name="universe_refresh">Actualiser</string>
+    <string name="universe_reset_filters">Réinitialiser les filtres</string>
+    <string name="universe_kids_safe_badge">SÉLECTION JEUNESSE</string>
+    <string name="universe_kids_pin_locked_badge">VERROU PARENTAL ACTIF</string>
+    <string name="universe_kids_set_pin">Verrou parental</string>
+    <string name="universe_kids_pin_title">Code PIN Espace Enfants</string>
+    <string name="universe_kids_pin_hint">Code PIN à 4 chiffres</string>
+    <string name="universe_kids_pin_set_desc">Définissez un code PIN à 4 chiffres pour verrouiller le mode Enfants afin d’empêcher l’accès aux autres univers sans votre code.</string>
+    <string name="universe_kids_pin_unlock_desc">Saisissez votre code PIN à 4 chiffres pour quitter le mode Enfants ou désactiver le verrouillage.</string>
+    <string name="universe_kids_pin_saved">Mode Enfants verrouillé par code PIN</string>
+    <string name="universe_kids_pin_unlocked">Verrouillage parental levé</string>
+    <string name="universe_kids_pin_invalid">Code PIN à 4 chiffres incorrect</string>
+    <string name="universe_live_badge">EN DIRECT</string>
+
+    <!-- Plurals (I18N-01) -->
+    <plurals name="missa_titles_count">
+        <item quantity="one">%d titre</item>
+        <item quantity="other">%d titres</item>
+    </plurals>
+    <plurals name="missa_stations_count">
+        <item quantity="one">%d station</item>
+        <item quantity="other">%d stations</item>
+    </plurals>
+    <plurals name="missa_sources_count">
+        <item quantity="one">%d source</item>
+        <item quantity="other">%d sources</item>
+    </plurals>
+    <plurals name="missa_games_count">
+        <item quantity="one">%d jeu</item>
+        <item quantity="other">%d jeux</item>
+    </plurals>
+
+    <!-- Loading, freshness, cache & 4 distinct empty/error states (HOME-05, HOME-06, HOME-13) -->
+    <string name="missa_loading_sources_progress">Chargement des sources… %1$d/%2$d</string>
+    <string name="missa_loading_catalog">Préparation du catalogue unifié…</string>
+    <string name="missa_searching_sources_progress">%1$d/%2$d sources interrogées</string>
+    <string name="missa_updated_just_now">Mis à jour à l’instant</string>
+    <string name="missa_updated_minutes_ago">Mis à jour il y a %1$d min</string>
+    <string name="missa_data_saver_badge">Éco données</string>
+
+    <string name="missa_state_no_plugins_title">Aucune source vidéo configurée</string>
+    <string name="missa_state_no_plugins_desc">Ajoutez un dépôt d’extensions compatibles en 3 étapes rapides pour alimenter Films, Séries, TV en direct et Podcasts, ou profitez tout de suite de la Radio et des Jeux rétro.</string>
+    <string name="missa_state_no_plugins_cta">Démarrer la configuration</string>
+
+    <string name="missa_state_empty_universe_title">Aucun contenu classé dans « %1$s »</string>
+    <string name="missa_state_empty_universe_desc">Vos extensions installées n’ont pas encore retourné de titres pour cet univers. Actualisez le catalogue ou explorez un autre univers.</string>
+    <string name="missa_state_empty_universe_cta">Actualiser le catalogue</string>
+
+    <string name="missa_state_offline_title">Connexion indisponible</string>
+    <string name="missa_state_offline_desc">Impossible de joindre vos sources en ligne. Vérifiez votre connexion réseau puis réessayez.</string>
+    <string name="missa_state_offline_cta">Réessayer</string>
+
+    <string name="missa_state_empty_filter_title">Aucun résultat pour ce filtre</string>
+    <string name="missa_state_empty_filter_desc">Essayez un autre mot-clé ou réinitialisez les filtres de catégorie et de source.</string>
+    <string name="missa_state_empty_filter_cta">Réinitialiser les filtres</string>
+
+    <!-- Scoped filter bar & See All sheet (NAV-04, HOME-07, HOME-10) -->
+    <string name="universe_filter_in_universe_hint">Filtrer dans %1$s…</string>
+    <string name="universe_search_hint">Filtrer un titre, une chaîne ou une émission…</string>
+    <string name="universe_search_action">Filtrer</string>
+    <string name="universe_voice_search">Filtre vocal</string>
+    <string name="universe_recent_searches">Récents</string>
+    <string name="universe_clear_recent_searches">Effacer</string>
+    <string name="universe_catalogue_results">Catalogue unifié</string>
+    <string name="universe_search_results_for">Résultats pour « %1$s »</string>
+    <string name="universe_empty_home">Aucun contenu disponible dans cet univers pour le moment.</string>
+    <string name="universe_empty_search">Aucun résultat classé dans cet univers. Essayez un autre terme ou réinitialisez les filtres.</string>
+    <string name="universe_catalogue_error">Impossible de charger le catalogue pour le moment. Vérifiez votre connexion et réessayez.</string>
+    <string name="universe_featured_content">Affiche à la une</string>
+    <string name="universe_featured">À L’AFFICHE</string>
+    <string name="missa_sort_editorial">Recommandés</string>
+    <string name="missa_sort_az">A–Z</string>
+    <string name="missa_sort_rating">Mieux notés</string>
+    <string name="missa_choose_source_for_title">Choisir une source pour « %1$s »</string>
+
+    <!-- 3-step onboarding wizard (FLOW-01) -->
+    <string name="missa_onboarding_step_indicator">Étape %1$d sur 3</string>
+    <string name="missa_onboarding_step1_title">Bienvenue sur MISSA TV 360 PLUS</string>
+    <string name="missa_onboarding_step1_desc">Une interface cinéma unifiée pour 9 univers : Films, Séries, Courts-métrages, Enfants, TV en direct, Sports, Podcasts, Radio directe et Jeux rétro.</string>
+    <string name="missa_onboarding_step2_title">Région, Audio &amp; Économie de données</string>
+    <string name="missa_onboarding_step2_desc">Personnalisez votre expérience : stations radio d’Afrique, du Cameroun et internationales prêtes dès le premier lancement, et mode Économie de données pour réseaux mobiles.</string>
+    <string name="missa_onboarding_data_saver_toggle">Activer le mode Économie de données (images allégées, carrousel fixe)</string>
+    <string name="missa_onboarding_step3_title">Connecter vos sources (Extensions)</string>
+    <string name="missa_onboarding_step3_desc">Ouvrez le gestionnaire d’extensions pour ajouter un dépôt ou activer vos sources. Les univers Radio et Jeux rétro fonctionnent immédiatement sans extension.</string>
+    <string name="missa_onboarding_open_extensions">Ouvrir le gestionnaire d’extensions</string>
+    <string name="missa_onboarding_skip">Passer pour l’instant</string>
+    <string name="missa_onboarding_next">Continuer</string>
+    <string name="missa_onboarding_back">Retour</string>
+    <string name="missa_onboarding_finish">Commencer l’exploration</string>
+
+    <!-- Radio player, persistent mini-player & custom stream manager (RAD-01..04) -->
+    <string name="universe_radio_player_title">Écoute Radio Directe</string>
+    <string name="universe_radio_player_idle">Touchez une station ci-dessous pour lancer l’écoute immédiatement</string>
+    <string name="universe_radio_playing">En direct • %1$s</string>
+    <string name="universe_radio_buffering">Connexion au flux audio… • %1$s</string>
+    <string name="universe_radio_paused">En pause • %1$s</string>
+    <string name="universe_radio_error">Flux indisponible pour %1$s. Essayez une autre station.</string>
+    <string name="universe_radio_stop">Arrêter</string>
+    <string name="universe_radio_next_station">Station suivante</string>
+    <string name="universe_radio_prev_station">Station précédente</string>
+    <string name="universe_radio_play_pause">Lecture ou pause radio</string>
+    <string name="universe_radio_add_stream">Ajouter un flux</string>
+    <string name="universe_radio_manage_streams">Gérer mes flux</string>
+    <string name="universe_radio_presets_row">Stations en accès direct</string>
+    <string name="universe_radio_custom_genre_default">Flux personnalisé</string>
+    <string name="universe_radio_custom_name_default">Radio personnalisée</string>
+    <string name="universe_radio_live_genre_default">Radio en direct</string>
+    <string name="universe_radio_dialog_name_hint">Nom de la station (ex. CRTV Littoral)</string>
+    <string name="universe_radio_dialog_url_hint">URL du flux audio (https://… mp3, aac, m3u8)</string>
+    <string name="universe_radio_dialog_country_hint">Pays / Région (ex. CM, AF, FR)</string>
+    <string name="universe_radio_test_stream">Tester le flux</string>
+    <string name="universe_radio_save_and_play">Enregistrer &amp; Écouter</string>
+    <string name="universe_radio_invalid_url">Saisissez une URL http:// ou https:// valide</string>
+    <string name="universe_radio_testing_stream">Test du flux en cours…</string>
+    <string name="universe_radio_delete_station">Supprimer la station</string>
+    <string name="universe_radio_favorite_toggle">Favori</string>
+    <string name="universe_radio_sleep_timer">Minuterie de veille</string>
+    <string name="universe_radio_sleep_off">Désactivée</string>
+    <string name="universe_radio_sleep_15">15 minutes</string>
+    <string name="universe_radio_sleep_30">30 minutes</string>
+    <string name="universe_radio_sleep_60">60 minutes</string>
+    <string name="universe_radio_sleep_set">Veille programmée (%1$d min)</string>
+    <string name="universe_radio_notification_channel">MISSA Radio en direct</string>
+
+    <!-- Live TV zapping (FLOW-02) -->
+    <string name="missa_live_last_channel">Reprendre la dernière chaîne : %1$s</string>
+    <string name="missa_live_channel_number">CH %1$d</string>
+
+    <!-- Discovery category row titles & short 1-2 word filter chip labels (I18N-01, HOME-08, HOME-10) -->
+    <string name="missa_cat_home_trending">Tendances &amp; Nouveautés</string>
+    <string name="missa_chip_home_trending">Tendances</string>
+    <string name="missa_cat_home_movies">Films à l’affiche</string>
+    <string name="missa_chip_home_movies">Films</string>
+    <string name="missa_cat_home_series">Séries incontournables</string>
+    <string name="missa_chip_home_series">Séries</string>
+    <string name="missa_cat_action">Action &amp; Aventure</string>
+    <string name="missa_chip_action">Action</string>
+    <string name="missa_cat_comedy">Comédie &amp; Détente</string>
+    <string name="missa_chip_comedy">Comédie</string>
+    <string name="missa_cat_scifi">Science-Fiction &amp; Imaginaire</string>
+    <string name="missa_chip_scifi">Sci-Fi</string>
+    <string name="missa_cat_drama">Drame &amp; Romance</string>
+    <string name="missa_chip_drama">Drame</string>
+    <string name="missa_cat_thriller">Thriller &amp; Policier</string>
+    <string name="missa_chip_thriller">Thriller</string>
+    <string name="missa_cat_animation">Animation &amp; Anime</string>
+    <string name="missa_chip_animation">Animation</string>
+    <string name="missa_cat_documentary">Documentaires</string>
+    <string name="missa_chip_documentary">Docus</string>
+    <string name="missa_cat_home_family">Jeunesse &amp; Famille</string>
+    <string name="missa_chip_home_family">Famille</string>
+    <string name="missa_cat_home_live">En direct : TV &amp; Sports</string>
+    <string name="missa_chip_home_live">Direct</string>
+    <string name="missa_cat_home_audio">Audio : Podcasts &amp; Radio</string>
+    <string name="missa_chip_home_audio">Audio</string>
+    <string name="missa_cat_home_selection">Sélection Cinéma &amp; Séries</string>
+    <string name="missa_chip_home_selection">Sélection</string>
+
+    <string name="missa_cat_films_featured">Films à la une &amp; Nouveautés</string>
+    <string name="missa_chip_films_featured">Nouveautés</string>
+    <string name="missa_cat_films_shorts">Formats courts</string>
+    <string name="missa_chip_films_shorts">Courts</string>
+    <string name="missa_cat_films_catalog">Catalogue Films</string>
+    <string name="missa_chip_films_catalog">Catalogue</string>
+
+    <string name="missa_cat_series_trending">Séries tendances &amp; Nouveautés</string>
+    <string name="missa_chip_series_trending">Tendances</string>
+    <string name="missa_cat_series_intl">Drame &amp; Séries internationales</string>
+    <string name="missa_chip_series_intl">Drames</string>
+    <string name="missa_cat_series_catalog">Catalogue Séries</string>
+    <string name="missa_chip_series_catalog">Catalogue</string>
+
+    <string name="missa_cat_shorts_micro">Formats très courts (≤ 15 min)</string>
+    <string name="missa_chip_shorts_micro">≤ 15 min</string>
+    <string name="missa_cat_shorts_anim">Courts-métrages d’animation</string>
+    <string name="missa_chip_shorts_anim">Animés</string>
+    <string name="missa_cat_shorts_doc">Courts documentaires</string>
+    <string name="missa_chip_shorts_doc">Docus</string>
+    <string name="missa_cat_shorts_all">Sélection Courts-métrages</string>
+    <string name="missa_chip_shorts_all">Sélection</string>
+
+    <string name="missa_cat_kids_movies">Films en famille</string>
+    <string name="missa_chip_kids_movies">Films</string>
+    <string name="missa_cat_kids_cartoons">Dessins animés &amp; Séries jeunesse</string>
+    <string name="missa_chip_kids_cartoons">Dessins animés</string>
+    <string name="missa_cat_kids_magic">Aventure &amp; Magie</string>
+    <string name="missa_chip_kids_magic">Magie</string>
+    <string name="missa_cat_kids_all">Univers Enfants</string>
+    <string name="missa_chip_kids_all">Jeunesse</string>
+
+    <string name="missa_cat_favorites">Favoris</string>
+    <string name="missa_chip_favorites">Favoris</string>
+    <string name="missa_cat_live_news">Actualités &amp; Info en continu</string>
+    <string name="missa_chip_live_news">Info</string>
+    <string name="missa_cat_live_cinema">Chaînes Cinéma &amp; Séries</string>
+    <string name="missa_chip_live_cinema">Cinéma</string>
+    <string name="missa_cat_live_culture">Culture &amp; Découverte</string>
+    <string name="missa_chip_live_culture">Culture</string>
+    <string name="missa_cat_live_music">Musique &amp; Divertissement</string>
+    <string name="missa_chip_live_music">Musique</string>
+    <string name="missa_cat_live_all">Chaînes TV en direct</string>
+    <string name="missa_chip_live_all">Chaînes</string>
+
+    <string name="missa_cat_sports_football">Football en direct</string>
+    <string name="missa_chip_sports_football">Football</string>
+    <string name="missa_cat_sports_basket">Basketball</string>
+    <string name="missa_chip_sports_basket">Basket</string>
+    <string name="missa_cat_sports_combat">Sports de combat</string>
+    <string name="missa_chip_sports_combat">Combat</string>
+    <string name="missa_cat_sports_motors">Tennis, Rugby &amp; Sports mécaniques</string>
+    <string name="missa_chip_sports_motors">Moteurs</string>
+    <string name="missa_cat_sports_all">Chaînes &amp; Événements Sportifs</string>
+    <string name="missa_chip_sports_all">Événements</string>
+
+    <string name="missa_cat_podcasts_society">Actualités, Histoire &amp; Société</string>
+    <string name="missa_chip_podcasts_society">Société</string>
+    <string name="missa_cat_podcasts_culture">Culture, Sciences &amp; Humour</string>
+    <string name="missa_chip_podcasts_culture">Culture</string>
+    <string name="missa_cat_podcasts_all">Émissions &amp; Podcasts</string>
+    <string name="missa_chip_podcasts_all">Émissions</string>
+
+    <string name="missa_cat_radio_africa">Afrique &amp; Cameroun</string>
+    <string name="missa_chip_radio_africa">Afrique</string>
+    <string name="missa_cat_radio_news">Généralistes &amp; Info</string>
+    <string name="missa_chip_radio_news">Info</string>
+    <string name="missa_cat_radio_music">Musicales &amp; Thématiques</string>
+    <string name="missa_chip_radio_music">Musique</string>
+    <string name="missa_cat_radio_all">Stations de Radio</string>
+    <string name="missa_chip_radio_all">Stations</string>
+
+    <!-- Retro Games Hub & Immersive Overlay Player (GAME-01..05) -->
+    <string name="universe_retro_import">Importer une ROM</string>
+    <string name="universe_retro_refresh">Actualiser</string>
+    <string name="universe_retro_downloads">Portail Homebrew</string>
+    <string name="universe_retro_installed_section">Ma bibliothèque installée</string>
+    <string name="universe_retro_catalog_section">Catalogue libre &amp; Open-Source</string>
+    <string name="universe_retro_title">Jeux rétro</string>
+    <string name="universe_retro_intro">Écosystème rétro indépendant : téléchargez des jeux homebrew libres ou importez vos ROMs personnelles, puis jouez directement dans MISSA TV 360.</string>
+    <string name="universe_retro_empty">Aucun jeu installé pour cette console. Téléchargez un jeu libre ci-dessous ou importez un fichier ROM compatible.</string>
+    <string name="universe_retro_engine_missing">Moteurs Libretro intégrés à la demande (Game Boy / GBC, NES, Super Nintendo, GBA, Mega Drive / Master System). Les autres formats s’ouvrent dans un émulateur externe.</string>
+    <string name="universe_retro_open">Jouer</string>
+    <string name="universe_retro_download">Télécharger</string>
+    <string name="universe_retro_downloading_pct">Téléchargement %1$d%% (%2$s)</string>
+    <string name="universe_retro_downloading_bytes">Téléchargement (%1$s)</string>
+    <string name="universe_retro_cancel_download">Annuler</string>
+    <string name="universe_retro_installed_badge">Installé</string>
+    <string name="universe_retro_builtin_engine_badge">Moteur intégré</string>
+    <string name="universe_retro_external_engine_badge">Émulateur externe</string>
+    <string name="universe_retro_delete">Supprimer</string>
+    <string name="universe_retro_deleted">Jeu retiré de la bibliothèque</string>
+    <string name="universe_retro_file_imported">Jeu prêt dans votre bibliothèque</string>
+    <string name="universe_retro_import_error">Impossible d’importer ou télécharger ce fichier. Vérifiez le format ROM ou la connexion.</string>
+    <string name="universe_retro_catalogue_notice">Jeux homebrew libres et open-source prêts au téléchargement direct.</string>
+    <string name="universe_retro_controller_gamepad">Manette détectée : %1$s</string>
+    <string name="universe_retro_controller_tv">Télécommande Android TV prête (manette Bluetooth/USB recommandée pour les jeux d’action)</string>
+    <string name="universe_retro_controller_touch">Contrôles tactiles superposés prêts (manette Bluetooth compatible)</string>
+    <string name="universe_retro_console_other">Autres consoles</string>
+
+    <!-- Integrated retro player & pause menu -->
+    <string name="universe_retro_download_engine">Installer le moteur d’émulation</string>
+    <string name="universe_retro_engine_downloading">Téléchargement du moteur Libretro…</string>
+    <string name="universe_retro_engine_ready">Moteur prêt. Lancement du jeu…</string>
+    <string name="universe_retro_engine_failed">Impossible d’installer le moteur. Vérifiez la connexion et réessayez.</string>
+    <string name="universe_retro_engine_incompatible">Le moteur intégré nécessite Android 7.0+ (ARM64 / ARMv7 / x86_64). Utilisez un émulateur externe compatible.</string>
+    <string name="universe_retro_loading_game">Chargement de la cartouche…</string>
+    <string name="universe_retro_player_title">MISSA TV 360 · Rétro</string>
+    <string name="universe_retro_pause">Pause</string>
+    <string name="universe_retro_resume">Reprendre la partie</string>
+    <string name="universe_retro_reset_console">Réinitialiser la console</string>
+    <string name="universe_retro_save_state">Sauvegarder l’état</string>
+    <string name="universe_retro_load_state">Charger l’état</string>
+    <string name="universe_retro_state_saved">État de la partie sauvegardé</string>
+    <string name="universe_retro_state_loaded">État de la partie restauré</string>
+    <string name="universe_retro_state_unavailable">Aucun état sauvegardé disponible</string>
+    <string name="universe_retro_toggle_touch">Afficher / masquer les touches</string>
+    <string name="universe_retro_touch_opacity">Opacité des touches</string>
+    <string name="universe_retro_exit">Quitter le jeu</string>
+    <string name="universe_retro_pause_menu_title">Partie en pause</string>
+    <string name="universe_retro_controls">Manette / Télécommande : Croix directionnelle, A/OK, B, X/Select, Y/Start, L1/R1. Retour ou Menu ouvre la Pause.</string>
+    <string name="universe_retro_engine_notice">Émulation Libretro à la demande (SameBoy, FCEUmm, Snes9x, mGBA, Genesis Plus GX) • Aucune ROM commerciale incluse.</string>
+    <string name="universe_retro_player_failed">Le jeu n’a pas pu démarrer avec ce moteur. Vérifiez l’intégrité du fichier ROM.</string>
+    <string name="universe_retro_external_engine">Ouvrir dans un émulateur externe</string>
 </resources>
