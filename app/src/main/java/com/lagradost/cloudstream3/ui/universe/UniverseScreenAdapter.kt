@@ -1023,17 +1023,6 @@ internal class UniverseScreenAdapter(
             val uniTitle = ctx.getString(item.definition.titleRes)
 
             when (item.reason) {
-                UniverseEmptyReason.NO_PLUGINS_INSTALLED -> {
-                    iconView.setImageResource(R.drawable.ic_baseline_extension_24)
-                    titleView.setText(R.string.missa_state_no_plugins_title)
-                    messageView.setText(R.string.missa_state_no_plugins_desc)
-                    primaryBtn.setText(R.string.missa_state_no_plugins_cta)
-                    primaryBtn.setOnClickListener { callbacks.onOpenOnboardingOrExtensions() }
-                    secondaryBtn.isVisible = true
-                    secondaryBtn.setText(R.string.universe_radio_title)
-                    secondaryBtn.setOnClickListener { callbacks.onNavigateUniverse(MissaUniverses.RADIO) }
-                }
-
                 UniverseEmptyReason.OFFLINE_OR_ERROR -> {
                     iconView.setImageResource(R.drawable.ic_outline_info_24)
                     titleView.setText(R.string.missa_state_offline_title)
@@ -1060,9 +1049,7 @@ internal class UniverseScreenAdapter(
                     messageView.setText(R.string.missa_state_empty_universe_desc)
                     primaryBtn.setText(R.string.missa_state_empty_universe_cta)
                     primaryBtn.setOnClickListener { callbacks.onRefreshCatalog() }
-                    secondaryBtn.isVisible = true
-                    secondaryBtn.setText(R.string.universe_hero_manage_plugins)
-                    secondaryBtn.setOnClickListener { callbacks.onOpenOnboardingOrExtensions() }
+                    secondaryBtn.isVisible = false
                 }
             }
         }

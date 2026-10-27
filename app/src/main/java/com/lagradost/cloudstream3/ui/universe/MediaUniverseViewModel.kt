@@ -128,6 +128,26 @@ class MediaUniverseViewModel : ViewModel() {
         private const val PREF_FAVORITE_LIVE_URLS = "missa_fav_live_urls_v1"
         private const val PREF_LAST_LIVE_URL = "missa_last_live_url_v1"
         const val MAX_COLLAPSED_ROWS = 12
+
+        /**
+         * Resolves the empty/error banner state for a universe screen.
+         * When no plugin/extension is installed yet ([activeProviderCount] == 0), never display
+         * a plugin-setup card on any universe page.
+         */
+        fun resolveEmptyReason(
+            effectiveLoading: Boolean,
+            hasVisibleRows: Boolean,
+            hasActiveFilter: Boolean,
+            isOffline: Boolean,
+            hasError: Boolean,
+            activeProviderCount: Int
+        ): UniverseEmptyReason? = when {
+            effectiveLoading || hasVisibleRows -> null
+            hasActiveFilter -> UniverseEmptyReason.EMPTY_SEARCH_OR_FILTER
+            activeProviderCount == 0 -> null
+            isOffline || hasError -> UniverseEmptyReason.OFFLINE_OR_ERROR
+            else -> UniverseEmptyReason.EMPTY_UNIVERSE
+        }
     }
 
     private val detailsCache = ConcurrentHashMap<String, LoadResponse>()
@@ -837,21 +857,18 @@ class MediaUniverseViewModel : ViewModel() {
         val totalUniqueCount = allMatchingRows.flatMap { it.items }.distinctBy { it.url }.size
         val effectiveLoading = snapshot.isLoading && visibleRows.isEmpty()
 
-        // Compute explicit 4-state empty/error reason (HOME-06)
+        // Compute explicit empty/error reason without ever showing a plugin-missing card when no plugin is installed
         val hasActiveFilter = searchQuery.isNotBlank() ||
             !selectedCategoryKey.isNullOrBlank() ||
             selectedSources.isNotEmpty()
-        val emptyReason: UniverseEmptyReason? = if (effectiveLoading || visibleRows.isNotEmpty()) {
-            null
-        } else if (hasActiveFilter) {
-            UniverseEmptyReason.EMPTY_SEARCH_OR_FILTER
-        } else if (snapshot.isOffline || snapshot.hasError) {
-            UniverseEmptyReason.OFFLINE_OR_ERROR
-        } else if (snapshot.activeProviderCount == 0 && universeId != "radio" && universeId != "music") {
-            UniverseEmptyReason.NO_PLUGINS_INSTALLED
-        } else {
-            UniverseEmptyReason.EMPTY_UNIVERSE
-        }
+        val emptyReason: UniverseEmptyReason? = resolveEmptyReason(
+            effectiveLoading = effectiveLoading,
+            hasVisibleRows = visibleRows.isNotEmpty(),
+            hasActiveFilter = hasActiveFilter,
+            isOffline = snapshot.isOffline,
+            hasError = snapshot.hasError,
+            activeProviderCount = snapshot.activeProviderCount
+        )
 
         val lastLiveUrl = if (universeId == "live_tv" || universeId == "sports") getLastLiveChannelUrl() else null
         val lastLiveCard = if (!lastLiveUrl.isNullOrBlank()) {

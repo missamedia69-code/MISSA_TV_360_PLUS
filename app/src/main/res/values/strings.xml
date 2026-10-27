@@ -940,8 +940,8 @@
     <string name="missa_state_no_plugins_desc">Add a compatible extension repository in 3 quick steps to unlock Movies, Series, Live TV and Podcasts, or explore Radio and Retro Games right now.</string>
     <string name="missa_state_no_plugins_cta">Start 3-step setup</string>
 
-    <string name="missa_state_empty_universe_title">Nothing classified in %1$s yet</string>
-    <string name="missa_state_empty_universe_desc">Your installed sources did not return titles for this universe yet. Refresh the catalog or explore another universe.</string>
+    <string name="missa_state_empty_universe_title">No content available in %1$s right now</string>
+    <string name="missa_state_empty_universe_desc">No titles are available in this universe at the moment. Refresh the catalog or explore another universe.</string>
     <string name="missa_state_empty_universe_cta">Refresh catalog</string>
 
     <string name="missa_state_offline_title">Connection unavailable</string>

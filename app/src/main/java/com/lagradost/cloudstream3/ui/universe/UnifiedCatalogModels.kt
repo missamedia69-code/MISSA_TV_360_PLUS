@@ -245,10 +245,9 @@ data class UniverseHubCardItem(
 )
 
 /**
- * Distinct empty / error states for HOME-06.
+ * Distinct empty / error states for HOME-06 (never shows a plugin-missing card on universe pages).
  */
 enum class UniverseEmptyReason {
-    NO_PLUGINS_INSTALLED,
     EMPTY_UNIVERSE,
     OFFLINE_OR_ERROR,
     EMPTY_SEARCH_OR_FILTER

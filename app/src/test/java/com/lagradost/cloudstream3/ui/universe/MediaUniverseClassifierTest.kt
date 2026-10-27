@@ -365,4 +365,40 @@ class MediaUniverseClassifierTest {
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("podcasts"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("radio"))
     }
+
+    @Test
+    fun `no-plugin setup card never appears on any page when no plugin is installed yet`() {
+        // When activeProviderCount == 0, resolveEmptyReason returns null across pages (no "Aucune source vidéo configurée" card)
+        val whenNoPlugins = MediaUniverseViewModel.resolveEmptyReason(
+            effectiveLoading = false,
+            hasVisibleRows = false,
+            hasActiveFilter = false,
+            isOffline = false,
+            hasError = false,
+            activeProviderCount = 0
+        )
+        assertEquals(null, whenNoPlugins)
+
+        // Active user filter still cleanly reports EMPTY_SEARCH_OR_FILTER
+        val whenFiltered = MediaUniverseViewModel.resolveEmptyReason(
+            effectiveLoading = false,
+            hasVisibleRows = false,
+            hasActiveFilter = true,
+            isOffline = false,
+            hasError = false,
+            activeProviderCount = 0
+        )
+        assertEquals(UniverseEmptyReason.EMPTY_SEARCH_OR_FILTER, whenFiltered)
+
+        // When providers are installed and a specific universe has 0 items, returns EMPTY_UNIVERSE
+        val whenProvidersInstalledEmpty = MediaUniverseViewModel.resolveEmptyReason(
+            effectiveLoading = false,
+            hasVisibleRows = false,
+            hasActiveFilter = false,
+            isOffline = false,
+            hasError = false,
+            activeProviderCount = 3
+        )
+        assertEquals(UniverseEmptyReason.EMPTY_UNIVERSE, whenProvidersInstalledEmpty)
+    }
 }

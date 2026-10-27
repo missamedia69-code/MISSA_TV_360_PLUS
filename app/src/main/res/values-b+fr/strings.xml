@@ -896,8 +896,8 @@
     <string name="missa_state_no_plugins_desc">Ajoutez un dépôt d’extensions compatibles en 3 étapes rapides pour alimenter Films, Séries, TV en direct et Podcasts, ou profitez tout de suite de la Radio et des Jeux rétro.</string>
     <string name="missa_state_no_plugins_cta">Démarrer la configuration</string>
 
-    <string name="missa_state_empty_universe_title">Aucun contenu classé dans « %1$s »</string>
-    <string name="missa_state_empty_universe_desc">Vos extensions installées n’ont pas encore retourné de titres pour cet univers. Actualisez le catalogue ou explorez un autre univers.</string>
+    <string name="missa_state_empty_universe_title">Aucun contenu disponible dans « %1$s »</string>
+    <string name="missa_state_empty_universe_desc">Aucun titre n’est disponible dans cet univers pour le moment. Actualisez le catalogue ou explorez un autre univers.</string>
     <string name="missa_state_empty_universe_cta">Actualiser le catalogue</string>
 
     <string name="missa_state_offline_title">Connexion indisponible</string>
