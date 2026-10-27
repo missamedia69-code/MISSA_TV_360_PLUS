@@ -1,199 +1,267 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/retro_player_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black"
-    android:keepScreenOn="true"
-    android:orientation="vertical"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp"
-    tools:context=".ui.universe.RetroGamePlayerActivity">
+    android:background="?attr/primaryBlackBackground"
+    android:keepScreenOn="true">
 
+    <!-- Fullscreen aspect-preserving Libretro Video Frame (GAME-03) -->
+    <ImageView
+        android:id="@+id/retro_game_frame"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitCenter" />
+
+    <!-- Center Loading / Core Install Overlay -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/retro_center_overlay"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/retro_player_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:maxLines="1"
-            android:text="@string/universe_retro_player_title"
-            android:textColor="@color/colorPrimaryDandelionYellow"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/retro_player_status"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:textColor="@color/whiteText"
-            android:textSize="12sp"
-            tools:text="Moteur prêt" />
-
-        <Button
-            android:id="@+id/retro_player_engine_button"
-            style="@style/WhiteButton"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:layout_marginStart="6dp"
-            android:text="@string/universe_retro_download_engine"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/retro_player_pause_button"
-            style="@style/BlackButton"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:layout_marginStart="6dp"
-            android:text="@string/universe_retro_pause"
-            android:textAllCaps="false"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/retro_player_exit_button"
-            style="@style/BlackButton"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:layout_marginStart="6dp"
-            android:text="@string/universe_retro_exit"
-            android:textAllCaps="false" />
-    </LinearLayout>
-
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="6dp"
-        android:layout_marginBottom="6dp"
-        android:background="#080B10">
-
-        <ImageView
-            android:id="@+id/retro_game_frame"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@string/universe_retro_player_title"
-            android:focusable="false"
-            android:scaleType="fitCenter"
-            tools:ignore="ContentDescription" />
+        android:layout_gravity="center"
+        android:background="@drawable/missa_pill_surface_bg"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="20dp">
 
         <ProgressBar
             android:id="@+id/retro_player_progress"
-            style="?android:attr/progressBarStyle"
-            android:layout_width="54dp"
-            android:layout_height="54dp"
-            android:layout_gravity="center"
-            android:indeterminate="true"
-            android:visibility="gone" />
-    </FrameLayout>
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginBottom="10dp"
+            android:indeterminateTint="?attr/missaAccentPrimary"
+            android:visibility="gone"
+            tools:visibility="visible" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:text="@string/universe_retro_controls"
-        android:textColor="#B8C0CC"
-        android:textSize="11sp" />
+        <TextView
+            android:id="@+id/retro_player_status"
+            style="@style/TextAppearance.Missa.Body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:maxWidth="360dp"
+            android:text="@string/universe_retro_loading_game" />
 
-    <LinearLayout
-        android:id="@+id/retro_touch_controls"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/retro_pad_left"
-            style="@style/BlackButton"
-            android:layout_width="52dp"
-            android:layout_height="48dp"
-            android:layout_margin="3dp"
-            android:text="◀"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/retro_pad_up"
-            style="@style/BlackButton"
-            android:layout_width="52dp"
-            android:layout_height="48dp"
-            android:layout_margin="3dp"
-            android:text="▲"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/retro_pad_down"
-            style="@style/BlackButton"
-            android:layout_width="52dp"
-            android:layout_height="48dp"
-            android:layout_margin="3dp"
-            android:text="▼"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/retro_pad_right"
-            style="@style/BlackButton"
-            android:layout_width="52dp"
-            android:layout_height="48dp"
-            android:layout_margin="3dp"
-            android:text="▶"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/retro_pad_select"
-            style="@style/BlackButton"
-            android:layout_width="72dp"
-            android:layout_height="48dp"
-            android:layout_margin="3dp"
-            android:text="SELECT"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/retro_pad_start"
-            style="@style/BlackButton"
-            android:layout_width="72dp"
-            android:layout_height="48dp"
-            android:layout_margin="3dp"
-            android:text="START"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/retro_pad_b"
-            style="@style/BlackButton"
-            android:layout_width="52dp"
-            android:layout_height="48dp"
-            android:layout_margin="3dp"
-            android:text="B"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/retro_pad_a"
-            style="@style/WhiteButton"
-            android:layout_width="52dp"
-            android:layout_height="48dp"
-            android:layout_margin="3dp"
-            android:text="A"
-            android:textAllCaps="false" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/retro_player_engine_button"
+            style="@style/Widget.Missa.Button.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="12dp"
+            android:nextFocusDown="@id/retro_player_pause_button"
+            android:text="@string/universe_retro_download_engine"
+            android:visibility="gone"
+            tools:visibility="visible" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/retro_player_credits"
+    <!-- Minimalist Top Translucent HUD Bar (>=12sp, >=48dp touch targets) -->
+    <LinearLayout
+        android:id="@+id/retro_hud_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:gravity="center"
-        android:text="@string/universe_retro_engine_notice"
-        android:textColor="#8C95A3"
-        android:textSize="10sp" />
+        android:layout_gravity="top"
+        android:background="@drawable/missa_scrim_top"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="12dp">
 
-</LinearLayout>
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/retro_player_title"
+                style="@style/TextAppearance.Missa.Badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/universe_retro_player_title"
+                android:textColor="?attr/missaAccentPrimary" />
+
+            <TextView
+                android:id="@+id/retro_player_game_name"
+                style="@style/TextAppearance.Missa.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/missaTextSecondary"
+                tools:text="µCity" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/retro_player_pause_button"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginEnd="8dp"
+            android:nextFocusRight="@id/retro_player_exit_button"
+            android:text="@string/universe_retro_pause" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/retro_player_exit_button"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:nextFocusLeft="@id/retro_player_pause_button"
+            android:text="@string/universe_retro_exit" />
+    </LinearLayout>
+
+    <!-- Semi-Transparent Floating Touch Overlay (auto-hidden on TV / physical gamepad, GAME-03) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/retro_touch_controls"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="16dp">
+
+        <!-- Shoulder Buttons L & R (>=48dp height) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/retro_pad_l"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="@dimen/missa_retro_shoulder_btn_width"
+            android:layout_height="@dimen/missa_retro_shoulder_btn_height"
+            android:layout_marginBottom="14dp"
+            android:focusable="false"
+            android:text="L"
+            app:layout_constraintBottom_toTopOf="@id/retro_dpad_view"
+            app:layout_constraintStart_toStartOf="@id/retro_dpad_view"
+            tools:ignore="HardcodedText" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/retro_pad_r"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="@dimen/missa_retro_shoulder_btn_width"
+            android:layout_height="@dimen/missa_retro_shoulder_btn_height"
+            android:layout_marginBottom="14dp"
+            android:focusable="false"
+            android:text="R"
+            app:layout_constraintBottom_toTopOf="@id/retro_action_diamond"
+            app:layout_constraintEnd_toEndOf="@id/retro_action_diamond"
+            tools:ignore="HardcodedText" />
+
+        <!-- 8-Way Multi-Touch D-Pad -->
+        <com.lagradost.cloudstream3.ui.universe.MissaRetroDpadView
+            android:id="@+id/retro_dpad_view"
+            android:layout_width="@dimen/missa_retro_dpad_size"
+            android:layout_height="@dimen/missa_retro_dpad_size"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Center Select / Start (>=48dp touch height) -->
+        <LinearLayout
+            android:id="@+id/retro_meta_buttons"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retro_pad_select"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginEnd="10dp"
+                android:focusable="false"
+                android:text="SELECT"
+                tools:ignore="HardcodedText" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retro_pad_start"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:focusable="false"
+                android:text="START"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
+        <!-- Diamond Face Buttons X / Y / B / A (>=54dp circular buttons) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/retro_action_diamond"
+            android:layout_width="172dp"
+            android:layout_height="172dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retro_pad_x"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="@dimen/missa_retro_action_btn_size"
+                android:layout_height="@dimen/missa_retro_action_btn_size"
+                android:focusable="false"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:padding="0dp"
+                android:text="X"
+                app:cornerRadius="999dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:ignore="HardcodedText" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retro_pad_y"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="@dimen/missa_retro_action_btn_size"
+                android:layout_height="@dimen/missa_retro_action_btn_size"
+                android:focusable="false"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:padding="0dp"
+                android:text="Y"
+                app:cornerRadius="999dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:ignore="HardcodedText" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retro_pad_a"
+                style="@style/Widget.Missa.Button.Primary"
+                android:layout_width="@dimen/missa_retro_action_btn_size"
+                android:layout_height="@dimen/missa_retro_action_btn_size"
+                android:focusable="false"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:padding="0dp"
+                android:text="A"
+                app:cornerRadius="999dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:ignore="HardcodedText" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retro_pad_b"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="@dimen/missa_retro_action_btn_size"
+                android:layout_height="@dimen/missa_retro_action_btn_size"
+                android:focusable="false"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:padding="0dp"
+                android:text="B"
+                app:cornerRadius="999dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                tools:ignore="HardcodedText" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>

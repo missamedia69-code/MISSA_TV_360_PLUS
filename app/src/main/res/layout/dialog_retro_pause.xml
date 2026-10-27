@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/missaSurfaceElevated">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/pause_dialog_title"
+            style="@style/TextAppearance.Missa.ScreenTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityHeading="true"
+            android:text="@string/universe_retro_pause_menu_title" />
+
+        <TextView
+            android:id="@+id/pause_dialog_subtitle"
+            style="@style/TextAppearance.Missa.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/universe_retro_controls" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_btn_resume"
+            style="@style/Widget.Missa.Button.Primary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="16dp"
+            android:nextFocusDown="@id/pause_btn_save_state"
+            android:text="@string/universe_retro_resume" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_btn_save_state"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="8dp"
+            android:nextFocusUp="@id/pause_btn_resume"
+            android:nextFocusDown="@id/pause_btn_load_state"
+            android:text="@string/universe_retro_save_state" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_btn_load_state"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="8dp"
+            android:nextFocusUp="@id/pause_btn_save_state"
+            android:nextFocusDown="@id/pause_btn_reset"
+            android:text="@string/universe_retro_load_state" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_btn_reset"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="8dp"
+            android:nextFocusUp="@id/pause_btn_load_state"
+            android:nextFocusDown="@id/pause_btn_toggle_touch"
+            android:text="@string/universe_retro_reset_console" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_btn_toggle_touch"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="8dp"
+            android:nextFocusUp="@id/pause_btn_reset"
+            android:nextFocusDown="@id/pause_btn_opacity"
+            android:text="@string/universe_retro_toggle_touch" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_btn_opacity"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="8dp"
+            android:nextFocusUp="@id/pause_btn_toggle_touch"
+            android:nextFocusDown="@id/pause_btn_scale"
+            tools:text="Overlay opacity: 55%" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_btn_scale"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="8dp"
+            android:nextFocusUp="@id/pause_btn_opacity"
+            android:nextFocusDown="@id/pause_btn_quit"
+            tools:text="Overlay size: 1.0x" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pause_btn_quit"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginTop="12dp"
+            android:nextFocusUp="@id/pause_btn_scale"
+            android:text="@string/universe_retro_exit" />
+    </LinearLayout>
+</ScrollView>
