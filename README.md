@@ -11,7 +11,7 @@
 
 MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agrégation intelligente et dédupliquée autour de **11 univers thématiques** (auxquels s'ajoute l'Accueil unifié) :
 
-1. **Films & Manga** (`navigation_universe_films`) — Longs métrages, mangas, animes et OAV agrégés et classés par catégories éditoriales stables (`MissaCategory`).
+1. **Films & Mangas** (`navigation_universe_films`) — Longs métrages, mangas, animes et OAV agrégés et classés par catégories éditoriales stables (`MissaCategory`).
 2. **Séries** (`navigation_universe_series`) — Séries TV, dramas et feuilletons multi-sources avec mémoire de source préférée.
 3. **Documentaires** (`navigation_universe_documentaries`) — Grands documentaires, docu-séries, enquêtes, nature, histoire, sciences et chaînes découverte.
 4. **Courts métrages** (`navigation_universe_shorts`) — Formats courts, mini-documentaires et créations indépendantes.
