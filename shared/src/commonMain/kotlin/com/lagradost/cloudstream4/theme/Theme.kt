@@ -12,6 +12,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 enum class CloudStreamThemeMode {
     /** "Black" standard dark, #111111 backgrounds */
@@ -73,30 +74,35 @@ fun modeToTheme(mode : CloudStreamThemeMode, primaryColor: CloudStreamPrimaryCol
     return color
 }
 
-private fun CloudStreamColorScheme.toMaterial3ColorScheme() = if (isLight) {
-    lightColorScheme(
-        primary = primary,
-        background = background,
-        surface = surface,
-        surfaceVariant = surfaceVariant,
-        surfaceContainer = surfaceContainer,
-        onBackground = onBackground,
-        onSurface = onBackground,
-        onSurfaceVariant = onSurfaceVariant,
-        onPrimary = Color.White,
-    )
-} else {
-    darkColorScheme(
-        primary = primary,
-        background = background,
-        surface = surface,
-        surfaceVariant = surfaceVariant,
-        surfaceContainer = surfaceContainer,
-        onBackground = onBackground,
-        onSurface = onBackground,
-        onSurfaceVariant = onSurfaceVariant,
-        onPrimary = Color.White,
-    )
+private fun CloudStreamColorScheme.toMaterial3ColorScheme(): androidx.compose.material3.ColorScheme {
+    val readableOnPrimary = if (primary.luminance() > 0.45f) CloudStreamPalette.OnAccentPrimary else Color.White
+    return if (isLight) {
+        lightColorScheme(
+            primary = primary,
+            secondary = CloudStreamPalette.AccentGreen,
+            background = background,
+            surface = surface,
+            surfaceVariant = surfaceVariant,
+            surfaceContainer = surfaceContainer,
+            onBackground = onBackground,
+            onSurface = onBackground,
+            onSurfaceVariant = onSurfaceVariant,
+            onPrimary = readableOnPrimary,
+        )
+    } else {
+        darkColorScheme(
+            primary = primary,
+            secondary = CloudStreamPalette.AccentGreen,
+            background = background,
+            surface = surface,
+            surfaceVariant = surfaceVariant,
+            surfaceContainer = surfaceContainer,
+            onBackground = onBackground,
+            onSurface = onBackground,
+            onSurfaceVariant = onSurfaceVariant,
+            onPrimary = readableOnPrimary,
+        )
+    }
 }
 
 internal val LocalSharedInfiniteTransition = staticCompositionLocalOf<InfiniteTransition> { throw NotImplementedError() }

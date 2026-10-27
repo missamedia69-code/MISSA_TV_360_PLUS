@@ -18,6 +18,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.lagradost.cloudstream4.theme.CloudStreamPalette
 
 /*
 @Composable
@@ -77,8 +78,8 @@ fun Modifier.focusOutline(
 fun Modifier.whiteOutline(hasFocus: Boolean, shape: Shape = RoundedShape()): Modifier {
     return if (hasFocus) {
         this.border(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.onBackground,
+            width = 3.dp,
+            color = CloudStreamPalette.Primary,
             shape = shape
         )
     } else {

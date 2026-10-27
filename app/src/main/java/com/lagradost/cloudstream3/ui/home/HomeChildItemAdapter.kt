@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.preference.PreferenceManager
 import androidx.viewbinding.ViewBinding
+import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.databinding.HomeRemoveGridBinding
@@ -36,7 +37,7 @@ class HomeScrollViewHolderState(view: ViewBinding) : ViewHolderState<Boolean>(vi
         if (state) {
             wasFocused = false
             // only refocus if tv
-            if (isLayout(TV)) {
+            if (isLayout(TV or EMULATOR)) {
                 itemView.requestFocus()
             }
         }
@@ -85,7 +86,10 @@ class ResumeItemAdapter(
             }
         }
         holder.itemView.apply {
-            if (isLayout(TV)) {
+            if (isLayout(TV or EMULATOR) && MainActivity.ANIMATED_OUTLINE) {
+                foreground = null
+            }
+            if (isLayout(TV or EMULATOR)) {
                 isFocusableInTouchMode = true
                 isFocusable = true
             }
@@ -188,6 +192,9 @@ open class HomeChildItemAdapter(
     }
 
     protected fun applyBinding(holder: ViewHolderState<Boolean>, isFirstItem: Boolean) {
+        if (isLayout(TV or EMULATOR) && MainActivity.ANIMATED_OUTLINE) {
+            holder.itemView.foreground = null
+        }
         when (val binding = holder.view) {
             is HomeResultGridBinding -> {
                 updateLayoutParms(binding.backgroundCard, setWidth, setHeight)
@@ -196,8 +203,8 @@ open class HomeChildItemAdapter(
             is HomeResultGridExpandedBinding -> {
                 updateLayoutParms(binding.backgroundCard, setWidth, setHeight)
 
-                if (isFirstItem) { // to fix tv
-                    binding.backgroundCard.nextFocusLeftId = R.id.nav_rail_view
+                if (isFirstItem) { // Keep DPAD-left anchored when horizontal top navigation is active
+                    binding.backgroundCard.nextFocusLeftId = binding.backgroundCard.id
                 }
             }
         }

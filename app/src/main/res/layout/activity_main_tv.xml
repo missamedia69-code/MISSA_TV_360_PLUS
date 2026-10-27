@@ -11,31 +11,113 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-        <HorizontalScrollView
-            android:id="@+id/tv_top_navigation"
+
+        <!-- MISSA TV 360 PLUS Horizontal TV Top Bar (NAV-01, NAV-02) -->
+        <LinearLayout
+            android:id="@+id/missa_top_shell"
             android:layout_width="0dp"
-            android:layout_height="@dimen/nav_view_height"
+            android:layout_height="wrap_content"
             android:background="?attr/primaryBlackBackground"
-            android:clipToPadding="false"
-            android:fillViewport="false"
-            android:focusable="false"
-            android:overScrollMode="never"
-            android:scrollbars="none"
-            app:layout_constraintTop_toTopOf="parent"
+            android:orientation="vertical"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintTop_toTopOf="parent">
 
             <LinearLayout
-                android:id="@+id/tv_top_navigation_items"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
+                android:id="@+id/missa_mobile_brand_row"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp" />
-        </HorizontalScrollView>
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:visibility="gone" />
 
+            <LinearLayout
+                android:id="@+id/missa_tv_bar_row"
+                android:layout_width="match_parent"
+                android:layout_height="62dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
+                <LinearLayout
+                    android:id="@+id/missa_tv_brand_group"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:focusable="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.03"
+                        android:text="MISSA TV"
+                        android:textAppearance="@style/TextAppearance.Missa.RowTitle"
+                        android:textColor="?attr/missaAccentPrimary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
+                        android:background="@drawable/missa_pill_360"
+                        android:paddingStart="6dp"
+                        android:paddingTop="1dp"
+                        android:paddingEnd="6dp"
+                        android:paddingBottom="1dp"
+                        android:text="360+"
+                        android:textAppearance="@style/TextAppearance.Missa.Badge"
+                        android:textColor="@color/missaOnRedLive" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1">
+
+                    <HorizontalScrollView
+                        android:id="@+id/tv_top_navigation"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipToPadding="false"
+                        android:fillViewport="false"
+                        android:focusable="false"
+                        android:overScrollMode="never"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:id="@+id/tv_top_navigation_items"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="24dp" />
+                    </HorizontalScrollView>
+
+                    <View
+                        android:id="@+id/missa_top_strip_fade_end"
+                        android:layout_width="@dimen/missa_top_strip_fade_width"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="end"
+                        android:background="@drawable/missa_strip_fade_end"
+                        android:clickable="false"
+                        android:focusable="false"
+                        android:importantForAccessibility="no" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:id="@+id/missa_utility_actions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="16dp" />
+            </LinearLayout>
+        </LinearLayout>
 
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/nav_host_fragment"
@@ -43,11 +125,82 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             app:defaultNavHost="true"
-            app:layout_constraintBottom_toTopOf="@+id/cast_mini_controller_holder"
+            app:layout_constraintBottom_toTopOf="@+id/missa_radio_mini_player"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tv_top_navigation"
+            app:layout_constraintTop_toBottomOf="@+id/missa_top_shell"
             app:navGraph="@navigation/mobile_navigation" />
+
+        <!-- Persistent Direct Radio Mini-Player across all screens (RAD-01) -->
+        <LinearLayout
+            android:id="@+id/missa_radio_mini_player"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:background="?attr/missaSurfaceElevated"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="18dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="4dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/cast_mini_controller_holder"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_missa_radio"
+                app:tint="?attr/missaAccentSuccess" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/missa_mini_radio_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textAppearance="@style/TextAppearance.Missa.Body"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/missa_mini_radio_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textAppearance="@style/TextAppearance.Missa.Caption"
+                    android:textColor="?attr/missaAccentSuccess" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/missa_mini_radio_play_pause"
+                style="@style/Widget.Missa.Button.Icon"
+                android:contentDescription="@string/universe_radio_play_pause"
+                app:icon="@drawable/ic_baseline_pause_24" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/missa_mini_radio_next"
+                style="@style/Widget.Missa.Button.Icon"
+                android:contentDescription="@string/universe_radio_next_station"
+                app:icon="@drawable/ic_baseline_skip_next_24" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/missa_mini_radio_stop"
+                style="@style/Widget.Missa.Button.Icon"
+                android:contentDescription="@string/universe_radio_stop"
+                app:icon="@drawable/ic_baseline_close_24" />
+        </LinearLayout>
 
         <com.google.android.material.navigationrail.NavigationRailView
             android:id="@+id/nav_rail_view"
@@ -55,18 +208,16 @@
             android:layout_height="match_parent"
             android:background="?attr/primaryGrayBackground"
             android:descendantFocusability="afterDescendants"
-            android:visibility="gone"
             android:maxWidth="@dimen/nav_rail_view_width"
             android:minWidth="@dimen/nav_rail_view_width"
+            android:visibility="gone"
             app:collapsedItemMinHeight="0dp"
             app:expanded="false"
             app:expandedItemMinHeight="0dp"
             app:expandedMaxWidth="220dp"
-
             app:headerLayout="@layout/rail_header"
             app:itemIconSize="24dp"
             app:itemIconTint="@color/item_select_color_tv"
-
             app:itemMinHeight="0dp"
             app:itemPaddingBottom="0dp"
             app:itemPaddingTop="0dp"
@@ -79,7 +230,6 @@
             app:menuGravity="center">
 
             <include layout="@layout/rail_footer" />
-
         </com.google.android.material.navigationrail.NavigationRailView>
 
         <com.google.android.material.bottomnavigation.BottomNavigationView
@@ -94,9 +244,9 @@
             app:itemIconTint="@color/item_select_color_tv"
             app:itemTextColor="@color/item_select_color_tv"
             app:labelVisibilityMode="labeled"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:menu="@menu/bottom_nav_menu" />
 
         <LinearLayout
@@ -107,7 +257,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             tools:layout_height="100dp">
-            <!--com.google.android.gms.cast.framework.media.widget.MiniControllerFragment-->
+
             <fragment
                 android:id="@+id/cast_mini_controller"
                 class="com.lagradost.cloudstream3.ui.MyMiniControllerFragment"

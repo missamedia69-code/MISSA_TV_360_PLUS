@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.databinding.SearchResultGridBinding
 import com.lagradost.cloudstream3.databinding.SearchResultGridExpandedBinding
@@ -12,6 +13,9 @@ import com.lagradost.cloudstream3.ui.BaseDiffCallback
 import com.lagradost.cloudstream3.ui.NoStateAdapter
 import com.lagradost.cloudstream3.ui.ViewHolderState
 import com.lagradost.cloudstream3.ui.newSharedPool
+import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
+import com.lagradost.cloudstream3.ui.settings.Globals.TV
+import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.utils.UIHelper.isBottomLayout
 import kotlin.math.roundToInt
 
@@ -79,6 +83,9 @@ class SearchAdapter(
     }
 
     override fun onBindContent(holder: ViewHolderState<Any>, item: SearchResponse, position: Int) {
+        if (isLayout(TV or EMULATOR) && MainActivity.ANIMATED_OUTLINE) {
+            holder.itemView.foreground = null
+        }
         val imageView = when (val binding = holder.view) {
             is SearchResultGridExpandedBinding -> binding.imageView
             is SearchResultGridBinding -> binding.imageView

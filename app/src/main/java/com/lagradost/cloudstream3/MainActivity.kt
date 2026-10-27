@@ -192,6 +192,14 @@ import java.lang.ref.WeakReference
 import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.Charset
+import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
+import com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment
+import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
+import com.lagradost.cloudstream3.ui.universe.MissaUniverseDialogs
+import com.lagradost.cloudstream3.ui.universe.MissaUniverses
+import com.lagradost.cloudstream3.ui.universe.RadioPlaybackState
+import com.lagradost.cloudstream3.ui.universe.RetroGamesFragment
+import com.lagradost.cloudstream3.ui.universe.UniverseDefinition
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.reflect.full.createInstance
@@ -202,7 +210,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         var activityResultLauncher: ActivityResultLauncher<Intent>? = null
 
         const val TAG = "MAINACT"
-        const val ANIMATED_OUTLINE: Boolean = false
+        const val ANIMATED_OUTLINE: Boolean = true
         var lastError: String? = null
 
         /** Update lastError variable based on error file, to check if app crashed.
@@ -493,88 +501,272 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
     private data class TopNavigationEntry(
         @IdRes val destinationId: Int,
-        val titleRes: Int
+        val titleRes: Int,
+        val iconRes: Int? = null,
+        val familyGroup: Int = 0
     )
 
-    private val topNavigationEntries by lazy {
+    private val universeNavigationEntries by lazy {
+        MissaUniverses.NAVIGATION_UNIVERSES.map { uni ->
+            TopNavigationEntry(
+                destinationId = uni.destinationId,
+                titleRes = uni.titleRes,
+                iconRes = uni.iconRes,
+                familyGroup = uni.familyGroup
+            )
+        }
+    }
+
+    private val utilityNavigationEntries by lazy {
         listOf(
-            TopNavigationEntry(R.id.navigation_home, R.string.universe_home_title),
-            TopNavigationEntry(R.id.navigation_universe_films, R.string.universe_films_title),
-            TopNavigationEntry(R.id.navigation_universe_series, R.string.universe_series_title),
-            TopNavigationEntry(R.id.navigation_universe_shorts, R.string.universe_shorts_title),
-            TopNavigationEntry(R.id.navigation_universe_kids, R.string.universe_kids_title),
-            TopNavigationEntry(R.id.navigation_universe_live_tv, R.string.universe_live_tv_title),
-            TopNavigationEntry(R.id.navigation_universe_sports, R.string.universe_sports_title),
-            TopNavigationEntry(R.id.navigation_universe_podcasts, R.string.universe_podcasts_title),
-            TopNavigationEntry(R.id.navigation_universe_radio, R.string.universe_radio_title),
-            TopNavigationEntry(R.id.navigation_universe_retro_games, R.string.universe_games_title),
-            TopNavigationEntry(R.id.navigation_search, R.string.title_search),
-            TopNavigationEntry(R.id.navigation_library, R.string.library),
-            TopNavigationEntry(R.id.navigation_downloads, R.string.title_downloads),
-            TopNavigationEntry(R.id.navigation_settings, R.string.title_settings),
+            TopNavigationEntry(R.id.navigation_search, R.string.title_search, R.drawable.search_icon),
+            TopNavigationEntry(R.id.navigation_library, R.string.library, R.drawable.library_icon_selector),
+            TopNavigationEntry(R.id.navigation_downloads, R.string.title_downloads, R.drawable.netflix_download),
+            TopNavigationEntry(R.id.navigation_settings, R.string.title_settings, R.drawable.settings_icon_selector),
         )
     }
 
-    private fun setupTopNavigation(navController: NavController) {
-        val container = binding?.root?.findViewById<LinearLayout>(R.id.tv_top_navigation_items)
-            ?: return
-        container.removeAllViews()
-        val density = resources.displayMetrics.density
-        topNavigationEntries.forEach { entry ->
-            val button = MaterialButton(
-                this,
-                null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle
-            ).apply {
-                id = View.generateViewId()
-                tag = entry.destinationId
-                text = getString(entry.titleRes)
-                isAllCaps = false
-                isFocusable = true
-                isFocusableInTouchMode = false
-                minWidth = 0
-                minimumWidth = 0
-                insetTop = 0
-                insetBottom = 0
-                cornerRadius = (10 * density).toInt()
-                strokeWidth = (1 * density).toInt()
-                setPadding((14 * density).toInt(), 0, (14 * density).toInt(), 0)
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    (42 * density).toInt()
-                ).apply {
-                    marginEnd = (6 * density).toInt()
-                }
-                setOnClickListener {
-                    if (navController.currentDestination?.id == entry.destinationId) return@setOnClickListener
-                    val options = NavOptions.Builder()
-                        .setLaunchSingleTop(true)
-                        .setRestoreState(true)
-                        .setPopUpTo(
-                            navController.graph.findStartDestination().id,
-                            inclusive = false,
-                            saveState = true
-                        )
-                        .build()
-                    runCatching { navController.navigate(entry.destinationId, null, options) }
-                        .onFailure { logError(it) }
+    private val universeButtonByDestId = LinkedHashMap<Int, MaterialButton>()
+    private var activeTopUniverseButton: MaterialButton? = null
+    private var mobileBrandCollapsed = false
+
+    fun navigateToUniverseWithParentalGuard(definition: UniverseDefinition) {
+        val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment ?: return
+        navigateTopLevelDestination(navHost.navController, definition.destinationId)
+    }
+
+    /** Collapses or restores the mobile brand header row smoothly on vertical scroll (NAV-05). */
+    fun onMissaContentScrolled(dy: Int, atTop: Boolean) {
+        if (isLayout(TV or EMULATOR)) return
+        val brandRow = binding?.missaMobileBrandRow ?: return
+        if (atTop || dy < -14) {
+            if (mobileBrandCollapsed) {
+                mobileBrandCollapsed = false
+                brandRow.isVisible = true
+            }
+        } else if (dy > 18 && !mobileBrandCollapsed) {
+            mobileBrandCollapsed = true
+            brandRow.isVisible = false
+        }
+    }
+
+    private fun navigateTopLevelDestination(navController: NavController, destinationId: Int) {
+        val currentDestId = navController.currentDestination?.id
+        if (currentDestId == destinationId) return
+
+        // Parental PIN guard when leaving Kids universe while locked (TRUST-01)
+        if (currentDestId == R.id.navigation_universe_kids &&
+            destinationId != R.id.navigation_universe_kids &&
+            MissaUiFactory.isKidsModeLocked()
+        ) {
+            MissaUniverseDialogs.showKidsPinDialog(this, unlockOnly = true) { unlocked ->
+                if (unlocked) {
+                    performTopLevelNavigation(navController, destinationId)
                 }
             }
-            container.addView(button)
+            return
         }
-        for (index in topNavigationEntries.indices) {
-            val button = container.getChildAt(index) ?: continue
-            button.nextFocusLeftId = if (index == 0) button.id else container.getChildAt(index - 1).id
-            button.nextFocusRightId = if (index == topNavigationEntries.lastIndex) button.id else container.getChildAt(index + 1).id
-            // From every tab, DPAD-down enters the page; DPAD-up from content returns to the bar.
-            button.nextFocusDownId = R.id.nav_host_fragment
+        performTopLevelNavigation(navController, destinationId)
+    }
+
+    private fun performTopLevelNavigation(navController: NavController, destinationId: Int) {
+        if (navController.currentDestination?.id == destinationId) return
+        mobileBrandCollapsed = false
+        if (!isLayout(TV or EMULATOR)) {
+            binding?.missaMobileBrandRow?.isVisible =
+                universeNavigationEntries.any { it.destinationId == destinationId }
         }
-        binding?.navHostFragment?.nextFocusUpId = container.getChildAt(0)?.id ?: View.NO_ID
+        val isHomeReset = destinationId == R.id.navigation_home
+        val options = NavOptions.Builder()
+            .setLaunchSingleTop(true)
+            .setRestoreState(!isHomeReset)
+            .setEnterAnim(R.anim.enter_anim)
+            .setExitAnim(R.anim.exit_anim)
+            .setPopEnterAnim(R.anim.pop_enter)
+            .setPopExitAnim(R.anim.pop_exit)
+            .setPopUpTo(
+                navController.graph.findStartDestination().id,
+                inclusive = false,
+                saveState = !isHomeReset
+            )
+            .build()
+        runCatching { navController.navigate(destinationId, null, options) }
+            .onFailure { logError(it) }
+    }
+
+    private fun focusCurrentDestinationContent(): Boolean {
+        val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+        val currentFragment = navHost?.childFragmentManager?.primaryNavigationFragment
+        return when (currentFragment) {
+            is MediaUniverseFragment -> currentFragment.requestPrimaryContentFocus()
+            is RetroGamesFragment -> currentFragment.requestPrimaryContentFocus()
+            else -> binding?.navHostFragment?.requestFocus() == true
+        }
+    }
+
+    private fun setupTopNavigation(navController: NavController) {
+        val universeContainer = binding?.root?.findViewById<LinearLayout>(R.id.tv_top_navigation_items)
+            ?: return
+        val topScroll = binding?.root?.findViewById<android.widget.HorizontalScrollView>(R.id.tv_top_navigation)
+        val fadeEnd = binding?.root?.findViewById<View>(R.id.missa_top_strip_fade_end)
+        val utilityContainer = binding?.root?.findViewById<LinearLayout>(R.id.missa_utility_actions)
+        val isTvMode = isLayout(TV or EMULATOR)
+
+        binding?.missaMobileBrandRow?.isVisible = !isTvMode
+        binding?.missaTvBrandGroup?.isVisible = isTvMode
+        utilityContainer?.isVisible = isTvMode
+
+        universeContainer.removeAllViews()
+        utilityContainer?.removeAllViews()
+        universeButtonByDestId.clear()
+
+        val allTopButtons = ArrayList<MaterialButton>()
+        var previousFamilyGroup: Int? = null
+
+        universeNavigationEntries.forEach { entry ->
+            // Family separator between [Accueil] | [Films..Enfants] | [TV Sports] | [Podcasts Radio] | [Jeux] (NAV-01)
+            if (previousFamilyGroup != null && previousFamilyGroup != entry.familyGroup) {
+                universeContainer.addView(MissaUiFactory.createStripFamilyDivider(this))
+            }
+            previousFamilyGroup = entry.familyGroup
+
+            val button = MissaUiFactory.createPillButton(
+                context = this,
+                label = getString(entry.titleRes),
+                selected = false,
+                iconRes = entry.iconRes ?: 0,
+                marginEndDp = 6
+            ) {
+                navigateTopLevelDestination(navController, entry.destinationId)
+            }.apply {
+                id = View.generateViewId()
+                tag = "missa_pill"
+                isFocusable = isTvMode
+                isFocusableInTouchMode = false
+                if (isTvMode) {
+                    setOnKeyListener { _, keyCode, event ->
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && event.action == KeyEvent.ACTION_DOWN) {
+                            focusCurrentDestinationContent()
+                        } else {
+                            false
+                        }
+                    }
+                }
+            }
+            universeContainer.addView(button)
+            universeButtonByDestId[entry.destinationId] = button
+            allTopButtons.add(button)
+        }
+
+        // Right-edge scroll fade visibility (NAV-01)
+        fun updateStripFade() {
+            val sv = topScroll ?: return
+            val child = sv.getChildAt(0) ?: return
+            val canScrollRight = child.width - (sv.scrollX + sv.width) > dp(8)
+            fadeEnd?.isVisible = canScrollRight
+        }
+        topScroll?.viewTreeObserver?.addOnScrollChangedListener { updateStripFade() }
+        topScroll?.post { updateStripFade() }
+
+        if (isTvMode && utilityContainer != null) {
+            utilityContainer.addView(MissaUiFactory.createStripFamilyDivider(this))
+
+            utilityNavigationEntries.forEach { entry ->
+                val utilBtn = MissaUiFactory.createPillButton(
+                    context = this,
+                    label = "",
+                    selected = false,
+                    iconRes = entry.iconRes ?: 0,
+                    marginEndDp = 4
+                ) {
+                    navigateTopLevelDestination(navController, entry.destinationId)
+                }.apply {
+                    id = View.generateViewId()
+                    tag = entry.destinationId
+                    contentDescription = getString(entry.titleRes)
+                    iconPadding = 0
+                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                    minWidth = dp(44)
+                    minimumWidth = dp(44)
+                    setPadding(0, 0, 0, 0)
+                    isFocusable = true
+                    isFocusableInTouchMode = false
+                    setOnKeyListener { _, keyCode, event ->
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && event.action == KeyEvent.ACTION_DOWN) {
+                            focusCurrentDestinationContent()
+                        } else {
+                            false
+                        }
+                    }
+                }
+                utilityContainer.addView(utilBtn)
+                allTopButtons.add(utilBtn)
+            }
+        }
+
+        if (isTvMode) {
+            for (index in allTopButtons.indices) {
+                val button = allTopButtons[index]
+                button.nextFocusLeftId = if (index == 0) button.id else allTopButtons[index - 1].id
+                button.nextFocusRightId = if (index == allTopButtons.lastIndex) button.id else allTopButtons[index + 1].id
+                button.nextFocusDownId = R.id.nav_host_fragment
+            }
+            binding?.navHostFragment?.nextFocusUpId = allTopButtons.firstOrNull()?.id ?: View.NO_ID
+        }
+    }
+
+    private fun setupPersistentRadioMiniPlayer(navController: NavController) {
+        val bar = binding?.missaRadioMiniPlayer ?: return
+        val titleView = binding?.missaMiniRadioTitle
+        val statusView = binding?.missaMiniRadioStatus
+        val playPauseBtn = binding?.missaMiniRadioPlayPause
+        val nextBtn = binding?.missaMiniRadioNext
+        val stopBtn = binding?.missaMiniRadioStop
+
+        bar.setOnClickListener {
+            navigateTopLevelDestination(navController, R.id.navigation_universe_radio)
+        }
+        playPauseBtn?.setOnClickListener {
+            DirectRadioPlayerManager.togglePlayPause(this)
+        }
+        nextBtn?.setOnClickListener {
+            DirectRadioPlayerManager.nextStation(this)
+        }
+        stopBtn?.setOnClickListener {
+            DirectRadioPlayerManager.stop()
+        }
+
+        DirectRadioPlayerManager.state.observe(this) { state ->
+            renderPersistentRadioMiniPlayer(state, navController.currentDestination?.id)
+        }
+    }
+
+    private fun renderPersistentRadioMiniPlayer(state: RadioPlaybackState?, currentDestId: Int?) {
+        val bar = binding?.missaRadioMiniPlayer ?: return
+        val st = state?.station
+        val hideOnScreen = currentDestId == R.id.navigation_player ||
+            currentDestId == R.id.navigation_universe_radio
+        bar.isVisible = st != null && !hideOnScreen
+        if (st == null) return
+
+        binding?.missaMiniRadioTitle?.text = st.name
+        binding?.missaMiniRadioStatus?.text = when {
+            state.hasError -> getString(R.string.universe_radio_error, st.name)
+            state.isBuffering -> getString(R.string.universe_radio_buffering, st.name)
+            state.isPlaying -> getString(R.string.universe_radio_playing, st.country)
+            else -> getString(R.string.universe_radio_paused, st.name)
+        }
+        binding?.missaMiniRadioPlayPause?.setIconResource(
+            if (state.isPlaying) R.drawable.ic_baseline_pause_24
+            else R.drawable.ic_baseline_play_arrow_24
+        )
     }
 
     private fun selectedTopNavigationId(destinationId: Int): Int {
-        val direct = topNavigationEntries.firstOrNull { it.destinationId == destinationId }?.destinationId
-        if (direct != null) return direct
+        val directUniverse = universeNavigationEntries.firstOrNull { it.destinationId == destinationId }?.destinationId
+        if (directUniverse != null) return directUniverse
+        val directUtility = utilityNavigationEntries.firstOrNull { it.destinationId == destinationId }?.destinationId
+        if (directUtility != null) return directUtility
         return when (destinationId) {
             R.id.navigation_download_child, R.id.navigation_download_queue -> R.id.navigation_downloads
             R.id.navigation_subtitles,
@@ -593,31 +785,34 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
     }
 
     private fun updateTopNavigation(destinationId: Int) {
-        val container = binding?.root?.findViewById<LinearLayout>(R.id.tv_top_navigation_items)
-            ?: return
+        val utilityContainer = binding?.root?.findViewById<LinearLayout>(R.id.missa_utility_actions)
         val selectedId = selectedTopNavigationId(destinationId)
-        val density = resources.displayMetrics.density
-        topNavigationEntries.forEachIndexed { index, entry ->
-            val button = container.getChildAt(index) as? MaterialButton ?: return@forEachIndexed
-            val selected = entry.destinationId == selectedId
-            val fill = getResourceColor(if (selected) R.attr.colorPrimary else R.attr.iconGrayBackground)
-            val textColor = if (selected) {
-                android.graphics.Color.BLACK
-            } else {
-                getResourceColor(R.attr.textColor)
-            }
-            button.backgroundTintList = ColorStateList.valueOf(fill)
-            button.setTextColor(textColor)
-            button.strokeColor = ColorStateList.valueOf(
-                getResourceColor(if (selected) R.attr.colorPrimary else R.attr.grayTextColor, if (selected) 1f else 0.25f)
-            )
-            button.elevation = if (selected) 2 * density else 0f
-            button.isSelected = selected
+
+        universeButtonByDestId.forEach { (destId, button) ->
+            val selected = destId == selectedId
+            MissaUiFactory.stylePillSelection(button, selected)
             if (selected) {
-                container.post {
-                    val left = button.left
+                activeTopUniverseButton = button
+                if (isLayout(TV or EMULATOR)) {
+                    binding?.navHostFragment?.nextFocusUpId = button.id
+                }
+                button.post {
                     val scroll = binding?.root?.findViewById<android.widget.HorizontalScrollView>(R.id.tv_top_navigation)
-                    scroll?.smoothScrollTo((left - dp(12)).coerceAtLeast(0), 0)
+                        ?: return@post
+                    val targetX = (button.left + button.width / 2 - scroll.width / 2).coerceAtLeast(0)
+                    scroll.smoothScrollTo(targetX, 0)
+                }
+            }
+        }
+
+        if (utilityContainer != null && isLayout(TV or EMULATOR)) {
+            utilityContainer.children.filterIsInstance<MaterialButton>().forEach { utilBtn ->
+                val destId = utilBtn.tag as? Int ?: return@forEach
+                val selected = destId == selectedId
+                MissaUiFactory.stylePillSelection(utilBtn, selected)
+                if (selected) {
+                    activeTopUniverseButton = utilBtn
+                    binding?.navHostFragment?.nextFocusUpId = utilBtn.id
                 }
             }
         }
@@ -625,8 +820,23 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
+    private fun isViewDescendantOf(child: View, ancestor: View): Boolean {
+        var current: Any? = child
+        while (current is View) {
+            if (current === ancestor) return true
+            current = current.parent
+        }
+        return false
+    }
+
     private fun updateNavBar(destination: NavDestination) {
         this.hideKeyboard()
+
+        if (destination.id == R.id.navigation_player) {
+            // Ensure background radio stops cleanly when starting video playback
+            DirectRadioPlayerManager.stop()
+        }
+        renderPersistentRadioMiniPlayer(DirectRadioPlayerManager.state.value, destination.id)
 
         // Fucks up anime info layout since that has its own layout
         binding?.castMiniControllerHolder?.isVisible =
@@ -636,17 +846,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 R.id.navigation_player
             ).contains(destination.id)
 
-        val isNavVisible = listOf(
-            R.id.navigation_home,
-            R.id.navigation_universe_films,
-            R.id.navigation_universe_series,
-            R.id.navigation_universe_shorts,
-            R.id.navigation_universe_kids,
-            R.id.navigation_universe_live_tv,
-            R.id.navigation_universe_sports,
-            R.id.navigation_universe_podcasts,
-            R.id.navigation_universe_radio,
-            R.id.navigation_universe_retro_games,
+        val isUniverseDestination = universeNavigationEntries.any { it.destinationId == destination.id }
+
+        val isNavVisible = isUniverseDestination || listOf(
             R.id.navigation_search,
             R.id.navigation_library,
             R.id.navigation_downloads,
@@ -666,45 +868,24 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             R.id.navigation_test_providers,
         ).contains(destination.id)
 
-
-        /*val dontPush = listOf(
-            R.id.navigation_home,
-            R.id.navigation_search,
-            R.id.navigation_results_phone,
-            R.id.navigation_results_tv,
-            R.id.navigation_player,
-            R.id.navigation_quick_search,
-        ).contains(destination.id)
-
-        binding?.navHostFragment?.apply {
-            val params = layoutParams as ConstraintLayout.LayoutParams
-            val push =
-                if (!dontPush && isLayout(TV or EMULATOR)) resources.getDimensionPixelSize(R.dimen.navbar_width) else 0
-
-            if (!this.isLtr()) {
-                params.setMargins(
-                    params.leftMargin,
-                    params.topMargin,
-                    push,
-                    params.bottomMargin
-                )
-            } else {
-                params.setMargins(
-                    push,
-                    params.topMargin,
-                    params.rightMargin,
-                    params.bottomMargin
-                )
-            }
-
-            layoutParams = params
-        }*/
+        val isTvMode = isLayout(TV or EMULATOR)
 
         binding?.apply {
-            // Every main universe uses the same horizontal navigation on mobile and TV.
             navRailView.isVisible = false
-            navView.isVisible = false
-            tvTopNavigation.isVisible = isNavVisible
+            if (isTvMode) {
+                // Android TV: horizontal top bar for universes + compact right-side utilities
+                navView.isVisible = false
+                missaTopShell.isVisible = isNavVisible
+                tvTopNavigation.isVisible = isNavVisible
+            } else {
+                // Mobile: native bottom bar for main sections + top universe strip on universe pages
+                navView.isVisible = isNavVisible
+                missaTopShell.isVisible = isUniverseDestination
+                tvTopNavigation.isVisible = isUniverseDestination
+                if (isUniverseDestination) {
+                    navView.menu.findItem(R.id.navigation_home)?.isChecked = true
+                }
+            }
             navHostFragment.apply {
                 layoutParams =
                     (navHostFragment.layoutParams as ViewGroup.MarginLayoutParams).apply {
@@ -840,6 +1021,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         this.sendBroadcast(broadcastIntent)
         afterPluginsLoadedEvent -= ::onAllPluginsLoaded
         detachBackPressedCallback("MainActivityDefault")
+        DirectRadioPlayerManager.release()
         super.onDestroy()
     }
 
@@ -870,6 +1052,19 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         // Check if we are already at the selected destination
         if (navController.currentDestination?.id == destinationId) return false
+
+        // Parental PIN guard when leaving Kids universe via bottom bar (TRUST-01)
+        if (navController.currentDestination?.id == R.id.navigation_universe_kids &&
+            destinationId != R.id.navigation_universe_kids &&
+            MissaUiFactory.isKidsModeLocked()
+        ) {
+            MissaUniverseDialogs.showKidsPinDialog(this, unlockOnly = true) { unlocked ->
+                if (unlocked) {
+                    performTopLevelNavigation(navController, destinationId)
+                }
+            }
+            return false
+        }
 
         // Make all nav buttons focus on this specific view when nextFocusRightId
         val targetView = when (destinationId) {
@@ -912,7 +1107,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             }
         }
 
-        val builder = NavOptions.Builder().setLaunchSingleTop(true).setRestoreState(true)
+        val isHomeReset = destinationId == R.id.navigation_home
+        val builder = NavOptions.Builder().setLaunchSingleTop(true).setRestoreState(!isHomeReset)
             .setEnterAnim(R.anim.enter_anim)
             .setExitAnim(R.anim.exit_anim)
             .setPopEnterAnim(R.anim.pop_enter)
@@ -921,7 +1117,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             builder.setPopUpTo(
                 navController.graph.findStartDestination().id,
                 inclusive = false,
-                saveState = true
+                saveState = !isHomeReset
             )
         }
         return try {
@@ -1143,6 +1339,22 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 newFocus != null && newFocus.measuredHeight > 0 && newFocus.measuredWidth > 0 && newFocus.isShown && newFocus.tag != "tv_no_focus_tag"
             focusOutline.isVisible = visible
 
+            if (!exactlyTheSame) {
+                val animOk = (newFocus ?: lastView)?.context?.let { MissaUiFactory.areAnimationsEnabled(it) } ?: true
+                if (animOk) {
+                    lastView?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(130)?.start()
+                    if (visible && newFocus != null) {
+                        newFocus.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150).start()
+                    }
+                } else {
+                    lastView?.apply { scaleX = 1.0f; scaleY = 1.0f }
+                    if (visible && newFocus != null) {
+                        newFocus.scaleX = 1.05f
+                        newFocus.scaleY = 1.05f
+                    }
+                }
+            }
+
             if (newFocus != null) {
                 lastFocus = WeakReference(newFocus)
                 val parent = newFocus.parent
@@ -1362,7 +1574,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 val newLocalBinding = ActivityMainTvBinding.inflate(layoutInflater, null, false)
                 setContentView(newLocalBinding.root)
 
-                if (isLayout(TV) && ANIMATED_OUTLINE) {
+                if (isLayout(TV or EMULATOR) && ANIMATED_OUTLINE) {
                     TvFocus.focusOutline = WeakReference(newLocalBinding.focusOutline)
                     newLocalBinding.root.viewTreeObserver.addOnScrollChangedListener {
                         TvFocus.updateFocusView(TvFocus.lastFocus.get(), same = true)
@@ -1381,6 +1593,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                         R.id.home_preview_info_btt,
                         R.id.home_preview_hidden_next_focus,
                         R.id.home_preview_hidden_prev_focus,
+                        R.id.universe_hero_play,
+                        R.id.universe_hero_info,
+                        R.id.universe_hero_next,
                         R.id.result_play_movie_button,
                         R.id.result_play_series_button,
                         R.id.result_resume_series_button,
@@ -1425,7 +1640,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             )
 
             fixSystemBarsPadding(
-                tvTopNavigation,
+                missaTopShell,
                 padTop = true,
                 padBottom = false,
                 overlayCutout = false
@@ -1809,6 +2024,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
         setupTopNavigation(navController)
+        setupPersistentRadioMiniPlayer(navController)
 
         navController.addOnDestinationChangedListener { _: NavController, navDestination: NavDestination, bundle: Bundle? ->
             // Intercept search and add a query
@@ -1976,7 +2192,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         // Navigation button long click functionality to scroll to top
         for (view in listOf(binding?.navView, binding?.navRailView)) {
             view?.findViewById<View?>(R.id.navigation_home)?.setOnLongClickListener {
-                val recycler = binding?.root?.findViewById<RecyclerView?>(R.id.home_master_recycler)
+                val recycler = binding?.root?.findViewById<RecyclerView?>(R.id.universe_master_recycler)
+                    ?: binding?.root?.findViewById<RecyclerView?>(R.id.home_master_recycler)
                 recycler?.smoothScrollToPosition(0)
                 return@setOnLongClickListener recycler != null
             }
@@ -2192,6 +2409,22 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         attachBackPressedCallback("MainActivityDefault") {
             setNavigationBarColorCompat(R.attr.primaryGrayBackground)
             updateLocale()
+            // On TV, pressing Back from content moves focus up to the active top bar universe pill first;
+            // pressing Back again while focus is in the top bar exits normally (NAV-02).
+            if (isLayout(TV or EMULATOR)) {
+                val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+                val currentDestId = navHost?.navController?.currentDestination?.id
+                val isPrimaryUniverse = universeNavigationEntries.any { it.destinationId == currentDestId }
+                val topShell = binding?.missaTopShell
+                val focused = currentFocus
+                val focusAlreadyInTopBar = topShell != null && focused != null && isViewDescendantOf(focused, topShell)
+                if (isPrimaryUniverse && topShell?.isVisible == true && !focusAlreadyInTopBar) {
+                    val targetBtn = activeTopUniverseButton ?: universeButtonByDestId[currentDestId]
+                    if (targetBtn?.requestFocus() == true) {
+                        return@attachBackPressedCallback
+                    }
+                }
+            }
             runDefault()
         }
 
