@@ -7,20 +7,21 @@
 
 ---
 
-## Les 10 Univers MISSA TV 360 PLUS
+## Les 11 Univers MISSA TV 360 PLUS
 
-MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agrégation intelligente et dédupliquée autour de **10 univers thématiques** (auxquels s'ajoute l'Accueil unifié) :
+MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agrégation intelligente et dédupliquée autour de **11 univers thématiques** (auxquels s'ajoute l'Accueil unifié) :
 
 1. **Films & Manga** (`navigation_universe_films`) — Longs métrages, mangas, animes et OAV agrégés et classés par catégories éditoriales stables (`MissaCategory`).
 2. **Séries** (`navigation_universe_series`) — Séries TV, dramas et feuilletons multi-sources avec mémoire de source préférée.
-3. **Courts métrages** (`navigation_universe_shorts`) — Formats courts, mini-documentaires et créations indépendantes.
-4. **Jeunesse / Enfants** (`navigation_universe_kids`) — Sélection familiale filtrée avec **verrouillage parental par code PIN** (`TRUST-01`).
-5. **TV en direct** (`navigation_universe_live_tv`) — Chaînes live, zapping instantané `CH+` / `CH-` à la télécommande, dernière chaîne mémorisée et favoris en tête (`FLOW-02`).
-6. **Sports** (`navigation_universe_sports`) — Directs sportifs, compétitions et rediffusions.
-7. **Musiques** (`navigation_universe_music`) — Titres, albums, clips vidéo, concerts, chaînes musicales et flux musicaux en continu (Afro, Cameroun, Urbain, Pop, Gospel, Jazz…).
-8. **Podcasts** (`navigation_universe_podcasts`) — Émissions audio, chroniques et livres audio.
-9. **Radio directe** (`navigation_universe_radio`) — Stations africaines (Cameroun, Côte d'Ivoire, Sénégal, RDC…) et internationales en lecture directe via **AndroidX Media3 `MediaSessionService`** (notification système, écran verrouillé, mini-lecteur persistant, minuterie de veille et flux personnalisés `M3U8`/`MP3`/`AAC`).
-10. **Jeux Rétro** (`navigation_universe_retro_games`) — Catalogue homebrew libre + import de ROMs légales avec émulation **Libretro** à la demande (Game Boy / GBC, NES, Super Nintendo, GBA, Mega Drive / Master System), croix directionnelle 8 directions multi-touch, états de sauvegarde automatiques et menu Pause navigable à la télécommande.
+3. **Documentaires** (`navigation_universe_documentaries`) — Grands documentaires, docu-séries, enquêtes, nature, histoire, sciences et chaînes découverte.
+4. **Courts métrages** (`navigation_universe_shorts`) — Formats courts, mini-documentaires et créations indépendantes.
+5. **Jeunesse / Enfants** (`navigation_universe_kids`) — Sélection familiale filtrée avec **verrouillage parental par code PIN** (`TRUST-01`).
+6. **TV en direct** (`navigation_universe_live_tv`) — Chaînes live, zapping instantané `CH+` / `CH-` à la télécommande, dernière chaîne mémorisée et favoris en tête (`FLOW-02`).
+7. **Sports** (`navigation_universe_sports`) — Directs sportifs, compétitions et rediffusions.
+8. **Musiques** (`navigation_universe_music`) — Titres, albums, clips vidéo, concerts, chaînes musicales et flux musicaux en continu (Afro, Cameroun, Urbain, Pop, Gospel, Jazz…).
+9. **Podcasts** (`navigation_universe_podcasts`) — Émissions audio, chroniques et livres audio.
+10. **Radio directe** (`navigation_universe_radio`) — Stations africaines (Cameroun, Côte d'Ivoire, Sénégal, RDC…) et internationales en lecture directe via **AndroidX Media3 `MediaSessionService`** (notification système, écran verrouillé, mini-lecteur persistant, minuterie de veille et flux personnalisés `M3U8`/`MP3`/`AAC`).
+11. **Jeux Rétro** (`navigation_universe_retro_games`) — Catalogue homebrew libre + import de ROMs légales avec émulation **Libretro** à la demande (Game Boy / GBC, NES, Super Nintendo, GBA, Mega Drive / Master System), croix directionnelle 8 directions multi-touch, états de sauvegarde automatiques et menu Pause navigable à la télécommande.
 
 ---
 

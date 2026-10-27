@@ -920,6 +920,7 @@ class MediaUniverseViewModel : ViewModel() {
             if (universeId == "home") {
                 entry.universes.contains("films") ||
                     entry.universes.contains("series") ||
+                    entry.universes.contains("documentaries") ||
                     !entry.primary.posterUrl.isNullOrBlank()
             } else {
                 true
@@ -984,6 +985,7 @@ class MediaUniverseViewModel : ViewModel() {
             "home" -> allResume.take(24)
             "films" -> allResume.filter { MediaUniverseClassifier.matches("films", it.type, it.name) }.take(20)
             "series" -> allResume.filter { MediaUniverseClassifier.matches("series", it.type, it.name) }.take(20)
+            "documentaries" -> allResume.filter { MediaUniverseClassifier.matches("documentaries", it.type, it.name) }.take(20)
             "kids" -> allResume.filter { MediaUniverseClassifier.matches("kids", it.type, it.name) }.take(20)
             "music" -> allResume.filter { MediaUniverseClassifier.matches("music", it.type, it.name) }.take(20)
             "podcasts" -> allResume.filter {
@@ -1126,6 +1128,7 @@ class MediaUniverseViewModel : ViewModel() {
             if (effectiveType == TvType.NSFW || effectiveType == TvType.CustomMedia) continue
 
             val domainBucket = when (effectiveType) {
+                TvType.Documentary -> "doc"
                 TvType.AnimeMovie -> "manga_film"
                 TvType.Anime, TvType.OVA -> "manga"
                 TvType.TvSeries, TvType.Cartoon, TvType.AsianDrama -> "series"
@@ -1219,13 +1222,19 @@ class MediaUniverseViewModel : ViewModel() {
                         entry.effectiveType ?: entry.primary.type,
                         entry.primary.name,
                         entry.sectionHints.joinToString(" ")
+                    ) || MediaUniverseClassifier.shouldLoadDetails(
+                        "documentaries",
+                        entry.effectiveType ?: entry.primary.type,
+                        entry.primary.name,
+                        entry.sectionHints.joinToString(" ")
                     ))
             }
             .sortedByDescending { entry ->
                 val sec = entry.sectionHints.joinToString(" ")
                 maxOf(
                     MediaUniverseClassifier.detailPriority("shorts", entry.primary.name, sec),
-                    MediaUniverseClassifier.detailPriority("kids", entry.primary.name, sec)
+                    MediaUniverseClassifier.detailPriority("kids", entry.primary.name, sec),
+                    MediaUniverseClassifier.detailPriority("documentaries", entry.primary.name, sec)
                 )
             }
             .take(maxClassifier)

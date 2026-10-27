@@ -335,6 +335,17 @@
     </fragment>
 
     <fragment
+        android:id="@+id/navigation_universe_documentaries"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_documentaries_title"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="documentaries"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
         android:id="@+id/navigation_universe_shorts"
         android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
         android:label="@string/universe_shorts_title"

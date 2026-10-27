@@ -52,6 +52,14 @@ enum class MissaCategory(
     SERIES_INTL("series_intl", 35, R.string.missa_cat_series_intl, R.string.missa_chip_series_intl),
     SERIES_CATALOG("series_catalog", 900, R.string.missa_cat_series_catalog, R.string.missa_chip_series_catalog),
 
+    // Documentaries (Documentaires)
+    DOCS_FEATURED("docs_featured", 10, R.string.missa_cat_docs_featured, R.string.missa_chip_docs_featured),
+    DOCS_NATURE("docs_nature", 20, R.string.missa_cat_docs_nature, R.string.missa_chip_docs_nature),
+    DOCS_HISTORY("docs_history", 30, R.string.missa_cat_docs_history, R.string.missa_chip_docs_history),
+    DOCS_SCIENCE("docs_science", 40, R.string.missa_cat_docs_science, R.string.missa_chip_docs_science),
+    DOCS_SOCIETY("docs_society", 50, R.string.missa_cat_docs_society, R.string.missa_chip_docs_society),
+    DOCS_ALL("docs_all", 900, R.string.missa_cat_docs_all, R.string.missa_chip_docs_all),
+
     // Shorts
     SHORTS_MICRO("shorts_micro", 10, R.string.missa_cat_shorts_micro, R.string.missa_chip_shorts_micro),
     SHORTS_ANIMATION("shorts_anim", 20, R.string.missa_cat_shorts_anim, R.string.missa_chip_shorts_anim),
@@ -112,6 +120,7 @@ internal object MediaUniverseClassifier {
     val ALL_CONTENT_UNIVERSES = listOf(
         "films",
         "series",
+        "documentaries",
         "shorts",
         "kids",
         "live_tv",
@@ -122,8 +131,9 @@ internal object MediaUniverseClassifier {
     )
 
     private val movieTypes = setOf(
-        TvType.Movie, TvType.AnimeMovie, TvType.Documentary, TvType.Torrent, TvType.Video
+        TvType.Movie, TvType.AnimeMovie, TvType.Torrent, TvType.Video
     )
+    private val vodMovieOrDocTypes = movieTypes + TvType.Documentary
     private val mangaTypes = setOf(
         TvType.Anime, TvType.AnimeMovie, TvType.OVA
     )
@@ -139,6 +149,9 @@ internal object MediaUniverseClassifier {
 
     private val mangaKeywords = wordRegex(
         """mangas?|animes?|anim[eé]s?|oav|ova|shonen|shōnen|seinen|shojo|shōjo|isekai|mecha|donghua|manhwa|manhua|webtoon|japanimation"""
+    )
+    private val documentaryKeywords = wordRegex(
+        """documentaires?|documentary|documentaries|docu[ -]?s[eé]ries?|docus?|docufiction|reportages?|grands?\s+reportages?|enqu[eê]tes?\s+exclusives?|biographies?|arch[eé]ologie|national\s+geographic|nat\s*geo(?:\s+wild)?|discovery(?:\s+channel|\s+science|\s+investigation)?|ushua[iï]a|plan[eè]te\+|rmc\s+d[eé]couverte|histoire\s+tv|toute\s+l['’]histoire|science\s+(?:&|et)\s+vie|faune\s+sauvage|wildlife|true\s+crime"""
     )
     private val musicKeywords = wordRegex(
         """musiques?|music|clips?\s+(?:vid[eé]os?|musicaux|officiels?)|music\s+videos?|official\s+(?:music\s+)?video|concerts?|live\s+sessions?|showcase|albums?|playlists?|chansons?|songs?|singles?|karaok[eé]|afrobeats?|afropop|amapiano|makossa|bikutsi|benskin|mbol[eé]|coup[eé][ -]d[eé]cal[eé]|ndombolo|rumba|soukous|zouglou|zouk|kompa|hip[ -]?hop|rap|r&b|rnb|trap|drill|jazz|blues|soul|reggae|dancehall|gospel|louange|[eé]lectro|mtv|trace\s+(?:urban|africa|toca|gospel|mizik|naija)|nrj\s+hits|vevo|boiler\s+room|colors\s+show"""
@@ -173,7 +186,7 @@ internal object MediaUniverseClassifier {
         """s\d{1,2}\s*e\d{1,3}|saison\s*\d+|season\s*\d+|[eé]pisodes?\s*\d+|s[eé]ries?|dramas?|mini[ -]?s[eé]ries?"""
     )
     private val movieHintKeywords = wordRegex(
-        """films?|movies?|cin[eé]ma|longs?[ -]m[eé]trages?|box[ -]?office|documentaires?"""
+        """films?|movies?|cin[eé]ma|longs?[ -]m[eé]trages?|box[ -]?office"""
     )
     private val familyTags = wordRegex(
         """family|familles?|familial(?:e|es)?|children|child|kids?|jeunesse|enfants?|tout\s+public|dessins?\s+anim[eé]s?"""
@@ -242,10 +255,13 @@ internal object MediaUniverseClassifier {
                     TvType.Anime
                 }
             }
+            documentaryKeywords.containsMatchIn(contextText) &&
+                !liveKeywords.containsMatchIn(sectionName) -> TvType.Documentary
             seriesHintKeywords.containsMatchIn(contextText) -> TvType.TvSeries
             shortKeywords.containsMatchIn(contextText) -> TvType.Movie
             movieHintKeywords.containsMatchIn(sectionName) -> TvType.Movie
             cleanProviderTypes.size == 1 -> cleanProviderTypes.first()
+            cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Documentary } -> TvType.Documentary
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it in movieTypes } -> TvType.Movie
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it in seriesTypes } -> TvType.TvSeries
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Live } -> TvType.Live
@@ -264,16 +280,17 @@ internal object MediaUniverseClassifier {
     ): Boolean {
         if (type == TvType.NSFW || type == TvType.CustomMedia) return false
         val effective = inferEffectiveType(type, title, sectionName)
-        val canBeMovie = effective == null || effective == TvType.Others || effective in movieTypes
+        val canBeMovie = effective == null || effective == TvType.Others || effective in vodMovieOrDocTypes
         val canBeSeries = effective == null || effective == TvType.Others || effective in seriesTypes
         val context = "$title $sectionName"
         return when (universeId) {
             "shorts" -> canBeMovie && (
                 shortKeywords.containsMatchIn(context) ||
                     durationSuffix.containsMatchIn(title) ||
-                    effective?.let { it in movieTypes } == true
+                    effective?.let { it in vodMovieOrDocTypes } == true
                 )
             "kids" -> (canBeMovie || canBeSeries) && !matureDisqualifiers.containsMatchIn(context)
+            "documentaries" -> (canBeMovie || canBeSeries) && documentaryKeywords.containsMatchIn(context)
             else -> false
         }
     }
@@ -284,6 +301,7 @@ internal object MediaUniverseClassifier {
             "shorts" -> (if (shortKeywords.containsMatchIn(context)) 5 else 0) +
                 (if (durationSuffix.containsMatchIn(title)) 3 else 0)
             "kids" -> (if (kidsKeywords.containsMatchIn(context)) 5 else 0)
+            "documentaries" -> (if (documentaryKeywords.containsMatchIn(context)) 4 else 0)
             else -> 0
         }
     }
@@ -321,8 +339,16 @@ internal object MediaUniverseClassifier {
                     mangaKeywords.containsMatchIn(classificationText)
                 )
             "series" -> effectiveType != null && effectiveType in seriesTypes
+            "documentaries" -> {
+                if (podcastKeywords.containsMatchIn(classificationText) || radioKeywords.containsMatchIn(classificationText)) {
+                    false
+                } else {
+                    effectiveType == TvType.Documentary ||
+                        (effectiveType != TvType.Music && documentaryKeywords.containsMatchIn(classificationText))
+                }
+            }
             "shorts" -> {
-                val canBeMovie = effectiveType == null || effectiveType == TvType.Others || effectiveType in movieTypes
+                val canBeMovie = effectiveType == null || effectiveType == TvType.Others || effectiveType in vodMovieOrDocTypes
                 val titleDuration = durationSuffix.find(title)?.groupValues?.getOrNull(1)?.toIntOrNull()
                 canBeMovie && (
                     durationMinutes?.let { it in 1..40 } == true ||
@@ -333,7 +359,7 @@ internal object MediaUniverseClassifier {
             "kids" -> {
                 val supportedType = effectiveType == null ||
                     effectiveType == TvType.Others ||
-                    effectiveType in movieTypes ||
+                    effectiveType in vodMovieOrDocTypes ||
                     effectiveType in seriesTypes
                 val isMature = matureDisqualifiers.containsMatchIn(classificationText) ||
                     matureRatingRegex.containsMatchIn(contentRating.orEmpty())
@@ -510,6 +536,48 @@ internal object MediaUniverseClassifier {
                     categories.add(MissaCategory.GENRE_THRILLER)
                 }
                 if (categories.isEmpty()) categories.add(MissaCategory.SERIES_CATALOG)
+            }
+
+            "documentaries" -> {
+                if (isRecent || isTrending) categories.add(MissaCategory.DOCS_FEATURED)
+                if (containsAny(
+                        text,
+                        "nature", "animaux", "animal", "faune", "wildlife", "planète", "planete",
+                        "océan", "ocean", "climat", "écologie", "ecologie", "terre", "ushuaïa",
+                        "ushuaia", "nat geo wild"
+                    )
+                ) {
+                    categories.add(MissaCategory.DOCS_NATURE)
+                }
+                if (containsAny(
+                        text,
+                        "histoire", "history", "historique", "civilisation", "guerre", "war",
+                        "antiquit", "archéolog", "archeolog", "biograph", "portrait", "empire",
+                        "mémoire", "memoire"
+                    )
+                ) {
+                    categories.add(MissaCategory.DOCS_HISTORY)
+                }
+                if (containsAny(
+                        text,
+                        "science", "espace", "space", "univers", "astronomie", "cosmos",
+                        "technolog", "ia", "médecine", "medecine", "ingénierie", "ingenierie",
+                        "découverte", "decouverte", "discovery"
+                    )
+                ) {
+                    categories.add(MissaCategory.DOCS_SCIENCE)
+                }
+                if (containsAny(
+                        text,
+                        "société", "societe", "society", "enquête", "enquete", "reportage",
+                        "crime", "justice", "politique", "géopolitique", "geopolitique",
+                        "économie", "economie", "afrique", "africa", "cameroun", "culture",
+                        "sport", "musique"
+                    )
+                ) {
+                    categories.add(MissaCategory.DOCS_SOCIETY)
+                }
+                categories.add(MissaCategory.DOCS_ALL)
             }
 
             "shorts" -> {

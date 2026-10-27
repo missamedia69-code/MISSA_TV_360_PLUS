@@ -776,6 +776,8 @@
     <string name="universe_films_description">Longs-métrages, mangas, animes, OAV et classiques issus de toutes vos sources compatibles.</string>
     <string name="universe_series_title">Séries</string>
     <string name="universe_series_description">Séries, saisons et épisodes unifiés depuis toutes vos extensions compatibles.</string>
+    <string name="universe_documentaries_title">Documentaires</string>
+    <string name="universe_documentaries_description">Grands documentaires, docu-séries, reportages, nature, histoire et sciences réunis dans un seul univers.</string>
     <string name="universe_shorts_title">Courts</string>
     <string name="universe_shorts_description">Créations et films au format court identifiés par durée et métadonnées.</string>
     <string name="universe_kids_title">Enfants</string>
@@ -797,6 +799,7 @@
     <string name="universe_eyebrow_home">★ À L’AFFICHE · CINÉMA &amp; SÉRIES</string>
     <string name="universe_eyebrow_films">🎬 FILMS &amp; MANGA</string>
     <string name="universe_eyebrow_series">📺 UNIVERS SÉRIES</string>
+    <string name="universe_eyebrow_documentaries">🌍 DOCUMENTAIRES &amp; DÉCOUVERTE</string>
     <string name="universe_eyebrow_shorts">🎞️ COURTS-MÉTRAGES</string>
     <string name="universe_eyebrow_kids">🌟 SÉLECTION JEUNESSE &amp; FAMILLE</string>
     <string name="universe_eyebrow_live_tv">🔴 TV EN DIRECT</string>
@@ -808,6 +811,7 @@
 
     <string name="universe_card_films_sub">Cinéma, mangas &amp; animes</string>
     <string name="universe_card_series_sub">Saisons &amp; épisodes</string>
+    <string name="universe_card_documentaries_sub">Nature, histoire &amp; enquêtes</string>
     <string name="universe_card_shorts_sub">Formats courts ≤ 40 min</string>
     <string name="universe_card_kids_sub">Jeunesse &amp; famille</string>
     <string name="universe_card_live_tv_sub">Chaînes en direct</string>
@@ -926,7 +930,7 @@
     <!-- 3-step onboarding wizard (FLOW-01) -->
     <string name="missa_onboarding_step_indicator">Étape %1$d sur 3</string>
     <string name="missa_onboarding_step1_title">Bienvenue sur MISSA TV 360 PLUS</string>
-    <string name="missa_onboarding_step1_desc">Une interface cinéma unifiée pour 10 univers : Films &amp; Manga, Séries, Courts-métrages, Enfants, TV en direct, Sports, Musiques, Podcasts, Radio directe et Jeux rétro.</string>
+    <string name="missa_onboarding_step1_desc">Une interface cinéma unifiée pour 11 univers : Films &amp; Manga, Séries, Documentaires, Courts-métrages, Enfants, TV en direct, Sports, Musiques, Podcasts, Radio directe et Jeux rétro.</string>
     <string name="missa_onboarding_step2_title">Région, Audio &amp; Économie de données</string>
     <string name="missa_onboarding_step2_desc">Personnalisez votre expérience : stations radio d’Afrique, du Cameroun et internationales prêtes dès le premier lancement, et mode Économie de données pour réseaux mobiles.</string>
     <string name="missa_onboarding_data_saver_toggle">Activer le mode Économie de données (images allégées, carrousel fixe)</string>
@@ -1021,6 +1025,19 @@
     <string name="missa_chip_series_intl">Drames</string>
     <string name="missa_cat_series_catalog">Catalogue Séries</string>
     <string name="missa_chip_series_catalog">Catalogue</string>
+
+    <string name="missa_cat_docs_featured">Documentaires à la une &amp; Nouveautés</string>
+    <string name="missa_chip_docs_featured">Nouveautés</string>
+    <string name="missa_cat_docs_nature">Nature, Animaux &amp; Planète</string>
+    <string name="missa_chip_docs_nature">Nature</string>
+    <string name="missa_cat_docs_history">Histoire, Civilisations &amp; Biographies</string>
+    <string name="missa_chip_docs_history">Histoire</string>
+    <string name="missa_cat_docs_science">Sciences, Espace &amp; Technologies</string>
+    <string name="missa_chip_docs_science">Sciences</string>
+    <string name="missa_cat_docs_society">Société, Enquêtes &amp; Géopolitique</string>
+    <string name="missa_chip_docs_society">Enquêtes</string>
+    <string name="missa_cat_docs_all">Catalogue Documentaires</string>
+    <string name="missa_chip_docs_all">Catalogue</string>
 
     <string name="missa_cat_shorts_micro">Formats très courts (≤ 15 min)</string>
     <string name="missa_chip_shorts_micro">≤ 15 min</string>

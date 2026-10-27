@@ -820,6 +820,8 @@
     <string name="universe_films_description">Feature films, manga, anime, OVAs and classics unified across all compatible sources.</string>
     <string name="universe_series_title">Series</string>
     <string name="universe_series_description">Shows, seasons and episodes unified across all compatible extensions.</string>
+    <string name="universe_documentaries_title">Documentaries</string>
+    <string name="universe_documentaries_description">Feature documentaries, docu-series, investigative reports, nature, history and science in one hub.</string>
     <string name="universe_shorts_title">Shorts</string>
     <string name="universe_shorts_description">Short-format films and creations identified by duration and metadata.</string>
     <string name="universe_kids_title">Kids</string>
@@ -841,6 +843,7 @@
     <string name="universe_eyebrow_home">★ FEATURED · CINEMA &amp; SERIES</string>
     <string name="universe_eyebrow_films">🎬 MOVIES &amp; MANGA</string>
     <string name="universe_eyebrow_series">📺 SERIES UNIVERSE</string>
+    <string name="universe_eyebrow_documentaries">🌍 DOCUMENTARIES &amp; DISCOVERY</string>
     <string name="universe_eyebrow_shorts">🎞️ SHORT FILMS</string>
     <string name="universe_eyebrow_kids">🌟 KIDS &amp; FAMILY SELECTION</string>
     <string name="universe_eyebrow_live_tv">🔴 LIVE TELEVISION</string>
@@ -852,6 +855,7 @@
 
     <string name="universe_card_films_sub">Cinema, manga &amp; anime</string>
     <string name="universe_card_series_sub">Seasons &amp; episodes</string>
+    <string name="universe_card_documentaries_sub">Nature, history &amp; reports</string>
     <string name="universe_card_shorts_sub">Short formats ≤ 40 min</string>
     <string name="universe_card_kids_sub">Youth &amp; family</string>
     <string name="universe_card_live_tv_sub">Live channels</string>
@@ -970,7 +974,7 @@
     <!-- 3-step onboarding wizard (FLOW-01) -->
     <string name="missa_onboarding_step_indicator">Step %1$d of 3</string>
     <string name="missa_onboarding_step1_title">Welcome to MISSA TV 360 PLUS</string>
-    <string name="missa_onboarding_step1_desc">One cinema-grade interface for 10 media universes: Movies &amp; Manga, Series, Shorts, Kids, Live TV, Sports, Music, Podcasts, Direct Radio and Retro Games.</string>
+    <string name="missa_onboarding_step1_desc">One cinema-grade interface for 11 media universes: Movies &amp; Manga, Series, Documentaries, Shorts, Kids, Live TV, Sports, Music, Podcasts, Direct Radio and Retro Games.</string>
     <string name="missa_onboarding_step2_title">Region, Audio &amp; Data Preferences</string>
     <string name="missa_onboarding_step2_desc">Optimize your experience: highlight African &amp; international radio presets, and optionally enable Data Saver on mobile networks.</string>
     <string name="missa_onboarding_data_saver_toggle">Enable Data Saver (lighter images, paused hero auto-play)</string>
@@ -1065,6 +1069,19 @@
     <string name="missa_chip_series_intl">Dramas</string>
     <string name="missa_cat_series_catalog">Series Catalog</string>
     <string name="missa_chip_series_catalog">Catalog</string>
+
+    <string name="missa_cat_docs_featured">Featured &amp; New Documentaries</string>
+    <string name="missa_chip_docs_featured">New</string>
+    <string name="missa_cat_docs_nature">Nature, Wildlife &amp; Planet</string>
+    <string name="missa_chip_docs_nature">Nature</string>
+    <string name="missa_cat_docs_history">History, Civilizations &amp; Biographies</string>
+    <string name="missa_chip_docs_history">History</string>
+    <string name="missa_cat_docs_science">Science, Space &amp; Technology</string>
+    <string name="missa_chip_docs_science">Science</string>
+    <string name="missa_cat_docs_society">Society, Investigations &amp; Geopolitics</string>
+    <string name="missa_chip_docs_society">Society</string>
+    <string name="missa_cat_docs_all">Documentaries Catalog</string>
+    <string name="missa_chip_docs_all">Catalog</string>
 
     <string name="missa_cat_shorts_micro">Micro Shorts (≤ 15 min)</string>
     <string name="missa_chip_shorts_micro">≤ 15 min</string>

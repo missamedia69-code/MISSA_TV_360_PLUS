@@ -101,6 +101,66 @@ class MediaUniverseClassifierTest {
     }
 
     @Test
+    fun `documentaries universe groups feature docs, docu-series, investigative reports and discovery channels`() {
+        assertTrue(MediaUniverseClassifier.matches("documentaries", TvType.Documentary, "Notre Planète"))
+        assertFalse(MediaUniverseClassifier.matches("films", TvType.Documentary, "Notre Planète"))
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "documentaries",
+                type = null,
+                title = "Les Civilisations du Cameroun",
+                sectionName = "Documentaires & Histoire"
+            )
+        )
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "documentaries",
+                type = TvType.TvSeries,
+                title = "Formula 1: Drive to Survive",
+                tags = listOf("Docu-série", "Sport")
+            )
+        )
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "documentaries",
+                type = TvType.Live,
+                title = "National Geographic Wild HD",
+                sectionName = "Chaînes Découverte"
+            )
+        )
+        assertTrue(MediaUniverseClassifier.matches("documentaries", TvType.Movie, "Football documentary"))
+        // Short documentaries cross-cut into both Documentaries and Shorts
+        val shortDocUniverses = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Documentary,
+            title = "Faune Sauvage du Waza",
+            durationMinutes = 24
+        )
+        assertTrue(shortDocUniverses.contains("documentaries"))
+        assertTrue(shortDocUniverses.contains("shorts"))
+        // Podcasts, talk radio and pure feature films do not leak into Documentaries
+        assertFalse(MediaUniverseClassifier.matches("documentaries", TvType.Podcast, "Histoire en podcast"))
+        assertFalse(MediaUniverseClassifier.matches("documentaries", TvType.Audio, "RFI Afrique"))
+        assertFalse(MediaUniverseClassifier.matches("documentaries", TvType.Movie, "Inception"))
+
+        val docCats = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "documentaries",
+            title = "Ushuaïa Nature : Faune Sauvage d'Afrique 2026",
+            sectionName = "Nouveautés Documentaires",
+            tags = listOf("Nature", "Afrique"),
+            effectiveType = TvType.Documentary
+        )
+        assertEquals(
+            listOf(
+                MissaCategory.DOCS_FEATURED,
+                MissaCategory.DOCS_NATURE,
+                MissaCategory.DOCS_SOCIETY,
+                MissaCategory.DOCS_ALL
+            ),
+            docCats
+        )
+    }
+
+    @Test
     fun `incomplete or null plugin types are normalized from section and provider metadata`() {
         assertTrue(
             MediaUniverseClassifier.matches(
@@ -280,21 +340,23 @@ class MediaUniverseClassifierTest {
     }
 
     @Test
-    fun `navigation universes cover all 10 content universes plus Home with family separators`() {
-        assertEquals(10, MissaUniverses.HUB_SHORTCUTS.size)
-        assertEquals(11, MissaUniverses.NAVIGATION_UNIVERSES.size)
+    fun `navigation universes cover all 11 content universes plus Home with family separators`() {
+        assertEquals(11, MissaUniverses.HUB_SHORTCUTS.size)
+        assertEquals(12, MissaUniverses.NAVIGATION_UNIVERSES.size)
         val groups = MissaUniverses.NAVIGATION_UNIVERSES.map { it.familyGroup }
-        // [Home(0)] | [Films & Manga, Series, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Music, Podcasts, Radio(3)] | [Games(4)]
-        assertEquals(listOf(0, 1, 1, 1, 1, 2, 2, 3, 3, 3, 4), groups)
+        // [Home(0)] | [Films & Manga, Series, Documentaries, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Music, Podcasts, Radio(3)] | [Games(4)]
+        assertEquals(listOf(0, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 4), groups)
+        assertEquals("documentaries", MissaUniverses.DOCUMENTARIES.id)
         assertEquals("music", MissaUniverses.MUSIC.id)
     }
 
     @Test
-    fun `contextual filter bar is hidden on Home and displayed inside Films, Music and dedicated universes`() {
+    fun `contextual filter bar is hidden on Home and displayed inside Films, Documentaries, Music and dedicated universes`() {
         assertFalse(MediaUniverseFragment.shouldShowContextualFilterBar("home"))
         assertFalse(MediaUniverseFragment.shouldShowContextualFilterBar("HOME"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("films"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("series"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("documentaries"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("shorts"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("kids"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("live_tv"))

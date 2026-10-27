@@ -78,6 +78,17 @@ object MissaUniverses {
         familyGroup = 1
     )
 
+    val DOCUMENTARIES = UniverseDefinition(
+        id = "documentaries",
+        destinationId = R.id.navigation_universe_documentaries,
+        titleRes = R.string.universe_documentaries_title,
+        descriptionRes = R.string.universe_documentaries_description,
+        cardSubtitleRes = R.string.universe_card_documentaries_sub,
+        iconRes = R.drawable.ic_missa_documentaries,
+        eyebrowRes = R.string.universe_eyebrow_documentaries,
+        familyGroup = 1
+    )
+
     val SHORTS = UniverseDefinition(
         id = "shorts",
         destinationId = R.id.navigation_universe_shorts,
@@ -171,14 +182,14 @@ object MissaUniverses {
         familyGroup = 4
     )
 
-    /** Primary navigation bar order (Home + 10 content universes). */
+    /** Primary navigation bar order (Home + 11 content universes). */
     val NAVIGATION_UNIVERSES = listOf(
-        HOME, FILMS, SERIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, RETRO_GAMES
+        HOME, FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, RETRO_GAMES
     )
 
-    /** Hub shortcut cards displayed on Home (the 10 dedicated universes). */
+    /** Hub shortcut cards displayed on Home (the 11 dedicated universes). */
     val HUB_SHORTCUTS = listOf(
-        FILMS, SERIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, RETRO_GAMES
+        FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, RETRO_GAMES
     )
 
     fun byId(universeId: String): UniverseDefinition =
