@@ -21,6 +21,7 @@ import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.android.material.button.MaterialButton
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
 import com.lagradost.cloudstream3.ui.home.ResumeItemAdapter
 import com.lagradost.cloudstream3.ui.result.FOCUS_SELF
@@ -632,9 +633,14 @@ internal class UniverseScreenAdapter(
                 plot.text = slide.plot.orEmpty()
 
                 val isAudio = slide.card is DirectRadioSearchResponse
+                val isListenItem = slide.card.type == TvType.Music ||
+                    slide.card.type == TvType.Podcast ||
+                    slide.card.type == TvType.Audio ||
+                    slide.card.type == TvType.AudioBook
                 primaryCta.setText(
                     when {
                         isAudio -> R.string.universe_hero_listen_live
+                        isListenItem -> R.string.universe_hero_listen
                         slide.isDirectStream -> R.string.universe_hero_watch_live
                         else -> R.string.universe_hero_watch
                     }
@@ -806,8 +812,11 @@ internal class UniverseScreenAdapter(
         fun bind(item: UniverseListItem.ResumeRow) {
             currentItems = item.items
             titleView.setText(
-                if (item.universeId == "podcasts") R.string.universe_resume_listening_title
-                else R.string.universe_resume_watching_title
+                if (item.universeId == "podcasts" || item.universeId == "music") {
+                    R.string.universe_resume_listening_title
+                } else {
+                    R.string.universe_resume_watching_title
+                }
             )
             clearAllBtn.setOnClickListener { callbacks.onClearAllResume(item.items) }
             resumeAdapter.isHorizontal = true

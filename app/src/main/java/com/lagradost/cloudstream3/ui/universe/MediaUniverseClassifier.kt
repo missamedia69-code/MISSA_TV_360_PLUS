@@ -41,8 +41,9 @@ enum class MissaCategory(
     HOME_AUDIO("home_audio", 120, R.string.missa_cat_home_audio, R.string.missa_chip_home_audio),
     HOME_SELECTION("home_selection", 900, R.string.missa_cat_home_selection, R.string.missa_chip_home_selection),
 
-    // Films
+    // Films & Manga
     FILMS_FEATURED("films_featured", 10, R.string.missa_cat_films_featured, R.string.missa_chip_films_featured),
+    FILMS_MANGA("films_manga", 15, R.string.missa_cat_films_manga, R.string.missa_chip_films_manga),
     FILMS_SHORTS("films_shorts", 115, R.string.missa_cat_films_shorts, R.string.missa_chip_films_shorts),
     FILMS_CATALOG("films_catalog", 900, R.string.missa_cat_films_catalog, R.string.missa_chip_films_catalog),
 
@@ -77,6 +78,14 @@ enum class MissaCategory(
     SPORTS_MOTORS("sports_motors", 45, R.string.missa_cat_sports_motors, R.string.missa_chip_sports_motors),
     SPORTS_ALL("sports_all", 900, R.string.missa_cat_sports_all, R.string.missa_chip_sports_all),
 
+    // Music (Musiques)
+    MUSIC_AFRICA("music_africa", 12, R.string.missa_cat_music_africa, R.string.missa_chip_music_africa),
+    MUSIC_URBAN("music_urban", 22, R.string.missa_cat_music_urban, R.string.missa_chip_music_urban),
+    MUSIC_POP_WORLD("music_pop", 32, R.string.missa_cat_music_pop, R.string.missa_chip_music_pop),
+    MUSIC_CLIPS_LIVE("music_clips", 42, R.string.missa_cat_music_clips, R.string.missa_chip_music_clips),
+    MUSIC_STREAMS("music_streams", 52, R.string.missa_cat_music_streams, R.string.missa_chip_music_streams),
+    MUSIC_ALL("music_all", 900, R.string.missa_cat_music_all, R.string.missa_chip_music_all),
+
     // Podcasts
     PODCASTS_SOCIETY("podcasts_society", 15, R.string.missa_cat_podcasts_society, R.string.missa_chip_podcasts_society),
     PODCASTS_CULTURE("podcasts_culture", 25, R.string.missa_cat_podcasts_culture, R.string.missa_chip_podcasts_culture),
@@ -107,12 +116,16 @@ internal object MediaUniverseClassifier {
         "kids",
         "live_tv",
         "sports",
+        "music",
         "podcasts",
         "radio"
     )
 
     private val movieTypes = setOf(
         TvType.Movie, TvType.AnimeMovie, TvType.Documentary, TvType.Torrent, TvType.Video
+    )
+    private val mangaTypes = setOf(
+        TvType.Anime, TvType.AnimeMovie, TvType.OVA
     )
     private val seriesTypes = setOf(
         TvType.TvSeries, TvType.Anime, TvType.Cartoon, TvType.OVA, TvType.AsianDrama
@@ -122,6 +135,13 @@ internal object MediaUniverseClassifier {
     private fun wordRegex(pattern: String): Regex = Regex(
         """(?<![\p{L}\p{N}])($pattern)(?![\p{L}\p{N}])""",
         RegexOption.IGNORE_CASE
+    )
+
+    private val mangaKeywords = wordRegex(
+        """mangas?|animes?|anim[eé]s?|oav|ova|shonen|shōnen|seinen|shojo|shōjo|isekai|mecha|donghua|manhwa|manhua|webtoon|japanimation"""
+    )
+    private val musicKeywords = wordRegex(
+        """musiques?|music|clips?\s+(?:vid[eé]os?|musicaux|officiels?)|music\s+videos?|official\s+(?:music\s+)?video|concerts?|live\s+sessions?|showcase|albums?|playlists?|chansons?|songs?|singles?|karaok[eé]|afrobeats?|afropop|amapiano|makossa|bikutsi|benskin|mbol[eé]|coup[eé][ -]d[eé]cal[eé]|ndombolo|rumba|soukous|zouglou|zouk|kompa|hip[ -]?hop|rap|r&b|rnb|trap|drill|jazz|blues|soul|reggae|dancehall|gospel|louange|[eé]lectro|mtv|trace\s+(?:urban|africa|toca|gospel|mizik|naija)|nrj\s+hits|vevo|boiler\s+room|colors\s+show"""
     )
 
     private val shortKeywords = wordRegex(
@@ -150,7 +170,7 @@ internal object MediaUniverseClassifier {
         """en\s+direct|live\s*tv|cha[iî]nes?\s+tv|iptv|direct\s+tv|24/7|tv\s+live"""
     )
     private val seriesHintKeywords = wordRegex(
-        """s\d{1,2}\s*e\d{1,3}|saison\s*\d+|season\s*\d+|[eé]pisodes?\s*\d+|s[eé]ries?|animes?|dramas?|mini[ -]?s[eé]ries?"""
+        """s\d{1,2}\s*e\d{1,3}|saison\s*\d+|season\s*\d+|[eé]pisodes?\s*\d+|s[eé]ries?|dramas?|mini[ -]?s[eé]ries?"""
     )
     private val movieHintKeywords = wordRegex(
         """films?|movies?|cin[eé]ma|longs?[ -]m[eé]trages?|box[ -]?office|documentaires?"""
@@ -211,8 +231,17 @@ internal object MediaUniverseClassifier {
             podcastKeywords.containsMatchIn(contextText) -> TvType.Podcast
             radioKeywords.containsMatchIn(contextText) &&
                 (cleanProviderTypes.isEmpty() || cleanProviderTypes.any { it == TvType.Live || it in audioTypes }) -> TvType.Audio
+            musicKeywords.containsMatchIn(contextText) &&
+                !liveKeywords.containsMatchIn(sectionName) -> TvType.Music
             liveKeywords.containsMatchIn(sectionName) ||
                 (sportsKeywords.containsMatchIn(sectionName) && TvType.Live in cleanProviderTypes) -> TvType.Live
+            mangaKeywords.containsMatchIn(contextText) -> {
+                if (movieHintKeywords.containsMatchIn(contextText) && !seriesHintKeywords.containsMatchIn(contextText)) {
+                    TvType.AnimeMovie
+                } else {
+                    TvType.Anime
+                }
+            }
             seriesHintKeywords.containsMatchIn(contextText) -> TvType.TvSeries
             shortKeywords.containsMatchIn(contextText) -> TvType.Movie
             movieHintKeywords.containsMatchIn(sectionName) -> TvType.Movie
@@ -221,6 +250,7 @@ internal object MediaUniverseClassifier {
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it in seriesTypes } -> TvType.TvSeries
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Live } -> TvType.Live
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Podcast } -> TvType.Podcast
+            cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Music } -> TvType.Music
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it in audioTypes } -> TvType.Audio
             else -> rawType
         }
@@ -279,9 +309,17 @@ internal object MediaUniverseClassifier {
         }.trim()
         val classificationText = "$title $detailText"
 
+        val isPureMusicVideo = effectiveType == TvType.Video &&
+            musicKeywords.containsMatchIn(classificationText) &&
+            !mangaKeywords.containsMatchIn(classificationText) &&
+            !movieHintKeywords.containsMatchIn(classificationText)
+
         return when (universeId) {
             "home" -> true
-            "films" -> effectiveType != null && effectiveType in movieTypes
+            "films" -> !isPureMusicVideo && (
+                (effectiveType != null && (effectiveType in movieTypes || effectiveType in mangaTypes)) ||
+                    mangaKeywords.containsMatchIn(classificationText)
+                )
             "series" -> effectiveType != null && effectiveType in seriesTypes
             "shorts" -> {
                 val canBeMovie = effectiveType == null || effectiveType == TvType.Others || effectiveType in movieTypes
@@ -311,6 +349,22 @@ internal object MediaUniverseClassifier {
                 !radioKeywords.containsMatchIn(classificationText)
             "sports" -> effectiveType == TvType.Live &&
                 sportsKeywords.containsMatchIn(classificationText)
+            "music" -> {
+                if (podcastKeywords.containsMatchIn(classificationText)) {
+                    false
+                } else {
+                    effectiveType == TvType.Music ||
+                        (effectiveType == TvType.Audio &&
+                            musicKeywords.containsMatchIn(classificationText) &&
+                            !radioKeywords.containsMatchIn(classificationText)) ||
+                        ((effectiveType == null ||
+                            effectiveType == TvType.Others ||
+                            effectiveType == TvType.Video ||
+                            effectiveType == TvType.Live) &&
+                            musicKeywords.containsMatchIn(classificationText) &&
+                            !radioKeywords.containsMatchIn(classificationText))
+                }
+            }
             "podcasts" -> effectiveType == TvType.Podcast ||
                 (effectiveType in audioTypes && podcastKeywords.containsMatchIn(classificationText))
             "radio" -> {
@@ -383,7 +437,9 @@ internal object MediaUniverseClassifier {
         when (universeId) {
             "home" -> {
                 if (isTrending || isRecent) categories.add(MissaCategory.HOME_TRENDING)
-                if (effectiveType in movieTypes) categories.add(MissaCategory.HOME_MOVIES)
+                if (effectiveType in movieTypes || effectiveType in mangaTypes || mangaKeywords.containsMatchIn(text)) {
+                    categories.add(MissaCategory.HOME_MOVIES)
+                }
                 if (effectiveType in seriesTypes) categories.add(MissaCategory.HOME_SERIES)
                 if (containsAny(text, "action", "aventure", "adventure", "guerre", "war", "western")) {
                     categories.add(MissaCategory.GENRE_ACTION)
@@ -406,7 +462,7 @@ internal object MediaUniverseClassifier {
                 if (effectiveType == TvType.Live) {
                     categories.add(MissaCategory.HOME_LIVE)
                 }
-                if (effectiveType == TvType.Podcast || effectiveType in audioTypes) {
+                if (effectiveType == TvType.Podcast || effectiveType in audioTypes || musicKeywords.containsMatchIn(text)) {
                     categories.add(MissaCategory.HOME_AUDIO)
                 }
                 if (categories.isEmpty()) categories.add(MissaCategory.HOME_SELECTION)
@@ -414,6 +470,9 @@ internal object MediaUniverseClassifier {
 
             "films" -> {
                 if (isRecent || isTrending) categories.add(MissaCategory.FILMS_FEATURED)
+                if (effectiveType in mangaTypes || mangaKeywords.containsMatchIn(text)) {
+                    categories.add(MissaCategory.FILMS_MANGA)
+                }
                 if (containsAny(text, "action", "aventure", "adventure")) categories.add(MissaCategory.GENRE_ACTION)
                 if (containsAny(text, "comédie", "comedie", "comedy")) categories.add(MissaCategory.GENRE_COMEDY)
                 if (containsAny(text, "drame", "drama", "romance")) categories.add(MissaCategory.GENRE_DRAMA)
@@ -423,7 +482,7 @@ internal object MediaUniverseClassifier {
                 if (containsAny(text, "science-fiction", "sci-fi", "fantastique", "fantasy")) {
                     categories.add(MissaCategory.GENRE_SCIFI)
                 }
-                if (effectiveType == TvType.AnimeMovie || containsAny(text, "animation", "anime")) {
+                if (effectiveType == TvType.Cartoon || containsAny(text, "animation", "pixar", "disney", "dreamworks")) {
                     categories.add(MissaCategory.GENRE_ANIMATION)
                 }
                 if (effectiveType == TvType.Documentary || containsAny(text, "documentaire", "documentary")) {
@@ -499,6 +558,46 @@ internal object MediaUniverseClassifier {
                     categories.add(MissaCategory.SPORTS_MOTORS)
                 }
                 categories.add(MissaCategory.SPORTS_ALL)
+            }
+
+            "music" -> {
+                if (containsAny(
+                        text,
+                        "afrique", "africa", "cameroun", "cameroon", "douala", "yaound",
+                        "afrobeat", "afropop", "amapiano", "makossa", "bikutsi", "benskin",
+                        "mbol", "coupé-décalé", "coupe-decale", "ndombolo", "rumba", "soukous",
+                        "zouglou", "naija", "trace africa", "trace mizik", "balafon"
+                    )
+                ) {
+                    categories.add(MissaCategory.MUSIC_AFRICA)
+                }
+                if (containsAny(
+                        text,
+                        "hip-hop", "hip hop", "rap", "r&b", "rnb", "urbain", "urban",
+                        "trap", "drill", "freestyle", "trace urban", "mouv"
+                    )
+                ) {
+                    categories.add(MissaCategory.MUSIC_URBAN)
+                }
+                if (containsAny(
+                        text,
+                        "pop", "zouk", "kompa", "gospel", "louange", "jazz", "blues",
+                        "soul", "reggae", "dancehall", "rock", "électro", "electro",
+                        "classique", "variété", "variete", "chanson", "album", "playlist"
+                    )
+                ) {
+                    categories.add(MissaCategory.MUSIC_POP_WORLD)
+                }
+                if (effectiveType == TvType.Video || effectiveType == TvType.Live || containsAny(
+                        text,
+                        "clip", "video", "vidéo", "concert", "live", "session",
+                        "showcase", "karaok", "mtv", "trace", "nrj hits", "vevo",
+                        "boiler room", "colors show"
+                    )
+                ) {
+                    categories.add(MissaCategory.MUSIC_CLIPS_LIVE)
+                }
+                categories.add(MissaCategory.MUSIC_ALL)
             }
 
             "podcasts" -> {

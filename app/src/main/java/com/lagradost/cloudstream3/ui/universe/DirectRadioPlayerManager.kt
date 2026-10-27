@@ -185,6 +185,17 @@ object DirectRadioPlayerManager {
         )
     }
 
+    private val musicStationHintRegex = Regex(
+        "\\b(musiques?|music|afrobeats?|afro|hip[ -]?hop|urbain|urban|rap|r&b|rnb|jazz|groove|soul|blues|pop|rock|reggae|zouk|gospel|makossa|bikutsi|classique|concerts?|hits?)\\b",
+        RegexOption.IGNORE_CASE
+    )
+
+    /** Continuous music-focused direct streams surfaced in the dedicated Music universe. */
+    fun musicPresetStations(): List<RadioStationPreset> =
+        allPresetStations().filter { station ->
+            musicStationHintRegex.containsMatchIn("${station.name} ${station.genre}")
+        }
+
     /** Optional remote JSON refresh from GitHub so broken stream URLs can be updated OTA (RAD-04). */
     suspend fun refreshRemotePresetsIfNeeded() {
         if (remoteRefreshAttempted) return

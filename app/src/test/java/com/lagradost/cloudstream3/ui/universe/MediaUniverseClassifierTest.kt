@@ -8,13 +8,96 @@ import org.junit.Test
 
 class MediaUniverseClassifierTest {
     @Test
-    fun `movies and series are routed by media type rather than provider`() {
+    fun `films and manga universe groups all movies, anime movies, anime series, OVAs and manga metadata`() {
         assertTrue(MediaUniverseClassifier.matches("films", TvType.Movie, "Film A"))
-        assertTrue(MediaUniverseClassifier.matches("films", TvType.AnimeMovie, "Film B"))
+        assertTrue(MediaUniverseClassifier.matches("films", TvType.AnimeMovie, "Demon Slayer: Mugen Train"))
+        assertTrue(MediaUniverseClassifier.matches("films", TvType.Anime, "Naruto Shippuden"))
+        assertTrue(MediaUniverseClassifier.matches("films", TvType.OVA, "Hunter x Hunter OAV"))
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "films",
+                type = null,
+                title = "One Piece Chapitre Spécial",
+                sectionName = "Mangas & Shonen"
+            )
+        )
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "films",
+                type = TvType.Others,
+                title = "Solo Leveling",
+                tags = listOf("Manhwa", "Isekai")
+            )
+        )
         assertFalse(MediaUniverseClassifier.matches("films", TvType.TvSeries, "Series A"))
         assertTrue(MediaUniverseClassifier.matches("series", TvType.TvSeries, "Series A"))
         assertTrue(MediaUniverseClassifier.matches("series", TvType.Anime, "Anime A"))
         assertFalse(MediaUniverseClassifier.matches("series", TvType.Movie, "Film A"))
+
+        val mangaCats = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "films",
+            title = "Jujutsu Kaisen 2026",
+            sectionName = "Nouveautés Mangas & Animes",
+            tags = listOf("Shonen", "Action"),
+            effectiveType = TvType.Anime
+        )
+        assertEquals(
+            listOf(MissaCategory.FILMS_FEATURED, MissaCategory.FILMS_MANGA, MissaCategory.GENRE_ACTION),
+            mangaCats
+        )
+    }
+
+    @Test
+    fun `music universe groups tracks, albums, music clips, concerts and live music channels`() {
+        assertTrue(MediaUniverseClassifier.matches("music", TvType.Music, "Locko - Ndutu"))
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "music",
+                type = TvType.Video,
+                title = "Burna Boy - Official Music Video",
+                sectionName = "Clips Officiels Afrobeats"
+            )
+        )
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "music",
+                type = null,
+                title = "Compilation Makossa & Bikutsi Cameroun",
+                sectionName = "Albums & Playlists"
+            )
+        )
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "music",
+                type = TvType.Live,
+                title = "Trace Africa HD",
+                sectionName = "Chaînes Musicales"
+            )
+        )
+        // Pure music video clips belong to Music rather than Movies & Manga
+        assertFalse(
+            MediaUniverseClassifier.matches(
+                universeId = "films",
+                type = TvType.Video,
+                title = "Burna Boy - Official Music Video",
+                sectionName = "Clips Officiels Afrobeats"
+            )
+        )
+        // Podcasts and talk radio do not leak into Music
+        assertFalse(MediaUniverseClassifier.matches("music", TvType.Podcast, "Music business podcast"))
+        assertFalse(MediaUniverseClassifier.matches("music", TvType.Audio, "BBC Radio 1"))
+        assertFalse(MediaUniverseClassifier.matches("music", TvType.Movie, "Inception"))
+
+        val musicCats = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "music",
+            title = "Concert Makossa & Afrobeats Live Douala",
+            sectionName = "Clips & Concerts Cameroun",
+            tags = listOf("Afropop"),
+            effectiveType = TvType.Music
+        )
+        assertEquals(MissaCategory.MUSIC_AFRICA, musicCats.first())
+        assertTrue(musicCats.contains(MissaCategory.MUSIC_CLIPS_LIVE))
+        assertTrue(musicCats.contains(MissaCategory.MUSIC_ALL))
     }
 
     @Test
@@ -197,16 +280,17 @@ class MediaUniverseClassifierTest {
     }
 
     @Test
-    fun `navigation universes cover all 9 content universes plus Home with family separators`() {
-        assertEquals(9, MissaUniverses.HUB_SHORTCUTS.size)
-        assertEquals(10, MissaUniverses.NAVIGATION_UNIVERSES.size)
+    fun `navigation universes cover all 10 content universes plus Home with family separators`() {
+        assertEquals(10, MissaUniverses.HUB_SHORTCUTS.size)
+        assertEquals(11, MissaUniverses.NAVIGATION_UNIVERSES.size)
         val groups = MissaUniverses.NAVIGATION_UNIVERSES.map { it.familyGroup }
-        // [Home(0)] | [Films, Series, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Podcasts, Radio(3)] | [Games(4)]
-        assertEquals(listOf(0, 1, 1, 1, 1, 2, 2, 3, 3, 4), groups)
+        // [Home(0)] | [Films & Manga, Series, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Music, Podcasts, Radio(3)] | [Games(4)]
+        assertEquals(listOf(0, 1, 1, 1, 1, 2, 2, 3, 3, 3, 4), groups)
+        assertEquals("music", MissaUniverses.MUSIC.id)
     }
 
     @Test
-    fun `contextual filter bar is hidden on Home and displayed inside Films and dedicated universes`() {
+    fun `contextual filter bar is hidden on Home and displayed inside Films, Music and dedicated universes`() {
         assertFalse(MediaUniverseFragment.shouldShowContextualFilterBar("home"))
         assertFalse(MediaUniverseFragment.shouldShowContextualFilterBar("HOME"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("films"))
@@ -215,6 +299,7 @@ class MediaUniverseClassifierTest {
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("kids"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("live_tv"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("sports"))
+        assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("music"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("podcasts"))
         assertTrue(MediaUniverseFragment.shouldShowContextualFilterBar("radio"))
     }

@@ -633,6 +633,34 @@ class MediaUniverseViewModel : ViewModel() {
             }
         }
 
+        // Music universe continuous musical streams alongside extension music tracks/clips/concerts
+        if (universeId == "music" && selectedSources.isEmpty()) {
+            val musicPresets = DirectRadioPlayerManager.musicPresetStations()
+                .filter { station ->
+                    searchQuery.isBlank() ||
+                        station.name.contains(searchQuery, ignoreCase = true) ||
+                        station.genre.contains(searchQuery, ignoreCase = true) ||
+                        station.country.contains(searchQuery, ignoreCase = true)
+                }
+            if (musicPresets.isNotEmpty()) {
+                val streamCat = MissaCategory.MUSIC_STREAMS
+                val streamBucket = buckets.getOrPut(streamCat.id) {
+                    BucketData(
+                        key = streamCat.id,
+                        rowTitle = resolveStr(ctx, streamCat.rowTitleRes, streamCat.id),
+                        chipLabel = resolveStr(ctx, streamCat.chipLabelRes, streamCat.id),
+                        rank = streamCat.editorialRank
+                    )
+                }
+                for (station in musicPresets) {
+                    val resp = station.toSearchResponse()
+                    if (streamBucket.items.none { it.url == resp.url }) {
+                        streamBucket.items.add(resp)
+                    }
+                }
+            }
+        }
+
         // Live TV / Sports favorite channels row (FLOW-02)
         val favLiveSet = if (universeId == "live_tv" || universeId == "sports") favoriteLiveUrls() else emptySet()
         if (favLiveSet.isNotEmpty()) {
@@ -759,6 +787,21 @@ class MediaUniverseViewModel : ViewModel() {
                         countBadge = ctx?.resources?.getQuantityString(R.plurals.missa_games_count, 5, 5),
                         hasLiveNow = false
                     )
+                    "music" -> {
+                        val pluginCount = snapshot.entries.count { it.universes.contains("music") }
+                        val total = pluginCount + DirectRadioPlayerManager.musicPresetStations().size
+                        val badge = if (total > 0) {
+                            ctx?.resources?.getQuantityString(R.plurals.missa_titles_count, total, total)
+                        } else {
+                            null
+                        }
+                        UniverseHubCardItem(
+                            definition = uni,
+                            itemCount = total,
+                            countBadge = badge,
+                            hasLiveNow = total > 0
+                        )
+                    }
                     "radio" -> {
                         val pluginCount = snapshot.entries.count { it.universes.contains("radio") }
                         val total = pluginCount + DirectRadioPlayerManager.allPresetStations().size
@@ -804,7 +847,7 @@ class MediaUniverseViewModel : ViewModel() {
             UniverseEmptyReason.EMPTY_SEARCH_OR_FILTER
         } else if (snapshot.isOffline || snapshot.hasError) {
             UniverseEmptyReason.OFFLINE_OR_ERROR
-        } else if (snapshot.activeProviderCount == 0 && universeId != "radio") {
+        } else if (snapshot.activeProviderCount == 0 && universeId != "radio" && universeId != "music") {
             UniverseEmptyReason.NO_PLUGINS_INSTALLED
         } else {
             UniverseEmptyReason.EMPTY_UNIVERSE
@@ -851,8 +894,13 @@ class MediaUniverseViewModel : ViewModel() {
         val eyebrowText = resolveStr(ctx, definition.eyebrowRes, "")
         val liveBadge = resolveStr(ctx, R.string.universe_live_badge, "LIVE")
 
-        if (universeId == "radio" && entries.isEmpty()) {
-            return DirectRadioPlayerManager.allPresetStations().take(5).map { station ->
+        if ((universeId == "radio" || universeId == "music") && entries.isEmpty()) {
+            val presetPool = if (universeId == "music") {
+                DirectRadioPlayerManager.musicPresetStations()
+            } else {
+                DirectRadioPlayerManager.allPresetStations()
+            }
+            return presetPool.take(5).map { station ->
                 HeroBannerSlide(
                     card = station.toSearchResponse(),
                     details = null,
@@ -937,6 +985,7 @@ class MediaUniverseViewModel : ViewModel() {
             "films" -> allResume.filter { MediaUniverseClassifier.matches("films", it.type, it.name) }.take(20)
             "series" -> allResume.filter { MediaUniverseClassifier.matches("series", it.type, it.name) }.take(20)
             "kids" -> allResume.filter { MediaUniverseClassifier.matches("kids", it.type, it.name) }.take(20)
+            "music" -> allResume.filter { MediaUniverseClassifier.matches("music", it.type, it.name) }.take(20)
             "podcasts" -> allResume.filter {
                 it.type == TvType.Podcast || it.type == TvType.Audio || it.type == TvType.AudioBook
             }.take(20)
@@ -1077,9 +1126,12 @@ class MediaUniverseViewModel : ViewModel() {
             if (effectiveType == TvType.NSFW || effectiveType == TvType.CustomMedia) continue
 
             val domainBucket = when (effectiveType) {
-                TvType.TvSeries, TvType.Anime, TvType.Cartoon, TvType.OVA, TvType.AsianDrama -> "series"
+                TvType.AnimeMovie -> "manga_film"
+                TvType.Anime, TvType.OVA -> "manga"
+                TvType.TvSeries, TvType.Cartoon, TvType.AsianDrama -> "series"
+                TvType.Music -> "music"
                 TvType.Live -> "live"
-                TvType.Podcast, TvType.Audio, TvType.Music, TvType.AudioBook -> "audio"
+                TvType.Podcast, TvType.Audio, TvType.AudioBook -> "audio"
                 else -> "film"
             }
             val key = MediaUniverseClassifier.normalizeTitleKey(item.name, domainBucket)

@@ -816,8 +816,8 @@
     <string name="universe_home_title">Home</string>
     <string name="universe_home_description">Movies, series, live TV, audio and retro games brought together in one platform.</string>
     <string name="universe_home_catalogue">Selection &amp; picks</string>
-    <string name="universe_films_title">Movies</string>
-    <string name="universe_films_description">Feature films, new releases and classics unified across all compatible sources.</string>
+    <string name="universe_films_title">Movies &amp; Manga</string>
+    <string name="universe_films_description">Feature films, manga, anime, OVAs and classics unified across all compatible sources.</string>
     <string name="universe_series_title">Series</string>
     <string name="universe_series_description">Shows, seasons and episodes unified across all compatible extensions.</string>
     <string name="universe_shorts_title">Shorts</string>
@@ -828,6 +828,8 @@
     <string name="universe_live_tv_description">General, news and thematic channels with instant live playback.</string>
     <string name="universe_sports_title">Live Sports</string>
     <string name="universe_sports_description">Live matches, competitions and sports channels in a dedicated hub.</string>
+    <string name="universe_music_title">Music</string>
+    <string name="universe_music_description">Tracks, albums, music videos, concerts and continuous music streams in one hub.</string>
     <string name="universe_podcasts_title">Podcasts</string>
     <string name="universe_podcasts_description">Discover audio shows, browse episodes and resume listening anytime.</string>
     <string name="universe_radio_title">Radio</string>
@@ -837,22 +839,24 @@
 
     <!-- Eyebrow badges -->
     <string name="universe_eyebrow_home">★ FEATURED · CINEMA &amp; SERIES</string>
-    <string name="universe_eyebrow_films">🎬 MOVIES UNIVERSE</string>
+    <string name="universe_eyebrow_films">🎬 MOVIES &amp; MANGA</string>
     <string name="universe_eyebrow_series">📺 SERIES UNIVERSE</string>
     <string name="universe_eyebrow_shorts">🎞️ SHORT FILMS</string>
     <string name="universe_eyebrow_kids">🌟 KIDS &amp; FAMILY SELECTION</string>
     <string name="universe_eyebrow_live_tv">🔴 LIVE TELEVISION</string>
     <string name="universe_eyebrow_sports">⚽ LIVE SPORTS</string>
+    <string name="universe_eyebrow_music">🎵 MUSIC &amp; CLIPS</string>
     <string name="universe_eyebrow_podcasts">🎙️ PODCASTS &amp; SHOWS</string>
     <string name="universe_eyebrow_radio">📻 DIRECT LIVE RADIO</string>
     <string name="universe_eyebrow_games">🕹️ RETRO GAMES</string>
 
-    <string name="universe_card_films_sub">Cinema &amp; features</string>
+    <string name="universe_card_films_sub">Cinema, manga &amp; anime</string>
     <string name="universe_card_series_sub">Seasons &amp; episodes</string>
     <string name="universe_card_shorts_sub">Short formats ≤ 40 min</string>
     <string name="universe_card_kids_sub">Youth &amp; family</string>
     <string name="universe_card_live_tv_sub">Live channels</string>
     <string name="universe_card_sports_sub">Matches &amp; events</string>
+    <string name="universe_card_music_sub">Tracks, clips &amp; concerts</string>
     <string name="universe_card_podcasts_sub">Shows &amp; episodes</string>
     <string name="universe_card_radio_sub">Direct listening</string>
     <string name="universe_card_games_sub">Catalog &amp; emulation</string>
@@ -966,7 +970,7 @@
     <!-- 3-step onboarding wizard (FLOW-01) -->
     <string name="missa_onboarding_step_indicator">Step %1$d of 3</string>
     <string name="missa_onboarding_step1_title">Welcome to MISSA TV 360 PLUS</string>
-    <string name="missa_onboarding_step1_desc">One cinema-grade interface for 9 media universes: Movies, Series, Shorts, Kids, Live TV, Sports, Podcasts, Direct Radio and Retro Games.</string>
+    <string name="missa_onboarding_step1_desc">One cinema-grade interface for 10 media universes: Movies &amp; Manga, Series, Shorts, Kids, Live TV, Sports, Music, Podcasts, Direct Radio and Retro Games.</string>
     <string name="missa_onboarding_step2_title">Region, Audio &amp; Data Preferences</string>
     <string name="missa_onboarding_step2_desc">Optimize your experience: highlight African &amp; international radio presets, and optionally enable Data Saver on mobile networks.</string>
     <string name="missa_onboarding_data_saver_toggle">Enable Data Saver (lighter images, paused hero auto-play)</string>
@@ -1019,8 +1023,8 @@
     <!-- Discovery category row titles & short 1-2 word filter chip labels (I18N-01, HOME-08, HOME-10) -->
     <string name="missa_cat_home_trending">Trending &amp; New Releases</string>
     <string name="missa_chip_home_trending">Trending</string>
-    <string name="missa_cat_home_movies">Featured Movies</string>
-    <string name="missa_chip_home_movies">Movies</string>
+    <string name="missa_cat_home_movies">Featured Movies &amp; Manga</string>
+    <string name="missa_chip_home_movies">Movies &amp; Manga</string>
     <string name="missa_cat_home_series">Essential Series</string>
     <string name="missa_chip_home_series">Series</string>
     <string name="missa_cat_action">Action &amp; Adventure</string>
@@ -1041,16 +1045,18 @@
     <string name="missa_chip_home_family">Family</string>
     <string name="missa_cat_home_live">Live: TV &amp; Sports</string>
     <string name="missa_chip_home_live">Live</string>
-    <string name="missa_cat_home_audio">Audio: Podcasts &amp; Radio</string>
+    <string name="missa_cat_home_audio">Music, Podcasts &amp; Radio</string>
     <string name="missa_chip_home_audio">Audio</string>
     <string name="missa_cat_home_selection">Cinema &amp; Series Selection</string>
     <string name="missa_chip_home_selection">Selection</string>
 
-    <string name="missa_cat_films_featured">Featured &amp; New Movies</string>
+    <string name="missa_cat_films_featured">Featured &amp; New Releases</string>
     <string name="missa_chip_films_featured">New</string>
+    <string name="missa_cat_films_manga">Manga, Anime &amp; OVAs</string>
+    <string name="missa_chip_films_manga">Manga</string>
     <string name="missa_cat_films_shorts">Short Formats</string>
     <string name="missa_chip_films_shorts">Shorts</string>
-    <string name="missa_cat_films_catalog">Movies Catalog</string>
+    <string name="missa_cat_films_catalog">Movies &amp; Manga Catalog</string>
     <string name="missa_chip_films_catalog">Catalog</string>
 
     <string name="missa_cat_series_trending">Trending &amp; New Series</string>
@@ -1101,6 +1107,19 @@
     <string name="missa_chip_sports_motors">Motors</string>
     <string name="missa_cat_sports_all">Sports Channels &amp; Events</string>
     <string name="missa_chip_sports_all">Events</string>
+
+    <string name="missa_cat_music_africa">Africa, Cameroon &amp; Afrobeats</string>
+    <string name="missa_chip_music_africa">Afro</string>
+    <string name="missa_cat_music_urban">Hip-Hop, Rap &amp; R&amp;B</string>
+    <string name="missa_chip_music_urban">Urban</string>
+    <string name="missa_cat_music_pop">Pop, Zouk, Gospel &amp; World</string>
+    <string name="missa_chip_music_pop">Pop &amp; Gospel</string>
+    <string name="missa_cat_music_clips">Music Videos, Concerts &amp; Live</string>
+    <string name="missa_chip_music_clips">Clips &amp; Live</string>
+    <string name="missa_cat_music_streams">Continuous Music Streams</string>
+    <string name="missa_chip_music_streams">Streams</string>
+    <string name="missa_cat_music_all">Music Catalog</string>
+    <string name="missa_chip_music_all">Catalog</string>
 
     <string name="missa_cat_podcasts_society">News, History &amp; Society</string>
     <string name="missa_chip_podcasts_society">Society</string>

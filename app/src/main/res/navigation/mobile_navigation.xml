@@ -395,6 +395,17 @@
     </fragment>
 
     <fragment
+        android:id="@+id/navigation_universe_music"
+        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:label="@string/universe_music_title"
+        tools:layout="@layout/fragment_media_universe">
+        <argument
+            android:name="universe_id"
+            android:defaultValue="music"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
         android:id="@+id/navigation_universe_podcasts"
         android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
         android:label="@string/universe_podcasts_title"
