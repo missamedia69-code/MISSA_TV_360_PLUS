@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safe-zone inset wrapper around the official MISSA TV 360 square logo for Android 8.0+ adaptive icons -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/missa_launcher_foreground"
+    android:insetLeft="17%"
+    android:insetTop="17%"
+    android:insetRight="17%"
+    android:insetBottom="17%" />

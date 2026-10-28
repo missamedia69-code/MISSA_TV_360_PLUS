@@ -401,4 +401,22 @@ class MediaUniverseClassifierTest {
         )
         assertEquals(UniverseEmptyReason.EMPTY_UNIVERSE, whenProvidersInstalledEmpty)
     }
+
+    @Test
+    fun `debug and prerelease build variants do not override MISSA TV 360 launcher icons`() {
+        val projectAppDir = java.io.File("src").takeIf { it.isDirectory }
+            ?: java.io.File("app/src")
+        for (variant in listOf("debug", "prerelease")) {
+            val variantDir = java.io.File(projectAppDir, variant)
+            if (variantDir.exists()) {
+                val forbiddenIcons = variantDir.walkTopDown()
+                    .filter { it.isFile && (it.name.contains("launcher") || it.parentFile?.name?.startsWith("mipmap") == true) }
+                    .toList()
+                assertTrue(
+                    "Variant '$variant' must not contain legacy launcher overrides: $forbiddenIcons",
+                    forbiddenIcons.isEmpty()
+                )
+            }
+        }
+    }
 }
