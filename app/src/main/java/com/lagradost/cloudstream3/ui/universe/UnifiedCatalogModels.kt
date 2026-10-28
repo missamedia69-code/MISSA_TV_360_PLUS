@@ -204,7 +204,10 @@ data class UnifiedCatalogEntry(
     val sectionHints: Set<String>,
     val isHorizontalHint: Boolean,
     val universes: Set<String>,
-    val details: LoadResponse? = null
+    val details: LoadResponse? = null,
+    val cachedTags: List<String> = emptyList(),
+    val cachedContentRating: String? = null,
+    val cachedDuration: Int? = null
 )
 
 data class HeroBannerSlide(

@@ -31,7 +31,9 @@ class MediaUniverseClassifierTest {
         )
         assertFalse(MediaUniverseClassifier.matches("films", TvType.TvSeries, "Series A"))
         assertTrue(MediaUniverseClassifier.matches("series", TvType.TvSeries, "Series A"))
-        assertTrue(MediaUniverseClassifier.matches("series", TvType.Anime, "Anime A"))
+        // Mangas/Animes/OVAs are grouped exclusively in Films & Mangas, never duplicated in Series
+        assertFalse(MediaUniverseClassifier.matches("series", TvType.Anime, "Anime A"))
+        assertFalse(MediaUniverseClassifier.matches("series", TvType.OVA, "Hunter x Hunter OAV"))
         assertFalse(MediaUniverseClassifier.matches("series", TvType.Movie, "Film A"))
 
         val mangaCats = MediaUniverseClassifier.categorizeForUniverse(
@@ -418,5 +420,191 @@ class MediaUniverseClassifierTest {
                 )
             }
         }
+    }
+
+    private data class FakeTestSearchResponse(
+        override val name: String,
+        override val url: String,
+        override val apiName: String,
+        override var type: TvType?,
+        override var posterUrl: String? = "https://img.example/poster.jpg",
+        override var posterHeaders: Map<String, String>? = null,
+        override var id: Int? = url.hashCode(),
+        override var quality: com.lagradost.cloudstream3.SearchQuality? = null,
+        override var score: com.lagradost.cloudstream3.Score? = null
+    ) : com.lagradost.cloudstream3.SearchResponse
+
+    @Test
+    fun `sloppy plugin types and multi-plugin conflicts never duplicate series into films`() {
+        // 1. Sloppy plugin sets TvType.Movie on a series inside a Series section or /serie/ URL
+        val seriesByUrl = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Movie,
+            title = "Stranger Things",
+            sectionName = "Tendances",
+            url = "https://plugin-a.example/serie/stranger-things"
+        )
+        assertEquals(setOf("series"), seriesByUrl)
+
+        val seriesBySection = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Movie,
+            title = "Prison Break",
+            sectionName = "Séries Populaires"
+        )
+        assertEquals(setOf("series"), seriesBySection)
+
+        val seriesBySeasonTitle = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Movie,
+            title = "House of the Dragon S02",
+            sectionName = "Nouveautés"
+        )
+        assertEquals(setOf("series"), seriesBySeasonTitle)
+
+        // 2. Sloppy plugin sets TvType.TvSeries on a feature film inside Box-Office / /film/ URL
+        val movieBySectionAndUrl = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.TvSeries,
+            title = "Gladiator II",
+            sectionName = "Films Box-Office",
+            url = "https://plugin-b.example/film/gladiator-2"
+        )
+        assertEquals(setOf("films"), movieBySectionAndUrl)
+
+        // 3. Star Wars Episode titles remain feature films
+        val starWars = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Movie,
+            title = "Star Wars : Épisode 3 - La Revanche des Sith",
+            sectionName = "Films Science-Fiction"
+        )
+        assertEquals(setOf("films"), starWars)
+
+        // 4. Cross-plugin deduplication merges sloppy Movie + proven TvSeries into a single Series entry
+        val merged = MediaUniverseViewModel.deduplicateHarvestedItems(
+            listOf(
+                RawHarvestedItem(
+                    response = FakeTestSearchResponse(
+                        name = "Breaking Bad [VF] 1080p",
+                        url = "https://sloppy.example/watch/breaking-bad",
+                        apiName = "SloppyPlugin",
+                        type = TvType.Movie
+                    ),
+                    sectionName = "Tendances",
+                    isHorizontalSection = false,
+                    providerSupportedTypes = setOf(TvType.Movie, TvType.TvSeries),
+                    isPreferredLanguage = true
+                ),
+                RawHarvestedItem(
+                    response = FakeTestSearchResponse(
+                        name = "Breaking Bad",
+                        url = "https://clean.example/serie/breaking-bad",
+                        apiName = "CleanSeriesPlugin",
+                        type = TvType.TvSeries
+                    ),
+                    sectionName = "Séries TV",
+                    isHorizontalSection = false,
+                    providerSupportedTypes = setOf(TvType.Movie, TvType.TvSeries),
+                    isPreferredLanguage = true
+                )
+            )
+        )
+        assertEquals(1, merged.size)
+        assertEquals(2, merged.first().sources.size)
+        assertEquals(TvType.TvSeries, merged.first().effectiveType)
+        assertEquals(setOf("series"), merged.first().universes)
+    }
+
+    @Test
+    fun `live sporting events and sports channels route exclusively to sports and never to live_tv or films`() {
+        val uclMatch = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Live,
+            title = "21:00 | Real Madrid vs FC Barcelone",
+            sectionName = "Événements en Direct"
+        )
+        assertEquals(setOf("sports"), uclMatch)
+
+        val afconKickoff = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Live,
+            title = "20h45 Cameroun - Sénégal",
+            sectionName = "Directs du jour"
+        )
+        assertEquals(setOf("sports"), afconKickoff)
+
+        val untypedLiveEvent = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Others,
+            title = "Arsenal vs Chelsea HD",
+            sectionName = "Live Events",
+            url = "https://live.example/direct/match1.m3u8"
+        )
+        assertEquals(setOf("sports"), untypedLiveEvent)
+
+        val equipeChannel = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Live,
+            title = "L'Équipe TV HD",
+            sectionName = "Chaînes Françaises"
+        )
+        assertEquals(setOf("sports"), equipeChannel)
+
+        // VOD action movies with "vs" stay in Films & Mangas, never Sports
+        val movieVs = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Movie,
+            title = "Godzilla vs Kong",
+            sectionName = "Films Action"
+        )
+        assertEquals(setOf("films"), movieVs)
+    }
+
+    @Test
+    fun `children films enter kids via animation genres, Tous publics or PG ratings, and family franchises while blocking adult animation`() {
+        // Non-manga animated feature film in an "Animation" section enters Kids
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "kids",
+                type = TvType.Movie,
+                title = "Migration",
+                sectionName = "Films d'Animation"
+            )
+        )
+        // Popular kids franchises in generic Box-Office rows enter Kids even before detail tags load
+        assertTrue(MediaUniverseClassifier.matches("kids", TvType.Movie, "Vaiana 2", sectionName = "Box-Office"))
+        assertTrue(MediaUniverseClassifier.matches("kids", TvType.Movie, "Vice-Versa 2", sectionName = "Tendances"))
+        assertTrue(MediaUniverseClassifier.matches("kids", TvType.Movie, "Kung Fu Panda 4", sectionName = "Nouveautés"))
+        assertTrue(MediaUniverseClassifier.matches("kids", TvType.Movie, "Moi, Moche et Méchant 4"))
+
+        // French "Tous publics" and international "PG" / "TV-PG" enter Kids, while "PG-13" does not
+        assertTrue(MediaUniverseClassifier.matches("kids", TvType.Movie, "L'Odyssée Magique", contentRating = "Tous publics"))
+        assertTrue(MediaUniverseClassifier.matches("kids", TvType.Movie, "Paddington au Pérou", contentRating = "PG"))
+        assertFalse(MediaUniverseClassifier.matches("kids", TvType.Movie, "Blockbuster Action", contentRating = "PG-13"))
+
+        // Adult Western animation and teen/seinen anime do not leak into Kids
+        assertFalse(
+            MediaUniverseClassifier.matches(
+                universeId = "kids",
+                type = TvType.TvSeries,
+                title = "Rick and Morty",
+                tags = listOf("Animation", "Comédie")
+            )
+        )
+        assertFalse(
+            MediaUniverseClassifier.matches(
+                universeId = "kids",
+                type = TvType.Anime,
+                title = "Jujutsu Kaisen",
+                tags = listOf("Animation", "Action", "Shonen")
+            )
+        )
+
+        // French "Dessins animés" is kids/cartoon animation, NOT Japanese manga
+        val frenchCartoon = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Cartoon,
+            title = "Pat'Patrouille",
+            sectionName = "Dessins animés"
+        )
+        assertEquals(setOf("series", "kids"), frenchCartoon)
+
+        // Documentaries tagged on Movie/TvSeries items do not duplicate into Films or Series
+        val docSeries = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.TvSeries,
+            title = "Formula 1: Drive to Survive",
+            tags = listOf("Docu-série", "Sport")
+        )
+        assertEquals(setOf("documentaries"), docSeries)
     }
 }

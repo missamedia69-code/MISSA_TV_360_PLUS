@@ -9,16 +9,22 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lagradost.cloudstream3.APIHolder.apis
+import com.lagradost.cloudstream3.AnimeLoadResponse
+import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.context
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainActivity
+import com.lagradost.cloudstream3.MovieLoadResponse
+import com.lagradost.cloudstream3.MovieSearchResponse
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.Score
 import com.lagradost.cloudstream3.SearchQuality
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.TvSeriesLoadResponse
+import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.ui.APIRepository
@@ -120,14 +126,245 @@ class MediaUniverseViewModel : ViewModel() {
         private const val DETAIL_TIMEOUT_MS = 3_200L
         private const val MAX_PROVIDERS_TO_HARVEST = 28
         private const val MAX_HERO_ENRICH = 8
-        private const val MAX_CLASSIFIER_ENRICH = 28
+        private const val MAX_CLASSIFIER_ENRICH = 48
         private const val SNAPSHOT_TTL_MS = 5 * 60_000L
-        private const val DISK_CACHE_FILE = "missa_catalog_cache_v1.json"
+        private const val LEGACY_DISK_CACHE_FILE = "missa_catalog_cache_v1.json"
+        private const val DISK_CACHE_FILE = "missa_catalog_cache_v2.json"
         private const val PREF_RECENT_SEARCHES = "missa_recent_searches_v1"
         private const val PREF_PREFERRED_SOURCE_PREFIX = "missa_pref_source_v1_"
         private const val PREF_FAVORITE_LIVE_URLS = "missa_fav_live_urls_v1"
         private const val PREF_LAST_LIVE_URL = "missa_last_live_url_v1"
         const val MAX_COLLAPSED_ROWS = 12
+        private val titleYearRegex = Regex("""\(((?:19|20)\d{2})\)""")
+
+        internal fun extractEpisodeCountHint(response: SearchResponse): Int? = when (response) {
+            is TvSeriesSearchResponse -> response.episodes
+            is AnimeSearchResponse -> response.episodes.values.maxOrNull()
+            else -> null
+        }
+
+        internal fun extractYearHint(response: SearchResponse): Int? = when (response) {
+            is MovieSearchResponse -> response.year
+            is TvSeriesSearchResponse -> response.year
+            is AnimeSearchResponse -> response.year
+            else -> null
+        } ?: titleYearRegex.find(response.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
+
+        internal fun resolveLoadResponseIsSeries(details: LoadResponse?): Boolean? = when (details) {
+            is TvSeriesLoadResponse -> details.episodes.isNotEmpty() || details.type != TvType.Movie
+            is AnimeLoadResponse -> !(details.type == TvType.AnimeMovie && details.episodes.values.sumOf { it.size } <= 1)
+            is MovieLoadResponse -> false
+            else -> null
+        }
+
+        private fun rawDomainBucket(effectiveType: TvType?): String = when (effectiveType) {
+            TvType.Documentary -> "doc"
+            TvType.AnimeMovie -> "manga_film"
+            TvType.Anime, TvType.OVA -> "manga"
+            TvType.TvSeries, TvType.Cartoon, TvType.AsianDrama -> "series"
+            TvType.Music -> "music"
+            TvType.Live -> "live"
+            TvType.Podcast, TvType.Audio, TvType.AudioBook -> "audio"
+            else -> "film"
+        }
+
+        private fun isVodComparableBucket(bucket: String): Boolean =
+            bucket == "film" || bucket == "series" || bucket == "doc" || bucket == "manga" || bucket == "manga_film"
+
+        /**
+         * Normalizes, resolves cross-plugin type disagreements (e.g. a sloppy plugin stamping
+         * TvType.Movie on a series while another plugin proves it is a TvSeries), and deduplicates
+         * harvested items so the same work never splits across Films & Mangas and Series.
+         */
+        internal fun deduplicateHarvestedItems(
+            rawItems: List<RawHarvestedItem>,
+            detailsLookup: (SearchResponse) -> LoadResponse? = { null },
+            onSourcesMerged: ((List<SearchResponse>) -> Unit)? = null
+        ): List<UnifiedCatalogEntry> {
+            data class PreparedRaw(
+                val raw: RawHarvestedItem,
+                val cachedDetails: LoadResponse?,
+                val preliminaryType: TvType?,
+                val preliminaryBucket: String,
+                val baseTitleKey: String,
+                val yearHint: Int?,
+                val episodeCountHint: Int?,
+                val isSeriesLoad: Boolean?
+            )
+
+            val prepared = ArrayList<PreparedRaw>(rawItems.size)
+            for (raw in rawItems) {
+                val item = raw.response
+                if (item.type == TvType.NSFW || item.type == TvType.CustomMedia) continue
+                val cachedDetails = detailsLookup(item)
+                val epHint = extractEpisodeCountHint(item)
+                val seriesLoad = resolveLoadResponseIsSeries(cachedDetails)
+                val preliminaryType = MediaUniverseClassifier.inferEffectiveType(
+                    rawType = cachedDetails?.type ?: item.type,
+                    title = item.name,
+                    sectionName = raw.sectionName,
+                    providerSupportedTypes = raw.providerSupportedTypes,
+                    url = item.url,
+                    tags = cachedDetails?.tags.orEmpty(),
+                    episodeCountHint = epHint,
+                    isSeriesLoadResponse = seriesLoad
+                )
+                if (preliminaryType == TvType.NSFW || preliminaryType == TvType.CustomMedia) continue
+                prepared.add(
+                    PreparedRaw(
+                        raw = raw,
+                        cachedDetails = cachedDetails,
+                        preliminaryType = preliminaryType,
+                        preliminaryBucket = rawDomainBucket(preliminaryType),
+                        baseTitleKey = MediaUniverseClassifier.normalizeTitleKey(item.name),
+                        yearHint = cachedDetails?.year ?: extractYearHint(item),
+                        episodeCountHint = epHint,
+                        isSeriesLoad = seriesLoad
+                    )
+                )
+            }
+
+            // Group VOD items by normalized base title first to reconcile cross-plugin Movie vs Series conflicts
+            val vodByTitle = prepared
+                .filter { isVodComparableBucket(it.preliminaryBucket) }
+                .groupBy { it.baseTitleKey }
+
+            val canonicalVodBucketByTitle = HashMap<String, String>(vodByTitle.size)
+            for ((titleKey, candidates) in vodByTitle) {
+                val distinctBuckets = candidates.map { it.preliminaryBucket }.toSet()
+                if (distinctBuckets.size <= 1) {
+                    canonicalVodBucketByTitle[titleKey] = distinctBuckets.first()
+                    continue
+                }
+                // Keep genuinely distinct adaptations separate only when explicit years differ (> 1 year)
+                // AND both movie and series sides carry strong structural proof (e.g. Fargo 1996 film vs Fargo 2014 series)
+                val movieYears = candidates.filter { it.preliminaryBucket == "film" }.mapNotNull { it.yearHint }
+                val seriesYears = candidates.filter { it.preliminaryBucket == "series" }.mapNotNull { it.yearHint }
+                val hasDistinctAdaptationYears = movieYears.isNotEmpty() &&
+                    seriesYears.isNotEmpty() &&
+                    movieYears.none { my -> seriesYears.any { sy -> kotlin.math.abs(my - sy) <= 1 } }
+                val hasProvenMovie = candidates.any {
+                    MediaUniverseClassifier.hasStrongMovieEvidence(
+                        it.raw.response.type,
+                        it.raw.response.name,
+                        it.raw.sectionName,
+                        it.raw.response.url,
+                        it.isSeriesLoad
+                    )
+                }
+                val hasProvenSeries = candidates.any {
+                    MediaUniverseClassifier.hasStrongSeriesEvidence(
+                        it.raw.response.type,
+                        it.raw.response.name,
+                        it.raw.sectionName,
+                        it.raw.response.url,
+                        it.episodeCountHint,
+                        it.isSeriesLoad
+                    )
+                }
+                if (hasDistinctAdaptationYears && hasProvenMovie && hasProvenSeries) {
+                    continue
+                }
+
+                val resolvedBucket = when {
+                    "doc" in distinctBuckets -> "doc"
+                    "manga" in distinctBuckets -> "manga"
+                    "manga_film" in distinctBuckets -> "manga_film"
+                    "series" in distinctBuckets && hasProvenSeries -> "series"
+                    else -> "film"
+                }
+                canonicalVodBucketByTitle[titleKey] = resolvedBucket
+            }
+
+            val grouped = LinkedHashMap<String, MutableList<PreparedRaw>>()
+            for (p in prepared) {
+                val finalBucket = if (isVodComparableBucket(p.preliminaryBucket)) {
+                    canonicalVodBucketByTitle[p.baseTitleKey] ?: p.preliminaryBucket
+                } else {
+                    p.preliminaryBucket
+                }
+                val key = "${finalBucket}::${p.baseTitleKey}"
+                grouped.getOrPut(key) { ArrayList() }.add(p)
+            }
+
+            val entries = ArrayList<UnifiedCatalogEntry>(grouped.size)
+            for ((dedupKey, group) in grouped) {
+                val resolvedBucket = dedupKey.substringBefore("::")
+                // Prefer sources whose preliminary bucket already matches the resolved canonical bucket
+                val sortedGroup = group.sortedWith(
+                    compareByDescending<PreparedRaw> { it.preliminaryBucket == resolvedBucket }
+                        .thenByDescending { it.raw.isPreferredLanguage }
+                        .thenByDescending { !it.raw.response.posterUrl.isNullOrBlank() }
+                        .thenByDescending { it.raw.response.score != null }
+                )
+                val bestPrepared = sortedGroup.first()
+                val bestRaw = bestPrepared.raw
+                val uniqueSources = sortedGroup
+                    .map { it.raw.response }
+                    .distinctBy { "${it.apiName.lowercase(Locale.ROOT)}|${it.url}" }
+
+                onSourcesMerged?.invoke(uniqueSources)
+
+                val sectionHints = sortedGroup
+                    .map { it.raw.sectionName.trim() }
+                    .filter { it.isNotBlank() }
+                    .toSet()
+                val combinedProviderTypes = sortedGroup.flatMap { it.raw.providerSupportedTypes }.toSet()
+                val cachedDetails = sortedGroup.firstNotNullOfOrNull { it.cachedDetails }
+                val mergedTags = cachedDetails?.tags.orEmpty()
+                val maxEpisodeHint = sortedGroup.mapNotNull { it.episodeCountHint }.maxOrNull()
+                val mergedSeriesLoad = sortedGroup.firstNotNullOfOrNull { it.isSeriesLoad }
+
+                val inferred = MediaUniverseClassifier.inferEffectiveType(
+                    rawType = cachedDetails?.type ?: bestRaw.response.type,
+                    title = bestRaw.response.name,
+                    sectionName = sectionHints.joinToString(" "),
+                    providerSupportedTypes = combinedProviderTypes,
+                    url = bestRaw.response.url,
+                    tags = mergedTags,
+                    episodeCountHint = maxEpisodeHint,
+                    isSeriesLoadResponse = mergedSeriesLoad
+                )
+                val effectiveType = when (resolvedBucket) {
+                    "doc" -> TvType.Documentary
+                    "manga" -> if (inferred == TvType.OVA) TvType.OVA else TvType.Anime
+                    "manga_film" -> TvType.AnimeMovie
+                    "series" -> if (inferred == TvType.Cartoon || inferred == TvType.AsianDrama) inferred else TvType.TvSeries
+                    else -> inferred
+                }
+
+                val universes = MediaUniverseClassifier.classifyAllUniverses(
+                    type = effectiveType ?: bestRaw.response.type,
+                    title = bestRaw.response.name,
+                    tags = mergedTags,
+                    contentRating = cachedDetails?.contentRating,
+                    durationMinutes = cachedDetails?.duration,
+                    sectionName = sectionHints.joinToString(" "),
+                    providerSupportedTypes = combinedProviderTypes,
+                    url = bestRaw.response.url,
+                    episodeCountHint = maxEpisodeHint,
+                    isSeriesLoadResponse = mergedSeriesLoad
+                )
+
+                entries.add(
+                    UnifiedCatalogEntry(
+                        dedupKey = dedupKey,
+                        primary = bestRaw.response,
+                        sources = uniqueSources,
+                        effectiveType = effectiveType,
+                        sectionHints = sectionHints,
+                        isHorizontalHint = sortedGroup.any { it.raw.isHorizontalSection },
+                        universes = universes,
+                        details = cachedDetails,
+                        cachedTags = mergedTags,
+                        cachedContentRating = cachedDetails?.contentRating,
+                        cachedDuration = cachedDetails?.duration
+                    )
+                )
+            }
+
+            return entries
+        }
 
         /**
          * Resolves the empty/error banner state for a universe screen.
@@ -471,8 +708,10 @@ class MediaUniverseViewModel : ViewModel() {
                     val enriched = enrichEntriesWithDetails(
                         baseEntries,
                         maxHero = if (dataSaver) 3 else MAX_HERO_ENRICH,
-                        maxClassifier = if (dataSaver) 12 else MAX_CLASSIFIER_ENRICH
+                        maxClassifier = if (dataSaver) 16 else MAX_CLASSIFIER_ENRICH
                     )
+                    val enrichedAt = System.currentTimeMillis()
+                    saveCatalogToDiskCache(enriched, enrichedAt)
                     _catalogSnapshot.value = UnifiedCatalogSnapshot(
                         isLoading = false,
                         hasError = false,
@@ -482,7 +721,7 @@ class MediaUniverseViewModel : ViewModel() {
                         totalProvidersCount = totalSelected,
                         entries = enriched,
                         resumeWatching = loadResumeListSafe(),
-                        updatedAtMs = System.currentTimeMillis()
+                        updatedAtMs = enrichedAt
                     )
                 }
             } catch (cancelled: CancellationException) {
@@ -705,9 +944,9 @@ class MediaUniverseViewModel : ViewModel() {
                 universeId = universeId,
                 title = entry.primary.name,
                 sectionName = entry.sectionHints.joinToString(" "),
-                tags = entry.details?.tags.orEmpty(),
+                tags = entry.details?.tags ?: entry.cachedTags,
                 effectiveType = entry.effectiveType,
-                durationMinutes = entry.details?.duration
+                durationMinutes = entry.details?.duration ?: entry.cachedDuration
             )
             for (cat in categories) {
                 val bucket = buckets.getOrPut(cat.id) {
@@ -970,7 +1209,7 @@ class MediaUniverseViewModel : ViewModel() {
             val details = entry.details
             val scoreText = details?.score?.toStringNull(0.1, 10, 1, false)
                 ?: entry.primary.score?.toStringNull(0.1, 10, 1, false)
-            val durationMin = details?.duration
+            val durationMin = details?.duration ?: entry.cachedDuration
             val durationFormatted = when {
                 entry.effectiveType == TvType.Live -> liveBadge
                 durationMin != null && durationMin >= 60 -> "${durationMin / 60}h %02dm".format(Locale.ROOT, durationMin % 60)
@@ -987,7 +1226,7 @@ class MediaUniverseViewModel : ViewModel() {
                 yearText = details?.year?.toString(),
                 durationText = durationFormatted,
                 scoreText = scoreText?.let { "★ $it" },
-                tags = details?.tags?.take(4).orEmpty(),
+                tags = (details?.tags ?: entry.cachedTags).take(4),
                 isDirectStream = definition.directPlayOnClick || entry.effectiveType == TvType.Live
             )
         }
@@ -1131,87 +1370,15 @@ class MediaUniverseViewModel : ViewModel() {
     }
 
     private fun normalizeAndDeduplicate(rawItems: List<RawHarvestedItem>): List<UnifiedCatalogEntry> {
-        val grouped = LinkedHashMap<String, MutableList<RawHarvestedItem>>()
-
-        for (raw in rawItems) {
-            val item = raw.response
-            if (item.type == TvType.NSFW || item.type == TvType.CustomMedia) continue
-            val effectiveType = MediaUniverseClassifier.inferEffectiveType(
-                rawType = item.type,
-                title = item.name,
-                sectionName = raw.sectionName,
-                providerSupportedTypes = raw.providerSupportedTypes
-            )
-            if (effectiveType == TvType.NSFW || effectiveType == TvType.CustomMedia) continue
-
-            val domainBucket = when (effectiveType) {
-                TvType.Documentary -> "doc"
-                TvType.AnimeMovie -> "manga_film"
-                TvType.Anime, TvType.OVA -> "manga"
-                TvType.TvSeries, TvType.Cartoon, TvType.AsianDrama -> "series"
-                TvType.Music -> "music"
-                TvType.Live -> "live"
-                TvType.Podcast, TvType.Audio, TvType.AudioBook -> "audio"
-                else -> "film"
+        return deduplicateHarvestedItems(
+            rawItems = rawItems,
+            detailsLookup = { card -> detailsCache[itemIdentity(card)] },
+            onSourcesMerged = { uniqueSources ->
+                uniqueSources.forEach { src ->
+                    sourcesByItemUrl[itemIdentity(src)] = uniqueSources
+                }
             }
-            val key = MediaUniverseClassifier.normalizeTitleKey(item.name, domainBucket)
-            grouped.getOrPut(key) { ArrayList() }.add(raw)
-        }
-
-        val entries = ArrayList<UnifiedCatalogEntry>(grouped.size)
-        for ((dedupKey, group) in grouped) {
-            val sortedGroup = group.sortedWith(
-                compareByDescending<RawHarvestedItem> { it.isPreferredLanguage }
-                    .thenByDescending { !it.response.posterUrl.isNullOrBlank() }
-                    .thenByDescending { it.response.score != null }
-            )
-            val bestRaw = sortedGroup.first()
-            val uniqueSources = sortedGroup
-                .map { it.response }
-                .distinctBy { "${it.apiName.lowercase(Locale.ROOT)}|${it.url}" }
-
-            uniqueSources.forEach { src ->
-                sourcesByItemUrl[itemIdentity(src)] = uniqueSources
-            }
-
-            val sectionHints = sortedGroup
-                .map { it.sectionName.trim() }
-                .filter { it.isNotBlank() }
-                .toSet()
-            val combinedProviderTypes = sortedGroup.flatMap { it.providerSupportedTypes }.toSet()
-            val effectiveType = MediaUniverseClassifier.inferEffectiveType(
-                rawType = bestRaw.response.type,
-                title = bestRaw.response.name,
-                sectionName = sectionHints.joinToString(" "),
-                providerSupportedTypes = combinedProviderTypes
-            )
-
-            val cachedDetails = detailsCache[itemIdentity(bestRaw.response)]
-            val universes = MediaUniverseClassifier.classifyAllUniverses(
-                type = effectiveType ?: bestRaw.response.type,
-                title = bestRaw.response.name,
-                tags = cachedDetails?.tags.orEmpty(),
-                contentRating = cachedDetails?.contentRating,
-                durationMinutes = cachedDetails?.duration,
-                sectionName = sectionHints.joinToString(" "),
-                providerSupportedTypes = combinedProviderTypes
-            )
-
-            entries.add(
-                UnifiedCatalogEntry(
-                    dedupKey = dedupKey,
-                    primary = bestRaw.response,
-                    sources = uniqueSources,
-                    effectiveType = effectiveType,
-                    sectionHints = sectionHints,
-                    isHorizontalHint = sortedGroup.any { it.isHorizontalSection },
-                    universes = universes,
-                    details = cachedDetails
-                )
-            )
-        }
-
-        return entries
+        )
     }
 
     private suspend fun enrichEntriesWithDetails(
@@ -1227,31 +1394,24 @@ class MediaUniverseViewModel : ViewModel() {
 
         val classifierTargets = entries
             .filter { entry ->
+                val sec = entry.sectionHints.joinToString(" ")
+                val curType = entry.effectiveType ?: entry.primary.type
+                val url = entry.primary.url
                 entry.details == null &&
                     entry !in heroTargets &&
-                    (MediaUniverseClassifier.shouldLoadDetails(
-                        "shorts",
-                        entry.effectiveType ?: entry.primary.type,
-                        entry.primary.name,
-                        entry.sectionHints.joinToString(" ")
-                    ) || MediaUniverseClassifier.shouldLoadDetails(
-                        "kids",
-                        entry.effectiveType ?: entry.primary.type,
-                        entry.primary.name,
-                        entry.sectionHints.joinToString(" ")
-                    ) || MediaUniverseClassifier.shouldLoadDetails(
-                        "documentaries",
-                        entry.effectiveType ?: entry.primary.type,
-                        entry.primary.name,
-                        entry.sectionHints.joinToString(" ")
-                    ))
+                    (MediaUniverseClassifier.shouldLoadDetails("shorts", curType, entry.primary.name, sec, url) ||
+                        MediaUniverseClassifier.shouldLoadDetails("kids", curType, entry.primary.name, sec, url) ||
+                        MediaUniverseClassifier.shouldLoadDetails("documentaries", curType, entry.primary.name, sec, url) ||
+                        MediaUniverseClassifier.shouldLoadDetails("disambiguate", curType, entry.primary.name, sec, url))
             }
             .sortedByDescending { entry ->
                 val sec = entry.sectionHints.joinToString(" ")
+                val url = entry.primary.url
                 maxOf(
-                    MediaUniverseClassifier.detailPriority("shorts", entry.primary.name, sec),
-                    MediaUniverseClassifier.detailPriority("kids", entry.primary.name, sec),
-                    MediaUniverseClassifier.detailPriority("documentaries", entry.primary.name, sec)
+                    MediaUniverseClassifier.detailPriority("shorts", entry.primary.name, sec, url),
+                    MediaUniverseClassifier.detailPriority("kids", entry.primary.name, sec, url),
+                    MediaUniverseClassifier.detailPriority("documentaries", entry.primary.name, sec, url),
+                    MediaUniverseClassifier.detailPriority("disambiguate", entry.primary.name, sec, url)
                 )
             }
             .take(maxClassifier)
@@ -1259,7 +1419,7 @@ class MediaUniverseViewModel : ViewModel() {
         val toFetch = (heroTargets + classifierTargets).distinctBy { it.dedupKey }
         if (toFetch.isEmpty()) return@coroutineScope entries
 
-        val semaphore = Semaphore(5)
+        val semaphore = Semaphore(6)
         toFetch.map { entry ->
             async(Dispatchers.IO) {
                 val id = itemIdentity(entry.primary)
@@ -1283,28 +1443,78 @@ class MediaUniverseViewModel : ViewModel() {
             }
         }.awaitAll()
 
-        entries.map { entry ->
-            val details = entry.details ?: detailsCache[itemIdentity(entry.primary)]
+        val refreshed = entries.map { entry ->
+            val details = entry.details ?: entry.sources.firstNotNullOfOrNull { src -> detailsCache[itemIdentity(src)] }
             if (details == null) {
                 entry
             } else {
+                val seriesLoad = resolveLoadResponseIsSeries(details)
+                val epHint = entry.sources.mapNotNull { extractEpisodeCountHint(it) }.maxOrNull()
+                val sec = entry.sectionHints.joinToString(" ")
+                val tags = details.tags.orEmpty()
                 val updatedType = MediaUniverseClassifier.inferEffectiveType(
                     rawType = details.type,
                     title = entry.primary.name,
-                    sectionName = entry.sectionHints.joinToString(" ")
+                    sectionName = sec,
+                    url = entry.primary.url,
+                    tags = tags,
+                    episodeCountHint = epHint,
+                    isSeriesLoadResponse = seriesLoad
                 ) ?: entry.effectiveType
+                val newBucket = rawDomainBucket(updatedType)
+                val updatedKey = MediaUniverseClassifier.normalizeTitleKey(entry.primary.name, newBucket)
                 val updatedUniverses = MediaUniverseClassifier.classifyAllUniverses(
                     type = updatedType,
                     title = entry.primary.name,
-                    tags = details.tags.orEmpty(),
+                    tags = tags,
                     contentRating = details.contentRating,
                     durationMinutes = details.duration,
-                    sectionName = entry.sectionHints.joinToString(" ")
+                    sectionName = sec,
+                    url = entry.primary.url,
+                    episodeCountHint = epHint,
+                    isSeriesLoadResponse = seriesLoad
                 )
                 entry.copy(
+                    dedupKey = updatedKey,
                     effectiveType = updatedType,
                     universes = updatedUniverses,
-                    details = details
+                    details = details,
+                    cachedTags = tags,
+                    cachedContentRating = details.contentRating,
+                    cachedDuration = details.duration
+                )
+            }
+        }
+
+        // Merge any entries whose canonical dedupKey converged after LoadResponse disambiguation
+        refreshed.groupBy { it.dedupKey }.values.map { sameKeyEntries ->
+            if (sameKeyEntries.size == 1) {
+                sameKeyEntries.first()
+            } else {
+                val primaryEntry = sameKeyEntries.firstOrNull { it.details != null } ?: sameKeyEntries.first()
+                val mergedSources = sameKeyEntries
+                    .flatMap { it.sources }
+                    .distinctBy { "${it.apiName.lowercase(Locale.ROOT)}|${it.url}" }
+                mergedSources.forEach { src ->
+                    sourcesByItemUrl[itemIdentity(src)] = mergedSources
+                }
+                primaryEntry.copy(
+                    sources = mergedSources,
+                    sectionHints = sameKeyEntries.flatMap { it.sectionHints }.toSet(),
+                    universes = sameKeyEntries.flatMap { it.universes }.toSet().let { combined ->
+                        if ("films" in combined && "series" in combined) {
+                            if (primaryEntry.effectiveType == TvType.TvSeries ||
+                                primaryEntry.effectiveType == TvType.Cartoon ||
+                                primaryEntry.effectiveType == TvType.AsianDrama
+                            ) {
+                                combined - "films"
+                            } else {
+                                combined - "series"
+                            }
+                        } else {
+                            combined
+                        }
+                    }
                 )
             }
         }
@@ -1316,8 +1526,9 @@ class MediaUniverseViewModel : ViewModel() {
         withContext(Dispatchers.IO) {
             runCatching {
                 val dir = context?.cacheDir ?: return@withContext
+                File(dir, LEGACY_DISK_CACHE_FILE).takeIf { it.exists() }?.delete()
                 val arr = JSONArray()
-                for (entry in entries.take(180)) {
+                for (entry in entries.take(220)) {
                     val obj = JSONObject()
                     obj.put("dedupKey", entry.dedupKey)
                     obj.put("name", entry.primary.name)
@@ -1328,6 +1539,18 @@ class MediaUniverseViewModel : ViewModel() {
                     obj.put("isHorizontalHint", entry.isHorizontalHint)
                     obj.put("sectionHints", JSONArray(entry.sectionHints.take(4).toList()))
                     obj.put("universes", JSONArray(entry.universes.toList()))
+                    val tags = entry.details?.tags ?: entry.cachedTags
+                    if (tags.isNotEmpty()) {
+                        obj.put("tags", JSONArray(tags.take(8)))
+                    }
+                    val rating = entry.details?.contentRating ?: entry.cachedContentRating
+                    if (!rating.isNullOrBlank()) {
+                        obj.put("contentRating", rating)
+                    }
+                    val duration = entry.details?.duration ?: entry.cachedDuration
+                    if (duration != null && duration > 0) {
+                        obj.put("duration", duration)
+                    }
                     arr.put(obj)
                 }
                 val root = JSONObject().apply {
@@ -1343,6 +1566,7 @@ class MediaUniverseViewModel : ViewModel() {
         withContext(Dispatchers.IO) {
             runCatching {
                 val dir = context?.cacheDir ?: return@withContext null
+                File(dir, LEGACY_DISK_CACHE_FILE).takeIf { it.exists() }?.delete()
                 val file = File(dir, DISK_CACHE_FILE)
                 if (!file.exists()) return@withContext null
                 val root = JSONObject(file.readText())
@@ -1370,10 +1594,21 @@ class MediaUniverseViewModel : ViewModel() {
                     obj.optJSONArray("sectionHints")?.let { ha ->
                         for (j in 0 until ha.length()) ha.optString(j).takeIf { it.isNotBlank() }?.let { hints.add(it) }
                     }
-                    val unis = LinkedHashSet<String>()
-                    obj.optJSONArray("universes")?.let { ua ->
-                        for (j in 0 until ua.length()) ua.optString(j).takeIf { it.isNotBlank() }?.let { unis.add(it) }
+                    val tags = ArrayList<String>()
+                    obj.optJSONArray("tags")?.let { ta ->
+                        for (j in 0 until ta.length()) ta.optString(j).takeIf { it.isNotBlank() }?.let { tags.add(it) }
                     }
+                    val contentRating = obj.optString("contentRating").ifBlank { null }
+                    val duration = obj.optInt("duration", -1).takeIf { it > 0 }
+                    val recomputedUniverses = MediaUniverseClassifier.classifyAllUniverses(
+                        type = tvType,
+                        title = name,
+                        tags = tags,
+                        contentRating = contentRating,
+                        durationMinutes = duration,
+                        sectionName = hints.joinToString(" "),
+                        url = url
+                    )
                     restored.add(
                         UnifiedCatalogEntry(
                             dedupKey = obj.optString("dedupKey").ifBlank { url },
@@ -1382,7 +1617,10 @@ class MediaUniverseViewModel : ViewModel() {
                             effectiveType = tvType,
                             sectionHints = hints,
                             isHorizontalHint = obj.optBoolean("isHorizontalHint", false),
-                            universes = unis
+                            universes = recomputedUniverses,
+                            cachedTags = tags,
+                            cachedContentRating = contentRating,
+                            cachedDuration = duration
                         )
                     )
                 }

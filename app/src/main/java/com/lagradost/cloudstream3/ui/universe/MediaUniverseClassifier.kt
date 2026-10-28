@@ -137,8 +137,9 @@ internal object MediaUniverseClassifier {
     private val mangaTypes = setOf(
         TvType.Anime, TvType.AnimeMovie, TvType.OVA
     )
+    // Pure TV/episodic series universe types (Mangas/Animes/OVAs are grouped exclusively in "films" = Films & Mangas)
     private val seriesTypes = setOf(
-        TvType.TvSeries, TvType.Anime, TvType.Cartoon, TvType.OVA, TvType.AsianDrama
+        TvType.TvSeries, TvType.Cartoon, TvType.AsianDrama
     )
     private val audioTypes = setOf(TvType.Audio, TvType.Music, TvType.AudioBook)
 
@@ -148,7 +149,7 @@ internal object MediaUniverseClassifier {
     )
 
     private val mangaKeywords = wordRegex(
-        """mangas?|animes?|anim[eé]s?|oav|ova|shonen|shōnen|seinen|shojo|shōjo|isekai|mecha|donghua|manhwa|manhua|webtoon|japanimation"""
+        """mangas?|animes?|anim[eé]s?\s+japonais|oav|ova|shonen|shōnen|seinen|shojo|shōjo|isekai|mecha|donghua|manhwa|manhua|webtoon|japanimation|crunchyroll"""
     )
     private val documentaryKeywords = wordRegex(
         """documentaires?|documentary|documentaries|docu[ -]?s[eé]ries?|docus?|docufiction|reportages?|grands?\s+reportages?|enqu[eê]tes?\s+exclusives?|biographies?|arch[eé]ologie|national\s+geographic|nat\s*geo(?:\s+wild)?|discovery(?:\s+channel|\s+science|\s+investigation)?|ushua[iï]a|plan[eè]te\+|rmc\s+d[eé]couverte|histoire\s+tv|toute\s+l['’]histoire|science\s+(?:&|et)\s+vie|faune\s+sauvage|wildlife|true\s+crime"""
@@ -161,17 +162,28 @@ internal object MediaUniverseClassifier {
         """court[ -]?m[eé]trages?|short[ -]?films?|shortfilms?|shorts|films?\s+courts?|formats?\s+courts?"""
     )
     private val kidsKeywords = wordRegex(
-        """enfants?|jeunesse|kids?|children|child|family|familles?|familial(?:e|es)?|tout\s+public|dessins?\s+anim[eé]s?|comptines?|disney|pixar|dreamworks"""
+        """enfants?|jeunesse|kids?|children|child|family|familles?|familial(?:e|es)?|tous?\s+publics?|jeune\s+public|dessins?\s+anim[eé]s?|comptines?|disney|pixar|dreamworks|illumination|nickelodeon|cartoon\s+network|gulli|tiji|piwi|boomerang|okoo|pat['’\s]?patrouille|paw\s+patrol|peppa\s+pig|pyjamasques|pj\s+masks|miraculous|ladybug|reine\s+des\s+neiges|frozen|roi\s+lion|lion\s+king|mufasa|toy\s+story|vice[ -]versa|inside\s+out|vaiana|moana|encanto|ratatouille|zootopie|zootopia|monde\s+de\s+nemo|monde\s+de\s+dory|indestructibles|incredibles|raiponce|tangled|lilo\s*(?:&|et|and)\s*stitch|aladdin|cendrillon|cinderella|blanche[ -]neige|petite\s+sir[eè]ne|livre\s+de\s+la\s+jungle|bambi|dumbo|pinocchio|peter\s+pan|winnie|shrek|chat\s+pott[eé]|puss\s+in\s+boots|madagascar|kung\s+fu\s+panda|how\s+to\s+train\s+your\s+dragon|baby\s+boss|boss\s+baby|trolls|croods|robot\s+sauvage|wild\s+robot|moi,?\s+moche\s+et\s+m[eé]chant|despicable\s+me|minions|comme\s+des\s+b[eê]tes|secret\s+life\s+of\s+pets|tous\s+en\s+sc[eè]ne|grinch|lorax|super\s+mario|[aâ]ge\s+de\s+glace|ice\s+age|h[oô]tel\s+transylvani[ae]|schtroumpfs|smurfs|ast[eé]rix|tintin|lucky\s+luke|kirikou|titeuf|petit\s+nicolas|ducobu|boule\s+et\s+bill|marsupilami|paddington|pierre\s+lapin|peter\s+rabbit|bob\s+l['’][eé]ponge|spongebob|scooby[ -]?doo|tom\s+(?:&|et|and)\s+jerry|looney\s+tunes|bugs\s+bunny|barbie|mon\s+petit\s+poney|my\s+little\s+pony|pok[eé]mon|doraemon|totoro|ponyo|wallace\s+(?:&|et|and)\s+gromit|shaun\s+le\s+mouton|shaun\s+the\s+sheep"""
     )
     private val matureDisqualifiers = wordRegex(
-        """horreur|horror|gore|slasher|thriller|[eé]rotique|erotic|adulte?s?|nsfw|xxx|porn|crime|narco|cartel|zombie|16\+|18\+|nc-17|tv-ma"""
+        """horreur|horror|gore|slasher|thriller|[eé]rotique|erotic|adulte?s?|nsfw|xxx|porn|crime|narco|cartel|zombie|sanglant|ultraviolent|seinen|ecchi|hentai|south\s+park|rick\s*(?:&|and|et)\s*morty|sausage\s+party|family\s+guy|american\s+dad|bojack|hazbin|helluva\s+boss|invincible|castlevania|arcane|vox\s+machina|cyberpunk|berserk|goblin\s+slayer|chainsaw\s+man|attaque\s+des\s+titans|attack\s+on\s+titan|deadpool|16\+|18\+|nc-17|tv-ma"""
     )
     private val matureRatingRegex = Regex(
-        """(^|[^A-Z0-9])(R|NC-17|TV-MA|TV-14|16\+|18\+|ADULT)([^A-Z0-9]|$)""",
+        """(?<![A-Z0-9-])(R|NC-17|TV-MA|TV-14|16\+|18\+|ADULT)(?![A-Z0-9+-])""",
+        RegexOption.IGNORE_CASE
+    )
+    private val teenRatingRegex = Regex(
+        """(?<![A-Z0-9-])(PG-13|12\+|13\+|14\+)(?![A-Z0-9+-])""",
         RegexOption.IGNORE_CASE
     )
     private val sportsKeywords = wordRegex(
-        """espn|bein(?:\s+sports?)?|sky\s+sports?|rmc\s+sport|canal\+?\s*sport|supersport|eurosport|dazn|sport\s*tv|sports?|football|soccer|ligue\s*1|ligue\s*2|premier\s+league|serie\s+a|bundesliga|laliga|la\s+liga|champions\s+league|europa\s+league|can\s+\d{4}|basket(?:ball)?|nba|tennis|roland[ -]garros|wimbledon|rugby|top\s*14|formula\s*1|formule\s*1|f1|motogp|ufc|mma|boxe|boxing|wrestling|wwe|matchs?|multiplex"""
+        """espn|bein(?:\s+sports?)?|sky\s+sports?|tnt\s+sports?|bt\s+sports?|premier\s+sports?|rmc\s+sports?|canal\+?\s*(?:sports?|foot|premier\s+league|formula\s*1|motogp|golf)|foot\+|multisports?|infosport\+?|l['’][eé]quipe|[eé]quipe\s+tv|automoto|equidia|supersport|new\s+world\s+sport|crtv\s+sports?|eurosport|dazn|sport\s*tv|eleven\s+sports?|arena\s+sport|sportklub|movistar\s+(?:laliga|liga|campeones|deportes)|teledeporte|sportitalia|rai\s+sport|ziggo\s+sport|viaplay\s+sport|fox\s+sports?|cbs\s+sports?|nbc\s+sports?|tsn|sportsnet|abu\s+dhabi\s+sports?|dubai\s+sports?|alkass|al\s+kass|arryadia|on\s*time\s+sports?|nba\s+tv|nfl\s+network|mlb\s+network|nhl\s+network|tennis\s+channel|golf\s+channel|wwe\s+network|mutv|lfctv|bar[cç]a\s+tv|real\s+madrid\s+tv|sports?|football|soccer|futsal|ligue\s*1|ligue\s*2|premier\s+league|epl|serie\s+a|bundesliga|laliga|la\s+liga|eredivisie|liga\s+portugal|primeira\s+liga|botola|mls|libertadores|champions\s+league|ligue\s+des\s+champions|ucl|europa\s+league|conference\s+league|uefa|fifa|caf|afcon|can\s+\d{4}|coupe\s+d['’]afrique|coupe\s+du\s+monde|world\s+cup|coupe\s+de\s+france|fa\s+cup|carabao\s+cup|copa\s+del\s+rey|coppa\s+italia|supercoupe|super\s+cup|euro\s+20\d{2}|copa\s+am[eé]rica|nations\s+league|ligue\s+des\s+nations|basket(?:ball)?|nba|wnba|euroleague|euroligue|fiba|tennis|atp|wta|roland[ -]garros|wimbledon|us\s+open|australian\s+open|open\s+d['’]australie|coupe\s+davis|davis\s+cup|rugby|top\s*14|pro\s+d2|six\s+nations|6\s+nations|formula\s*1|formule\s*1|f1|f2|f3|grand\s+prix|motogp|moto2|moto3|superbike|wrc|rallye|rally|nascar|indycar|ufc|mma|bellator|pfl|boxe|boxing|kickboxing|wrestling|wwe|aew|catch|judo|cyclisme|cycling|tour\s+de\s+france|handball|volleyball|athl[eé]tisme|athletics|marathon|jeux\s+olympiques|olympics|nfl|super\s+bowl|nhl|mlb|cricket|ipl|snooker|matchs?|avant[ -]match|multiplex|mercato"""
+    )
+    private val liveMatchupRegex = Regex(
+        """(?:\b(?:vs\.?|contre)\b|\b(?:[01]?\d|2[0-3])[:h][0-5]\d\b.{0,24}[\p{L}]{2,}.*\s[-–—]\s.*[\p{L}]{2,})""",
+        RegexOption.IGNORE_CASE
+    )
+    private val liveEventSectionRegex = wordRegex(
+        """[eé]v[eé]nements?|events?|directs?|live\s+events?|matchs?\s+du\s+jour|programme\s+du\s+jour|streams?\s+live"""
     )
     private val radioKeywords = wordRegex(
         """radios?|webradios?|fm|am|mhz|stations?|broadcast|crtv|balafon|equinoxe|france\s+inter|france\s+info|france\s+culture|rfi|nrj|rtl|rmc\s+info|skyrock|nostalgie|fip|mouv[’']?|africa\s*n[°o]?\s*1|bbc\s+radio"""
@@ -182,17 +194,43 @@ internal object MediaUniverseClassifier {
     private val liveKeywords = wordRegex(
         """en\s+direct|live\s*tv|cha[iî]nes?\s+tv|iptv|direct\s+tv|24/7|tv\s+live"""
     )
+    private val explicitSeriesTitleRegex = wordRegex(
+        """s\d{1,2}\s*e\d{1,3}|s0[1-9]|s[12]\d|\d{1,2}x\d{2}|saisons?\s*\d+|seasons?\s*\d+|ep\.?\s*\d+|mini[ -]?s[eé]ries?|s[eé]rie\s+(?:tv|compl[eè]te)|int[eé]grale\s+saisons?"""
+    )
+    private val episodeNumberTitleRegex = wordRegex("""[eé]pisodes?\s*\d+""")
     private val seriesHintKeywords = wordRegex(
-        """s\d{1,2}\s*e\d{1,3}|saison\s*\d+|season\s*\d+|[eé]pisodes?\s*\d+|s[eé]ries?|dramas?|mini[ -]?s[eé]ries?"""
+        """s\d{1,2}\s*e\d{1,3}|s0[1-9]|\d{1,2}x\d{2}|saisons?\s*\d+|seasons?\s*\d+|[eé]pisodes?\s*\d+|s[eé]ries?|dramas?|k[ -]?dramas?|mini[ -]?s[eé]ries?|tv\s+shows?|sitcoms?|telenovelas?|feuilletons?"""
+    )
+    private val seriesSectionKeywords = wordRegex(
+        """s[eé]ries?|dramas?|k[ -]?dramas?|mini[ -]?s[eé]ries?|[eé]pisodes?|saisons?|seasons?|tv\s+shows?|sitcoms?|telenovelas?|feuilletons?"""
     )
     private val movieHintKeywords = wordRegex(
         """films?|movies?|cin[eé]ma|longs?[ -]m[eé]trages?|box[ -]?office"""
     )
+    private val seriesUrlPathRegex = Regex(
+        """/(?:tv[-_]?series|series?|tv[-_]?shows?|shows?|saisons?|seasons?|episodes?|dramas?|kdramas?)(?:/|-|_|\?|$)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val movieUrlPathRegex = Regex(
+        """/(?:films?|movies?|longs?[-_]?metrages?|cinema)(?:/|-|_|\?|$)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val mangaUrlPathRegex = Regex(
+        """/(?:animes?|mangas?|donghuas?|manhwas?|oav|ova)(?:/|-|_|\?|$)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val liveUrlRegex = Regex(
+        """(?:\.(?:m3u8|ts)(?:\?|$)|/(?:live|iptv|direct)(?:/|-|_|\?|$))""",
+        RegexOption.IGNORE_CASE
+    )
     private val familyTags = wordRegex(
-        """family|familles?|familial(?:e|es)?|children|child|kids?|jeunesse|enfants?|tout\s+public|dessins?\s+anim[eé]s?"""
+        """family|familles?|familial(?:e|es)?|children|child|kids?|jeunesse|enfants?|pour\s+enfants?|tous?\s+publics?|jeune\s+public|dessins?\s+anim[eé]s?|films?\s+d['’]animation|contes?|f[eé]erique|disney|pixar|dreamworks|illumination|gulli|tiji|nickelodeon|cartoon\s+network|boomerang|okoo"""
+    )
+    private val animationGenreRegex = wordRegex(
+        """animation|anim[eé]s?|animated|cartoon"""
     )
     private val safeRating = Regex(
-        """(^|[^A-Z0-9])(TV-Y7?|TV-G|G|U|TP|TOUT\s*PUBLIC|0\+|3\+|6\+|7\+)([^A-Z0-9]|$)""",
+        """(?<![A-Z0-9-])(TV-Y7(?:-FV)?|TV-Y|TV-G|TV-PG|PG|G|U|TP|TOUS?\s*PUBLICS?|0\+|3\+|6\+|7\+|8\+|9\+|10\+)(?![A-Z0-9+-])""",
         RegexOption.IGNORE_CASE
     )
     private val durationSuffix = Regex("""(\d{1,3})\s*(min|minutes|mn)\b""", RegexOption.IGNORE_CASE)
@@ -203,9 +241,89 @@ internal object MediaUniverseClassifier {
     )
     private val nonAlphaNumRegex = Regex("""[^a-z0-9]+""")
 
+    fun hasExplicitSeriesTitleSignal(title: String): Boolean {
+        if (explicitSeriesTitleRegex.containsMatchIn(title)) return true
+        return !title.contains("star wars", ignoreCase = true) &&
+            episodeNumberTitleRegex.containsMatchIn(title)
+    }
+
+    fun isExclusiveSeriesSection(sectionName: String): Boolean {
+        if (sectionName.isBlank()) return false
+        return seriesSectionKeywords.containsMatchIn(sectionName) &&
+            !movieHintKeywords.containsMatchIn(sectionName) &&
+            !mangaKeywords.containsMatchIn(sectionName)
+    }
+
+    fun isExclusiveMovieSection(sectionName: String): Boolean {
+        if (sectionName.isBlank()) return false
+        return movieHintKeywords.containsMatchIn(sectionName) &&
+            !seriesSectionKeywords.containsMatchIn(sectionName) &&
+            !mangaKeywords.containsMatchIn(sectionName)
+    }
+
+    fun hasStrongSeriesEvidence(
+        rawType: TvType?,
+        title: String,
+        sectionName: String = "",
+        url: String = "",
+        episodeCountHint: Int? = null,
+        isSeriesLoadResponse: Boolean? = null
+    ): Boolean {
+        if (isSeriesLoadResponse == true) return true
+        if (isSeriesLoadResponse == false) return false
+        if (episodeCountHint != null && episodeCountHint > 1) return true
+        if (hasExplicitSeriesTitleSignal(title)) return true
+        if (seriesUrlPathRegex.containsMatchIn(url) && !movieUrlPathRegex.containsMatchIn(url)) return true
+        if (isExclusiveSeriesSection(sectionName) && !movieUrlPathRegex.containsMatchIn(url)) return true
+        return rawType in seriesTypes && !movieUrlPathRegex.containsMatchIn(url) && !isExclusiveMovieSection(sectionName)
+    }
+
+    fun hasStrongMovieEvidence(
+        rawType: TvType?,
+        title: String,
+        sectionName: String = "",
+        url: String = "",
+        isSeriesLoadResponse: Boolean? = null
+    ): Boolean {
+        if (isSeriesLoadResponse == false) return true
+        if (isSeriesLoadResponse == true) return false
+        if (hasExplicitSeriesTitleSignal(title)) return false
+        if (movieUrlPathRegex.containsMatchIn(url) && !seriesUrlPathRegex.containsMatchIn(url)) return true
+        if (isExclusiveMovieSection(sectionName) && !seriesUrlPathRegex.containsMatchIn(url)) return true
+        return false
+    }
+
+    private fun isSportsBroadcastOrEvent(
+        effectiveOrRawType: TvType?,
+        title: String,
+        sectionName: String,
+        tags: Collection<String>,
+        url: String,
+        providerSupportedTypes: Set<TvType>
+    ): Boolean {
+        val text = "$title $sectionName ${tags.joinToString(" ")}"
+        if (podcastKeywords.containsMatchIn(text) || radioKeywords.containsMatchIn(text)) return false
+        if (effectiveOrRawType == TvType.Documentary || documentaryKeywords.containsMatchIn(text)) return false
+
+        val isLiveLike = effectiveOrRawType == TvType.Live ||
+            liveKeywords.containsMatchIn("$title $sectionName") ||
+            liveEventSectionRegex.containsMatchIn(sectionName) ||
+            liveUrlRegex.containsMatchIn(url) ||
+            (effectiveOrRawType == null || effectiveOrRawType == TvType.Others || effectiveOrRawType == TvType.Video) &&
+            (TvType.Live in providerSupportedTypes || liveMatchupRegex.containsMatchIn(title))
+
+        if (!isLiveLike) return false
+        return sportsKeywords.containsMatchIn(text) || liveMatchupRegex.containsMatchIn(title)
+    }
+
     /** Checks if a title/metadata contains mature/adult cues (also used by TRUST-01 parental guard). */
-    fun hasMatureSignals(title: String, tags: Collection<String> = emptyList(), contentRating: String? = null): Boolean {
-        val text = "$title ${tags.joinToString(" ")}"
+    fun hasMatureSignals(
+        title: String,
+        tags: Collection<String> = emptyList(),
+        contentRating: String? = null,
+        sectionName: String = ""
+    ): Boolean {
+        val text = "$title $sectionName ${tags.joinToString(" ")}"
         return matureDisqualifiers.containsMatchIn(text) ||
             matureRatingRegex.containsMatchIn(contentRating.orEmpty())
     }
@@ -227,10 +345,82 @@ internal object MediaUniverseClassifier {
         rawType: TvType?,
         title: String,
         sectionName: String = "",
-        providerSupportedTypes: Set<TvType> = emptySet()
+        providerSupportedTypes: Set<TvType> = emptySet(),
+        url: String = "",
+        tags: Collection<String> = emptyList(),
+        episodeCountHint: Int? = null,
+        isSeriesLoadResponse: Boolean? = null
     ): TvType? {
         if (rawType == TvType.NSFW || rawType == TvType.CustomMedia) return rawType
-        val contextText = "$title $sectionName"
+        val contextText = "$title $sectionName ${tags.joinToString(" ")}".trim()
+        val isMangaSignal = rawType in mangaTypes ||
+            mangaKeywords.containsMatchIn(contextText) ||
+            mangaUrlPathRegex.containsMatchIn(url)
+        val isDocumentarySignal = (rawType == TvType.Documentary || documentaryKeywords.containsMatchIn(contextText)) &&
+            !liveKeywords.containsMatchIn(sectionName) &&
+            rawType != TvType.Live &&
+            rawType != TvType.Podcast &&
+            rawType !in audioTypes &&
+            !podcastKeywords.containsMatchIn(contextText) &&
+            !radioKeywords.containsMatchIn(contextText)
+
+        // 1. Concrete LoadResponse / multi-episode structural proof overrides sloppy plugin home-page defaults
+        if (isSeriesLoadResponse == true || (episodeCountHint != null && episodeCountHint > 1)) {
+            return when {
+                isDocumentarySignal -> TvType.Documentary
+                isMangaSignal -> TvType.Anime
+                rawType == TvType.Cartoon || rawType == TvType.AsianDrama -> rawType
+                else -> TvType.TvSeries
+            }
+        }
+        if (isSeriesLoadResponse == false) {
+            return when {
+                rawType == TvType.Live || isSportsBroadcastOrEvent(rawType, title, sectionName, tags, url, providerSupportedTypes) -> TvType.Live
+                isDocumentarySignal -> TvType.Documentary
+                isMangaSignal -> TvType.AnimeMovie
+                else -> TvType.Movie
+            }
+        }
+
+        // 2. Domain & structural overrides even when a plugin stamped a default Movie / TvSeries / Video / Others type
+        if (rawType == TvType.Podcast) return TvType.Podcast
+        if (isSportsBroadcastOrEvent(rawType, title, sectionName, tags, url, providerSupportedTypes)) {
+            return TvType.Live
+        }
+        if (isDocumentarySignal &&
+            (rawType == null || rawType == TvType.Others || rawType in movieTypes || rawType == TvType.TvSeries)
+        ) {
+            return TvType.Documentary
+        }
+        if (isMangaSignal &&
+            (rawType == null || rawType == TvType.Others || rawType == TvType.Movie || rawType == TvType.TvSeries)
+        ) {
+            return if (hasExplicitSeriesTitleSignal(title) || isExclusiveSeriesSection(sectionName) || seriesUrlPathRegex.containsMatchIn(url)) {
+                TvType.Anime
+            } else if (isExclusiveMovieSection(sectionName) || movieUrlPathRegex.containsMatchIn(url) || rawType == TvType.Movie) {
+                TvType.AnimeMovie
+            } else {
+                TvType.Anime
+            }
+        }
+        if (rawType in setOf(TvType.Movie, TvType.Torrent, TvType.Video)) {
+            if (hasExplicitSeriesTitleSignal(title) ||
+                (seriesUrlPathRegex.containsMatchIn(url) && !movieUrlPathRegex.containsMatchIn(url)) ||
+                (isExclusiveSeriesSection(sectionName) && !movieUrlPathRegex.containsMatchIn(url))
+            ) {
+                return TvType.TvSeries
+            }
+        }
+        if (rawType == TvType.TvSeries &&
+            !hasExplicitSeriesTitleSignal(title) &&
+            !seriesUrlPathRegex.containsMatchIn(url)
+        ) {
+            if (movieUrlPathRegex.containsMatchIn(url) ||
+                (isExclusiveMovieSection(sectionName) && !seriesHintKeywords.containsMatchIn(title))
+            ) {
+                return TvType.Movie
+            }
+        }
 
         if (rawType != null && rawType != TvType.Others) {
             return rawType
@@ -247,23 +437,28 @@ internal object MediaUniverseClassifier {
             musicKeywords.containsMatchIn(contextText) &&
                 !liveKeywords.containsMatchIn(sectionName) -> TvType.Music
             liveKeywords.containsMatchIn(sectionName) ||
-                (sportsKeywords.containsMatchIn(sectionName) && TvType.Live in cleanProviderTypes) -> TvType.Live
-            mangaKeywords.containsMatchIn(contextText) -> {
+                liveEventSectionRegex.containsMatchIn(sectionName) ||
+                liveUrlRegex.containsMatchIn(url) ||
+                (sportsKeywords.containsMatchIn(contextText) && TvType.Live in cleanProviderTypes) -> TvType.Live
+            isMangaSignal -> {
                 if (movieHintKeywords.containsMatchIn(contextText) && !seriesHintKeywords.containsMatchIn(contextText)) {
                     TvType.AnimeMovie
                 } else {
                     TvType.Anime
                 }
             }
-            documentaryKeywords.containsMatchIn(contextText) &&
-                !liveKeywords.containsMatchIn(sectionName) -> TvType.Documentary
-            seriesHintKeywords.containsMatchIn(contextText) -> TvType.TvSeries
+            isDocumentarySignal -> TvType.Documentary
+            hasExplicitSeriesTitleSignal(title) ||
+                seriesUrlPathRegex.containsMatchIn(url) ||
+                seriesHintKeywords.containsMatchIn(contextText) -> TvType.TvSeries
             shortKeywords.containsMatchIn(contextText) -> TvType.Movie
-            movieHintKeywords.containsMatchIn(sectionName) -> TvType.Movie
+            movieUrlPathRegex.containsMatchIn(url) ||
+                movieHintKeywords.containsMatchIn(sectionName) -> TvType.Movie
             cleanProviderTypes.size == 1 -> cleanProviderTypes.first()
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Documentary } -> TvType.Documentary
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it in movieTypes } -> TvType.Movie
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it in seriesTypes } -> TvType.TvSeries
+            cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it in mangaTypes } -> TvType.Anime
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Live } -> TvType.Live
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Podcast } -> TvType.Podcast
             cleanProviderTypes.isNotEmpty() && cleanProviderTypes.all { it == TvType.Music } -> TvType.Music
@@ -276,10 +471,11 @@ internal object MediaUniverseClassifier {
         universeId: String,
         type: TvType?,
         title: String,
-        sectionName: String = ""
+        sectionName: String = "",
+        url: String = ""
     ): Boolean {
         if (type == TvType.NSFW || type == TvType.CustomMedia) return false
-        val effective = inferEffectiveType(type, title, sectionName)
+        val effective = inferEffectiveType(type, title, sectionName, url = url)
         val canBeMovie = effective == null || effective == TvType.Others || effective in vodMovieOrDocTypes
         val canBeSeries = effective == null || effective == TvType.Others || effective in seriesTypes
         val context = "$title $sectionName"
@@ -291,17 +487,32 @@ internal object MediaUniverseClassifier {
                 )
             "kids" -> (canBeMovie || canBeSeries) && !matureDisqualifiers.containsMatchIn(context)
             "documentaries" -> (canBeMovie || canBeSeries) && documentaryKeywords.containsMatchIn(context)
+            "disambiguate" -> (canBeMovie || canBeSeries) &&
+                !isExclusiveMovieSection(sectionName) &&
+                !isExclusiveSeriesSection(sectionName) &&
+                !movieUrlPathRegex.containsMatchIn(url) &&
+                !seriesUrlPathRegex.containsMatchIn(url)
             else -> false
         }
     }
 
-    fun detailPriority(universeId: String, title: String, sectionName: String = ""): Int {
+    fun detailPriority(universeId: String, title: String, sectionName: String = "", url: String = ""): Int {
         val context = "$title $sectionName"
         return when (universeId) {
             "shorts" -> (if (shortKeywords.containsMatchIn(context)) 5 else 0) +
                 (if (durationSuffix.containsMatchIn(title)) 3 else 0)
-            "kids" -> (if (kidsKeywords.containsMatchIn(context)) 5 else 0)
+            "kids" -> when {
+                matureDisqualifiers.containsMatchIn(context) -> 0
+                kidsKeywords.containsMatchIn(context) || animationGenreRegex.containsMatchIn(context) -> 5
+                else -> 2
+            }
             "documentaries" -> (if (documentaryKeywords.containsMatchIn(context)) 4 else 0)
+            "disambiguate" -> if (
+                !isExclusiveMovieSection(sectionName) &&
+                !isExclusiveSeriesSection(sectionName) &&
+                !movieUrlPathRegex.containsMatchIn(url) &&
+                !seriesUrlPathRegex.containsMatchIn(url)
+            ) 3 else 0
             else -> 0
         }
     }
@@ -314,11 +525,23 @@ internal object MediaUniverseClassifier {
         contentRating: String? = null,
         durationMinutes: Int? = null,
         sectionName: String = "",
-        providerSupportedTypes: Set<TvType> = emptySet()
+        providerSupportedTypes: Set<TvType> = emptySet(),
+        url: String = "",
+        episodeCountHint: Int? = null,
+        isSeriesLoadResponse: Boolean? = null
     ): Boolean {
         if (type == TvType.NSFW || type == TvType.CustomMedia) return false
 
-        val effectiveType = inferEffectiveType(type, title, sectionName, providerSupportedTypes)
+        val effectiveType = inferEffectiveType(
+            rawType = type,
+            title = title,
+            sectionName = sectionName,
+            providerSupportedTypes = providerSupportedTypes,
+            url = url,
+            tags = tags,
+            episodeCountHint = episodeCountHint,
+            isSeriesLoadResponse = isSeriesLoadResponse
+        )
         if (effectiveType == TvType.NSFW || effectiveType == TvType.CustomMedia) return false
 
         val detailText = buildString {
@@ -332,25 +555,46 @@ internal object MediaUniverseClassifier {
             !mangaKeywords.containsMatchIn(classificationText) &&
             !movieHintKeywords.containsMatchIn(classificationText)
 
+        val isManga = effectiveType in mangaTypes ||
+            mangaKeywords.containsMatchIn(classificationText) ||
+            mangaUrlPathRegex.containsMatchIn(url)
+
+        val isDocumentary = !podcastKeywords.containsMatchIn(classificationText) &&
+            !radioKeywords.containsMatchIn(classificationText) &&
+            (effectiveType == TvType.Documentary ||
+                (effectiveType != TvType.Music && documentaryKeywords.containsMatchIn(classificationText)))
+
+        val isSports = isSportsBroadcastOrEvent(
+            effectiveOrRawType = effectiveType,
+            title = title,
+            sectionName = sectionName,
+            tags = tags,
+            url = url,
+            providerSupportedTypes = providerSupportedTypes
+        )
+
         return when (universeId) {
             "home" -> true
-            "films" -> !isPureMusicVideo && (
-                (effectiveType != null && (effectiveType in movieTypes || effectiveType in mangaTypes)) ||
-                    mangaKeywords.containsMatchIn(classificationText)
-                )
-            "series" -> effectiveType != null && effectiveType in seriesTypes
-            "documentaries" -> {
-                if (podcastKeywords.containsMatchIn(classificationText) || radioKeywords.containsMatchIn(classificationText)) {
-                    false
-                } else {
-                    effectiveType == TvType.Documentary ||
-                        (effectiveType != TvType.Music && documentaryKeywords.containsMatchIn(classificationText))
-                }
-            }
+            "films" -> !isPureMusicVideo &&
+                !isSports &&
+                !(isDocumentary && effectiveType != TvType.Live) &&
+                effectiveType !in seriesTypes &&
+                (
+                    (effectiveType != null && (effectiveType in movieTypes || effectiveType in mangaTypes)) ||
+                        (isManga && effectiveType != TvType.Live && effectiveType != TvType.Podcast && effectiveType !in audioTypes)
+                    )
+            "series" -> !isSports &&
+                !isManga &&
+                !(isDocumentary && effectiveType != TvType.Live) &&
+                effectiveType != null &&
+                effectiveType in seriesTypes
+            "documentaries" -> isDocumentary
             "shorts" -> {
-                val canBeMovie = effectiveType == null || effectiveType == TvType.Others || effectiveType in vodMovieOrDocTypes
+                val canBeMovie = (effectiveType == null || effectiveType == TvType.Others || effectiveType in vodMovieOrDocTypes) &&
+                    effectiveType !in seriesTypes &&
+                    !hasExplicitSeriesTitleSignal(title)
                 val titleDuration = durationSuffix.find(title)?.groupValues?.getOrNull(1)?.toIntOrNull()
-                canBeMovie && (
+                canBeMovie && !isSports && (
                     durationMinutes?.let { it in 1..40 } == true ||
                         shortKeywords.containsMatchIn(classificationText) ||
                         (durationMinutes == null && titleDuration != null && titleDuration in 1..40)
@@ -360,23 +604,28 @@ internal object MediaUniverseClassifier {
                 val supportedType = effectiveType == null ||
                     effectiveType == TvType.Others ||
                     effectiveType in vodMovieOrDocTypes ||
-                    effectiveType in seriesTypes
-                val isMature = matureDisqualifiers.containsMatchIn(classificationText) ||
-                    matureRatingRegex.containsMatchIn(contentRating.orEmpty())
-                supportedType && !isMature && (
+                    effectiveType in seriesTypes ||
+                    effectiveType in mangaTypes
+                val isMature = hasMatureSignals(title, tags, contentRating, sectionName)
+                val isTeenRestricted = teenRatingRegex.containsMatchIn(contentRating.orEmpty())
+                val isNonMangaFamilyAnimation = !isManga &&
+                    !isTeenRestricted &&
+                    animationGenreRegex.containsMatchIn(detailText)
+                supportedType && !isSports && !isMature && (
                     effectiveType == TvType.Cartoon ||
                         familyTags.containsMatchIn(detailText) ||
+                        isNonMangaFamilyAnimation ||
                         safeRating.containsMatchIn(contentRating.orEmpty()) ||
                         kidsKeywords.containsMatchIn(title)
                     )
             }
             "live_tv" -> effectiveType == TvType.Live &&
-                !sportsKeywords.containsMatchIn(classificationText) &&
-                !radioKeywords.containsMatchIn(classificationText)
-            "sports" -> effectiveType == TvType.Live &&
-                sportsKeywords.containsMatchIn(classificationText)
+                !isSports &&
+                !radioKeywords.containsMatchIn(classificationText) &&
+                !podcastKeywords.containsMatchIn(classificationText)
+            "sports" -> isSports
             "music" -> {
-                if (podcastKeywords.containsMatchIn(classificationText)) {
+                if (podcastKeywords.containsMatchIn(classificationText) || isSports) {
                     false
                 } else {
                     effectiveType == TvType.Music ||
@@ -398,6 +647,7 @@ internal object MediaUniverseClassifier {
                     effectiveType == TvType.Live ||
                     effectiveType in audioTypes
                 audioOrLive &&
+                    !isSports &&
                     effectiveType != TvType.Music &&
                     effectiveType != TvType.Podcast &&
                     radioKeywords.containsMatchIn(classificationText) &&
@@ -414,7 +664,10 @@ internal object MediaUniverseClassifier {
         contentRating: String? = null,
         durationMinutes: Int? = null,
         sectionName: String = "",
-        providerSupportedTypes: Set<TvType> = emptySet()
+        providerSupportedTypes: Set<TvType> = emptySet(),
+        url: String = "",
+        episodeCountHint: Int? = null,
+        isSeriesLoadResponse: Boolean? = null
     ): Set<String> {
         if (type == TvType.NSFW || type == TvType.CustomMedia) return emptySet()
         val matched = LinkedHashSet<String>()
@@ -427,11 +680,32 @@ internal object MediaUniverseClassifier {
                     contentRating = contentRating,
                     durationMinutes = durationMinutes,
                     sectionName = sectionName,
-                    providerSupportedTypes = providerSupportedTypes
+                    providerSupportedTypes = providerSupportedTypes,
+                    url = url,
+                    episodeCountHint = episodeCountHint,
+                    isSeriesLoadResponse = isSeriesLoadResponse
                 )
             ) {
                 matched.add(universe)
             }
+        }
+        // Hard partition invariants: Films & Mangas vs Series, and Sports vs Live TV must never overlap
+        if ("films" in matched && "series" in matched) {
+            if (hasStrongSeriesEvidence(type, title, sectionName, url, episodeCountHint, isSeriesLoadResponse)) {
+                matched.remove("films")
+            } else {
+                matched.remove("series")
+            }
+        }
+        if ("sports" in matched) {
+            matched.remove("live_tv")
+            matched.remove("films")
+            matched.remove("series")
+        }
+        if ("radio" in matched || "podcasts" in matched) {
+            matched.remove("live_tv")
+            matched.remove("films")
+            matched.remove("series")
         }
         return matched
     }
@@ -463,7 +737,10 @@ internal object MediaUniverseClassifier {
         when (universeId) {
             "home" -> {
                 if (isTrending || isRecent) categories.add(MissaCategory.HOME_TRENDING)
-                if (effectiveType in movieTypes || effectiveType in mangaTypes || mangaKeywords.containsMatchIn(text)) {
+                if (effectiveType != TvType.Documentary &&
+                    effectiveType !in seriesTypes &&
+                    (effectiveType in movieTypes || effectiveType in mangaTypes || mangaKeywords.containsMatchIn(text))
+                ) {
                     categories.add(MissaCategory.HOME_MOVIES)
                 }
                 if (effectiveType in seriesTypes) categories.add(MissaCategory.HOME_SERIES)
@@ -508,11 +785,8 @@ internal object MediaUniverseClassifier {
                 if (containsAny(text, "science-fiction", "sci-fi", "fantastique", "fantasy")) {
                     categories.add(MissaCategory.GENRE_SCIFI)
                 }
-                if (effectiveType == TvType.Cartoon || containsAny(text, "animation", "pixar", "disney", "dreamworks")) {
+                if (effectiveType == TvType.Cartoon || containsAny(text, "animation", "pixar", "disney", "dreamworks", "illumination")) {
                     categories.add(MissaCategory.GENRE_ANIMATION)
-                }
-                if (effectiveType == TvType.Documentary || containsAny(text, "documentaire", "documentary")) {
-                    categories.add(MissaCategory.GENRE_DOCUMENTARY)
                 }
                 if (durationMinutes != null && durationMinutes in 1..40) categories.add(MissaCategory.FILMS_SHORTS)
                 if (categories.isEmpty()) categories.add(MissaCategory.FILMS_CATALOG)
@@ -520,7 +794,7 @@ internal object MediaUniverseClassifier {
 
             "series" -> {
                 if (isRecent || isTrending) categories.add(MissaCategory.SERIES_TRENDING)
-                if (effectiveType == TvType.Anime || effectiveType == TvType.OVA || containsAny(text, "anime", "animé", "animation")) {
+                if (effectiveType == TvType.Cartoon || containsAny(text, "animation", "animé", "cartoon", "dessin animé")) {
                     categories.add(MissaCategory.GENRE_ANIMATION)
                 }
                 if (effectiveType == TvType.AsianDrama || containsAny(text, "k-drama", "kdrama", "drama", "drame")) {
@@ -590,9 +864,15 @@ internal object MediaUniverseClassifier {
             }
 
             "kids" -> {
-                if (effectiveType in seriesTypes || effectiveType == TvType.Cartoon) categories.add(MissaCategory.KIDS_CARTOONS)
-                if (effectiveType in movieTypes) categories.add(MissaCategory.KIDS_MOVIES)
-                if (containsAny(text, "aventure", "magie", "conte", "disney", "pixar")) categories.add(MissaCategory.KIDS_MAGIC)
+                if (effectiveType in seriesTypes || effectiveType == TvType.Anime || effectiveType == TvType.OVA) {
+                    categories.add(MissaCategory.KIDS_CARTOONS)
+                }
+                if (effectiveType in vodMovieOrDocTypes) {
+                    categories.add(MissaCategory.KIDS_MOVIES)
+                }
+                if (containsAny(text, "aventure", "adventure", "magie", "magic", "conte", "féerique", "fantastique", "fantasy", "disney", "pixar", "dreamworks", "illumination")) {
+                    categories.add(MissaCategory.KIDS_MAGIC)
+                }
                 if (categories.isEmpty()) categories.add(MissaCategory.KIDS_ALL)
             }
 
@@ -613,16 +893,16 @@ internal object MediaUniverseClassifier {
             }
 
             "sports" -> {
-                if (containsAny(text, "foot", "soccer", "ligue", "champions", "premier league", "laliga", "serie a", "bundesliga", "can ")) {
+                if (containsAny(text, "foot", "soccer", "ligue", "champions", "ucl", "uefa", "fifa", "caf", "afcon", "premier league", "laliga", "la liga", "serie a", "bundesliga", "eredivisie", "botola", "coupe", "world cup", "euro 20", "can ")) {
                     categories.add(MissaCategory.SPORTS_FOOTBALL)
                 }
-                if (containsAny(text, "basket", "nba")) {
+                if (containsAny(text, "basket", "nba", "wnba", "euroleague", "euroligue", "fiba")) {
                     categories.add(MissaCategory.SPORTS_BASKET)
                 }
-                if (containsAny(text, "ufc", "mma", "boxe", "boxing", "wwe", "combat")) {
+                if (containsAny(text, "ufc", "mma", "bellator", "pfl", "boxe", "boxing", "kickboxing", "wwe", "aew", "catch", "judo", "combat")) {
                     categories.add(MissaCategory.SPORTS_COMBAT)
                 }
-                if (containsAny(text, "f1", "formula", "formule", "motogp", "auto", "tennis", "rugby")) {
+                if (containsAny(text, "f1", "formula", "formule", "grand prix", "motogp", "wrc", "rally", "auto", "tennis", "atp", "wta", "roland", "wimbledon", "rugby", "top 14", "six nations", "cyclisme", "tour de france", "nfl", "nhl", "golf")) {
                     categories.add(MissaCategory.SPORTS_MOTORS)
                 }
                 categories.add(MissaCategory.SPORTS_ALL)
