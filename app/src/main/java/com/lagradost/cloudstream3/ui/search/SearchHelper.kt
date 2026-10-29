@@ -38,7 +38,10 @@ object SearchHelper {
 
         if (card is DirectRadioSearchResponse) {
             if (callback.action == SEARCH_ACTION_SHOW_METADATA) {
-                val stationKey = card.stationId.ifBlank { "radio_${card.url.hashCode()}" }
+                val stationKey = DirectRadioPlayerManager.allPresetStations()
+                    .firstOrNull { it.streamUrl.equals(card.url, ignoreCase = true) }
+                    ?.id
+                    ?: "radio_${card.url.hashCode()}"
                 val nowFav = DirectRadioPlayerManager.toggleFavorite(stationKey)
                 showToast(
                     if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
