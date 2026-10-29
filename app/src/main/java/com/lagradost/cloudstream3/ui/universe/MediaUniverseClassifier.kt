@@ -722,12 +722,13 @@ internal object MediaUniverseClassifier {
         sectionName: String = "",
         tags: Collection<String> = emptyList(),
         effectiveType: TvType? = null,
-        durationMinutes: Int? = null
+        durationMinutes: Int? = null,
+        isTrending: Boolean = false
     ): List<MissaCategory> {
         val text = "$title $sectionName ${tags.joinToString(" ")}".lowercase(Locale.ROOT)
         val categories = LinkedHashSet<MissaCategory>()
 
-        val isTrending = containsAny(
+        val isTrendingSignal = isTrending || containsAny(
             text, "tendance", "trending", "populaire", "popular", "top",
             "box office", "box-office", "incontournable", "featured", "vedette"
         )
@@ -737,7 +738,7 @@ internal object MediaUniverseClassifier {
 
         when (universeId) {
             "home" -> {
-                if (isTrending || isRecent) categories.add(MissaCategory.HOME_TRENDING)
+                if (isTrendingSignal || isRecent) categories.add(MissaCategory.HOME_TRENDING)
                 if (effectiveType != TvType.Documentary &&
                     effectiveType !in seriesTypes &&
                     (effectiveType in movieTypes || effectiveType in mangaTypes || mangaKeywords.containsMatchIn(text))
@@ -773,7 +774,7 @@ internal object MediaUniverseClassifier {
             }
 
             "films" -> {
-                if (isRecent || isTrending) categories.add(MissaCategory.FILMS_FEATURED)
+                if (isRecent || isTrendingSignal) categories.add(MissaCategory.FILMS_FEATURED)
                 if (effectiveType in mangaTypes || mangaKeywords.containsMatchIn(text)) {
                     categories.add(MissaCategory.FILMS_MANGA)
                 }
@@ -794,7 +795,7 @@ internal object MediaUniverseClassifier {
             }
 
             "series" -> {
-                if (isRecent || isTrending) categories.add(MissaCategory.SERIES_TRENDING)
+                if (isRecent || isTrendingSignal) categories.add(MissaCategory.SERIES_TRENDING)
                 if (effectiveType == TvType.Cartoon || containsAny(text, "animation", "animé", "cartoon", "dessin animé")) {
                     categories.add(MissaCategory.GENRE_ANIMATION)
                 }
@@ -814,7 +815,7 @@ internal object MediaUniverseClassifier {
             }
 
             "documentaries" -> {
-                if (isRecent || isTrending) categories.add(MissaCategory.DOCS_FEATURED)
+                if (isRecent || isTrendingSignal) categories.add(MissaCategory.DOCS_FEATURED)
                 if (containsAny(
                         text,
                         "nature", "animaux", "animal", "faune", "wildlife", "planète", "planete",
@@ -910,7 +911,7 @@ internal object MediaUniverseClassifier {
             }
 
             "music" -> {
-                if (isTrending || isRecent) {
+                if (isTrendingSignal || isRecent) {
                     categories.add(MissaCategory.MUSIC_TRENDING)
                 }
                 if (containsAny(
