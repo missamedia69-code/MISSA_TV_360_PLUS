@@ -43,8 +43,9 @@ object DirectRadioPlayerManager {
     private const val LEGACY_CUSTOM_STATIONS_KEY = "missa_custom_radio_stations_v1"
     private const val REMOTE_STATIONS_CACHE_KEY = "missa_remote_radio_stations_v1"
     private const val FAVORITE_STATIONS_KEY = "missa_favorite_radio_ids_v1"
-    private const val REMOTE_STATIONS_JSON_URL =
-        "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/branding-miissa-tv-360/missa-radio-presets.json"
+    // Radio Browser is a free, community-maintained directory; no API key is required.
+    private const val RADIO_BROWSER_BASE_URL = "https://de1.api.radio-browser.info/json/stations/search"
+    private const val RADIO_BROWSER_LIMIT = 200
 
     val defaultStations: List<RadioStationPreset> = listOf(
         // African, Cameroonian & Pan-African Direct Presets (RAD-04)
@@ -196,33 +197,65 @@ object DirectRadioPlayerManager {
             musicStationHintRegex.containsMatchIn("${station.name} ${station.genre}")
         }
 
-    /** Optional remote JSON refresh from GitHub so broken stream URLs can be updated OTA (RAD-04). */
+    /**
+     * Loads a useful first slice of the free Radio Browser directory.
+     *
+     * The global list is ordered by community votes; separate country queries put
+     * Cameroon and nearby African stations first. Results are cached locally so
+     * the radio screen remains useful if the directory is temporarily unavailable.
+     * This is a starter catalogue, not a claim that every station in the directory
+     * is downloaded at once.
+     */
     suspend fun refreshRemotePresetsIfNeeded() {
         if (remoteRefreshAttempted) return
         remoteRefreshAttempted = true
         withContext(Dispatchers.IO) {
-            runCatching {
-                val text = app.get(REMOTE_STATIONS_JSON_URL).text
-                val arr = JSONArray(text)
-                val parsed = ArrayList<RadioStationPreset>(arr.length())
-                for (i in 0 until arr.length()) {
-                    val obj = arr.optJSONObject(i) ?: continue
-                    val name = obj.optString("name").trim()
-                    val url = obj.optString("streamUrl").trim()
-                    if (name.isBlank() || !isValidStreamUrl(url)) continue
-                    parsed.add(
-                        RadioStationPreset(
-                            id = obj.optString("id").ifBlank { "remote_${url.hashCode()}" },
+            val parsed = LinkedHashMap<String, RadioStationPreset>()
+            val requests = listOf(
+                "$RADIO_BROWSER_BASE_URL?limit=$RADIO_BROWSER_LIMIT&hidebroken=true&order=votes&reverse=true",
+                "$RADIO_BROWSER_BASE_URL?limit=100&hidebroken=true&countrycode=CM&order=votes&reverse=true",
+                "$RADIO_BROWSER_BASE_URL?limit=100&hidebroken=true&countrycode=NG&order=votes&reverse=true",
+                "$RADIO_BROWSER_BASE_URL?limit=60&hidebroken=true&countrycode=GH&order=votes&reverse=true"
+            )
+            for (requestUrl in requests) {
+                try {
+                    val arr = JSONArray(app.get(requestUrl).text)
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.optJSONObject(i) ?: continue
+                        val name = obj.optString("name").trim()
+                        val url = obj.optString("url_resolved").trim()
+                            .ifBlank { obj.optString("url").trim() }
+                        if (name.isBlank() || !isValidStreamUrl(url)) continue
+
+                        val uuid = obj.optString("stationuuid").trim()
+                        val id = "radiobrowser_" + uuid.ifBlank { url.hashCode().toString() }
+                        val tags = obj.optString("tags")
+                            .split(',')
+                            .map { it.trim() }
+                            .filter { it.isNotBlank() }
+                            .take(4)
+                            .joinToString(" • ")
+                        val country = obj.optString("countrycode").trim()
+                            .ifBlank { obj.optString("country").trim().take(4).uppercase().ifBlank { "INT" } }
+                        val station = RadioStationPreset(
+                            id = id,
                             name = name,
-                            genre = obj.optString("genre").ifBlank { "Radio" },
-                            country = obj.optString("country").ifBlank { "INT" },
+                            genre = tags.ifBlank { "Radio • Internet" },
+                            country = country.uppercase(),
                             streamUrl = url,
                             isCustom = false
                         )
-                    )
+                        // URL is the stable fallback identity; avoid duplicate stations
+                        // returned by both the global and country-specific queries.
+                        parsed.putIfAbsent(url.lowercase(), station)
+                    }
+                } catch (_: Exception) {
+                    // A failed regional query should not discard results from other servers.
                 }
-                if (parsed.isNotEmpty()) {
-                    setKey(REMOTE_STATIONS_CACHE_KEY, parsed.toTypedArray())
+            }
+            if (parsed.isNotEmpty()) {
+                runCatching {
+                    setKey(REMOTE_STATIONS_CACHE_KEY, parsed.values.toTypedArray())
                 }
             }
         }
