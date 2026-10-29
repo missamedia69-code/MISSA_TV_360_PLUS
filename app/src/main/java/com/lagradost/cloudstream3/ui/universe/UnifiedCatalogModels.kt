@@ -280,5 +280,5 @@ data class RadioStationPreset(
 /** Uses a station-provided logo first; a host favicon is a graceful fallback for older presets. */
 private fun String.toRadioLogoFallback(): String? {
     val host = runCatching { Uri.parse(this).host }.getOrNull()?.takeIf { it.isNotBlank() } ?: return null
-    return "https://www.google.com/s2/favicons?domain=\${Uri.encode(host)}&sz=128"
+    return "https://www.google.com/s2/favicons?domain=${Uri.encode(host)}&sz=128"
 }
