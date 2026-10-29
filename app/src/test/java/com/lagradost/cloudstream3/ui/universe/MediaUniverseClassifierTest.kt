@@ -610,14 +610,25 @@ class MediaUniverseClassifierTest {
 
     @Test
     fun `free radio providers parse RadioBrowser Zeno SomaFM LautFM M3U PLS and Icecast cleanly and merge fallback mirrors`() {
-        // 1. Instant curated bouquets cover MISSA Bouquet Direct, SomaFM, and Laut.fm with valid URLs
+        // 1. Instant curated bouquets cover MISSA Bouquet Direct, SomaFM, and Laut.fm with valid URLs and brand logos
         val curated = MissaRadioProviders.curatedInstantStations
         assertTrue(curated.size >= 30)
         assertTrue(curated.all { MissaRadioProviders.isValidStreamUrl(it.streamUrl) })
+        assertTrue(curated.all { !it.logoUrl.isNullOrBlank() && !it.logoUrl!!.contains("infomaniak") })
+        assertTrue(MissaUniverses.RADIO.isHorizontalCards)
         val fipJazz = curated.first { it.id == "fip_jazz" }
         assertEquals(MissaRadioProviders.PROVIDER_MISSA_DIRECT, fipJazz.providerName)
         assertTrue(fipJazz.fallbackUrls.any { it.endsWith(".aac") })
         assertEquals(MissaRadioProviders.PROVIDER_MISSA_DIRECT, fipJazz.toSearchResponse().apiName)
+        val genericCdnPreset = RadioStationPreset(
+            id = "test_cdn",
+            name = "Community Radio",
+            genre = "Afrique",
+            country = "CM",
+            streamUrl = "https://stream.zeno.fm/test-cm",
+            logoUrl = null
+        )
+        assertEquals(null, genericCdnPreset.toSearchResponse().posterUrl)
 
         // 2. Radio Browser parser extracts resolved + raw fallback URL and attributes Zeno.FM streams automatically
         val rbJson = """

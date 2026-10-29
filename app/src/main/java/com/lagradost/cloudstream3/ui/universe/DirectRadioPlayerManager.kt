@@ -1,11 +1,10 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.media3.common.AudioAttributes
@@ -15,6 +14,8 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.R
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Future
 
 data class RadioPlaybackState(
     val station: RadioStationPreset? = null,
@@ -58,6 +60,7 @@ object DirectRadioPlayerManager {
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var player: ExoPlayer? = null
+    private var controllerFuture: Future<MediaController>? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var sleepRunnable: Runnable? = null
     private var activeSleepMinutes: Int = 0
@@ -391,6 +394,15 @@ object DirectRadioPlayerManager {
             }
     }
 
+    private fun ensureMediaSessionBound(appContext: Context) {
+        val existing = controllerFuture
+        if (existing != null && !existing.isCancelled) return
+        runCatching {
+            val token = SessionToken(appContext, ComponentName(appContext, MissaRadioMediaService::class.java))
+            controllerFuture = MediaController.Builder(appContext, token).buildAsync()
+        }
+    }
+
     private fun startExoStreamUri(
         appContext: Context,
         exo: ExoPlayer,
@@ -398,6 +410,7 @@ object DirectRadioPlayerManager {
         targetStreamUrl: String
     ) {
         runCatching {
+            ensureMediaSessionBound(appContext)
             val metadataBuilder = MediaMetadata.Builder()
                 .setTitle(preset.name)
                 .setArtist("${preset.providerName} • ${preset.genre}")
@@ -414,10 +427,6 @@ object DirectRadioPlayerManager {
             exo.setMediaItem(mediaItem)
             exo.prepare()
             exo.playWhenReady = true
-            runCatching {
-                val serviceIntent = Intent(appContext, MissaRadioMediaService::class.java)
-                ContextCompat.startForegroundService(appContext, serviceIntent)
-            }
         }.onFailure {
             _state.value = RadioPlaybackState(
                 station = preset,
@@ -509,6 +518,10 @@ object DirectRadioPlayerManager {
 
     fun release() {
         stop()
+        controllerFuture?.let { future ->
+            runCatching { MediaController.releaseFuture(future) }
+        }
+        controllerFuture = null
         runCatching {
             player?.release()
         }

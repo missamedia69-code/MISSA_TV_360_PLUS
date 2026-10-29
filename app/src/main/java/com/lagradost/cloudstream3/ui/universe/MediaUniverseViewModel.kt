@@ -880,7 +880,7 @@ class MediaUniverseViewModel : ViewModel() {
                     chipLabel = resolveStr(ctx, favCat.chipLabelRes, "Favorites"),
                     rank = favCat.editorialRank,
                     items = favPresets.toMutableList(),
-                    isHorizontal = false
+                    isHorizontal = true
                 )
             }
             for (station in presets) {
@@ -938,7 +938,8 @@ class MediaUniverseViewModel : ViewModel() {
                             key = cat.id,
                             rowTitle = resolveStr(ctx, cat.rowTitleRes, cat.id),
                             chipLabel = resolveStr(ctx, cat.chipLabelRes, cat.id),
-                            rank = cat.editorialRank
+                            rank = cat.editorialRank,
+                            isHorizontal = true
                         )
                     }
                     val rowCap = if (searchQuery.isNotBlank()) 200 else 75
@@ -962,7 +963,7 @@ class MediaUniverseViewModel : ViewModel() {
                         rowTitle = resolveStr(ctx, homeAudioCat.rowTitleRes, homeAudioCat.id),
                         chipLabel = resolveStr(ctx, homeAudioCat.chipLabelRes, homeAudioCat.id),
                         rank = homeAudioCat.editorialRank,
-                        isHorizontal = false
+                        isHorizontal = true
                     )
                 }
                 for (station in homeStations) {

@@ -67,6 +67,9 @@ internal object MissaRadioProviders {
         "Accept" to "application/json, audio/x-mpegurl, application/xml, text/plain, */*"
     )
 
+    private fun brandFavicon(domain: String): String =
+        "https://www.google.com/s2/favicons?domain=$domain&sz=128"
+
     /**
      * Instant zero-latency curated direct streams across Africa, Cameroon, Radio France/FIP,
      * Radio Swiss, SomaFM and Laut.fm — works offline / before remote providers finish loading.
@@ -79,6 +82,7 @@ internal object MissaRadioProviders {
             genre = "Afrique • Actualités, Débats & Magazines",
             country = "AF",
             streamUrl = "https://rfiafrique64k.ice.infomaniak.ch/rfiafrique-64.mp3",
+            logoUrl = brandFavicon("rfi.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://rfiafrique96k.ice.infomaniak.ch/rfiafrique-96k.mp3")
         ),
@@ -88,6 +92,7 @@ internal object MissaRadioProviders {
             genre = "Panafricaine • Info, Culture, Makossa & Afrobeats",
             country = "AF",
             streamUrl = "https://african1paris.ice.infomaniak.ch/african1paris-128.mp3",
+            logoUrl = brandFavicon("africaradio.com"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -96,6 +101,7 @@ internal object MissaRadioProviders {
             genre = "Cameroun • Info, Culture, Makossa & Bikutsi",
             country = "CM",
             streamUrl = "https://listen.radioking.com/radio/10903/stream/22164",
+            logoUrl = brandFavicon("radiobalafon.net"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -104,6 +110,7 @@ internal object MissaRadioProviders {
             genre = "Afrique & Monde • News 24/7",
             country = "AF",
             streamUrl = "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
+            logoUrl = brandFavicon("bbc.com"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -112,6 +119,7 @@ internal object MissaRadioProviders {
             genre = "Afrique Francophone • Info & Direct",
             country = "AF",
             streamUrl = "https://stream.live.vc.bbcmedia.co.uk/bbc_afrique_radio",
+            logoUrl = brandFavicon("bbc.com"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -120,6 +128,7 @@ internal object MissaRadioProviders {
             genre = "Musiques d'Afrique, Monde & Francophonie",
             country = "AF",
             streamUrl = "https://rfimusiquemonde64k.ice.infomaniak.ch/rfimusiquemonde-64.mp3",
+            logoUrl = brandFavicon("musique.rfi.fr"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -128,6 +137,7 @@ internal object MissaRadioProviders {
             genre = "International & Francophonie • Info 24/7",
             country = "FR",
             streamUrl = "https://rfimonde64k.ice.infomaniak.ch/rfimonde-64.mp3",
+            logoUrl = brandFavicon("rfi.fr"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -136,6 +146,7 @@ internal object MissaRadioProviders {
             genre = "International, Méditerranée & Monde",
             country = "INT",
             streamUrl = "https://montecarlodoualiya128k.ice.infomaniak.ch/mc-doualiya.mp3",
+            logoUrl = brandFavicon("mc-doualiya.com"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
 
@@ -146,6 +157,7 @@ internal object MissaRadioProviders {
             genre = "Afrobeats, Hip-Hop, Rap & R&B",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/mouv-midfi.mp3",
+            logoUrl = brandFavicon("radiofrance.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/mouv-hifi.aac")
         ),
@@ -155,6 +167,7 @@ internal object MissaRadioProviders {
             genre = "DJ Mix, Hip-Hop, Afrobeats & Club",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/mouv100p100mix-midfi.mp3",
+            logoUrl = brandFavicon("radiofrance.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/mouv100p100mix-hifi.aac")
         ),
@@ -164,6 +177,7 @@ internal object MissaRadioProviders {
             genre = "Actualités en continu 24/7",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3",
+            logoUrl = brandFavicon("franceinfo.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/franceinfo-hifi.aac")
         ),
@@ -173,6 +187,7 @@ internal object MissaRadioProviders {
             genre = "Généraliste, Débats & Culture",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/franceinter-midfi.mp3",
+            logoUrl = brandFavicon("radiofrance.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/franceinter-hifi.aac")
         ),
@@ -182,6 +197,7 @@ internal object MissaRadioProviders {
             genre = "Savoirs, Histoire, Documentaires & Idées",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/franceculture-midfi.mp3",
+            logoUrl = brandFavicon("radiofrance.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/franceculture-hifi.aac")
         ),
@@ -191,6 +207,7 @@ internal object MissaRadioProviders {
             genre = "Classique, Symphonique & Concerts",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/francemusique-midfi.mp3",
+            logoUrl = brandFavicon("radiofrance.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/francemusique-hifi.aac")
         ),
@@ -200,6 +217,7 @@ internal object MissaRadioProviders {
             genre = "Musique éclectique, Jazz, Soul & Monde",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fip-midfi.mp3",
+            logoUrl = brandFavicon("fip.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fip-hifi.aac")
         ),
@@ -209,6 +227,7 @@ internal object MissaRadioProviders {
             genre = "Soul, Funk, Afrobeat, R&B & Groove",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipgroove-midfi.mp3",
+            logoUrl = brandFavicon("fip.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipgroove-hifi.aac")
         ),
@@ -218,6 +237,7 @@ internal object MissaRadioProviders {
             genre = "Jazz Contemporain, Légendes & Swing",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipjazz-midfi.mp3",
+            logoUrl = brandFavicon("fip.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipjazz-hifi.aac")
         ),
@@ -227,6 +247,7 @@ internal object MissaRadioProviders {
             genre = "Reggae, Roots, Dub & Ska",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipreggae-midfi.mp3",
+            logoUrl = brandFavicon("fip.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipreggae-hifi.aac")
         ),
@@ -236,6 +257,7 @@ internal object MissaRadioProviders {
             genre = "Musiques du Monde, Afrique, Brésil & Caraïbes",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipworld-midfi.mp3",
+            logoUrl = brandFavicon("fip.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipworld-hifi.aac")
         ),
@@ -245,6 +267,7 @@ internal object MissaRadioProviders {
             genre = "Électro, House, Lounge & Chill",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipelectro-midfi.mp3",
+            logoUrl = brandFavicon("fip.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipelectro-hifi.aac")
         ),
@@ -254,6 +277,7 @@ internal object MissaRadioProviders {
             genre = "Hip-Hop, Rap, Beats & Soul",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fiphiphop-midfi.mp3",
+            logoUrl = brandFavicon("fip.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fiphiphop-hifi.aac")
         ),
@@ -265,6 +289,7 @@ internal object MissaRadioProviders {
             genre = "Jazz, Soul & Blues",
             country = "CH",
             streamUrl = "https://stream.srg-ssr.ch/m/rsj/mp3_128",
+            logoUrl = brandFavicon("radioswissjazz.ch"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://stream.srg-ssr.ch/m/rsj/aacp_96")
         ),
@@ -274,6 +299,7 @@ internal object MissaRadioProviders {
             genre = "Pop Internationale & Hits sans pub",
             country = "CH",
             streamUrl = "https://stream.srg-ssr.ch/m/rsp/mp3_128",
+            logoUrl = brandFavicon("radioswisspop.ch"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://stream.srg-ssr.ch/m/rsp/aacp_96")
         ),
@@ -283,6 +309,7 @@ internal object MissaRadioProviders {
             genre = "Musique Classique & Orchestre",
             country = "CH",
             streamUrl = "https://stream.srg-ssr.ch/m/rsc_fr/mp3_128",
+            logoUrl = brandFavicon("radioswissclassic.ch"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://stream.srg-ssr.ch/m/rsc_fr/aacp_96")
         ),
@@ -328,6 +355,7 @@ internal object MissaRadioProviders {
             genre = genre,
             country = country,
             streamUrl = "https://stream.laut.fm/$slug",
+            logoUrl = brandFavicon("laut.fm"),
             providerName = PROVIDER_LAUT_FM
         )
 

@@ -170,6 +170,7 @@ object MissaUniverses {
         iconRes = R.drawable.ic_missa_radio,
         eyebrowRes = R.string.universe_eyebrow_radio,
         familyGroup = 3,
+        isHorizontalCards = true,
         directPlayOnClick = true
     )
 
@@ -283,13 +284,36 @@ data class RadioStationPreset(
     }
 }
 
-/** Uses a station-provided logo first; a host favicon is a graceful fallback for older presets. */
+private val genericStreamingCdnHosts = listOf(
+    "infomaniak.ch",
+    "radioking.com",
+    "zeno.fm",
+    "zenomedia.com",
+    "caster.fm",
+    "listen2myradio",
+    "streamguys",
+    "securenetsystems",
+    "radionomy",
+    "shoutca.st",
+    "myradiostream"
+)
+
+/** Uses a station-provided logo first; maps broadcaster CDNs cleanly and skips generic hosting CDNs. */
 private fun String.toRadioLogoFallback(): String? {
-    val host = runCatching { java.net.URI(this).host }
+    val rawHost = runCatching { java.net.URI(this).host }
         .getOrNull()
         ?.takeIf { it.isNotBlank() }
         ?: runCatching { Uri.parse(this).host }.getOrNull()?.takeIf { it.isNotBlank() }
         ?: return null
-    val encoded = runCatching { java.net.URLEncoder.encode(host, "UTF-8") }.getOrDefault(host)
+    val lower = rawHost.lowercase()
+    if (genericStreamingCdnHosts.any { lower.contains(it) }) return null
+    val brandHost = when {
+        lower.endsWith("radiofrance.fr") -> "radiofrance.fr"
+        lower.contains("bbcmedia.co.uk") -> "bbc.com"
+        lower.endsWith("somafm.com") -> "somafm.com"
+        lower.endsWith("laut.fm") -> "laut.fm"
+        else -> rawHost
+    }
+    val encoded = runCatching { java.net.URLEncoder.encode(brandHost, "UTF-8") }.getOrDefault(brandHost)
     return "https://www.google.com/s2/favicons?domain=$encoded&sz=128"
 }

@@ -21,6 +21,7 @@ import com.lagradost.cloudstream3.isMovieType
 import com.lagradost.cloudstream3.syncproviders.SyncAPI
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
+import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
 import com.lagradost.cloudstream3.utils.AppContextUtils.getNameFull
 import com.lagradost.cloudstream3.utils.AppContextUtils.getShortSeasonText
 import com.lagradost.cloudstream3.utils.DataStoreHelper
@@ -28,6 +29,7 @@ import com.lagradost.cloudstream3.utils.DataStoreHelper.fixVisual
 import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
 import com.lagradost.cloudstream3.utils.SubtitleHelper
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
+import com.lagradost.cloudstream3.utils.UIHelper.toPx
 import com.lagradost.cloudstream3.utils.getImageFromDrawable
 
 object SearchResultBuilder {
@@ -102,7 +104,8 @@ object SearchResultBuilder {
             }
         }
 
-        shadow?.isVisible = showTitle
+        val isDirectRadio = card is DirectRadioSearchResponse
+        shadow?.isVisible = showTitle || isDirectRadio
 
         when (card.quality) {
             SearchQuality.BlueRay -> R.string.quality_blueray
@@ -130,13 +133,29 @@ object SearchResultBuilder {
         }
 
         cardText?.text = card.name
-        cardText?.isVisible = showTitle
+        cardText?.isVisible = showTitle || isDirectRadio
         cardView.isVisible = true
-        if (!card.posterUrl.isNullOrEmpty()) {
-            cardView.loadImage(card.posterUrl, card.posterHeaders) {
-                error { getImageFromDrawable(itemView.context, R.drawable.default_cover) }
+        if (isDirectRadio) {
+            cardView.scaleType = ImageView.ScaleType.FIT_CENTER
+            cardView.setPadding(18.toPx, 12.toPx, 18.toPx, 28.toPx)
+            if (!card.posterUrl.isNullOrEmpty()) {
+                cardView.loadImage(card.posterUrl, card.posterHeaders) {
+                    error { getImageFromDrawable(itemView.context, R.drawable.ic_missa_radio) }
+                }
+            } else {
+                cardView.loadImage(R.drawable.ic_missa_radio)
             }
-        } else cardView.loadImage(R.drawable.default_cover)
+        } else {
+            cardView.scaleType = ImageView.ScaleType.CENTER_CROP
+            cardView.setPadding(0, 0, 0, 0)
+            if (!card.posterUrl.isNullOrEmpty()) {
+                cardView.loadImage(card.posterUrl, card.posterHeaders) {
+                    error { getImageFromDrawable(itemView.context, R.drawable.default_cover) }
+                }
+            } else {
+                cardView.loadImage(R.drawable.default_cover)
+            }
+        }
 
         fun click(view: View?) {
             clickCallback.invoke(
@@ -242,6 +261,17 @@ object SearchResultBuilder {
         }
 
         when (card) {
+            is DirectRadioSearchResponse -> {
+                val iso = card.country.lowercase()
+                val flagEmoji = SubtitleHelper.getFlagFromIso(iso)
+                if (!flagEmoji.isNullOrBlank()) {
+                    textFlag?.apply {
+                        isVisible = true
+                        text = flagEmoji
+                    }
+                }
+            }
+
             is LiveSearchResponse -> {
                 SubtitleHelper.getFlagFromIso(card.lang)?.let { flagEmoji ->
                     textFlag?.apply {
