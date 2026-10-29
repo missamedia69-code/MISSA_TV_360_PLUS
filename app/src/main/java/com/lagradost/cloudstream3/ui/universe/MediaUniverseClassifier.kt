@@ -86,11 +86,14 @@ enum class MissaCategory(
     SPORTS_MOTORS("sports_motors", 45, R.string.missa_cat_sports_motors, R.string.missa_chip_sports_motors),
     SPORTS_ALL("sports_all", 900, R.string.missa_cat_sports_all, R.string.missa_chip_sports_all),
 
-    // Music (Musiques)
+    // Music (Musiques — 100% dedicated on-demand music tracks, albums & DJ mixes)
+    MUSIC_TRENDING("music_trending", 8, R.string.missa_cat_music_trending, R.string.missa_chip_music_trending),
     MUSIC_AFRICA("music_africa", 12, R.string.missa_cat_music_africa, R.string.missa_chip_music_africa),
-    MUSIC_URBAN("music_urban", 22, R.string.missa_cat_music_urban, R.string.missa_chip_music_urban),
+    MUSIC_URBAN("music_urban", 20, R.string.missa_cat_music_urban, R.string.missa_chip_music_urban),
+    MUSIC_DJ_MIXES("music_dj_mixes", 26, R.string.missa_cat_music_dj_mixes, R.string.missa_chip_music_dj_mixes),
     MUSIC_POP_WORLD("music_pop", 32, R.string.missa_cat_music_pop, R.string.missa_chip_music_pop),
-    MUSIC_CLIPS_LIVE("music_clips", 42, R.string.missa_cat_music_clips, R.string.missa_chip_music_clips),
+    MUSIC_JAZZ_CLASSICAL("music_jazz_classical", 38, R.string.missa_cat_music_jazz_classical, R.string.missa_chip_music_jazz_classical),
+    MUSIC_CLIPS_LIVE("music_clips", 44, R.string.missa_cat_music_clips, R.string.missa_chip_music_clips),
     MUSIC_STREAMS("music_streams", 52, R.string.missa_cat_music_streams, R.string.missa_chip_music_streams),
     MUSIC_ALL("music_all", 900, R.string.missa_cat_music_all, R.string.missa_chip_music_all),
 
@@ -438,7 +441,10 @@ internal object MediaUniverseClassifier {
             radioKeywords.containsMatchIn(contextText) &&
                 (cleanProviderTypes.isEmpty() || cleanProviderTypes.any { it == TvType.Live || it in audioTypes }) -> TvType.Audio
             musicKeywords.containsMatchIn(contextText) &&
-                !liveKeywords.containsMatchIn(sectionName) -> TvType.Music
+                !liveKeywords.containsMatchIn(sectionName) &&
+                !movieHintKeywords.containsMatchIn(contextText) &&
+                !seriesHintKeywords.containsMatchIn(contextText) &&
+                (cleanProviderTypes.isEmpty() || cleanProviderTypes.any { it == TvType.Music || it == TvType.Audio }) -> TvType.Music
             liveKeywords.containsMatchIn(sectionName) ||
                 liveEventSectionRegex.containsMatchIn(sectionName) ||
                 liveUrlRegex.containsMatchIn(url) ||
@@ -553,11 +559,6 @@ internal object MediaUniverseClassifier {
         }.trim()
         val classificationText = "$title $detailText"
 
-        val isPureMusicVideo = effectiveType == TvType.Video &&
-            musicKeywords.containsMatchIn(classificationText) &&
-            !mangaKeywords.containsMatchIn(classificationText) &&
-            !movieHintKeywords.containsMatchIn(classificationText)
-
         val isManga = effectiveType in mangaTypes ||
             mangaKeywords.containsMatchIn(classificationText) ||
             mangaUrlPathRegex.containsMatchIn(url)
@@ -578,7 +579,7 @@ internal object MediaUniverseClassifier {
 
         return when (universeId) {
             "home" -> true
-            "films" -> !isPureMusicVideo &&
+            "films" -> effectiveType != TvType.Music &&
                 !isSports &&
                 !(isDocumentary && effectiveType != TvType.Live) &&
                 effectiveType !in seriesTypes &&
@@ -628,19 +629,16 @@ internal object MediaUniverseClassifier {
                 !podcastKeywords.containsMatchIn(classificationText)
             "sports" -> isSports
             "music" -> {
-                if (podcastKeywords.containsMatchIn(classificationText) || isSports) {
+                if (podcastKeywords.containsMatchIn(classificationText) ||
+                    radioKeywords.containsMatchIn(classificationText) ||
+                    isSports ||
+                    isDocumentary ||
+                    isManga
+                ) {
                     false
                 } else {
                     effectiveType == TvType.Music ||
-                        (effectiveType == TvType.Audio &&
-                            musicKeywords.containsMatchIn(classificationText) &&
-                            !radioKeywords.containsMatchIn(classificationText)) ||
-                        ((effectiveType == null ||
-                            effectiveType == TvType.Others ||
-                            effectiveType == TvType.Video ||
-                            effectiveType == TvType.Live) &&
-                            musicKeywords.containsMatchIn(classificationText) &&
-                            !radioKeywords.containsMatchIn(classificationText))
+                        (effectiveType == TvType.Audio && musicKeywords.containsMatchIn(classificationText))
                 }
             }
             "podcasts" -> effectiveType == TvType.Podcast ||
@@ -912,41 +910,53 @@ internal object MediaUniverseClassifier {
             }
 
             "music" -> {
+                if (isTrending || isRecent) {
+                    categories.add(MissaCategory.MUSIC_TRENDING)
+                }
                 if (containsAny(
                         text,
                         "afrique", "africa", "cameroun", "cameroon", "douala", "yaound",
                         "afrobeat", "afropop", "amapiano", "makossa", "bikutsi", "benskin",
-                        "mbol", "coupé-décalé", "coupe-decale", "ndombolo", "rumba", "soukous",
-                        "zouglou", "naija", "trace africa", "trace mizik", "balafon"
+                        "mbol", "coupé-décalé", "coupe-decale", "coupe decale", "ndombolo",
+                        "rumba", "soukous", "zouglou", "naija", "highlife", "afro"
                     )
                 ) {
                     categories.add(MissaCategory.MUSIC_AFRICA)
                 }
                 if (containsAny(
                         text,
-                        "hip-hop", "hip hop", "rap", "r&b", "rnb", "urbain", "urban",
-                        "trap", "drill", "freestyle", "trace urban", "mouv"
+                        "hip-hop", "hip hop", "hiphop", "rap", "r&b", "rnb", "urbain",
+                        "urban", "trap", "drill", "freestyle", "soul", "funk", "groove"
                     )
                 ) {
                     categories.add(MissaCategory.MUSIC_URBAN)
                 }
                 if (containsAny(
                         text,
-                        "pop", "zouk", "kompa", "gospel", "louange", "jazz", "blues",
-                        "soul", "reggae", "dancehall", "rock", "électro", "electro",
-                        "classique", "variété", "variete", "chanson", "album", "playlist"
+                        "dj", "mix", "set", "remix", "amapiano", "électro", "electro",
+                        "electronic", "house", "techno", "dance", "club", "dubstep",
+                        "drum & bass", "dnb", "hearthis"
+                    )
+                ) {
+                    categories.add(MissaCategory.MUSIC_DJ_MIXES)
+                }
+                if (containsAny(
+                        text,
+                        "pop", "zouk", "kompa", "gospel", "louange", "reggae",
+                        "dancehall", "rock", "indie", "world", "monde", "latin",
+                        "bossa", "variété", "variete", "chanson"
                     )
                 ) {
                     categories.add(MissaCategory.MUSIC_POP_WORLD)
                 }
-                if (effectiveType == TvType.Video || effectiveType == TvType.Live || containsAny(
+                if (containsAny(
                         text,
-                        "clip", "video", "vidéo", "concert", "live", "session",
-                        "showcase", "karaok", "mtv", "trace", "nrj hits", "vevo",
-                        "boiler room", "colors show"
+                        "jazz", "blues", "classique", "classical", "symphon", "piano",
+                        "orchestr", "opera", "opéra", "chill", "chillout", "lounge",
+                        "lofi", "lo-fi", "ambient", "acousti", "instrumental"
                     )
                 ) {
-                    categories.add(MissaCategory.MUSIC_CLIPS_LIVE)
+                    categories.add(MissaCategory.MUSIC_JAZZ_CLASSICAL)
                 }
                 categories.add(MissaCategory.MUSIC_ALL)
             }

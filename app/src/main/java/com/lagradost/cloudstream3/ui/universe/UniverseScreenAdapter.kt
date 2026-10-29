@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.content.res.ColorStateList
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
@@ -7,10 +8,13 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.view.isVisible
+import androidx.core.widget.ImageViewCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -32,7 +36,9 @@ import com.lagradost.cloudstream3.ui.search.SearchClickCallback
 import com.lagradost.cloudstream3.ui.setRecycledViewPool
 import com.lagradost.cloudstream3.utils.DataStoreHelper
 import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
+import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UIHelper.toPx
+import com.lagradost.cloudstream3.utils.getImageFromDrawable
 
 /**
  * UI model for the sticky category filter strip (HOME-02, HOME-08, I18N-01).
@@ -184,6 +190,13 @@ internal sealed interface UniverseListItem {
         override val itemId: String = "radio_deck"
     }
 
+    data class MusicDeck(
+        val musicState: MusicPlaybackState,
+        val isFavoriteTrack: Boolean
+    ) : UniverseListItem {
+        override val itemId: String = "music_deck"
+    }
+
     data class ResumeRow(
         val universeId: String,
         val items: List<DataStoreHelper.ResumeWatchingResult>
@@ -253,6 +266,16 @@ internal class UniverseScreenAdapter(
         fun onRadioToggleFavorite()
         fun onRadioCycleSleepTimer()
         fun onRadioOpenCustomStreamDialog()
+        fun onMusicTogglePlayPause()
+        fun onMusicPrevTrack()
+        fun onMusicNextTrack()
+        fun onMusicStop()
+        fun onMusicToggleShuffle()
+        fun onMusicCycleRepeat()
+        fun onMusicSeekTo(positionMs: Long)
+        fun onMusicToggleFavorite()
+        fun onMusicCycleSleepTimer()
+        fun onMusicOpenServerDialog()
         fun onContentItemFocused(rowKey: String)
     }
 
@@ -267,8 +290,10 @@ internal class UniverseScreenAdapter(
         private const val VIEW_SHOW_MORE = 8
         private const val VIEW_SHIMMER = 9
         private const val VIEW_EMPTY = 10
+        private const val VIEW_MUSIC_DECK = 11
 
         private const val PAYLOAD_RADIO_UPDATE = "payload_radio"
+        private const val PAYLOAD_MUSIC_UPDATE = "payload_music"
         private const val PAYLOAD_HERO_UPDATE = "payload_hero"
         private const val PAYLOAD_SHIMMER_PROGRESS = "payload_shimmer"
         private const val HERO_AUTO_ROTATE_MS = 7_500L
@@ -291,6 +316,8 @@ internal class UniverseScreenAdapter(
             return when {
                 oldItem is UniverseListItem.RadioDeck && newItem is UniverseListItem.RadioDeck ->
                     PAYLOAD_RADIO_UPDATE
+                oldItem is UniverseListItem.MusicDeck && newItem is UniverseListItem.MusicDeck ->
+                    PAYLOAD_MUSIC_UPDATE
                 oldItem is UniverseListItem.HeroCarousel && newItem is UniverseListItem.HeroCarousel ->
                     PAYLOAD_HERO_UPDATE
                 oldItem is UniverseListItem.ShimmerLoading && newItem is UniverseListItem.ShimmerLoading ->
@@ -304,6 +331,7 @@ internal class UniverseScreenAdapter(
         is UniverseListItem.HeroCarousel -> VIEW_HERO
         is UniverseListItem.CompactBanner -> VIEW_COMPACT_BANNER
         is UniverseListItem.RadioDeck -> VIEW_RADIO_DECK
+        is UniverseListItem.MusicDeck -> VIEW_MUSIC_DECK
         is UniverseListItem.ResumeRow -> VIEW_RESUME_ROW
         is UniverseListItem.HubShortcutsRow -> VIEW_HUB_ROW
         is UniverseListItem.CategoryRow -> VIEW_CATEGORY_ROW
@@ -325,6 +353,10 @@ internal class UniverseScreenAdapter(
             )
             VIEW_RADIO_DECK -> RadioDeckHolder(
                 inflater.inflate(R.layout.item_universe_radio_deck, parent, false),
+                callbacks
+            )
+            VIEW_MUSIC_DECK -> MusicDeckHolder(
+                inflater.inflate(R.layout.item_universe_music_deck, parent, false),
                 callbacks
             )
             VIEW_RESUME_ROW -> ResumeRowHolder(
@@ -362,6 +394,7 @@ internal class UniverseScreenAdapter(
             is UniverseListItem.HeroCarousel -> (holder as HeroCarouselHolder).bind(item)
             is UniverseListItem.CompactBanner -> (holder as CompactBannerHolder).bind(item)
             is UniverseListItem.RadioDeck -> (holder as RadioDeckHolder).bind(item)
+            is UniverseListItem.MusicDeck -> (holder as MusicDeckHolder).bind(item)
             is UniverseListItem.ResumeRow -> (holder as ResumeRowHolder).bind(item)
             is UniverseListItem.HubShortcutsRow -> (holder as HubRowHolder).bind(item)
             is UniverseListItem.CategoryRow -> (holder as CategoryRowHolder).bind(item, position)
@@ -383,6 +416,7 @@ internal class UniverseScreenAdapter(
         }
         when (val item = getItem(position)) {
             is UniverseListItem.RadioDeck -> (holder as RadioDeckHolder).bind(item)
+            is UniverseListItem.MusicDeck -> (holder as MusicDeckHolder).bind(item)
             is UniverseListItem.HeroCarousel -> (holder as HeroCarouselHolder).bind(item)
             is UniverseListItem.ShimmerLoading -> (holder as ShimmerHolder).bind(item)
             else -> super.onBindViewHolder(holder, position, payloads)
@@ -645,7 +679,7 @@ internal class UniverseScreenAdapter(
                         else -> R.string.universe_hero_watch
                     }
                 )
-                detailsCta.isVisible = !isAudio
+                detailsCta.isVisible = !isAudio && slide.card !is DirectMusicSearchResponse
 
                 primaryCta.setOnClickListener { callbacks.onHeroPrimaryAction(slide) }
                 detailsCta.setOnClickListener { callbacks.onHeroDetailsAction(slide) }
@@ -770,6 +804,169 @@ internal class UniverseScreenAdapter(
                 if (item.isFavoriteStation) R.drawable.ic_baseline_bookmark_24
                 else R.drawable.ic_baseline_bookmark_border_24
             )
+        }
+    }
+
+    // --- 3b. Dedicated Music Console Deck (Queue, Seekbar, Shuffle, Repeat, Server/MP3) ---
+
+    class MusicDeckHolder(
+        itemView: View,
+        private val callbacks: Callbacks
+    ) : RecyclerView.ViewHolder(itemView) {
+        private val artworkView: ImageView = itemView.findViewById(R.id.music_deck_artwork)
+        private val titleView: TextView = itemView.findViewById(R.id.music_deck_title)
+        private val statusView: TextView = itemView.findViewById(R.id.music_deck_status)
+        private val addServerBtn: MaterialButton = itemView.findViewById(R.id.music_deck_add_server_btn)
+        private val progressRow: View = itemView.findViewById(R.id.music_deck_progress_row)
+        private val positionView: TextView = itemView.findViewById(R.id.music_deck_position)
+        private val seekBar: SeekBar = itemView.findViewById(R.id.music_deck_seekbar)
+        private val durationView: TextView = itemView.findViewById(R.id.music_deck_duration)
+        private val shuffleBtn: ImageButton = itemView.findViewById(R.id.music_deck_shuffle_btn)
+        private val prevBtn: ImageButton = itemView.findViewById(R.id.music_deck_prev_btn)
+        private val playBtn: MaterialButton = itemView.findViewById(R.id.music_deck_play_btn)
+        private val nextBtn: ImageButton = itemView.findViewById(R.id.music_deck_next_btn)
+        private val repeatBtn: ImageButton = itemView.findViewById(R.id.music_deck_repeat_btn)
+        private val favBtn: ImageButton = itemView.findViewById(R.id.music_deck_fav_btn)
+        private val sleepBtn: ImageButton = itemView.findViewById(R.id.music_deck_sleep_btn)
+        private val stopBtn: ImageButton = itemView.findViewById(R.id.music_deck_stop_btn)
+
+        private var isUserScrubbing = false
+        private var boundDurationMs: Long = 0L
+        private var lastArtworkUrl: String? = "__init__"
+
+        init {
+            addServerBtn.setOnClickListener { callbacks.onMusicOpenServerDialog() }
+            shuffleBtn.setOnClickListener { callbacks.onMusicToggleShuffle() }
+            prevBtn.setOnClickListener { callbacks.onMusicPrevTrack() }
+            playBtn.setOnClickListener { callbacks.onMusicTogglePlayPause() }
+            nextBtn.setOnClickListener { callbacks.onMusicNextTrack() }
+            repeatBtn.setOnClickListener { callbacks.onMusicCycleRepeat() }
+            favBtn.setOnClickListener { callbacks.onMusicToggleFavorite() }
+            sleepBtn.setOnClickListener { callbacks.onMusicCycleSleepTimer() }
+            stopBtn.setOnClickListener { callbacks.onMusicStop() }
+
+            seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser && boundDurationMs > 0L) {
+                        val previewMs = (boundDurationMs * progress) / 1000L
+                        positionView.text = formatTimeMs(previewMs)
+                    }
+                }
+
+                override fun onStartTrackingTouch(bar: SeekBar?) {
+                    isUserScrubbing = true
+                }
+
+                override fun onStopTrackingTouch(bar: SeekBar?) {
+                    isUserScrubbing = false
+                    val barProgress = bar?.progress ?: return
+                    if (boundDurationMs > 0L) {
+                        callbacks.onMusicSeekTo((boundDurationMs * barProgress) / 1000L)
+                    }
+                }
+            })
+        }
+
+        fun bind(item: UniverseListItem.MusicDeck) {
+            val ctx = itemView.context
+            val state = item.musicState
+            val tr = state.track
+            val accentColor = ctx.colorFromAttribute(R.attr.missaAccentPrimary)
+            val primaryTextColor = ctx.colorFromAttribute(R.attr.missaTextPrimary)
+            val mutedColor = ctx.colorFromAttribute(R.attr.missaTextSecondary)
+
+            titleView.text = tr?.displayLabel() ?: ctx.getString(R.string.universe_music_player_title)
+
+            val metaDetails = if (tr != null) {
+                val queueBadge = if (state.queueSize > 1) {
+                    "(${state.queueIndex + 1}/${state.queueSize})"
+                } else {
+                    ""
+                }
+                listOf(tr.providerName, tr.genre, queueBadge)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" • ")
+            } else {
+                ""
+            }
+
+            statusView.text = when {
+                tr == null -> ctx.getString(R.string.universe_music_player_idle)
+                state.hasError -> ctx.getString(R.string.universe_music_error, tr.title)
+                state.isBuffering -> ctx.getString(R.string.universe_music_buffering, tr.title)
+                state.isPlaying -> {
+                    val base = ctx.getString(R.string.universe_music_playing, metaDetails)
+                    if (state.sleepTimerMinutes > 0) "$base • ⏱ ${state.sleepTimerMinutes}m" else base
+                }
+                else -> ctx.getString(R.string.universe_music_paused, tr.title)
+            }
+
+            val artUrl = tr?.artworkUrl?.takeIf { it.isNotBlank() }
+            if (artUrl != lastArtworkUrl) {
+                lastArtworkUrl = artUrl
+                if (artUrl != null) {
+                    ImageViewCompat.setImageTintList(artworkView, null)
+                    artworkView.scaleType = ImageView.ScaleType.CENTER_CROP
+                    artworkView.setPadding(0, 0, 0, 0)
+                    artworkView.loadImage(artUrl) {
+                        error { getImageFromDrawable(ctx, R.drawable.ic_missa_music) }
+                    }
+                } else {
+                    ImageViewCompat.setImageTintList(artworkView, ColorStateList.valueOf(accentColor))
+                    artworkView.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    val pad = 10.toPx
+                    artworkView.setPadding(pad, pad, pad, pad)
+                    artworkView.setImageResource(R.drawable.ic_missa_music)
+                }
+            }
+
+            boundDurationMs = state.durationMs.coerceAtLeast(0L)
+            progressRow.isVisible = tr != null && boundDurationMs > 0L
+            if (!isUserScrubbing && tr != null && boundDurationMs > 0L) {
+                positionView.text = formatTimeMs(state.positionMs)
+                durationView.text = formatTimeMs(boundDurationMs)
+                seekBar.progress = ((state.positionMs * 1000L) / boundDurationMs).toInt().coerceIn(0, 1000)
+            }
+
+            playBtn.setIconResource(
+                if (state.isPlaying) R.drawable.ic_baseline_pause_24
+                else R.drawable.ic_baseline_play_arrow_24
+            )
+            ImageViewCompat.setImageTintList(
+                shuffleBtn,
+                ColorStateList.valueOf(if (state.shuffleEnabled) accentColor else mutedColor)
+            )
+            repeatBtn.setImageResource(
+                if (state.repeatMode == MusicRepeatMode.ONE) R.drawable.ic_missa_repeat_one
+                else R.drawable.ic_missa_repeat
+            )
+            ImageViewCompat.setImageTintList(
+                repeatBtn,
+                ColorStateList.valueOf(if (state.repeatMode != MusicRepeatMode.OFF) accentColor else mutedColor)
+            )
+
+            favBtn.isVisible = tr != null
+            stopBtn.isVisible = tr != null
+            favBtn.setImageResource(
+                if (item.isFavoriteTrack) R.drawable.ic_baseline_favorite_24
+                else R.drawable.ic_baseline_favorite_border_24
+            )
+            ImageViewCompat.setImageTintList(
+                favBtn,
+                ColorStateList.valueOf(if (item.isFavoriteTrack) accentColor else primaryTextColor)
+            )
+        }
+
+        private fun formatTimeMs(ms: Long): String {
+            val totalSecs = (ms / 1000L).coerceAtLeast(0L)
+            val hours = totalSecs / 3600L
+            val mins = (totalSecs % 3600L) / 60L
+            val secs = totalSecs % 60L
+            return if (hours > 0L) {
+                "%d:%02d:%02d".format(hours, mins, secs)
+            } else {
+                "%02d:%02d".format(mins, secs)
+            }
         }
     }
 

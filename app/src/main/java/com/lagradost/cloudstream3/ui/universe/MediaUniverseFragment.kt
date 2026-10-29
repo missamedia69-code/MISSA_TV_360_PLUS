@@ -175,14 +175,26 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
 
         DirectRadioPlayerManager.state.observe(viewLifecycleOwner) {
-            if (universeId == "radio" || universeId == "music") {
+            if (universeId == "radio") {
                 renderScreen()
             }
         }
 
         // Re-render the visible universe when the asynchronous multi-provider radio catalogue updates.
         DirectRadioPlayerManager.stationsUpdated.observe(viewLifecycleOwner) {
-            if (universeId == "radio" || universeId == "music" || universeId == "home") {
+            if (universeId == "radio" || universeId == "home") {
+                renderScreen()
+            }
+        }
+
+        DirectMusicPlayerManager.state.observe(viewLifecycleOwner) {
+            if (universeId == "music") {
+                renderScreen()
+            }
+        }
+
+        DirectMusicPlayerManager.tracksUpdated.observe(viewLifecycleOwner) {
+            if (universeId == "music" || universeId == "home") {
                 renderScreen()
             }
         }
@@ -548,6 +560,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             items.add(UniverseListItem.RadioDeck(radioState = radioState, isFavoriteStation = isFav))
         }
 
+        if (universeId == "music") {
+            val musicState = DirectMusicPlayerManager.state.value ?: MusicPlaybackState()
+            val isFav = musicState.track?.id?.let { DirectMusicPlayerManager.isFavorite(it) } == true
+            items.add(UniverseListItem.MusicDeck(musicState = musicState, isFavoriteTrack = isFav))
+        }
+
         if (projection.resumeItems.isNotEmpty() && currentSearchQuery.isBlank()) {
             items.add(
                 UniverseListItem.ResumeRow(
@@ -635,8 +653,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             searchProgressText?.isVisible = true
             try {
                 val results = coroutineScope {
-                    val radioJob = if (universeId == "radio" || universeId == "music" || universeId == "home") {
+                    val radioJob = if (universeId == "radio" || universeId == "home") {
                         async { DirectRadioPlayerManager.searchStationsOnline(trimmed) }
+                    } else {
+                        null
+                    }
+                    val musicJob = if (universeId == "music") {
+                        async { DirectMusicPlayerManager.searchTracksOnline(trimmed) }
                     } else {
                         null
                     }
@@ -653,6 +676,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                         }
                     }
                     radioJob?.await()
+                    musicJob?.await()
                     pluginResults
                 }
                 if (isAdded) {
@@ -682,6 +706,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), item)
             return
         }
+        if (item is DirectMusicSearchResponse) {
+            DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
+            return
+        }
         val preferred = viewModel.resolvePreferredCard(item, slide.allSources)
         if (universeId == "live_tv" || universeId == "sports") {
             viewModel.recordLastLiveChannel(preferred)
@@ -694,6 +722,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         val item = slide.card
         if (item is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), item)
+            return
+        }
+        if (item is DirectMusicSearchResponse) {
+            DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
             return
         }
         val preferred = viewModel.resolvePreferredCard(item, slide.allSources)
@@ -720,6 +752,22 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         if (card is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), card)
+            return
+        }
+
+        if (card is DirectMusicSearchResponse) {
+            if (callback.action == SEARCH_ACTION_SHOW_METADATA) {
+                val trackKey = card.trackId.ifBlank { "music_${card.url.hashCode()}" }
+                val nowFav = DirectMusicPlayerManager.toggleFavorite(trackKey)
+                Toast.makeText(
+                    requireContext(),
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    Toast.LENGTH_SHORT
+                ).show()
+                renderScreen()
+            } else {
+                DirectMusicPlayerManager.playDirectResponse(requireContext(), card, collectVisibleMusicQueue(card))
+            }
             return
         }
 
@@ -906,6 +954,105 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     override fun onRadioOpenCustomStreamDialog() {
         MissaUniverseDialogs.showCustomRadioStreamDialog(requireContext()) {
+            renderScreen()
+        }
+    }
+
+    private fun collectVisibleMusicQueue(selected: DirectMusicSearchResponse): List<DirectMusicSearchResponse> {
+        val adapterItems = screenAdapter?.currentList.orEmpty()
+        for (item in adapterItems) {
+            val rowItems = when (item) {
+                is UniverseListItem.CategoryRow -> item.row.items
+                is UniverseListItem.SearchGrid -> item.row.items
+                else -> emptyList()
+            }
+            val musicRow = rowItems.filterIsInstance<DirectMusicSearchResponse>()
+            if (musicRow.any { it.url == selected.url }) {
+                return musicRow
+            }
+        }
+        return adapterItems.flatMap { item ->
+            when (item) {
+                is UniverseListItem.CategoryRow -> item.row.items.filterIsInstance<DirectMusicSearchResponse>()
+                is UniverseListItem.SearchGrid -> item.row.items.filterIsInstance<DirectMusicSearchResponse>()
+                else -> emptyList()
+            }
+        }.distinctBy { it.url }
+    }
+
+    override fun onMusicTogglePlayPause() {
+        DirectMusicPlayerManager.togglePlayPause(requireContext())
+    }
+
+    override fun onMusicPrevTrack() {
+        DirectMusicPlayerManager.previousTrack(requireContext())
+    }
+
+    override fun onMusicNextTrack() {
+        DirectMusicPlayerManager.nextTrack(requireContext())
+    }
+
+    override fun onMusicStop() {
+        DirectMusicPlayerManager.stop()
+    }
+
+    override fun onMusicToggleShuffle() {
+        val enabled = DirectMusicPlayerManager.toggleShuffle()
+        Toast.makeText(
+            requireContext(),
+            if (enabled) R.string.universe_music_shuffle_on else R.string.universe_music_shuffle_off,
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    override fun onMusicCycleRepeat() {
+        val mode = DirectMusicPlayerManager.cycleRepeatMode()
+        val msgRes = when (mode) {
+            MusicRepeatMode.OFF -> R.string.universe_music_repeat_off
+            MusicRepeatMode.ALL -> R.string.universe_music_repeat_all
+            MusicRepeatMode.ONE -> R.string.universe_music_repeat_one
+        }
+        Toast.makeText(requireContext(), msgRes, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onMusicSeekTo(positionMs: Long) {
+        DirectMusicPlayerManager.seekTo(positionMs)
+    }
+
+    override fun onMusicToggleFavorite() {
+        val tr = DirectMusicPlayerManager.state.value?.track ?: return
+        DirectMusicPlayerManager.toggleFavorite(tr.id)
+        renderScreen()
+    }
+
+    override fun onMusicCycleSleepTimer() {
+        val ctx = requireContext()
+        val options = arrayOf(
+            ctx.getString(R.string.universe_radio_sleep_off),
+            ctx.getString(R.string.universe_radio_sleep_15),
+            ctx.getString(R.string.universe_radio_sleep_30),
+            ctx.getString(R.string.universe_radio_sleep_60)
+        )
+        val minutes = intArrayOf(0, 15, 30, 60)
+        AlertDialog.Builder(ctx)
+            .setTitle(R.string.universe_radio_sleep_timer)
+            .setItems(options) { _, which ->
+                val mins = minutes.getOrElse(which) { 0 }
+                DirectMusicPlayerManager.scheduleSleepTimer(mins)
+                if (mins > 0) {
+                    Toast.makeText(
+                        ctx,
+                        ctx.getString(R.string.universe_radio_sleep_set, mins),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            .show()
+            .setDefaultFocus()
+    }
+
+    override fun onMusicOpenServerDialog() {
+        MissaUniverseDialogs.showMusicServerDialog(requireContext()) {
             renderScreen()
         }
     }

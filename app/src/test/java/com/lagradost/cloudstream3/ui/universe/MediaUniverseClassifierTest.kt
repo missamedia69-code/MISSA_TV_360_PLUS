@@ -50,16 +50,8 @@ class MediaUniverseClassifierTest {
     }
 
     @Test
-    fun `music universe groups tracks, albums, music clips, concerts and live music channels`() {
+    fun `music universe strictly isolates on-demand music tracks, albums and mixes without radio, TV or video`() {
         assertTrue(MediaUniverseClassifier.matches("music", TvType.Music, "Locko - Ndutu"))
-        assertTrue(
-            MediaUniverseClassifier.matches(
-                universeId = "music",
-                type = TvType.Video,
-                title = "Burna Boy - Official Music Video",
-                sectionName = "Clips Officiels Afrobeats"
-            )
-        )
         assertTrue(
             MediaUniverseClassifier.matches(
                 universeId = "music",
@@ -71,34 +63,76 @@ class MediaUniverseClassifierTest {
         assertTrue(
             MediaUniverseClassifier.matches(
                 universeId = "music",
+                type = TvType.Audio,
+                title = "DJ Mix Amapiano & Afrobeats",
+                sectionName = "Afro Tracks"
+            )
+        )
+
+        // Radio stations (even music radios) belong strictly to Radio, never to Music
+        assertFalse(MediaUniverseClassifier.matches("music", TvType.Audio, "BBC Radio 1"))
+        assertFalse(MediaUniverseClassifier.matches("music", TvType.Music, "Radio Balafon 90.2 FM"))
+        assertFalse(
+            MediaUniverseClassifier.matches(
+                universeId = "music",
+                type = TvType.Audio,
+                title = "Webradio Zouk & Makossa",
+                sectionName = "Flux Icecast"
+            )
+        )
+        assertTrue(MediaUniverseClassifier.matches("radio", TvType.Audio, "Radio Balafon 90.2 FM"))
+
+        // Live TV music channels belong to Live TV, never to Music
+        assertFalse(
+            MediaUniverseClassifier.matches(
+                universeId = "music",
                 type = TvType.Live,
                 title = "Trace Africa HD",
                 sectionName = "Chaînes Musicales"
             )
         )
-        // Pure music video clips belong to Music rather than Movies & Manga
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "live_tv",
+                type = TvType.Live,
+                title = "Trace Africa HD",
+                sectionName = "Chaînes Musicales"
+            )
+        )
+
+        // Videos, movies (even with musical words like "Soul" or "Rock"), series, and podcasts never leak into Music
         assertFalse(
             MediaUniverseClassifier.matches(
-                universeId = "films",
+                universeId = "music",
                 type = TvType.Video,
                 title = "Burna Boy - Official Music Video",
                 sectionName = "Clips Officiels Afrobeats"
             )
         )
-        // Podcasts and talk radio do not leak into Music
+        assertFalse(
+            MediaUniverseClassifier.matches(
+                universeId = "music",
+                type = null,
+                title = "Soul",
+                sectionName = "Films Animation",
+                providerSupportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+            )
+        )
         assertFalse(MediaUniverseClassifier.matches("music", TvType.Podcast, "Music business podcast"))
-        assertFalse(MediaUniverseClassifier.matches("music", TvType.Audio, "BBC Radio 1"))
         assertFalse(MediaUniverseClassifier.matches("music", TvType.Movie, "Inception"))
+        assertFalse(MediaUniverseClassifier.matches("music", TvType.TvSeries, "Empire Saison 1"))
 
         val musicCats = MediaUniverseClassifier.categorizeForUniverse(
             universeId = "music",
-            title = "Concert Makossa & Afrobeats Live Douala",
-            sectionName = "Clips & Concerts Cameroun",
-            tags = listOf("Afropop"),
+            title = "DJ Mix Makossa & Amapiano Douala",
+            sectionName = "Afrobeats & Club",
+            tags = listOf("Audius"),
+            isTrending = true,
             effectiveType = TvType.Music
         )
-        assertEquals(MissaCategory.MUSIC_AFRICA, musicCats.first())
-        assertTrue(musicCats.contains(MissaCategory.MUSIC_CLIPS_LIVE))
+        assertEquals(MissaCategory.MUSIC_TRENDING, musicCats.first())
+        assertTrue(musicCats.contains(MissaCategory.MUSIC_AFRICA))
+        assertTrue(musicCats.contains(MissaCategory.MUSIC_DJ_MIXES))
         assertTrue(musicCats.contains(MissaCategory.MUSIC_ALL))
     }
 
@@ -815,5 +849,215 @@ class MediaUniverseClassifierTest {
         )
         assertTrue(francoCats.contains(MissaCategory.RADIO_FRANCOPHONE))
         assertTrue(francoCats.contains(MissaCategory.RADIO_NEWS))
+    }
+
+    @Test
+    fun `dedicated music providers parse Audius, HearThis, Funkwhale, ccMixter, OpenSubsonic, Piped and M3U tracks`() {
+        assertTrue(MissaMusicProviders.curatedStarterTracks.isNotEmpty())
+        assertTrue(MissaUniverses.MUSIC.directPlayOnClick)
+
+        // 1. Audius host discovery + multi-node track stream & fallback URLs
+        val audiusHosts = MissaMusicProviders.parseAudiusHostListJson(
+            """{"data":["https://node1.audius.example/","https://node2.audius.example"]}"""
+        )
+        assertEquals(listOf("https://node1.audius.example", "https://node2.audius.example"), audiusHosts)
+
+        val audiusTracks = MissaMusicProviders.parseAudiusTracksJson(
+            """
+            {
+              "data": [
+                {
+                  "id": "D7KyD",
+                  "title": "Douala Sunset Vibes",
+                  "genre": "Afrobeats",
+                  "mood": "Upbeat",
+                  "tags": "makossa,cameroun",
+                  "duration": 215,
+                  "is_stream_gated": false,
+                  "artwork": {"480x480": "https://art.audius.example/cover.jpg"},
+                  "user": {"name": "Kocee Vibes", "handle": "koceevibes"}
+                },
+                {
+                  "id": "GATED1",
+                  "title": "Locked Track",
+                  "duration": 180,
+                  "is_stream_gated": true
+                }
+              ]
+            }
+            """.trimIndent(),
+            nodes = audiusHosts,
+            markTrending = true
+        )
+        assertEquals(1, audiusTracks.size)
+        assertEquals("Kocee Vibes — Douala Sunset Vibes", audiusTracks[0].displayLabel())
+        assertEquals("03:35", audiusTracks[0].toSearchResponse().formattedDuration())
+        assertTrue(audiusTracks[0].streamUrl.startsWith("https://node1.audius.example/v1/tracks/D7KyD/stream"))
+        assertEquals(1, audiusTracks[0].fallbackUrls.size)
+        assertTrue(audiusTracks[0].fallbackUrls[0].startsWith("https://node2.audius.example/v1/tracks/D7KyD/stream"))
+
+        // 2. HearThis.at direct MP3 tracks & DJ mixes
+        val hearThisTracks = MissaMusicProviders.parseHearThisJson(
+            """
+            [
+              {
+                "id": "9912",
+                "private": "0",
+                "title": "Amapiano Club Mix Vol. 4",
+                "genre": "Dance",
+                "duration": "3725",
+                "stream_url": "https://listen.hearthis.at/mix4.mp3",
+                "artwork_url": "https://img.hearthis.at/mix4.jpg",
+                "user": {"username": "DJ AfroKing"}
+              }
+            ]
+            """.trimIndent()
+        )
+        assertEquals(1, hearThisTracks.size)
+        assertEquals("1:02:05", hearThisTracks[0].toSearchResponse().formattedDuration())
+        assertEquals(MissaMusicProviders.PROVIDER_HEARTHIS, hearThisTracks[0].providerName)
+
+        // 3. Funkwhale open music pod (`open.audio`)
+        val fwTracks = MissaMusicProviders.parseFunkwhaleTracksJson(
+            """
+            {
+              "results": [
+                {
+                  "id": 4242,
+                  "title": "Midnight Saxophone",
+                  "is_playable": true,
+                  "listen_url": "/api/v1/listen/abc-123/?upload=xyz",
+                  "artist": {"name": "Blue Quartet"},
+                  "album": {
+                    "title": "Live in Paris",
+                    "cover": {"urls": {"medium_square_crop": "/media/covers/sax.jpg"}}
+                  },
+                  "uploads": [{"duration": 264}],
+                  "tags": ["jazz", "saxophone"]
+                }
+              ]
+            }
+            """.trimIndent(),
+            podBaseUrl = "https://open.audio"
+        )
+        assertEquals(1, fwTracks.size)
+        assertEquals("https://open.audio/api/v1/listen/abc-123/?upload=xyz", fwTracks[0].streamUrl)
+        assertEquals("https://open.audio/media/covers/sax.jpg", fwTracks[0].artworkUrl)
+        assertEquals(264, fwTracks[0].durationSeconds)
+
+        // 4. ccMixter Creative Commons MP3 extractor
+        val ccTracks = MissaMusicProviders.parseCcMixterJson(
+            """
+            [
+              {
+                "upload_id": 7788,
+                "upload_name": "Urban Groove Beat",
+                "user_real_name": "airtone",
+                "upload_extra": {"usertags": "hip_hop,chill,instrumental"},
+                "files": [
+                  {
+                    "download_url": "https://ccmixter.org/content/airtone/airtone_groove.mp3",
+                    "file_format_info": {"ps": "3:18"}
+                  }
+                ]
+              }
+            ]
+            """.trimIndent()
+        )
+        assertEquals(1, ccTracks.size)
+        assertEquals(198, ccTracks[0].durationSeconds)
+
+        // 5. OpenSubsonic / Navidrome MD5 auth & song parser (skips videos)
+        val subConfig = OpenSubsonicServerConfig("https://navidrome.example.com/", "alice", "s3cr3t")
+        val subTracks = MissaMusicProviders.parseOpenSubsonicSongsJson(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "randomSongs": {
+                  "song": [
+                    {
+                      "id": "tr-101",
+                      "title": "Bikutsi Royal",
+                      "artist": "Lady Ponce",
+                      "album": "Essentiel",
+                      "genre": "Cameroun",
+                      "duration": 248,
+                      "coverArt": "al-101",
+                      "isVideo": false
+                    },
+                    {
+                      "id": "vid-999",
+                      "title": "Video Clip",
+                      "isVideo": true
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+            config = subConfig,
+            salt = "testsalt"
+        )
+        assertEquals(1, subTracks.size)
+        assertTrue(subTracks[0].streamUrl.startsWith("https://navidrome.example.com/rest/stream.view?id=tr-101"))
+        assertTrue(subTracks[0].artworkUrl!!.startsWith("https://navidrome.example.com/rest/getCoverArt.view?id=al-101"))
+
+        // 6. Piped Music (`filter=music_songs`) skips 24/7 live radio streams (`duration == -1`) and resolves m4a first
+        val pipedSearch = MissaMusicProviders.parsePipedMusicSearchJson(
+            """
+            {
+              "items": [
+                {
+                  "url": "/watch?v=abcDEF12345",
+                  "type": "stream",
+                  "title": "Calm Down",
+                  "uploaderName": "Rema - Topic",
+                  "thumbnail": "https://pipedproxy.example/thumb.jpg",
+                  "duration": 239,
+                  "isShort": false
+                },
+                {
+                  "url": "/watch?v=liveRADIO99",
+                  "type": "stream",
+                  "title": "24/7 Lofi Radio Live",
+                  "uploaderName": "Live Channel",
+                  "duration": -1,
+                  "isShort": false
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+        assertEquals(1, pipedSearch.size)
+        assertEquals("Rema", pipedSearch[0].artist)
+        assertEquals("pipedmusic://abcDEF12345", pipedSearch[0].streamUrl)
+        assertTrue(pipedSearch[0].isPipedLazy)
+
+        val pipedStreams = MissaMusicProviders.parsePipedAudioStreamsJson(
+            """
+            {
+              "audioStreams": [
+                {"url": "https://cdn.example/opus-low.webm", "mimeType": "audio/webm", "bitrate": 160000},
+                {"url": "https://cdn.example/aac-high.m4a", "mimeType": "audio/mp4", "bitrate": 130000},
+                {"url": "https://cdn.example/aac-low.m4a", "mimeType": "audio/mp4", "bitrate": 64000}
+              ]
+            }
+            """.trimIndent()
+        )
+        assertEquals("https://cdn.example/aac-high.m4a", pipedStreams.first())
+
+        // 7. Music M3U playlist import parses finite tracks and rejects single HLS stream manifests
+        val musicM3u = MissaMusicProviders.parseMusicPlaylistContent(
+            """
+            #EXTM3U
+            #EXTINF:214 tvg-logo="https://example.org/cover1.jpg" group-title="Afrobeats",Tayc - Le Temps
+            https://cdn.example.org/music/tayc-le-temps.mp3
+            """.trimIndent()
+        )
+        assertEquals(1, musicM3u.size)
+        assertEquals("Tayc", musicM3u[0].artist)
+        assertEquals("Le Temps", musicM3u[0].title)
+        assertEquals(214, musicM3u[0].durationSeconds)
     }
 }

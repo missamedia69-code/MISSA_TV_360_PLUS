@@ -787,7 +787,7 @@
     <string name="universe_sports_title">Sports</string>
     <string name="universe_sports_description">Matchs, compétitions et chaînes sportives en direct dans un espace dédié.</string>
     <string name="universe_music_title">Musiques</string>
-    <string name="universe_music_description">Titres, albums, clips vidéo, concerts et flux musicaux en continu réunis dans un seul univers.</string>
+    <string name="universe_music_description">Titres, albums, DJ mixes et playlists musicales à la demande issus de serveurs dédiés 100 % musique.</string>
     <string name="universe_podcasts_title">Podcasts</string>
     <string name="universe_podcasts_description">Découvrez des émissions audio, parcourez les épisodes et reprenez votre écoute.</string>
     <string name="universe_radio_title">Radio</string>
@@ -804,7 +804,7 @@
     <string name="universe_eyebrow_kids">🌟 SÉLECTION JEUNESSE &amp; FAMILLE</string>
     <string name="universe_eyebrow_live_tv">🔴 TV EN DIRECT</string>
     <string name="universe_eyebrow_sports">⚽ SPORTS EN DIRECT</string>
-    <string name="universe_eyebrow_music">🎵 MUSIQUES &amp; CLIPS</string>
+    <string name="universe_eyebrow_music">🎵 MUSIQUES À LA DEMANDE</string>
     <string name="universe_eyebrow_podcasts">🎙️ PODCASTS &amp; ÉMISSIONS</string>
     <string name="universe_eyebrow_radio">📻 RADIO EN ÉCOUTE DIRECTE</string>
     <string name="universe_eyebrow_games">🕹️ JEUX RÉTRO</string>
@@ -816,7 +816,7 @@
     <string name="universe_card_kids_sub">Jeunesse &amp; famille</string>
     <string name="universe_card_live_tv_sub">Chaînes en direct</string>
     <string name="universe_card_sports_sub">Matchs &amp; événements</string>
-    <string name="universe_card_music_sub">Titres, clips &amp; concerts</string>
+    <string name="universe_card_music_sub">Titres, albums &amp; mixes</string>
     <string name="universe_card_podcasts_sub">Émissions &amp; épisodes</string>
     <string name="universe_card_radio_sub">Écoute directe</string>
     <string name="universe_card_games_sub">Catalogue &amp; émulation</string>
@@ -882,6 +882,10 @@
     <plurals name="missa_games_count">
         <item quantity="one">%d jeu</item>
         <item quantity="other">%d jeux</item>
+    </plurals>
+    <plurals name="missa_tracks_count">
+        <item quantity="one">%d piste</item>
+        <item quantity="other">%d pistes</item>
     </plurals>
 
     <!-- Loading, freshness, cache & 4 distinct empty/error states (HOME-05, HOME-06, HOME-13) -->
@@ -1081,18 +1085,61 @@
     <string name="missa_cat_sports_all">Chaînes &amp; Événements Sportifs</string>
     <string name="missa_chip_sports_all">Événements</string>
 
-    <string name="missa_cat_music_africa">Afrique, Cameroun &amp; Afro</string>
+    <string name="missa_cat_music_trending">Tendances &amp; Hits Musicaux</string>
+    <string name="missa_chip_music_trending">Tendances</string>
+    <string name="missa_cat_music_africa">Afrique, Cameroun, Afrobeats &amp; Afro</string>
     <string name="missa_chip_music_africa">Afro &amp; Pays</string>
     <string name="missa_cat_music_urban">Rap, Hip-Hop &amp; R&amp;B</string>
     <string name="missa_chip_music_urban">Urbain &amp; Rap</string>
-    <string name="missa_cat_music_pop">Pop, Zouk, Gospel &amp; Variétés</string>
+    <string name="missa_cat_music_dj_mixes">DJ Mixes, Amapiano, Club &amp; Électro</string>
+    <string name="missa_chip_music_dj_mixes">DJ Mix &amp; Électro</string>
+    <string name="missa_cat_music_pop">Pop, Zouk, Gospel, Reggae &amp; Monde</string>
     <string name="missa_chip_music_pop">Pop &amp; Gospel</string>
-    <string name="missa_cat_music_clips">Clips Vidéo, Concerts &amp; Live</string>
-    <string name="missa_chip_music_clips">Clips &amp; Live</string>
-    <string name="missa_cat_music_streams">Flux Musicaux en Continu</string>
-    <string name="missa_chip_music_streams">Flux Audio</string>
-    <string name="missa_cat_music_all">Catalogue Musiques</string>
-    <string name="missa_chip_music_all">Catalogue</string>
+    <string name="missa_cat_music_jazz_classical">Jazz, Lo-Fi, Chill &amp; Classique</string>
+    <string name="missa_chip_music_jazz_classical">Jazz &amp; Chill</string>
+    <string name="missa_cat_music_clips">Concerts &amp; Sessions Live</string>
+    <string name="missa_chip_music_clips">Live</string>
+    <string name="missa_cat_music_streams">Albums &amp; Playlists</string>
+    <string name="missa_chip_music_streams">Playlists</string>
+    <string name="missa_cat_music_all">Tous les Titres Musicaux</string>
+    <string name="missa_chip_music_all">Tous les titres</string>
+
+    <!-- Console Musicale dédiée & Dialogue Serveur OpenSubsonic / MP3-M3U -->
+    <string name="universe_music_player_title">Lecteur Musical MISSA</string>
+    <string name="universe_music_player_idle">Sélectionnez un titre, un DJ mix ou un album ci-dessous pour lancer la lecture enchaînée</string>
+    <string name="universe_music_playing">Lecture • %1$s</string>
+    <string name="universe_music_buffering">Chargement du titre : %1$s…</string>
+    <string name="universe_music_paused">En pause : %1$s</string>
+    <string name="universe_music_error">Titre indisponible : %1$s</string>
+    <string name="universe_music_prev">Titre précédent</string>
+    <string name="universe_music_play_pause">Lecture / Pause</string>
+    <string name="universe_music_next">Titre suivant</string>
+    <string name="universe_music_stop">Arrêter la musique</string>
+    <string name="universe_music_shuffle">Lecture aléatoire</string>
+    <string name="universe_music_repeat">Mode répétition</string>
+    <string name="universe_music_favorite">Titre favori</string>
+    <string name="universe_music_add_server">Serveur / MP3</string>
+    <string name="universe_music_shuffle_on">Lecture aléatoire activée</string>
+    <string name="universe_music_shuffle_off">Lecture aléatoire désactivée</string>
+    <string name="universe_music_repeat_off">Répétition désactivée</string>
+    <string name="universe_music_repeat_all">Répéter toute la file</string>
+    <string name="universe_music_repeat_one">Répéter le titre en cours</string>
+    <string name="universe_music_server_dialog_title">Serveur Musical &amp; Mes Titres</string>
+    <string name="universe_music_subsonic_section">Connecter un serveur Navidrome / OpenSubsonic</string>
+    <string name="universe_music_subsonic_url_hint">URL du serveur (ex. https://music.exemple.com)</string>
+    <string name="universe_music_subsonic_user_hint">Identifiant</string>
+    <string name="universe_music_subsonic_pass_hint">Mot de passe</string>
+    <string name="universe_music_subsonic_connect_btn">Connecter le serveur</string>
+    <string name="universe_music_subsonic_disconnect_btn">Déconnecter</string>
+    <string name="universe_music_subsonic_connected_toast">Serveur Navidrome / Subsonic connecté (%1$d titres)</string>
+    <string name="universe_music_subsonic_error_toast">Impossible de joindre le serveur OpenSubsonic</string>
+    <string name="universe_music_custom_section">Ajouter un titre MP3 / FLAC ou une Playlist M3U musicale</string>
+    <string name="universe_music_track_title_hint">Titre du morceau ou de la playlist</string>
+    <string name="universe_music_track_artist_hint">Artiste (optionnel)</string>
+    <string name="universe_music_track_url_hint">Lien direct MP3 / FLAC / OGG ou .m3u</string>
+    <string name="universe_music_m3u_imported">%1$d pistes importées dans Mes Musiques</string>
+    <string name="universe_music_custom_artist_default">Artiste Indépendant</string>
+    <string name="universe_music_custom_title_default">Titre personnalisé</string>
 
     <string name="missa_cat_podcasts_society">Actualités, Histoire &amp; Société</string>
     <string name="missa_chip_podcasts_society">Société</string>

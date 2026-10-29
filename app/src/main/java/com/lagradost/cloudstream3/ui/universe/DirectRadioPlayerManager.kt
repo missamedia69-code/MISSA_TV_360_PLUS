@@ -67,6 +67,9 @@ object DirectRadioPlayerManager {
 
     @Volatile
     private var remoteRefreshInFlight = false
+
+    @Volatile
+    internal var isOwningPlayback: Boolean = false
     private var activeFallbackCandidates: List<String> = emptyList()
     private var currentFallbackIndex: Int = 0
     private var triedPlaylistUnwrapForUrl: String? = null
@@ -142,19 +145,6 @@ object DirectRadioPlayerManager {
         val combined = custom + defaultStations + remote + onlineDiscovered
         return MissaRadioProviders.mergeStationCatalogues(combined, favoriteIds())
     }
-
-    private val musicStationHintRegex = Regex(
-        "\\b(musiques?|music|afrobeats?|afropop|amapiano|afro|hip[ -]?hop|urbain|urban|rap|r&b|rnb|jazz|groove|soul|blues|pop|rock|reggae|dancehall|zouk|kompa|gospel|louange|makossa|bikutsi|classique|classical|ambient|chill|chillout|lounge|lofi|lo-fi|electro|bossa|concerts?|hits?)\\b",
-        RegexOption.IGNORE_CASE
-    )
-
-    /** Continuous music-focused direct streams surfaced in the dedicated Music universe. */
-    fun musicPresetStations(): List<RadioStationPreset> =
-        allPresetStations().filter { station ->
-            station.providerName == MissaRadioProviders.PROVIDER_SOMAFM ||
-                station.providerName == MissaRadioProviders.PROVIDER_LAUT_FM ||
-                musicStationHintRegex.containsMatchIn("${station.name} ${station.genre}")
-        }
 
     /**
      * Refreshes the multi-provider free radio catalogue in the background if the cached snapshot
@@ -318,6 +308,7 @@ object DirectRadioPlayerManager {
             .also { exo ->
                 exo.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        if (!isOwningPlayback) return
                         val current = _state.value ?: RadioPlaybackState()
                         _state.postValue(
                             current.copy(
@@ -329,6 +320,7 @@ object DirectRadioPlayerManager {
                     }
 
                     override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (!isOwningPlayback) return
                         val current = _state.value ?: RadioPlaybackState()
                         _state.postValue(
                             current.copy(
@@ -341,6 +333,7 @@ object DirectRadioPlayerManager {
                     }
 
                     override fun onPlayerError(error: PlaybackException) {
+                        if (!isOwningPlayback) return
                         val current = _state.value ?: RadioPlaybackState()
                         val station = current.station
                         // 1. Try next mirror URL automatically if available
@@ -394,13 +387,21 @@ object DirectRadioPlayerManager {
             }
     }
 
-    private fun ensureMediaSessionBound(appContext: Context) {
+    internal fun ensureMediaSessionBound(appContext: Context) {
         val existing = controllerFuture
         if (existing != null && !existing.isCancelled) return
         runCatching {
             val token = SessionToken(appContext, ComponentName(appContext, MissaRadioMediaService::class.java))
             controllerFuture = MediaController.Builder(appContext, token).buildAsync()
         }
+    }
+
+    internal fun yieldPlaybackToMusic() {
+        sleepRunnable?.let { mainHandler.removeCallbacks(it) }
+        sleepRunnable = null
+        activeSleepMinutes = 0
+        isOwningPlayback = false
+        _state.postValue(RadioPlaybackState())
     }
 
     private fun startExoStreamUri(
@@ -440,6 +441,8 @@ object DirectRadioPlayerManager {
 
     fun playStation(context: Context, preset: RadioStationPreset) {
         val appContext = context.applicationContext
+        DirectMusicPlayerManager.yieldPlaybackToRadio()
+        isOwningPlayback = true
         val exo = getOrCreatePlayer(appContext)
         activeFallbackCandidates = preset.fallbackUrls.filter {
             isValidStreamUrl(it) && !it.equals(preset.streamUrl, ignoreCase = true)
@@ -477,6 +480,10 @@ object DirectRadioPlayerManager {
     fun togglePlayPause(context: Context) {
         val current = _state.value ?: return
         val station = current.station ?: allPresetStations().firstOrNull() ?: return
+        if (!isOwningPlayback) {
+            playStation(context, station)
+            return
+        }
         val exo = getOrCreatePlayer(context)
         if (exo.isPlaying) {
             exo.pause()
@@ -509,15 +516,19 @@ object DirectRadioPlayerManager {
         sleepRunnable?.let { mainHandler.removeCallbacks(it) }
         sleepRunnable = null
         activeSleepMinutes = 0
-        runCatching {
-            player?.stop()
-            player?.clearMediaItems()
+        if (isOwningPlayback) {
+            isOwningPlayback = false
+            runCatching {
+                player?.stop()
+                player?.clearMediaItems()
+            }
         }
         _state.value = RadioPlaybackState()
     }
 
     fun release() {
         stop()
+        DirectMusicPlayerManager.onSharedPlayerReleased()
         controllerFuture?.let { future ->
             runCatching { MediaController.releaseFuture(future) }
         }

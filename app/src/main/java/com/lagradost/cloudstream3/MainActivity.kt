@@ -193,11 +193,13 @@ import java.lang.ref.WeakReference
 import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.Charset
+import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
 import com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment
 import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
 import com.lagradost.cloudstream3.ui.universe.MissaUniverseDialogs
 import com.lagradost.cloudstream3.ui.universe.MissaUniverses
+import com.lagradost.cloudstream3.ui.universe.MusicPlaybackState
 import com.lagradost.cloudstream3.ui.universe.RadioPlaybackState
 import com.lagradost.cloudstream3.ui.universe.RetroGamesFragment
 import com.lagradost.cloudstream3.ui.universe.UniverseDefinition
@@ -718,47 +720,99 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
     private fun setupPersistentRadioMiniPlayer(navController: NavController) {
         val bar = binding?.missaRadioMiniPlayer ?: return
-        val titleView = binding?.missaMiniRadioTitle
-        val statusView = binding?.missaMiniRadioStatus
         val playPauseBtn = binding?.missaMiniRadioPlayPause
         val nextBtn = binding?.missaMiniRadioNext
         val stopBtn = binding?.missaMiniRadioStop
 
         bar.setOnClickListener {
-            navigateTopLevelDestination(navController, R.id.navigation_universe_radio)
+            val isMusicActive = DirectMusicPlayerManager.state.value?.track != null
+            val targetDest = if (isMusicActive) {
+                R.id.navigation_universe_music
+            } else {
+                R.id.navigation_universe_radio
+            }
+            navigateTopLevelDestination(navController, targetDest)
         }
         playPauseBtn?.setOnClickListener {
-            DirectRadioPlayerManager.togglePlayPause(this)
+            if (DirectMusicPlayerManager.state.value?.track != null) {
+                DirectMusicPlayerManager.togglePlayPause(this)
+            } else {
+                DirectRadioPlayerManager.togglePlayPause(this)
+            }
         }
         nextBtn?.setOnClickListener {
-            DirectRadioPlayerManager.nextStation(this)
+            if (DirectMusicPlayerManager.state.value?.track != null) {
+                DirectMusicPlayerManager.nextTrack(this)
+            } else {
+                DirectRadioPlayerManager.nextStation(this)
+            }
         }
         stopBtn?.setOnClickListener {
-            DirectRadioPlayerManager.stop()
+            if (DirectMusicPlayerManager.state.value?.track != null) {
+                DirectMusicPlayerManager.stop()
+            } else {
+                DirectRadioPlayerManager.stop()
+            }
         }
 
-        DirectRadioPlayerManager.state.observe(this) { state ->
-            renderPersistentRadioMiniPlayer(state, navController.currentDestination?.id)
+        DirectRadioPlayerManager.state.observe(this) { radioState ->
+            renderPersistentAudioMiniPlayer(
+                radioState = radioState,
+                musicState = DirectMusicPlayerManager.state.value,
+                currentDestId = navController.currentDestination?.id
+            )
+        }
+        DirectMusicPlayerManager.state.observe(this) { musicState ->
+            renderPersistentAudioMiniPlayer(
+                radioState = DirectRadioPlayerManager.state.value,
+                musicState = musicState,
+                currentDestId = navController.currentDestination?.id
+            )
         }
     }
 
-    private fun renderPersistentRadioMiniPlayer(state: RadioPlaybackState?, currentDestId: Int?) {
+    private fun renderPersistentAudioMiniPlayer(
+        radioState: RadioPlaybackState?,
+        musicState: MusicPlaybackState?,
+        currentDestId: Int?
+    ) {
         val bar = binding?.missaRadioMiniPlayer ?: return
-        val st = state?.station
+        val tr = musicState?.track
+        if (tr != null) {
+            val hideOnScreen = currentDestId == R.id.navigation_player ||
+                currentDestId == R.id.navigation_universe_music
+            bar.isVisible = !hideOnScreen
+            if (hideOnScreen) return
+
+            binding?.missaMiniRadioTitle?.text = tr.displayLabel()
+            binding?.missaMiniRadioStatus?.text = when {
+                musicState.hasError -> getString(R.string.universe_music_error, tr.title)
+                musicState.isBuffering -> getString(R.string.universe_music_buffering, tr.title)
+                musicState.isPlaying -> getString(R.string.universe_music_playing, tr.providerName)
+                else -> getString(R.string.universe_music_paused, tr.title)
+            }
+            binding?.missaMiniRadioPlayPause?.setIconResource(
+                if (musicState.isPlaying) R.drawable.ic_baseline_pause_24
+                else R.drawable.ic_baseline_play_arrow_24
+            )
+            return
+        }
+
+        val st = radioState?.station
         val hideOnScreen = currentDestId == R.id.navigation_player ||
             currentDestId == R.id.navigation_universe_radio
         bar.isVisible = st != null && !hideOnScreen
-        if (st == null) return
+        if (st == null || hideOnScreen) return
 
         binding?.missaMiniRadioTitle?.text = st.name
         binding?.missaMiniRadioStatus?.text = when {
-            state.hasError -> getString(R.string.universe_radio_error, st.name)
-            state.isBuffering -> getString(R.string.universe_radio_buffering, st.name)
-            state.isPlaying -> getString(R.string.universe_radio_playing, st.country)
+            radioState.hasError -> getString(R.string.universe_radio_error, st.name)
+            radioState.isBuffering -> getString(R.string.universe_radio_buffering, st.name)
+            radioState.isPlaying -> getString(R.string.universe_radio_playing, st.country)
             else -> getString(R.string.universe_radio_paused, st.name)
         }
         binding?.missaMiniRadioPlayPause?.setIconResource(
-            if (state.isPlaying) R.drawable.ic_baseline_pause_24
+            if (radioState.isPlaying) R.drawable.ic_baseline_pause_24
             else R.drawable.ic_baseline_play_arrow_24
         )
     }
@@ -834,10 +888,15 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         this.hideKeyboard()
 
         if (destination.id == R.id.navigation_player) {
-            // Ensure background radio stops cleanly when starting video playback
+            // Ensure background radio/music stops cleanly when starting video playback
             DirectRadioPlayerManager.stop()
+            DirectMusicPlayerManager.stop()
         }
-        renderPersistentRadioMiniPlayer(DirectRadioPlayerManager.state.value, destination.id)
+        renderPersistentAudioMiniPlayer(
+            radioState = DirectRadioPlayerManager.state.value,
+            musicState = DirectMusicPlayerManager.state.value,
+            currentDestId = destination.id
+        )
 
         // Fucks up anime info layout since that has its own layout
         binding?.castMiniControllerHolder?.isVisible =

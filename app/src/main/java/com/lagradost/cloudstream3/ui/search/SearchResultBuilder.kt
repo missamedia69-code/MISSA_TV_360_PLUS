@@ -21,6 +21,7 @@ import com.lagradost.cloudstream3.isMovieType
 import com.lagradost.cloudstream3.syncproviders.SyncAPI
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
+import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
 import com.lagradost.cloudstream3.utils.AppContextUtils.getNameFull
 import com.lagradost.cloudstream3.utils.AppContextUtils.getShortSeasonText
@@ -105,7 +106,8 @@ object SearchResultBuilder {
         }
 
         val isDirectRadio = card is DirectRadioSearchResponse
-        shadow?.isVisible = showTitle || isDirectRadio
+        val isDirectMusic = card is DirectMusicSearchResponse
+        shadow?.isVisible = showTitle || isDirectRadio || isDirectMusic
 
         when (card.quality) {
             SearchQuality.BlueRay -> R.string.quality_blueray
@@ -133,7 +135,7 @@ object SearchResultBuilder {
         }
 
         cardText?.text = card.name
-        cardText?.isVisible = showTitle || isDirectRadio
+        cardText?.isVisible = showTitle || isDirectRadio || isDirectMusic
         cardView.isVisible = true
         if (isDirectRadio) {
             cardView.scaleType = ImageView.ScaleType.FIT_CENTER
@@ -144,6 +146,18 @@ object SearchResultBuilder {
                 }
             } else {
                 cardView.loadImage(R.drawable.ic_missa_radio)
+            }
+        } else if (isDirectMusic) {
+            if (!card.posterUrl.isNullOrEmpty()) {
+                cardView.scaleType = ImageView.ScaleType.CENTER_CROP
+                cardView.setPadding(0, 0, 0, 0)
+                cardView.loadImage(card.posterUrl, card.posterHeaders) {
+                    error { getImageFromDrawable(itemView.context, R.drawable.ic_missa_music) }
+                }
+            } else {
+                cardView.scaleType = ImageView.ScaleType.FIT_CENTER
+                cardView.setPadding(24.toPx, 20.toPx, 24.toPx, 36.toPx)
+                cardView.loadImage(R.drawable.ic_missa_music)
             }
         } else {
             cardView.scaleType = ImageView.ScaleType.CENTER_CROP
@@ -268,6 +282,15 @@ object SearchResultBuilder {
                     textFlag?.apply {
                         isVisible = true
                         text = flagEmoji
+                    }
+                }
+            }
+
+            is DirectMusicSearchResponse -> {
+                card.formattedDuration()?.let { dur ->
+                    episodeText?.apply {
+                        isVisible = true
+                        text = dur
                     }
                 }
             }

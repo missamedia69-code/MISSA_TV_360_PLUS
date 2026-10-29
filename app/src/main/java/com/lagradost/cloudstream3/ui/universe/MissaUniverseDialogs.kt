@@ -524,4 +524,108 @@ internal object MissaUniverseDialogs {
             .show()
             .setDefaultFocus()
     }
+
+    // --- 8. Dedicated Music Server (Navidrome / OpenSubsonic) & Custom MP3/M3U Dialog ---
+
+    fun showMusicServerDialog(
+        context: Context,
+        onTracksChanged: () -> Unit
+    ) {
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_missa_music_server, null, false)
+        val subUrlInput: EditText = view.findViewById(R.id.missa_music_subsonic_url)
+        val subUserInput: EditText = view.findViewById(R.id.missa_music_subsonic_user)
+        val subPassInput: EditText = view.findViewById(R.id.missa_music_subsonic_pass)
+        val subConnectBtn: MaterialButton = view.findViewById(R.id.missa_music_subsonic_connect_btn)
+        val subDisconnectBtn: MaterialButton = view.findViewById(R.id.missa_music_subsonic_disconnect_btn)
+
+        val trackTitleInput: EditText = view.findViewById(R.id.missa_music_track_title)
+        val trackArtistInput: EditText = view.findViewById(R.id.missa_music_track_artist)
+        val trackUrlInput: EditText = view.findViewById(R.id.missa_music_track_url)
+        val cancelBtn: MaterialButton = view.findViewById(R.id.missa_music_cancel_btn)
+        val saveBtn: MaterialButton = view.findViewById(R.id.missa_music_save_btn)
+
+        val existingConfig = DirectMusicPlayerManager.subsonicConfig()
+        if (existingConfig != null) {
+            subUrlInput.setText(existingConfig.baseUrl)
+            subUserInput.setText(existingConfig.username)
+            subPassInput.setText(existingConfig.password)
+            subDisconnectBtn.isVisible = true
+        }
+
+        val dialog = AlertDialog.Builder(context)
+            .setView(view)
+            .create()
+
+        cancelBtn.setOnClickListener { dialog.dismiss() }
+
+        subDisconnectBtn.setOnClickListener {
+            DirectMusicPlayerManager.disconnectOpenSubsonicServer()
+            subDisconnectBtn.isVisible = false
+            onTracksChanged()
+            dialog.dismiss()
+        }
+
+        subConnectBtn.setOnClickListener {
+            val config = OpenSubsonicServerConfig(
+                baseUrl = subUrlInput.text?.toString()?.trim().orEmpty(),
+                username = subUserInput.text?.toString()?.trim().orEmpty(),
+                password = subPassInput.text?.toString().orEmpty()
+            )
+            if (!MissaMusicProviders.isValidAudioUrl(config.baseUrl) || !config.isConfigured()) {
+                Toast.makeText(context, R.string.universe_music_subsonic_error_toast, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            subConnectBtn.isEnabled = false
+            CoroutineScope(Dispatchers.Main).launch {
+                val count = DirectMusicPlayerManager.connectOpenSubsonicServer(config)
+                subConnectBtn.isEnabled = true
+                if (count > 0) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.universe_music_subsonic_connected_toast, count),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    onTracksChanged()
+                    dialog.dismiss()
+                } else {
+                    Toast.makeText(context, R.string.universe_music_subsonic_error_toast, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        saveBtn.setOnClickListener {
+            val url = trackUrlInput.text?.toString()?.trim().orEmpty()
+            if (!MissaMusicProviders.isValidAudioUrl(url)) {
+                Toast.makeText(context, R.string.universe_radio_invalid_url, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val enteredTitle = trackTitleInput.text?.toString().orEmpty()
+            val enteredArtist = trackArtistInput.text?.toString().orEmpty()
+            saveBtn.isEnabled = false
+            CoroutineScope(Dispatchers.Main).launch {
+                val imported = DirectMusicPlayerManager.importCustomTrackOrPlaylist(
+                    context = context,
+                    title = enteredTitle,
+                    artist = enteredArtist,
+                    url = url
+                )
+                onTracksChanged()
+                imported.firstOrNull()?.let { first ->
+                    DirectMusicPlayerManager.playTrack(context, first, imported.takeIf { it.size > 1 })
+                }
+                if (imported.size > 1) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.universe_music_m3u_imported, imported.size),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.setDefaultFocus()
+    }
 }

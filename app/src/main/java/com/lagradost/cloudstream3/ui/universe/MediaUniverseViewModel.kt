@@ -418,6 +418,9 @@ class MediaUniverseViewModel : ViewModel() {
         viewModelScope.launch {
             DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
         }
+        viewModelScope.launch {
+            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
+        }
         hydrateDiskCacheAndLoad()
     }
 
@@ -558,6 +561,9 @@ class MediaUniverseViewModel : ViewModel() {
             frozenHeroKeysByUniverse.clear()
             viewModelScope.launch {
                 DirectRadioPlayerManager.refreshRemotePresetsIfNeeded(force = true)
+            }
+            viewModelScope.launch {
+                DirectMusicPlayerManager.refreshRemoteTracksIfNeeded(force = true)
             }
         }
         val current = _catalogSnapshot.value ?: UnifiedCatalogSnapshot()
@@ -822,11 +828,11 @@ class MediaUniverseViewModel : ViewModel() {
 
         val normalizedSelectedSources = selectedSources.map { it.lowercase(Locale.ROOT) }.toSet()
 
-        val radioProviderSources = when (universeId) {
+        val builtInProviderSources = when (universeId) {
             "radio" -> DirectRadioPlayerManager.allPresetStations()
                 .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
-            "music" -> DirectRadioPlayerManager.musicPresetStations()
-                .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
+            "music" -> DirectMusicPlayerManager.allPresetTracks()
+                .map { it.providerName.ifBlank { DIRECT_MUSIC_API_NAME } }
             else -> emptyList()
         }
 
@@ -834,7 +840,7 @@ class MediaUniverseViewModel : ViewModel() {
             (overrideEntries ?: snapshot.entries)
                 .filter { universeId == "home" || it.universes.contains(universeId) }
                 .flatMap { entry -> entry.sources.map { it.apiName } } +
-                radioProviderSources
+                builtInProviderSources
             )
             .distinct()
             .sortedBy { it.lowercase(Locale.ROOT) }
@@ -913,25 +919,46 @@ class MediaUniverseViewModel : ViewModel() {
             }
         }
 
-        // Music universe continuous musical streams alongside extension music tracks/clips/concerts
+        // Dedicated 100%-Music universe: on-demand tracks, albums, DJ mixes & playlists (zero radio/TV)
         if (universeId == "music") {
-            val musicPresets = DirectRadioPlayerManager.musicPresetStations()
-                .filter { station ->
+            val musicTracks = DirectMusicPlayerManager.allPresetTracks()
+                .filter { track ->
                     val providerOk = normalizedSelectedSources.isEmpty() ||
-                        station.providerName.ifBlank { DIRECT_RADIO_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
-                    val queryOk = MissaRadioProviders.matchesStationQuery(station, searchQuery)
+                        track.providerName.ifBlank { DIRECT_MUSIC_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                    val queryOk = MissaMusicProviders.matchesTrackQuery(track, searchQuery)
                     providerOk && queryOk
                 }
-            for (station in musicPresets) {
-                val resp = station.toSearchResponse()
+            val favMusicIds = DirectMusicPlayerManager.favoriteIds()
+            val favTracks = musicTracks.filter { favMusicIds.contains(it.id) }.map { it.toSearchResponse() }
+            if (favTracks.isNotEmpty()) {
+                val favCat = MissaCategory.FAVORITES
+                buckets[favCat.id] = BucketData(
+                    key = favCat.id,
+                    rowTitle = resolveStr(ctx, favCat.rowTitleRes, favCat.id),
+                    chipLabel = resolveStr(ctx, favCat.chipLabelRes, favCat.id),
+                    rank = favCat.editorialRank,
+                    isHorizontal = false,
+                    items = favTracks.toMutableList()
+                )
+            }
+            for (track in musicTracks) {
+                val resp = track.toSearchResponse()
                 val thematicCats = MediaUniverseClassifier.categorizeForUniverse(
                     universeId = "music",
-                    title = "${station.name} ${station.country}",
-                    sectionName = station.genre,
-                    tags = listOf("country:${station.country}", station.providerName),
-                    effectiveType = TvType.Audio
+                    title = "${track.artist} ${track.title} ${track.album}",
+                    sectionName = track.genre,
+                    tags = listOf(track.providerName, track.genre),
+                    isTrending = track.isTrending,
+                    effectiveType = TvType.Music
                 )
-                val targetCats = (thematicCats + MissaCategory.MUSIC_STREAMS).distinct()
+                val targetCats = if (track.isCustom ||
+                    track.providerName == MissaMusicProviders.PROVIDER_SUBSONIC ||
+                    track.providerName == MissaMusicProviders.PROVIDER_FUNKWHALE
+                ) {
+                    (thematicCats + MissaCategory.MUSIC_STREAMS).distinct()
+                } else {
+                    thematicCats
+                }
                 for (cat in targetCats) {
                     val bucket = buckets.getOrPut(cat.id) {
                         BucketData(
@@ -939,10 +966,10 @@ class MediaUniverseViewModel : ViewModel() {
                             rowTitle = resolveStr(ctx, cat.rowTitleRes, cat.id),
                             chipLabel = resolveStr(ctx, cat.chipLabelRes, cat.id),
                             rank = cat.editorialRank,
-                            isHorizontal = true
+                            isHorizontal = false
                         )
                     }
-                    val rowCap = if (searchQuery.isNotBlank()) 200 else 75
+                    val rowCap = if (searchQuery.isNotBlank()) 220 else 80
                     if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
                         bucket.items.add(resp)
                     }
@@ -1103,9 +1130,9 @@ class MediaUniverseViewModel : ViewModel() {
                     )
                     "music" -> {
                         val pluginCount = snapshot.entries.count { it.universes.contains("music") }
-                        val total = pluginCount + DirectRadioPlayerManager.musicPresetStations().size
+                        val total = pluginCount + DirectMusicPlayerManager.allPresetTracks().size
                         val badge = if (total > 0) {
-                            ctx?.resources?.getQuantityString(R.plurals.missa_titles_count, total, total)
+                            ctx?.resources?.getQuantityString(R.plurals.missa_tracks_count, total, total)
                         } else {
                             null
                         }
@@ -1113,7 +1140,7 @@ class MediaUniverseViewModel : ViewModel() {
                             definition = uni,
                             itemCount = total,
                             countBadge = badge,
-                            hasLiveNow = total > 0
+                            hasLiveNow = false
                         )
                     }
                     "radio" -> {
@@ -1206,12 +1233,8 @@ class MediaUniverseViewModel : ViewModel() {
         val eyebrowText = resolveStr(ctx, definition.eyebrowRes, "")
         val liveBadge = resolveStr(ctx, R.string.universe_live_badge, "LIVE")
 
-        if ((universeId == "radio" || universeId == "music") && entries.isEmpty()) {
-            val basePool = if (universeId == "music") {
-                DirectRadioPlayerManager.musicPresetStations()
-            } else {
-                DirectRadioPlayerManager.allPresetStations()
-            }
+        if (universeId == "radio" && entries.isEmpty()) {
+            val basePool = DirectRadioPlayerManager.allPresetStations()
             val presetPool = if (normalizedSelectedSources.isEmpty()) {
                 basePool
             } else {
@@ -1232,6 +1255,37 @@ class MediaUniverseViewModel : ViewModel() {
                     tags = listOf(station.providerName, station.country, station.genre),
                     isDirectStream = true
                 )
+            }
+        }
+
+        if (universeId == "music") {
+            val baseTracks = DirectMusicPlayerManager.allPresetTracks()
+            val filteredTracks = if (normalizedSelectedSources.isEmpty()) {
+                baseTracks
+            } else {
+                baseTracks.filter {
+                    it.providerName.ifBlank { DIRECT_MUSIC_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                }
+            }
+            val prioritizedTracks = filteredTracks.sortedByDescending { !it.artworkUrl.isNullOrBlank() }
+            if (prioritizedTracks.isNotEmpty()) {
+                return prioritizedTracks.take(5).map { track ->
+                    val resp = track.toSearchResponse()
+                    val plotParts = listOf(track.artist, track.album, track.genre)
+                        .filter { it.isNotBlank() }
+                    HeroBannerSlide(
+                        card = resp,
+                        details = null,
+                        allSources = listOf(resp),
+                        eyebrow = eyebrowText,
+                        plot = plotParts.joinToString(" • "),
+                        yearText = track.providerName,
+                        durationText = resp.formattedDuration(),
+                        scoreText = null,
+                        tags = listOf(track.providerName, track.genre).filter { it.isNotBlank() },
+                        isDirectStream = false
+                    )
+                }
             }
         }
 

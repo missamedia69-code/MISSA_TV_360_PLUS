@@ -12,6 +12,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvType
 
 const val DIRECT_RADIO_API_NAME = "MISSA Radio Direct"
+const val DIRECT_MUSIC_API_NAME = "MISSA Musique Direct"
 
 data class DirectRadioSearchResponse(
     override val name: String,
@@ -27,6 +28,39 @@ data class DirectRadioSearchResponse(
     val country: String = "",
     val logoUrl: String? = null
 ) : SearchResponse
+
+data class DirectMusicSearchResponse(
+    override val name: String,
+    override val url: String,
+    override val apiName: String = DIRECT_MUSIC_API_NAME,
+    override var type: TvType? = TvType.Music,
+    override var posterUrl: String? = null,
+    override var posterHeaders: Map<String, String>? = null,
+    override var id: Int? = url.hashCode(),
+    override var quality: SearchQuality? = null,
+    override var score: Score? = null,
+    val trackId: String = "",
+    val title: String = "",
+    val artist: String = "",
+    val album: String = "",
+    val genre: String = "",
+    val durationSeconds: Int = 0,
+    val artworkUrl: String? = null,
+    val fallbackUrls: List<String> = emptyList(),
+    val isPipedLazy: Boolean = false
+) : SearchResponse {
+    fun formattedDuration(): String? {
+        if (durationSeconds <= 0) return null
+        val hours = durationSeconds / 3600
+        val mins = (durationSeconds % 3600) / 60
+        val secs = durationSeconds % 60
+        return if (hours > 0) {
+            "%d:%02d:%02d".format(hours, mins, secs)
+        } else {
+            "%02d:%02d".format(mins, secs)
+        }
+    }
+}
 
 /**
  * Navigation universe descriptor.
@@ -147,7 +181,8 @@ object MissaUniverses {
         cardSubtitleRes = R.string.universe_card_music_sub,
         iconRes = R.drawable.ic_missa_music,
         eyebrowRes = R.string.universe_eyebrow_music,
-        familyGroup = 3
+        familyGroup = 3,
+        directPlayOnClick = true
     )
 
     val PODCASTS = UniverseDefinition(
@@ -316,4 +351,55 @@ private fun String.toRadioLogoFallback(): String? {
     }
     val encoded = runCatching { java.net.URLEncoder.encode(brandHost, "UTF-8") }.getOrDefault(brandHost)
     return "https://www.google.com/s2/favicons?domain=$encoded&sz=128"
+}
+
+data class MusicTrackPreset(
+    val id: String,
+    val title: String,
+    val artist: String = "",
+    val album: String = "",
+    val genre: String = "",
+    val streamUrl: String,
+    val artworkUrl: String? = null,
+    val durationSeconds: Int = 0,
+    val providerName: String = DIRECT_MUSIC_API_NAME,
+    val fallbackUrls: List<String> = emptyList(),
+    val isCustom: Boolean = false,
+    val isPipedLazy: Boolean = false,
+    val isTrending: Boolean = false
+) {
+    fun displayLabel(): String {
+        val cleanArtist = artist.trim()
+        val cleanTitle = title.trim()
+        return if (cleanArtist.isNotEmpty() && !cleanTitle.contains(cleanArtist, ignoreCase = true)) {
+            "$cleanArtist — $cleanTitle"
+        } else {
+            cleanTitle
+        }
+    }
+
+    fun toSearchResponse(): DirectMusicSearchResponse =
+        DirectMusicSearchResponse(
+            name = displayLabel(),
+            url = streamUrl,
+            apiName = providerName.ifBlank { DIRECT_MUSIC_API_NAME },
+            posterUrl = artworkUrl,
+            trackId = id,
+            title = title,
+            artist = artist,
+            album = album,
+            genre = genre,
+            durationSeconds = durationSeconds,
+            artworkUrl = artworkUrl,
+            fallbackUrls = fallbackUrls,
+            isPipedLazy = isPipedLazy
+        )
+}
+
+data class OpenSubsonicServerConfig(
+    val baseUrl: String = "",
+    val username: String = "",
+    val password: String = ""
+) {
+    fun isConfigured(): Boolean = baseUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()
 }
