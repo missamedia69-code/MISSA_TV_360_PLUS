@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import com.lagradost.cloudstream3.DownloaderTestImpl
 import com.lagradost.cloudstream3.app
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +13,16 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
+import org.schabi.newpipe.extractor.Image
+import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory
+import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.DeliveryMethod
+import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import org.schabi.newpipe.extractor.stream.StreamType
 import java.net.URI
 import java.net.URLEncoder
 import java.security.MessageDigest
@@ -23,17 +34,21 @@ import java.util.Locale
  *
  * Strictly serves on-demand music tracks, albums, DJ mixes, and playlists — never radio stations,
  * talk shows, or television channels:
- * 1. [PROVIDER_AUDIUS] — Decentralized 320 kbps music network (+1M tracks, multi-node failover).
- * 2. [PROVIDER_HEARTHIS] — HearThis.at direct MP3 tracks & DJ mixes (Afrobeats, Amapiano, Hip-Hop, Reggae, Jazz).
- * 3. [PROVIDER_FUNKWHALE] — Open federated Funkwhale music pods (`open.audio`).
- * 4. [PROVIDER_CCMIXTER] — ccMixter open Creative Commons Hip-Hop, Soul, Groove & Chill tracks.
- * 5. [PROVIDER_SUBSONIC] — Standard OpenSubsonic / Navidrome server client (MD5 salt+token auth).
- * 6. [PROVIDER_PIPED_MUSIC] — Multi-mirror Piped Music (`filter=music_songs`) audio-only stream resolver.
- * 7. [PROVIDER_CLASSICAL_JAZZ] — Instant zero-latency public-domain & Creative Commons music tracks.
- * 8. [PROVIDER_CUSTOM_MUSIC] — User-imported MP3/FLAC/OGG tracks & `.m3u` music playlists.
+ * 1. [PROVIDER_YOUTUBE_MUSIC] — Direct on-device **YouTube Music (`music_songs` + `music_videos`)
+ *    & YouTube Audio (`videos`)** extraction via [NewPipe] (`ServiceList.YouTube`), delivering any
+ *    artist/song on YouTube (e.g. Lady Ponce, Ko-C, Locko, Burna Boy, Zouk, Gospel, Rap) as pure audio.
+ * 2. [PROVIDER_AUDIUS] — Decentralized 320 kbps music network (+1M tracks, multi-node failover).
+ * 3. [PROVIDER_HEARTHIS] — HearThis.at direct MP3 tracks & DJ mixes.
+ * 4. [PROVIDER_FUNKWHALE] — Open federated Funkwhale music pods (`open.audio`).
+ * 5. [PROVIDER_CCMIXTER] — ccMixter open Creative Commons Hip-Hop, Soul, Groove & Chill tracks.
+ * 6. [PROVIDER_SUBSONIC] — Standard OpenSubsonic / Navidrome server client (MD5 salt+token auth).
+ * 7. [PROVIDER_PIPED_MUSIC] — Backup Piped Music (`filter=music_songs`) audio-only resolver.
+ * 8. [PROVIDER_CLASSICAL_JAZZ] — Instant zero-latency public-domain & Creative Commons music tracks.
+ * 9. [PROVIDER_CUSTOM_MUSIC] — User-imported MP3/FLAC/OGG tracks & `.m3u` music playlists.
  */
 internal object MissaMusicProviders {
     const val PROVIDER_CUSTOM_MUSIC = "Mes Musiques"
+    const val PROVIDER_YOUTUBE_MUSIC = "YouTube Audio"
     const val PROVIDER_AUDIUS = "Audius"
     const val PROVIDER_HEARTHIS = "HearThis.at"
     const val PROVIDER_FUNKWHALE = "Funkwhale"
@@ -42,10 +57,12 @@ internal object MissaMusicProviders {
     const val PROVIDER_PIPED_MUSIC = "Piped Music"
     const val PROVIDER_CLASSICAL_JAZZ = "Classique & Jazz Public"
 
+    const val YT_MUSIC_SCHEME_PREFIX = "ytmusic://"
     const val PIPED_SCHEME_PREFIX = "pipedmusic://"
     private const val AUDIUS_APP_NAME = "MISSA_TV_360_PLUS"
-    private const val USER_AGENT = "MISSA-TV-360-PLUS/2.0 (Android; Dedicated Music Hub)"
-    private const val REQUEST_TIMEOUT_MS = 8_500L
+    private const val USER_AGENT = "MISSA-TV-360-PLUS/2.1 (Android; Dedicated Music & YouTube Audio Hub)"
+    private const val REQUEST_TIMEOUT_MS = 9_000L
+    private const val YOUTUBE_TIMEOUT_MS = 12_000L
 
     private val FALLBACK_AUDIUS_NODES = listOf(
         "https://discoveryprovider.audius.co",
@@ -74,6 +91,26 @@ internal object MissaMusicProviders {
     private val httpHeaders = mapOf(
         "User-Agent" to USER_AGENT,
         "Accept" to "application/json, audio/x-mpegurl, text/plain, */*"
+    )
+
+    private val youtubeIdRegex = Regex(
+        "(?:youtu\\.be/|youtube(?:-nocookie)?\\.com/(?:.*v=|v/|u/\\w/|embed/|shorts/|live/)|music\\.youtube\\.com/watch\\?v=)([\\w-]{11})",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val noisyVideoSuffixRegex = Regex(
+        "\\s*(?:\\((?:clip\\s+officiel|official\\s+(?:music\\s+)?video|official\\s+audio|official\\s+lyric\\s+video|audio\\s+officiel|vid[eé]o\\s+officielle|lyrics?|paroles?|hd|hq|4k)\\)|\\[(?:clip\\s+officiel|official\\s+(?:music\\s+)?video|official\\s+audio|lyrics?|hd|hq|4k)\\])\\s*",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val uploaderNoiseSuffixRegex = Regex(
+        "\\s*(?:-\\s*Topic|VEVO|Officiel|Official)\\s*$",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val nonMusicTalkVideoRegex = Regex(
+        "\\b(interview\\s+compl[eè]te|journal\\s+t[eé]l[eé]vis[eé]|conf[eé]rence\\s+de\\s+presse|film\\s+complet|s[eé]rie\\s+compl[eè]te|reportage\\s+exclusif|documentaire\\s+complet)\\b",
+        RegexOption.IGNORE_CASE
     )
 
     /**
@@ -144,8 +181,26 @@ internal object MissaMusicProviders {
         )
     )
 
+    /**
+     * Cleans user search input (removes accidental leading/trailing quotes like `"lady ponce '`
+     * or repeated spaces typed on TV/mobile keyboards).
+     */
+    fun sanitizeMusicQuery(rawQuery: String): String =
+        rawQuery.trim()
+            .trim('"', '\'', '«', '»', '“', '”', '‘', '’', '`')
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+    fun isLazyYouTubeAudioScheme(url: String): Boolean {
+        val trimmed = url.trim()
+        return trimmed.startsWith(YT_MUSIC_SCHEME_PREFIX) || trimmed.startsWith(PIPED_SCHEME_PREFIX)
+    }
+
     fun isValidAudioUrl(url: String): Boolean {
         val trimmed = url.trim()
+        if (trimmed.startsWith(YT_MUSIC_SCHEME_PREFIX)) {
+            return trimmed.removePrefix(YT_MUSIC_SCHEME_PREFIX).isNotBlank()
+        }
         if (trimmed.startsWith(PIPED_SCHEME_PREFIX)) {
             return trimmed.removePrefix(PIPED_SCHEME_PREFIX).isNotBlank()
         }
@@ -153,6 +208,299 @@ internal object MissaMusicProviders {
             trimmed.startsWith("http://", ignoreCase = true)) &&
             trimmed.length > 10 &&
             !trimmed.contains(' ')
+    }
+
+    // --- 0. Direct On-Device YouTube Music & YouTube Audio Engine (NewPipeExtractor) ---
+
+    private fun ensureNewPipeInitialized() {
+        try {
+            NewPipe.getDownloader()
+        } catch (_: Throwable) {
+            runCatching { NewPipe.init(DownloaderTestImpl.getInstance()) }
+        }
+    }
+
+    fun extractYouTubeVideoId(rawUrl: String): String? {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isBlank()) return null
+        if (trimmed.startsWith(YT_MUSIC_SCHEME_PREFIX)) {
+            return trimmed.removePrefix(YT_MUSIC_SCHEME_PREFIX).trim().takeIf { it.length >= 6 }
+        }
+        if (trimmed.startsWith(PIPED_SCHEME_PREFIX)) {
+            return trimmed.removePrefix(PIPED_SCHEME_PREFIX).trim().takeIf { it.length >= 6 }
+        }
+        youtubeIdRegex.find(trimmed)?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }?.let { return it }
+        return extractWatchVideoId(trimmed)
+    }
+
+    fun cleanYouTubeTitleAndArtist(rawTitle: String, rawUploader: String): Pair<String, String> {
+        val cleanedUploader = rawUploader.replace(uploaderNoiseSuffixRegex, "").trim()
+        val strippedTitle = rawTitle.replace(noisyVideoSuffixRegex, " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+        val dashSeparators = listOf(" - ", " – ", " — ")
+        for (sep in dashSeparators) {
+            val idx = strippedTitle.indexOf(sep)
+            if (idx in 2..(strippedTitle.length - sep.length - 2)) {
+                val leftArtist = strippedTitle.substring(0, idx).trim()
+                val rightSong = strippedTitle.substring(idx + sep.length).trim()
+                if (leftArtist.isNotBlank() && rightSong.isNotBlank()) {
+                    return rightSong to leftArtist
+                }
+            }
+        }
+        return strippedTitle.ifBlank { rawTitle.trim() } to cleanedUploader
+    }
+
+    private fun pickBestThumbnailUrl(thumbnails: List<Image>?): String? {
+        if (thumbnails.isNullOrEmpty()) return null
+        return thumbnails
+            .filter { isValidAudioUrl(it.url) }
+            .maxByOrNull { img ->
+                val h = if (img.height > 0) img.height else 180
+                val w = if (img.width > 0) img.width else 180
+                h * w
+            }?.url
+    }
+
+    private fun mapStreamInfoItemToTrack(
+        item: StreamInfoItem,
+        isFromMusicCatalog: Boolean,
+        markTrending: Boolean = false,
+        extraGenreHint: String = "",
+        rawQuery: String = ""
+    ): MusicTrackPreset? {
+        val type = item.streamType
+        if (type == StreamType.LIVE_STREAM ||
+            type == StreamType.AUDIO_LIVE_STREAM ||
+            type == StreamType.POST_LIVE_STREAM ||
+            type == StreamType.POST_LIVE_AUDIO_STREAM
+        ) {
+            return null
+        }
+        if (item.isShortFormContent) return null
+
+        val durationSecs = item.duration
+        // Keep songs, medleys, albums & DJ mixes (30s .. 2h); reject 24/7 streams (<= 0) or ultra-short clips
+        if (durationSecs !in 30L..7200L) return null
+
+        val rawName = item.name?.trim().orEmpty()
+        if (rawName.isBlank()) return null
+        if (!isFromMusicCatalog &&
+            nonMusicTalkVideoRegex.containsMatchIn(rawName) &&
+            !nonMusicTalkVideoRegex.containsMatchIn(rawQuery)
+        ) {
+            return null
+        }
+
+        val videoId = extractYouTubeVideoId(item.url.orEmpty()) ?: return null
+        val (cleanTitle, cleanArtist) = cleanYouTubeTitleAndArtist(rawName, item.uploaderName.orEmpty())
+        val thumb = pickBestThumbnailUrl(item.thumbnails)
+            ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+
+        val genreLabel = listOf(extraGenreHint, if (isFromMusicCatalog) "YouTube Music" else "YouTube Audio")
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString(" • ")
+
+        return MusicTrackPreset(
+            id = "yt_$videoId",
+            title = cleanTitle,
+            artist = cleanArtist,
+            genre = genreLabel,
+            streamUrl = "$YT_MUSIC_SCHEME_PREFIX$videoId",
+            artworkUrl = thumb,
+            durationSeconds = durationSecs.toInt(),
+            providerName = PROVIDER_YOUTUBE_MUSIC,
+            isPipedLazy = true,
+            isTrending = markTrending
+        )
+    }
+
+    private fun executeNewPipeYoutubeFilterSearch(
+        cleanQuery: String,
+        contentFilter: String,
+        isMusicCatalog: Boolean,
+        markTrending: Boolean = false,
+        extraGenreHint: String = "",
+        limit: Int = 25
+    ): List<MusicTrackPreset> {
+        if (cleanQuery.length < 2) return emptyList()
+        ensureNewPipeInitialized()
+        val extractor = ServiceList.YouTube.getSearchExtractor(
+            cleanQuery,
+            listOf(contentFilter),
+            ""
+        )
+        extractor.fetchPage()
+        val pageItems = extractor.initialPage.items.orEmpty()
+        val out = ArrayList<MusicTrackPreset>(minOf(pageItems.size, limit))
+        for (infoItem in pageItems) {
+            if (out.size >= limit) break
+            val streamItem = infoItem as? StreamInfoItem ?: continue
+            val mapped = mapStreamInfoItemToTrack(
+                item = streamItem,
+                isFromMusicCatalog = isMusicCatalog,
+                markTrending = markTrending,
+                extraGenreHint = extraGenreHint,
+                rawQuery = cleanQuery
+            ) ?: continue
+            out.add(mapped)
+        }
+        return out
+    }
+
+    /**
+     * Searches YouTube Music (`MUSIC_SONGS` + `MUSIC_VIDEOS`) AND YouTube (`VIDEOS`) directly
+     * on-device via [NewPipe], returning audio-ready tracks for any artist or song on YouTube.
+     */
+    suspend fun searchYouTubeAudioDirect(
+        query: String,
+        includeGeneralVideos: Boolean = true,
+        markTrending: Boolean = false,
+        extraGenreHint: String = "",
+        maxResults: Int = 45
+    ): List<MusicTrackPreset> = coroutineScope {
+        val clean = sanitizeMusicQuery(query)
+        if (clean.length < 2) return@coroutineScope emptyList()
+
+        val songsJob = async(Dispatchers.IO) {
+            withTimeoutOrNull(YOUTUBE_TIMEOUT_MS) {
+                runCatching {
+                    executeNewPipeYoutubeFilterSearch(
+                        cleanQuery = clean,
+                        contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_SONGS,
+                        isMusicCatalog = true,
+                        markTrending = markTrending,
+                        extraGenreHint = extraGenreHint,
+                        limit = 25
+                    )
+                }.getOrDefault(emptyList())
+            }.orEmpty()
+        }
+
+        val musicVideosJob = async(Dispatchers.IO) {
+            withTimeoutOrNull(YOUTUBE_TIMEOUT_MS) {
+                runCatching {
+                    executeNewPipeYoutubeFilterSearch(
+                        cleanQuery = clean,
+                        contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_VIDEOS,
+                        isMusicCatalog = true,
+                        markTrending = markTrending,
+                        extraGenreHint = extraGenreHint,
+                        limit = 20
+                    )
+                }.getOrDefault(emptyList())
+            }.orEmpty()
+        }
+
+        val generalVideosJob = if (includeGeneralVideos) {
+            async(Dispatchers.IO) {
+                withTimeoutOrNull(YOUTUBE_TIMEOUT_MS) {
+                    runCatching {
+                        executeNewPipeYoutubeFilterSearch(
+                            cleanQuery = clean,
+                            contentFilter = YoutubeSearchQueryHandlerFactory.VIDEOS,
+                            isMusicCatalog = false,
+                            markTrending = markTrending,
+                            extraGenreHint = extraGenreHint,
+                            limit = 25
+                        )
+                    }.getOrDefault(emptyList())
+                }.orEmpty()
+            }
+        } else {
+            null
+        }
+
+        val combined = songsJob.await() + musicVideosJob.await() + (generalVideosJob?.await().orEmpty())
+        val dedupedByVideoId = LinkedHashMap<String, MusicTrackPreset>(combined.size)
+        for (track in combined) {
+            val vid = extractYouTubeVideoId(track.streamUrl) ?: track.streamUrl
+            if (!dedupedByVideoId.containsKey(vid)) {
+                dedupedByVideoId[vid] = track
+            }
+        }
+        dedupedByVideoId.values.take(maxResults)
+    }
+
+    internal fun sortNewPipeAudioStreams(streams: List<AudioStream>): List<String> {
+        return streams
+            .filter { s ->
+                s.isUrl &&
+                    isValidAudioUrl(s.content) &&
+                    s.deliveryMethod != DeliveryMethod.TORRENT &&
+                    s.deliveryMethod != DeliveryMethod.SS
+            }
+            .sortedWith(
+                compareByDescending<AudioStream> { it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
+                    .thenByDescending { s ->
+                        s.format == MediaFormat.M4A ||
+                            s.format?.mimeType?.contains("mp4", ignoreCase = true) == true ||
+                            s.codec?.contains("mp4a", ignoreCase = true) == true
+                    }
+                    .thenByDescending { it.averageBitrate }
+            )
+            .map { it.content.trim() }
+            .distinct()
+    }
+
+    /**
+     * Resolves direct audio-only stream URLs (`audio/mp4` m4a AAC + `audio/webm` Opus) for a
+     * YouTube video ID:
+     * 1. Primary: Local on-device [NewPipe] `StreamInfo.getInfo(ServiceList.YouTube, watchUrl)`.
+     * 2. Fallback: Public Piped API `/streams/{videoId}` mirrors.
+     */
+    suspend fun resolveYouTubeOrPipedAudioUrls(videoIdOrScheme: String): List<String> = withContext(Dispatchers.IO) {
+        val cleanId = extractYouTubeVideoId(videoIdOrScheme)
+            ?: videoIdOrScheme
+                .removePrefix(YT_MUSIC_SCHEME_PREFIX)
+                .removePrefix(PIPED_SCHEME_PREFIX)
+                .trim()
+        if (cleanId.isBlank()) return@withContext emptyList()
+
+        // 1. Direct local NewPipeExtractor extraction against YouTube
+        val directUrls = withTimeoutOrNull(YOUTUBE_TIMEOUT_MS) {
+            try {
+                ensureNewPipeInitialized()
+                val watchUrl = "https://www.youtube.com/watch?v=$cleanId"
+                val info = StreamInfo.getInfo(ServiceList.YouTube, watchUrl)
+                val sortedAudio = sortNewPipeAudioStreams(info.audioStreams.orEmpty())
+                val hlsBackup = info.hlsUrl?.trim()?.takeIf { isValidAudioUrl(it) }
+                if (hlsBackup != null) (sortedAudio + hlsBackup).distinct() else sortedAudio
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                emptyList()
+            }
+        }.orEmpty()
+
+        if (directUrls.isNotEmpty()) {
+            return@withContext directUrls
+        }
+
+        // 2. Fallback to Piped API mirrors if direct extraction was throttled
+        val startIdx = preferredPipedMirrorIndex
+        for (offset in PIPED_API_MIRRORS.indices) {
+            val idx = (startIdx + offset) % PIPED_API_MIRRORS.size
+            val base = PIPED_API_MIRRORS[idx]
+            val urls = withTimeoutOrNull(6_000L) {
+                try {
+                    val text = app.get("$base/streams/$cleanId", headers = httpHeaders).text
+                    parsePipedAudioStreamsJson(text)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }.orEmpty()
+            if (urls.isNotEmpty()) {
+                preferredPipedMirrorIndex = idx
+                return@withContext urls
+            }
+        }
+        emptyList()
     }
 
     // --- 1. Audius Open Music Network Parser & Harvester ---
@@ -196,7 +544,7 @@ internal object MissaMusicProviders {
                 .orEmpty()
 
             val duration = obj.optInt("duration", 0)
-            if (duration in 1..20) continue // Skip tiny sound effects
+            if (duration in 1..20) continue
 
             val rawGenre = obj.optString("genre").trim()
             val mood = obj.optString("mood").trim()
@@ -498,7 +846,7 @@ internal object MissaMusicProviders {
         return out
     }
 
-    // --- 6. Piped Music (`filter=music_songs` Audio-Only Search & Stream Resolver) ---
+    // --- 6. Piped Music (`filter=music_songs` Backup Parser) ---
 
     fun parsePipedMusicSearchJson(jsonText: String): List<MusicTrackPreset> {
         val root = runCatching { JSONObject(jsonText) }.getOrNull() ?: return emptyList()
@@ -510,15 +858,14 @@ internal object MissaMusicProviders {
             if (obj.optString("type").lowercase(Locale.ROOT) != "stream") continue
             if (obj.optBoolean("isShort", false)) continue
             val duration = obj.optInt("duration", 0)
-            // Keep genuine songs/tracks (35s .. 25m), skip 24/7 live radio streams (duration <= 0)
-            if (duration !in 35..1500) continue
+            if (duration !in 30..7200) continue
 
             val rawUrl = obj.optString("url").trim()
             val videoId = extractWatchVideoId(rawUrl) ?: continue
             val title = obj.optString("title").trim()
             if (title.isBlank()) continue
             val artist = obj.optString("uploaderName")
-                .replace(Regex("\\s*-\\s*Topic$", RegexOption.IGNORE_CASE), "")
+                .replace(uploaderNoiseSuffixRegex, "")
                 .trim()
             val thumb = obj.optString("thumbnail").trim().takeIf { isValidAudioUrl(it) }
 
@@ -565,31 +912,6 @@ internal object MissaMusicProviders {
             return rawUrl.substring(qIdx + 2).substringBefore('&').trim().takeIf { it.length >= 6 }
         }
         return rawUrl.trim('/').substringAfterLast('/').substringBefore('?').takeIf { it.length >= 6 }
-    }
-
-    suspend fun resolvePipedMusicTrackUrls(videoIdOrScheme: String): List<String> = withContext(Dispatchers.IO) {
-        val cleanId = videoIdOrScheme.removePrefix(PIPED_SCHEME_PREFIX).trim()
-        if (cleanId.isBlank()) return@withContext emptyList()
-        val startIdx = preferredPipedMirrorIndex
-        for (offset in PIPED_API_MIRRORS.indices) {
-            val idx = (startIdx + offset) % PIPED_API_MIRRORS.size
-            val base = PIPED_API_MIRRORS[idx]
-            val urls = withTimeoutOrNull(6_500L) {
-                try {
-                    val text = app.get("$base/streams/$cleanId", headers = httpHeaders).text
-                    parsePipedAudioStreamsJson(text)
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    emptyList()
-                }
-            }.orEmpty()
-            if (urls.isNotEmpty()) {
-                preferredPipedMirrorIndex = idx
-                return@withContext urls
-            }
-        }
-        emptyList()
     }
 
     // --- 7. Music M3U Playlist Parser (Custom MP3 / FLAC / OGG / M4A Tracks) ---
@@ -666,16 +988,21 @@ internal object MissaMusicProviders {
         return if (!seg.isNullOrBlank() && seg.length >= 2) seg else "Piste Audio"
     }
 
-    // --- 8. Deduplication & Accent-Insensitive Search Matcher ---
+    // --- 8. Deduplication, Tokenized Search Matcher & Relevance Ranking ---
 
-    fun normalizeTrackIdentity(artist: String, title: String): String {
-        val raw = "${artist.trim()} ${title.trim()}"
+    private fun normalizeAlphaNumText(raw: String): String {
         val decomposed = Normalizer.normalize(raw, Normalizer.Form.NFD)
             .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
             .lowercase(Locale.ROOT)
         return decomposed
-            .replace(Regex("\\b(official|audio|lyrics|hd|hq|320kbps|mp3)\\b"), " ")
             .replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
+            .replace(Regex("\\s+"), " ")
+    }
+
+    fun normalizeTrackIdentity(artist: String, title: String): String {
+        return normalizeAlphaNumText("${artist.trim()} ${title.trim()}")
+            .replace(Regex("\\b(official|audio|lyrics|hd|hq|320kbps|mp3|clip|officiel|video)\\b"), " ")
             .trim()
             .replace(Regex("\\s+"), " ")
     }
@@ -702,7 +1029,7 @@ internal object MissaMusicProviders {
             val existingCanonical = if (identity.length >= 5) canonicalByIdentity[identity] else null
             if (existingCanonical != null) {
                 val primary = byUrl[existingCanonical]
-                if (primary != null && !track.isPipedLazy) {
+                if (primary != null && !isLazyYouTubeAudioScheme(track.streamUrl) && !isLazyYouTubeAudioScheme(primary.streamUrl)) {
                     val combinedFallbacks = (primary.fallbackUrls + track.streamUrl + track.fallbackUrls)
                         .filter { !it.equals(primary.streamUrl, ignoreCase = true) && isValidAudioUrl(it) }
                         .distinctBy { it.lowercase(Locale.ROOT) }
@@ -711,6 +1038,8 @@ internal object MissaMusicProviders {
                         artworkUrl = primary.artworkUrl ?: track.artworkUrl,
                         fallbackUrls = combinedFallbacks
                     )
+                    continue
+                } else if (primary != null) {
                     continue
                 }
             }
@@ -727,19 +1056,55 @@ internal object MissaMusicProviders {
         )
     }
 
+    /**
+     * Accent-insensitive, quote/punctuation-tolerant tokenized query matcher.
+     * Typing `"lady ponce '`, `ponce lady`, or `lady ponce confession` all match cleanly.
+     */
     fun matchesTrackQuery(track: MusicTrackPreset, rawQuery: String): Boolean {
-        val q = Normalizer.normalize(rawQuery, Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-            .lowercase(Locale.ROOT)
-            .trim()
-        if (q.isEmpty()) return true
-        val haystack = Normalizer.normalize(
-            "${track.title} ${track.artist} ${track.album} ${track.genre} ${track.providerName}",
-            Normalizer.Form.NFD
+        val cleanQuery = normalizeAlphaNumText(sanitizeMusicQuery(rawQuery))
+        if (cleanQuery.isEmpty()) return true
+        val queryTokens = cleanQuery.split(' ').filter { it.isNotBlank() }
+        if (queryTokens.isEmpty()) return true
+
+        val haystack = normalizeAlphaNumText(
+            "${track.artist} ${track.title} ${track.album} ${track.genre} ${track.providerName}"
         )
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-            .lowercase(Locale.ROOT)
-        return haystack.contains(q)
+        return queryTokens.all { token -> haystack.contains(token) }
+    }
+
+    /**
+     * Ranks search hits so exact artist/song matches (e.g. "Lady Ponce") appear at the very top,
+     * prioritizing official YouTube Audio & user Subsonic/Custom songs over tangential tag matches.
+     */
+    fun rankTracksForQuery(tracks: List<MusicTrackPreset>, rawQuery: String): List<MusicTrackPreset> {
+        val cleanQuery = normalizeAlphaNumText(sanitizeMusicQuery(rawQuery))
+        if (cleanQuery.isEmpty()) return tracks
+        val tokens = cleanQuery.split(' ').filter { it.isNotBlank() }
+
+        fun score(track: MusicTrackPreset): Int {
+            val artistNorm = normalizeAlphaNumText(track.artist)
+            val titleNorm = normalizeAlphaNumText(track.title)
+            val fullLabelNorm = normalizeAlphaNumText("${track.artist} ${track.title}")
+
+            var pts = 0
+            if (artistNorm == cleanQuery) pts += 140
+            else if (artistNorm.startsWith(cleanQuery) || artistNorm.contains(cleanQuery)) pts += 105
+            else if (tokens.isNotEmpty() && tokens.all { artistNorm.contains(it) }) pts += 85
+
+            if (titleNorm == cleanQuery) pts += 120
+            else if (titleNorm.startsWith(cleanQuery) || titleNorm.contains(cleanQuery)) pts += 85
+            else if (tokens.isNotEmpty() && tokens.all { titleNorm.contains(it) }) pts += 65
+
+            if (fullLabelNorm.contains(cleanQuery)) pts += 50
+            if (tokens.isNotEmpty() && tokens.all { fullLabelNorm.contains(it) }) pts += 40
+
+            if (track.providerName == PROVIDER_SUBSONIC || track.isCustom) pts += 30
+            if (track.providerName == PROVIDER_YOUTUBE_MUSIC) pts += 25
+            if (!track.artworkUrl.isNullOrBlank()) pts += 5
+            return pts
+        }
+
+        return tracks.sortedByDescending { score(it) }
     }
 
     // --- 9. Live Network Harvesters ---
@@ -791,7 +1156,8 @@ internal object MissaMusicProviders {
 
     /**
      * Harvests all dedicated free music servers in parallel with bounded concurrency:
-     * Audius, HearThis.at, Funkwhale (`open.audio`), ccMixter, plus user's OpenSubsonic server if configured.
+     * YouTube Music/Audio shelves (Cameroun, Afrobeats, Urbain, Zouk/Gospel), Audius,
+     * HearThis.at, Funkwhale (`open.audio`), ccMixter, plus user's OpenSubsonic server if configured.
      */
     suspend fun harvestAllMusicProviders(
         subsonicConfig: OpenSubsonicServerConfig? = null
@@ -799,16 +1165,37 @@ internal object MissaMusicProviders {
         val semaphore = Semaphore(4)
         val audiusNodes = resolveAudiusNodes()
 
+        val youtubeShelves = listOf(
+            Triple("Cameroun Bikutsi Makossa Lady Ponce Ko-C Locko", true, "Cameroun • Afrique • Bikutsi & Makossa"),
+            Triple("Afrobeats Hits Burna Boy Rema Davido Ayra Starr", true, "Afrique • Afrobeats"),
+            Triple("Ndombolo Rumba Coupe Decale Amapiano Hits", false, "Afrique • Ndombolo & Amapiano"),
+            Triple("Rap Francais R&B Hits", false, "Hip-Hop, Rap & R&B"),
+            Triple("Zouk Kompa Gospel Louange Hits", false, "Pop • Zouk & Gospel")
+        )
+        val youtubeDeferred = youtubeShelves.map { (query, isTrending, genreHint) ->
+            async(Dispatchers.IO) {
+                semaphore.withPermit {
+                    searchYouTubeAudioDirect(
+                        query = query,
+                        includeGeneralVideos = true,
+                        markTrending = isTrending,
+                        extraGenreHint = genreHint,
+                        maxResults = 24
+                    )
+                }
+            }
+        }
+
         val audiusSlices = listOf(
-            Triple("v1/tracks/trending?limit=40&app_name=$AUDIUS_APP_NAME", true, "Trending"),
-            Triple("v1/tracks/search?query=Afrobeats&limit=35&app_name=$AUDIUS_APP_NAME", false, "Afrique • Afrobeats"),
-            Triple("v1/tracks/search?query=Amapiano&limit=25&app_name=$AUDIUS_APP_NAME", false, "Afrique • Amapiano"),
+            Triple("v1/tracks/trending?limit=35&app_name=$AUDIUS_APP_NAME", true, "Trending"),
+            Triple("v1/tracks/search?query=Afrobeats&limit=30&app_name=$AUDIUS_APP_NAME", false, "Afrique • Afrobeats"),
+            Triple("v1/tracks/search?query=Amapiano&limit=20&app_name=$AUDIUS_APP_NAME", false, "Afrique • Amapiano"),
             Triple("v1/tracks/search?query=Makossa&limit=20&app_name=$AUDIUS_APP_NAME", false, "Cameroun • Makossa"),
-            Triple("v1/tracks/trending?genre=Hip-Hop%2FRap&limit=35&app_name=$AUDIUS_APP_NAME", false, "Hip-Hop & Rap"),
-            Triple("v1/tracks/trending?genre=R%26B%2FSoul&limit=30&app_name=$AUDIUS_APP_NAME", false, "R&B & Soul"),
+            Triple("v1/tracks/trending?genre=Hip-Hop%2FRap&limit=30&app_name=$AUDIUS_APP_NAME", false, "Hip-Hop & Rap"),
+            Triple("v1/tracks/trending?genre=R%26B%2FSoul&limit=25&app_name=$AUDIUS_APP_NAME", false, "R&B & Soul"),
             Triple("v1/tracks/trending?genre=Electronic&limit=25&app_name=$AUDIUS_APP_NAME", false, "Électro & Club"),
-            Triple("v1/tracks/trending?genre=Jazz&limit=25&app_name=$AUDIUS_APP_NAME", false, "Jazz"),
-            Triple("v1/tracks/trending?genre=Reggae&limit=25&app_name=$AUDIUS_APP_NAME", false, "Reggae & Dancehall")
+            Triple("v1/tracks/trending?genre=Jazz&limit=20&app_name=$AUDIUS_APP_NAME", false, "Jazz"),
+            Triple("v1/tracks/trending?genre=Reggae&limit=20&app_name=$AUDIUS_APP_NAME", false, "Reggae & Dancehall")
         )
         val audiusDeferred = audiusSlices.map { (endpoint, isTrending, genreHint) ->
             async(Dispatchers.IO) {
@@ -820,15 +1207,14 @@ internal object MissaMusicProviders {
         }
 
         val hearThisSlices = listOf(
-            Triple("https://api-v2.hearthis.at/feed/?type=popular&page=1&count=30", true, "Trending • DJ Mix"),
-            Triple("https://api-v2.hearthis.at/search?t=afrobeats&page=1&count=25", false, "Afrique • Afrobeats"),
+            Triple("https://api-v2.hearthis.at/feed/?type=popular&page=1&count=25", true, "Trending • DJ Mix"),
+            Triple("https://api-v2.hearthis.at/search?t=afrobeats&page=1&count=20", false, "Afrique • Afrobeats"),
             Triple("https://api-v2.hearthis.at/search?t=amapiano&page=1&count=20", false, "Afrique • Amapiano"),
-            Triple("https://api-v2.hearthis.at/categories/hiphop/?page=1&count=25", false, "Hip-Hop & Rap"),
+            Triple("https://api-v2.hearthis.at/categories/hiphop/?page=1&count=20", false, "Hip-Hop & Rap"),
             Triple("https://api-v2.hearthis.at/categories/rnb/?page=1&count=20", false, "R&B & Soul"),
-            Triple("https://api-v2.hearthis.at/categories/reggae/?page=1&count=20", false, "Reggae"),
-            Triple("https://api-v2.hearthis.at/categories/dancehall/?page=1&count=20", false, "Dancehall"),
-            Triple("https://api-v2.hearthis.at/categories/jazz/?page=1&count=20", false, "Jazz"),
-            Triple("https://api-v2.hearthis.at/categories/chillout/?page=1&count=20", false, "Chillout & Lounge")
+            Triple("https://api-v2.hearthis.at/categories/reggae/?page=1&count=15", false, "Reggae"),
+            Triple("https://api-v2.hearthis.at/categories/jazz/?page=1&count=15", false, "Jazz"),
+            Triple("https://api-v2.hearthis.at/categories/chillout/?page=1&count=15", false, "Chillout & Lounge")
         )
         val hearThisDeferred = hearThisSlices.map { (url, isTrending, genreHint) ->
             async(Dispatchers.IO) {
@@ -849,7 +1235,7 @@ internal object MissaMusicProviders {
                     withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
                         runCatching {
                             val text = app.get(
-                                "$pod/api/v1/tracks/?playable=true&ordering=-creation_date&page_size=40",
+                                "$pod/api/v1/tracks/?playable=true&ordering=-creation_date&page_size=35",
                                 headers = httpHeaders
                             ).text
                             parseFunkwhaleTracksJson(text, pod)
@@ -864,7 +1250,7 @@ internal object MissaMusicProviders {
                 withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
                     runCatching {
                         val text = app.get(
-                            "https://ccmixter.org/api/query?f=json&limit=35&tags=hip_hop,soul,jazz,chill,funk&sort=rank",
+                            "https://ccmixter.org/api/query?f=json&limit=30&tags=hip_hop,soul,jazz,chill,funk&sort=rank",
                             headers = httpHeaders
                         ).text
                         parseCcMixterJson(text)
@@ -881,32 +1267,41 @@ internal object MissaMusicProviders {
             }
         }
 
-        val combined = ArrayList<MusicTrackPreset>(500)
+        val combined = ArrayList<MusicTrackPreset>(600)
         combined.addAll(subsonicDeferred.await())
+        combined.addAll(youtubeDeferred.awaitAll().flatten())
         combined.addAll(audiusDeferred.awaitAll().flatten())
         combined.addAll(hearThisDeferred.awaitAll().flatten())
         combined.addAll(funkwhaleDeferred.awaitAll().flatten())
         combined.addAll(ccMixterDeferred.await())
 
-        mergeMusicCatalogues(combined).take(650)
+        mergeMusicCatalogues(combined).take(750)
     }
 
     /**
-     * Real-time search across all dedicated music servers:
-     * Audius, HearThis.at, Funkwhale (`open.audio`), ccMixter, OpenSubsonic (if configured),
-     * and Piped Music (`filter=music_songs` audio-only).
+     * Real-time search across **YouTube Music + YouTube Audio** (direct on-device [NewPipe]),
+     * Audius, HearThis.at, Funkwhale (`open.audio`), ccMixter, and OpenSubsonic (if configured).
      */
     suspend fun searchAllMusicProviders(
         query: String,
         subsonicConfig: OpenSubsonicServerConfig? = null
     ): List<MusicTrackPreset> = coroutineScope {
-        val trimmed = query.trim()
+        val trimmed = sanitizeMusicQuery(query)
         if (trimmed.length < 2) return@coroutineScope emptyList()
         val encoded = runCatching { URLEncoder.encode(trimmed, "UTF-8") }.getOrDefault(trimmed)
         val audiusNodes = cachedAudiusNodes
 
+        // Primary: Direct on-device YouTube Music (songs + music videos) & YouTube Audio search
+        val youtubeJob = async(Dispatchers.IO) {
+            searchYouTubeAudioDirect(
+                query = trimmed,
+                includeGeneralVideos = true,
+                maxResults = 50
+            )
+        }
+
         val audiusJob = async(Dispatchers.IO) {
-            val json = fetchAudiusEndpoint("v1/tracks/search?query=$encoded&limit=40&app_name=$AUDIUS_APP_NAME", audiusNodes)
+            val json = fetchAudiusEndpoint("v1/tracks/search?query=$encoded&limit=35&app_name=$AUDIUS_APP_NAME", audiusNodes)
                 ?: return@async emptyList()
             parseAudiusTracksJson(json, audiusNodes)
         }
@@ -914,7 +1309,7 @@ internal object MissaMusicProviders {
         val hearThisJob = async(Dispatchers.IO) {
             withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
                 runCatching {
-                    val text = app.get("https://api-v2.hearthis.at/search?t=$encoded&page=1&count=30", headers = httpHeaders).text
+                    val text = app.get("https://api-v2.hearthis.at/search?t=$encoded&page=1&count=25", headers = httpHeaders).text
                     parseHearThisJson(text)
                 }.getOrDefault(emptyList())
             }.orEmpty()
@@ -924,7 +1319,7 @@ internal object MissaMusicProviders {
             withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
                 runCatching {
                     val text = app.get(
-                        "https://open.audio/api/v1/tracks/?playable=true&q=$encoded&page_size=25",
+                        "https://open.audio/api/v1/tracks/?playable=true&q=$encoded&page_size=20",
                         headers = httpHeaders
                     ).text
                     parseFunkwhaleTracksJson(text, "https://open.audio")
@@ -936,31 +1331,12 @@ internal object MissaMusicProviders {
             withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
                 runCatching {
                     val text = app.get(
-                        "https://ccmixter.org/api/query?f=json&limit=25&search=$encoded&search_type=any",
+                        "https://ccmixter.org/api/query?f=json&limit=20&search=$encoded&search_type=any",
                         headers = httpHeaders
                     ).text
                     parseCcMixterJson(text)
                 }.getOrDefault(emptyList())
             }.orEmpty()
-        }
-
-        val pipedJob = async(Dispatchers.IO) {
-            val startIdx = preferredPipedMirrorIndex
-            for (offset in PIPED_API_MIRRORS.indices) {
-                val idx = (startIdx + offset) % PIPED_API_MIRRORS.size
-                val base = PIPED_API_MIRRORS[idx]
-                val hits = withTimeoutOrNull(6_000L) {
-                    runCatching {
-                        val text = app.get("$base/search?q=$encoded&filter=music_songs", headers = httpHeaders).text
-                        parsePipedMusicSearchJson(text)
-                    }.getOrDefault(emptyList())
-                }.orEmpty()
-                if (hits.isNotEmpty()) {
-                    preferredPipedMirrorIndex = idx
-                    return@async hits
-                }
-            }
-            emptyList()
         }
 
         val subsonicJob = async(Dispatchers.IO) {
@@ -982,17 +1358,43 @@ internal object MissaMusicProviders {
             }
         }
 
+        val youtubeHits = youtubeJob.await()
+        val pipedBackupHits = if (youtubeHits.isEmpty()) {
+            val startIdx = preferredPipedMirrorIndex
+            var found: List<MusicTrackPreset> = emptyList()
+            for (offset in PIPED_API_MIRRORS.indices) {
+                val idx = (startIdx + offset) % PIPED_API_MIRRORS.size
+                val base = PIPED_API_MIRRORS[idx]
+                val hits = withTimeoutOrNull(5_500L) {
+                    runCatching {
+                        val text = app.get("$base/search?q=$encoded&filter=music_songs", headers = httpHeaders).text
+                        parsePipedMusicSearchJson(text)
+                    }.getOrDefault(emptyList())
+                }.orEmpty()
+                if (hits.isNotEmpty()) {
+                    preferredPipedMirrorIndex = idx
+                    found = hits
+                    break
+                }
+            }
+            found
+        } else {
+            emptyList()
+        }
+
         val rawHits = subsonicJob.await() +
+            youtubeHits +
+            pipedBackupHits +
             audiusJob.await() +
             hearThisJob.await() +
-            pipedJob.await() +
             funkwhaleJob.await() +
             ccMixterJob.await()
 
         val tagged = rawHits.map { tr ->
             if (matchesTrackQuery(tr, trimmed)) tr else tr.copy(genre = "${tr.genre} • $trimmed")
         }
-        mergeMusicCatalogues(tagged).take(140)
+        val merged = mergeMusicCatalogues(tagged)
+        rankTracksForQuery(merged, trimmed).take(160)
     }
 
     suspend fun fetchRemoteMusicPlaylistIfAny(

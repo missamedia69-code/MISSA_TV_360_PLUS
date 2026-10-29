@@ -58,8 +58,8 @@ data class MusicPlaybackState(
  */
 object DirectMusicPlayerManager {
     private const val CUSTOM_TRACKS_KEY = "missa_custom_music_tracks_v1"
-    private const val REMOTE_TRACKS_CACHE_KEY = "missa_remote_music_tracks_v1"
-    private const val REMOTE_TRACKS_UPDATED_AT_KEY = "missa_remote_music_updated_at_v1"
+    private const val REMOTE_TRACKS_CACHE_KEY = "missa_remote_music_tracks_v2"
+    private const val REMOTE_TRACKS_UPDATED_AT_KEY = "missa_remote_music_updated_at_v2"
     private const val FAVORITE_TRACKS_KEY = "missa_favorite_music_ids_v1"
     private const val SUBSONIC_CONFIG_KEY = "missa_subsonic_server_config_v1"
     private const val REMOTE_CACHE_TTL_MS = 12 * 60 * 60_000L
@@ -236,7 +236,7 @@ object DirectMusicPlayerManager {
         val custom = customTracks()
         val remote = cachedRemoteTracks()
         val discovered = discoveredSearchTracks.values.toList()
-        val combined = custom + remote + MissaMusicProviders.curatedStarterTracks + discovered
+        val combined = custom + discovered + remote + MissaMusicProviders.curatedStarterTracks
         return MissaMusicProviders.mergeMusicCatalogues(combined, favoriteIds())
     }
 
@@ -267,11 +267,12 @@ object DirectMusicPlayerManager {
     suspend fun searchTracksOnline(query: String): List<MusicTrackPreset> {
         val found = MissaMusicProviders.searchAllMusicProviders(query, subsonicConfig())
         if (found.isNotEmpty()) {
+            if (discoveredSearchTracks.size + found.size > 600) {
+                discoveredSearchTracks.clear()
+            }
             for (tr in found) {
                 val key = tr.streamUrl.trim().lowercase(Locale.ROOT)
-                if (!discoveredSearchTracks.containsKey(key) && discoveredSearchTracks.size < 450) {
-                    discoveredSearchTracks[key] = tr
-                }
+                discoveredSearchTracks[key] = tr
             }
             _tracksUpdated.postValue(System.currentTimeMillis())
         }
@@ -464,17 +465,22 @@ object DirectMusicPlayerManager {
             sleepTimerMinutes = activeSleepMinutes
         )
 
-        if (track.isPipedLazy || track.streamUrl.startsWith(MissaMusicProviders.PIPED_SCHEME_PREFIX)) {
+        if (track.isPipedLazy || MissaMusicProviders.isLazyYouTubeAudioScheme(track.streamUrl)) {
             resolveStreamJob = ioScope.launch {
-                val audioUrls = MissaMusicProviders.resolvePipedMusicTrackUrls(track.streamUrl)
+                val audioUrls = MissaMusicProviders.resolveYouTubeOrPipedAudioUrls(track.streamUrl)
                 mainHandler.post {
                     if (!isOwningPlayback) return@post
                     if (audioUrls.isEmpty()) {
-                        _state.value = (_state.value ?: MusicPlaybackState()).copy(
-                            isPlaying = false,
-                            isBuffering = false,
-                            hasError = true
-                        )
+                        if (activeQueue.size > 1 && consecutiveErrorSkips < 3) {
+                            consecutiveErrorSkips++
+                            nextTrack(appContext, autoAdvanced = true)
+                        } else {
+                            _state.value = (_state.value ?: MusicPlaybackState()).copy(
+                                isPlaying = false,
+                                isBuffering = false,
+                                hasError = true
+                            )
+                        }
                     } else {
                         activeFallbackCandidates = audioUrls.drop(1)
                         currentFallbackIndex = 0
@@ -511,7 +517,7 @@ object DirectMusicPlayerManager {
                 durationSeconds = durationSeconds,
                 providerName = apiName.ifBlank { DIRECT_MUSIC_API_NAME },
                 fallbackUrls = fallbackUrls,
-                isPipedLazy = isPipedLazy || url.startsWith(MissaMusicProviders.PIPED_SCHEME_PREFIX)
+                isPipedLazy = isPipedLazy || MissaMusicProviders.isLazyYouTubeAudioScheme(url)
             )
 
         val targetPreset = response.toPreset()

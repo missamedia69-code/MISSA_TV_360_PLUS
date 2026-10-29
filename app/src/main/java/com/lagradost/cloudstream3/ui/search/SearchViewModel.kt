@@ -17,13 +17,22 @@ import com.lagradost.cloudstream3.mvvm.debugWarning
 import com.lagradost.cloudstream3.mvvm.launchSafe
 import com.lagradost.cloudstream3.ui.APIRepository
 import com.lagradost.cloudstream3.ui.home.HomeViewModel
+import com.lagradost.cloudstream3.ui.universe.DIRECT_MUSIC_API_NAME
+import com.lagradost.cloudstream3.ui.universe.DIRECT_RADIO_API_NAME
+import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
+import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
+import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
+import com.lagradost.cloudstream3.ui.universe.MissaRadioProviders
 import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.DataStoreHelper.currentAccount
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 
 
 data class ExpandableSearchList(
@@ -62,7 +71,7 @@ class SearchViewModel : ViewModel() {
     /** Save which providers can searched again and which search result page they are on.
      * Maps provider name to search list.
      * @see [HomeViewModel.expandable] */
-    private val expandableSearches: MutableMap<String, ExpandableSearchList> = mutableMapOf()
+    private val expandableSearches: MutableMap<String, ExpandableSearchList> = ConcurrentHashMap()
 
     private var currentSearchIndex = 0
     private var onGoingSearch: Job? = null
@@ -226,26 +235,79 @@ class SearchViewModel : ViewModel() {
             _currentSearch.postValue(emptyMap())
             expandableSearches.clear()
 
-            lastQuery = query
+            val effectiveQuery = MissaMusicProviders.sanitizeMusicQuery(query).ifBlank { query.trim() }
+            if (effectiveQuery.length <= 1) {
+                clearSearch()
+                return@launchSafe
+            }
+            lastQuery = effectiveQuery
 
             withContext(Dispatchers.IO) { // This interrupts UI otherwise
-                repos.filter { a ->
-                    (ignoreSettings || (providersActive.isEmpty() || providersActive.contains(a.name))) && (!isQuickSearch || a.hasQuickSearch)
-                }.amap { a -> // Parallel
-                    val search = if (isQuickSearch) a.quickSearch(query) else a.search(query, 1)
-                    if (currentSearchIndex != currentIndex) return@amap
-                    if (search is Resource.Success) {
-                        val searchValue = search.value
-                        expandableSearches[a.name] =
-                            ExpandableSearchList(searchValue.items, 1, searchValue.hasNext)
+                coroutineScope {
+                    val musicSearchJob = if (!isQuickSearch) {
+                        async {
+                            val tracks = DirectMusicPlayerManager.searchTracksOnline(effectiveQuery)
+                            if (currentSearchIndex == currentIndex && tracks.isNotEmpty()) {
+                                val ytTracks = tracks.filter {
+                                    it.providerName == MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC ||
+                                        it.providerName == MissaMusicProviders.PROVIDER_PIPED_MUSIC
+                                }.map { it.toSearchResponse() }
+                                val otherMusicTracks = tracks.filter {
+                                    it.providerName != MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC &&
+                                        it.providerName != MissaMusicProviders.PROVIDER_PIPED_MUSIC
+                                }.map { it.toSearchResponse() }
+
+                                if (ytTracks.isNotEmpty()) {
+                                    expandableSearches[MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC] =
+                                        ExpandableSearchList(ytTracks, 1, false)
+                                }
+                                if (otherMusicTracks.isNotEmpty()) {
+                                    expandableSearches[DIRECT_MUSIC_API_NAME] =
+                                        ExpandableSearchList(otherMusicTracks, 1, false)
+                                }
+                                _currentSearch.postValue(expandableSearches.toMap())
+                            }
+                        }
+                    } else null
+
+                    val radioSearchJob = if (!isQuickSearch) {
+                        async {
+                            DirectRadioPlayerManager.searchStationsOnline(effectiveQuery)
+                            val matchingStations = DirectRadioPlayerManager.allPresetStations()
+                                .filter { MissaRadioProviders.matchesStationQuery(it, effectiveQuery) }
+                                .take(24)
+                                .map { it.toSearchResponse() }
+                            if (currentSearchIndex == currentIndex && matchingStations.isNotEmpty()) {
+                                expandableSearches[DIRECT_RADIO_API_NAME] =
+                                    ExpandableSearchList(matchingStations, 1, false)
+                                _currentSearch.postValue(expandableSearches.toMap())
+                            }
+                        }
+                    } else null
+
+                    repos.filter { a ->
+                        (ignoreSettings || (providersActive.isEmpty() || providersActive.contains(a.name))) && (!isQuickSearch || a.hasQuickSearch)
+                    }.amap { a -> // Parallel
+                        val search = if (isQuickSearch) a.quickSearch(effectiveQuery) else a.search(effectiveQuery, 1)
+                        if (currentSearchIndex != currentIndex) return@amap
+                        if (search is Resource.Success) {
+                            val searchValue = search.value
+                            if (searchValue.items.isNotEmpty()) {
+                                expandableSearches[a.name] =
+                                    ExpandableSearchList(searchValue.items, 1, searchValue.hasNext)
+                            }
+                        }
+
+                        _currentSearch.postValue(expandableSearches.toMap())
                     }
 
-                    _currentSearch.postValue(expandableSearches)
+                    musicSearchJob?.await()
+                    radioSearchJob?.await()
                 }
 
                 if (currentSearchIndex != currentIndex) return@withContext // this should prevent rewrite of existing data bug
 
-                _currentSearch.postValue(expandableSearches)
+                _currentSearch.postValue(expandableSearches.toMap())
                 val list = bundleSearch(expandableSearches)
 
                 _searchResponse.postValue(Resource.Success(list))

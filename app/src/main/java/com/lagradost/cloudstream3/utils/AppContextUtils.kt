@@ -47,6 +47,10 @@ import androidx.tvprovider.media.tv.TvContractCompat
 import androidx.tvprovider.media.tv.WatchNextProgram
 import androidx.tvprovider.media.tv.WatchNextProgram.fromCursor
 import androidx.viewpager2.widget.ViewPager2
+import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
+import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
+import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
+import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastState
 import com.google.android.gms.common.ConnectionResult
@@ -756,6 +760,14 @@ object AppContextUtils {
         startAction: Int = 0,
         startValue: Int? = null,
     ) {
+        if (card is DirectMusicSearchResponse) {
+            this?.let { DirectMusicPlayerManager.playDirectResponse(it, card) }
+            return
+        }
+        if (card is DirectRadioSearchResponse) {
+            this?.let { DirectRadioPlayerManager.playDirectResponse(it, card) }
+            return
+        }
         this?.runOnUiThread {
             // viewModelStore.clear()
             this.navigate(

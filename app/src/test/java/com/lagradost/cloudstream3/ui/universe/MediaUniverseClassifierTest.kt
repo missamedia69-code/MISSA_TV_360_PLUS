@@ -5,6 +5,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.DeliveryMethod
 
 class MediaUniverseClassifierTest {
     @Test
@@ -1031,8 +1034,10 @@ class MediaUniverseClassifierTest {
         )
         assertEquals(1, pipedSearch.size)
         assertEquals("Rema", pipedSearch[0].artist)
-        assertEquals("pipedmusic://abcDEF12345", pipedSearch[0].streamUrl)
+        assertEquals("ytmusic://abcDEF12345", pipedSearch[0].streamUrl)
         assertTrue(pipedSearch[0].isPipedLazy)
+        assertTrue(MissaMusicProviders.isLazyYouTubeAudioScheme("ytmusic://abcDEF12345"))
+        assertTrue(MissaMusicProviders.isLazyYouTubeAudioScheme("pipedmusic://abcDEF12345"))
 
         val pipedStreams = MissaMusicProviders.parsePipedAudioStreamsJson(
             """
@@ -1059,5 +1064,122 @@ class MediaUniverseClassifierTest {
         assertEquals("Tayc", musicM3u[0].artist)
         assertEquals("Le Temps", musicM3u[0].title)
         assertEquals(214, musicM3u[0].durationSeconds)
+    }
+
+    @Test
+    fun `youtube audio search query sanitization, title cleaning, multi-token matching and stream sorting`() {
+        // 1. Stray quotes/apostrophes and extra whitespace are stripped cleanly
+        assertEquals("lady ponce", MissaMusicProviders.sanitizeMusicQuery("lady ponce '"))
+        assertEquals("Lady Ponce", MissaMusicProviders.sanitizeMusicQuery("  \"Lady   Ponce\" ’  "))
+        assertEquals("l'oiseau rare", MissaMusicProviders.sanitizeMusicQuery(" 'l'oiseau rare' "))
+
+        // 2. YouTube Video ID extractor handles watch URLs, music.youtube.com, youtu.be, and lazy schemes
+        assertEquals(
+            "dQw4w9WgXcQ",
+            MissaMusicProviders.extractYouTubeVideoId("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RD")
+        )
+        assertEquals(
+            "dQw4w9WgXcQ",
+            MissaMusicProviders.extractYouTubeVideoId("https://music.youtube.com/watch?v=dQw4w9WgXcQ")
+        )
+        assertEquals(
+            "dQw4w9WgXcQ",
+            MissaMusicProviders.extractYouTubeVideoId("https://youtu.be/dQw4w9WgXcQ?si=123")
+        )
+        assertEquals(
+            "dQw4w9WgXcQ",
+            MissaMusicProviders.extractYouTubeVideoId("ytmusic://dQw4w9WgXcQ")
+        )
+        assertEquals(
+            "dQw4w9WgXcQ",
+            MissaMusicProviders.extractYouTubeVideoId("pipedmusic://dQw4w9WgXcQ")
+        )
+
+        // 3. YouTube title & uploader cleaner extracts clean artist and song title
+        val (cleanTitle1, cleanArtist1) = MissaMusicProviders.cleanYouTubeTitleAndArtist(
+            "Lady Ponce - Confession (Clip Officiel)",
+            "Lady Ponce Officiel"
+        )
+        assertEquals("Confession", cleanTitle1)
+        assertEquals("Lady Ponce", cleanArtist1)
+
+        val (cleanTitle2, cleanArtist2) = MissaMusicProviders.cleanYouTubeTitleAndArtist(
+            "Le Ventre et le Bas-Ventre [Audio Officiel]",
+            "Lady Ponce - Topic"
+        )
+        assertEquals("Le Ventre et le Bas-Ventre", cleanTitle2)
+        assertEquals("Lady Ponce", cleanArtist2)
+
+        // 4. Tokenized accent-insensitive matching handles quotes, reversed words, and artist + song queries
+        val ladyPonceTrack = MusicTrackPreset(
+            id = "ytm_lp_confession",
+            title = "Confession",
+            artist = "Lady Ponce",
+            album = "YouTube Music",
+            genre = "Bikutsi & Cameroun",
+            streamUrl = "ytmusic://lpConfess01",
+            providerName = MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC,
+            isPipedLazy = true
+        )
+        val unrelatedTrack = MusicTrackPreset(
+            id = "aud_random_01",
+            title = "Midnight Synthwave",
+            artist = "Neon Rider",
+            album = "Synth",
+            genre = "Électro",
+            streamUrl = "https://cdn.example.org/neon.mp3",
+            providerName = MissaMusicProviders.PROVIDER_AUDIUS
+        )
+        assertTrue(MissaMusicProviders.matchesTrackQuery(ladyPonceTrack, "lady ponce '"))
+        assertTrue(MissaMusicProviders.matchesTrackQuery(ladyPonceTrack, "ponce lady"))
+        assertTrue(MissaMusicProviders.matchesTrackQuery(ladyPonceTrack, "lady ponce confession"))
+        assertFalse(MissaMusicProviders.matchesTrackQuery(unrelatedTrack, "lady ponce '"))
+
+        // 5. Relevance ranking puts exact YouTube Audio artist matches ahead of weaker partial hits
+        val partialHit = MusicTrackPreset(
+            id = "aud_lady_02",
+            title = "Lady in the Rain (feat. DJ Ponce)",
+            artist = "Unknown Producer",
+            album = "Mix",
+            genre = "Pop",
+            streamUrl = "https://cdn.example.org/rain.mp3",
+            providerName = MissaMusicProviders.PROVIDER_AUDIUS
+        )
+        val ranked = MissaMusicProviders.rankTracksForQuery(
+            listOf(partialHit, ladyPonceTrack),
+            "lady ponce '"
+        )
+        assertEquals("ytm_lp_confession", ranked.first().id)
+
+        // 6. NewPipe AudioStream sorter prioritizes progressive HTTP M4A (AAC) at highest bitrate for ExoPlayer
+        val dashWebm = AudioStream.Builder()
+            .setId("251")
+            .setContent("https://rr1---sn.googlevideo.com/videoplayback?itag=251", true)
+            .setDeliveryMethod(DeliveryMethod.DASH)
+            .setMediaFormat(MediaFormat.WEBMA)
+            .setAverageBitrate(160)
+            .build()
+        val progressiveM4aLow = AudioStream.Builder()
+            .setId("139")
+            .setContent("https://rr1---sn.googlevideo.com/videoplayback?itag=139", true)
+            .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP)
+            .setMediaFormat(MediaFormat.M4A)
+            .setAverageBitrate(48)
+            .build()
+        val progressiveM4aHigh = AudioStream.Builder()
+            .setId("140")
+            .setContent("https://rr1---sn.googlevideo.com/videoplayback?itag=140", true)
+            .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP)
+            .setMediaFormat(MediaFormat.M4A)
+            .setAverageBitrate(128)
+            .build()
+
+        val sortedUrls = MissaMusicProviders.sortNewPipeAudioStreams(
+            listOf(dashWebm, progressiveM4aLow, progressiveM4aHigh)
+        )
+        assertEquals(3, sortedUrls.size)
+        assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=140", sortedUrls[0])
+        assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=139", sortedUrls[1])
+        assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=251", sortedUrls[2])
     }
 }

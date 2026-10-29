@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.OptIn
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.media3.common.AudioAttributes
@@ -13,7 +14,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
@@ -294,6 +299,10 @@ object DirectRadioPlayerManager {
         _state.postValue(current.copy(sleepTimerMinutes = activeSleepMinutes))
     }
 
+    private const val STREAM_USER_AGENT =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+    @OptIn(UnstableApi::class)
     fun getOrCreatePlayer(context: Context): ExoPlayer {
         player?.let { return it }
         val appContext = context.applicationContext
@@ -301,7 +310,14 @@ object DirectRadioPlayerManager {
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
+        val httpFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent(STREAM_USER_AGENT)
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(12_000)
+            .setReadTimeoutMs(18_000)
+        val dataSourceFactory = DefaultDataSource.Factory(appContext, httpFactory)
         return ExoPlayer.Builder(appContext)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .build()

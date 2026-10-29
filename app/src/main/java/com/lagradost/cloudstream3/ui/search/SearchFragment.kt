@@ -19,6 +19,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -48,6 +49,12 @@ import com.lagradost.cloudstream3.mvvm.observe
 import com.lagradost.cloudstream3.ui.APIRepository
 import com.lagradost.cloudstream3.ui.BaseAdapter
 import com.lagradost.cloudstream3.ui.BaseFragment
+import com.lagradost.cloudstream3.ui.universe.DIRECT_MUSIC_API_NAME
+import com.lagradost.cloudstream3.ui.universe.DIRECT_RADIO_API_NAME
+import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.lagradost.cloudstream3.ui.home.HomeFragment
 import com.lagradost.cloudstream3.ui.home.HomeFragment.Companion.bindChips
 import com.lagradost.cloudstream3.ui.home.HomeFragment.Companion.currentSpan
@@ -140,7 +147,10 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
         return super.onCreateView(inflater, container, savedInstanceState)
     }
 
+    private var liveSearchDebounceJob: Job? = null
+
     override fun onDestroyView() {
+        liveSearchDebounceJob?.cancel()
         hideKeyboard()
         bottomSheetDialog?.ownHide()
         activity?.detachBackPressedCallback("SearchFragment")
@@ -430,6 +440,7 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
 
         binding.mainSearch.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String): Boolean {
+                liveSearchDebounceJob?.cancel()
                 search(query)
                 searchViewModel.clearSuggestions()
 
@@ -441,7 +452,7 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
             }
 
             override fun onQueryTextChange(newText: String): Boolean {
-                //searchViewModel.quickSearch(newText)
+                liveSearchDebounceJob?.cancel()
                 val showHistory = newText.isBlank()
                 if (showHistory) {
                     searchViewModel.clearSearch()
@@ -451,6 +462,17 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
                     // Fetch suggestions when user is typing (if enabled)
                     if (isSearchSuggestionsEnabled) {
                         searchViewModel.fetchSuggestions(newText)
+                    }
+                    val clean = MissaMusicProviders.sanitizeMusicQuery(newText)
+                    if (clean.length >= 2 && clean != searchViewModel.lastQuery) {
+                        liveSearchDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                            delay(650L)
+                            if (isAdded && clean != searchViewModel.lastQuery) {
+                                searchViewModel.clearSuggestions()
+                                binding.searchSuggestionsRecycler.isVisible = false
+                                search(newText)
+                            }
+                        }
                     }
                 }
                 binding.apply {
@@ -503,7 +525,13 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
 
                 val sortedList = list.toList().sortedWith(compareBy { (providerName, _) ->
                     val index = pinnedOrder.indexOf(providerName)
-                    if (index == -1) Int.MAX_VALUE else index
+                    when {
+                        index != -1 -> index
+                        providerName == MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC -> pinnedOrder.size
+                        providerName == DIRECT_MUSIC_API_NAME -> pinnedOrder.size + 1
+                        providerName == DIRECT_RADIO_API_NAME -> pinnedOrder.size + 2
+                        else -> Int.MAX_VALUE
+                    }
                 })
 
                 (binding.searchMasterRecycler.adapter as? ParentItemAdapter)?.apply {

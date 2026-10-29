@@ -936,6 +936,7 @@
     <string name="missa_loading_sources_progress">Loading sources… %1$d/%2$d</string>
     <string name="missa_loading_catalog">Preparing unified catalog…</string>
     <string name="missa_searching_sources_progress">%1$d/%2$d sources queried</string>
+    <string name="missa_searching_music_youtube">Searching YouTube Audio &amp; music servers for "%1$s"…</string>
     <string name="missa_updated_just_now">Updated just now</string>
     <string name="missa_updated_minutes_ago">Updated %1$d min ago</string>
     <string name="missa_data_saver_badge">Data Saver</string>

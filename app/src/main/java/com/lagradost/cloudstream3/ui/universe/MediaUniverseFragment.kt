@@ -19,6 +19,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
@@ -112,6 +113,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private var selectedSources: Set<String> = emptySet()
     private var showAllRows: Boolean = false
     private var searchJob: Job? = null
+    private var typingDebounceJob: Job? = null
+    private var suppressSearchTextWatcher: Boolean = false
     private var lastProjection: UniverseScreenProjection? = null
     private var didRestoreUniverseFocus = false
 
@@ -126,7 +129,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 .orEmpty()
             if (spoken.isNotBlank()) {
                 inlineFilterPanel?.isVisible = true
+                suppressSearchTextWatcher = true
                 searchInput?.setText(spoken)
+                suppressSearchTextWatcher = false
                 submitInUniverseSearch(spoken)
             }
         }
@@ -209,6 +214,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     override fun onDestroyView() {
         searchJob?.cancel()
+        typingDebounceJob?.cancel()
         stickyFilterBar = null
         swipeRefresh = null
         masterRecycler = null
@@ -246,6 +252,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             R.string.universe_filter_in_universe_hint,
             ctx.getString(def.titleRes)
         )
+
+        // On mobile/tablet, expose the search bar immediately in Music & Radio universes
+        if (!isTv && (universeId == "music" || universeId == "radio")) {
+            inlineFilterPanel?.isVisible = true
+            renderRecentSearchChips()
+        }
 
         val pillAdapter = CategoryFilterPillAdapter { pill ->
             if (pill.isOverflowMore) {
@@ -319,17 +331,42 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
 
         searchSubmitBtn?.setOnClickListener {
-            submitInUniverseSearch(searchInput?.text?.toString().orEmpty())
+            typingDebounceJob?.cancel()
+            submitInUniverseSearch(searchInput?.text?.toString().orEmpty(), hideIme = true, recordRecent = true)
         }
         searchInput?.setOnEditorActionListener { _, actionId, event ->
             val isEnter = actionId == EditorInfo.IME_ACTION_SEARCH ||
                 actionId == EditorInfo.IME_ACTION_DONE ||
                 (event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
             if (isEnter) {
-                submitInUniverseSearch(searchInput?.text?.toString().orEmpty())
+                typingDebounceJob?.cancel()
+                submitInUniverseSearch(searchInput?.text?.toString().orEmpty(), hideIme = true, recordRecent = true)
                 true
             } else {
                 false
+            }
+        }
+        searchInput?.doAfterTextChanged { editable ->
+            if (suppressSearchTextWatcher) return@doAfterTextChanged
+            val raw = editable?.toString().orEmpty()
+            val cleaned = MissaMusicProviders.sanitizeMusicQuery(raw)
+            typingDebounceJob?.cancel()
+            if (raw.isBlank()) {
+                if (currentSearchQuery.isNotBlank()) {
+                    searchJob?.cancel()
+                    currentSearchQuery = ""
+                    searchOverrideEntries = null
+                    searchProgressText?.isVisible = false
+                    renderScreen()
+                }
+                return@doAfterTextChanged
+            }
+            if (cleaned.length < 2) return@doAfterTextChanged
+            typingDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                kotlinx.coroutines.delay(520L)
+                if (isAdded && cleaned != MissaMusicProviders.sanitizeMusicQuery(currentSearchQuery)) {
+                    submitInUniverseSearch(raw, hideIme = false, recordRecent = false)
+                }
             }
         }
         searchClearBtn?.setOnClickListener {
@@ -364,7 +401,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 selected = term.equals(currentSearchQuery, ignoreCase = true),
                 marginEndDp = 6
             ) {
+                suppressSearchTextWatcher = true
                 searchInput?.setText(term)
+                suppressSearchTextWatcher = false
                 submitInUniverseSearch(term)
             }
             container.addView(chip)
@@ -631,26 +670,36 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
     }
 
-    private fun submitInUniverseSearch(query: String) {
-        hideKeyboard()
-        val trimmed = query.trim()
+    private fun submitInUniverseSearch(
+        query: String,
+        hideIme: Boolean = true,
+        recordRecent: Boolean = true
+    ) {
+        if (hideIme) hideKeyboard()
+        val sanitized = MissaMusicProviders.sanitizeMusicQuery(query)
+        val trimmed = sanitized.ifBlank { query.trim() }
         if (trimmed.isBlank()) {
             onResetAllFilters()
             return
         }
         currentSearchQuery = trimmed
-        viewModel.recordRecentSearch(trimmed)
-        renderRecentSearchChips()
+        if (recordRecent) {
+            viewModel.recordRecentSearch(trimmed)
+            renderRecentSearchChips()
+        }
 
         // First render immediate local matches across already-loaded catalog
         searchOverrideEntries = null
         renderScreen()
 
-        // Also query active background extensions + free online radio directories progressively (HOME-07)
+        // Also query YouTube Audio / music servers, online radio directories & active background extensions progressively
         searchJob?.cancel()
         searchJob = viewLifecycleOwner.lifecycleScope.launch {
             loadingBar?.isVisible = true
             searchProgressText?.isVisible = true
+            if (universeId == "music") {
+                searchProgressText?.text = getString(R.string.missa_searching_music_youtube, trimmed)
+            }
             try {
                 val results = coroutineScope {
                     val radioJob = if (universeId == "radio" || universeId == "home") {
@@ -658,20 +707,24 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     } else {
                         null
                     }
-                    val musicJob = if (universeId == "music") {
+                    val musicJob = if (universeId == "music" || universeId == "home") {
                         async { DirectMusicPlayerManager.searchTracksOnline(trimmed) }
                     } else {
                         null
                     }
-                    val pluginResults = viewModel.searchUnified(trimmed) { done, total ->
-                        view?.post {
-                            if (isAdded) {
-                                searchProgressText?.isVisible = true
-                                searchProgressText?.text = getString(
-                                    R.string.missa_searching_sources_progress,
-                                    done,
-                                    total
-                                )
+                    val pluginResults = if (universeId == "music" || universeId == "radio") {
+                        emptyList()
+                    } else {
+                        viewModel.searchUnified(trimmed) { done, total ->
+                            view?.post {
+                                if (isAdded) {
+                                    searchProgressText?.isVisible = true
+                                    searchProgressText?.text = getString(
+                                        R.string.missa_searching_sources_progress,
+                                        done,
+                                        total
+                                    )
+                                }
                             }
                         }
                     }
@@ -893,12 +946,15 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     override fun onResetAllFilters() {
         searchJob?.cancel()
+        typingDebounceJob?.cancel()
         currentSearchQuery = ""
         searchOverrideEntries = null
         selectedCategoryKey = null
         selectedSources = emptySet()
         showAllRows = false
+        suppressSearchTextWatcher = true
         searchInput?.setText("")
+        suppressSearchTextWatcher = false
         searchProgressText?.isVisible = false
         hideKeyboard()
         renderScreen()

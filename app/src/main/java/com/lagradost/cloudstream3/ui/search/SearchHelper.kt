@@ -9,6 +9,10 @@ import com.lagradost.cloudstream3.ui.download.DOWNLOAD_ACTION_PLAY_FILE
 import com.lagradost.cloudstream3.ui.download.DownloadButtonSetup.handleDownloadClick
 import com.lagradost.cloudstream3.ui.download.DownloadClickEvent
 import com.lagradost.cloudstream3.ui.result.START_ACTION_LOAD_EP
+import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
+import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
+import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
+import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
 import com.lagradost.cloudstream3.utils.AppContextUtils.loadSearchResult
 import com.lagradost.cloudstream3.utils.DataStoreHelper
 import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
@@ -16,6 +20,36 @@ import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
 object SearchHelper {
     fun handleSearchClickCallback(callback: SearchClickCallback) {
         val card = callback.card
+        val ctx = callback.view.context ?: activity
+
+        if (card is DirectMusicSearchResponse) {
+            if (callback.action == SEARCH_ACTION_SHOW_METADATA) {
+                val trackKey = card.trackId.ifBlank { "music_${card.url.hashCode()}" }
+                val nowFav = DirectMusicPlayerManager.toggleFavorite(trackKey)
+                showToast(
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    Toast.LENGTH_SHORT
+                )
+            } else if (ctx != null) {
+                DirectMusicPlayerManager.playDirectResponse(ctx, card)
+            }
+            return
+        }
+
+        if (card is DirectRadioSearchResponse) {
+            if (callback.action == SEARCH_ACTION_SHOW_METADATA) {
+                val stationKey = card.stationId.ifBlank { "radio_${card.url.hashCode()}" }
+                val nowFav = DirectRadioPlayerManager.toggleFavorite(stationKey)
+                showToast(
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    Toast.LENGTH_SHORT
+                )
+            } else if (ctx != null) {
+                DirectRadioPlayerManager.playDirectResponse(ctx, card)
+            }
+            return
+        }
+
         when (callback.action) {
             SEARCH_ACTION_LOAD -> {
                 loadSearchResult(card)
