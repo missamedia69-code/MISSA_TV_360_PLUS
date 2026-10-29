@@ -265,20 +265,31 @@ data class RadioStationPreset(
     val country: String,
     val streamUrl: String,
     val isCustom: Boolean = false,
-    val logoUrl: String? = null
+    val logoUrl: String? = null,
+    val providerName: String = DIRECT_RADIO_API_NAME,
+    val fallbackUrls: List<String> = emptyList()
 ) {
-    fun toSearchResponse(): DirectRadioSearchResponse = DirectRadioSearchResponse(
-        name = name,
-        url = streamUrl,
-        posterUrl = logoUrl ?: streamUrl.toRadioLogoFallback(),
-        genre = genre,
-        country = country,
-        logoUrl = logoUrl ?: streamUrl.toRadioLogoFallback()
-    )
+    fun toSearchResponse(): DirectRadioSearchResponse {
+        val resolvedLogo = logoUrl ?: streamUrl.toRadioLogoFallback()
+        return DirectRadioSearchResponse(
+            name = name,
+            url = streamUrl,
+            apiName = providerName.ifBlank { DIRECT_RADIO_API_NAME },
+            posterUrl = resolvedLogo,
+            genre = genre,
+            country = country,
+            logoUrl = resolvedLogo
+        )
+    }
 }
 
 /** Uses a station-provided logo first; a host favicon is a graceful fallback for older presets. */
 private fun String.toRadioLogoFallback(): String? {
-    val host = runCatching { Uri.parse(this).host }.getOrNull()?.takeIf { it.isNotBlank() } ?: return null
-    return "https://www.google.com/s2/favicons?domain=${Uri.encode(host)}&sz=128"
+    val host = runCatching { java.net.URI(this).host }
+        .getOrNull()
+        ?.takeIf { it.isNotBlank() }
+        ?: runCatching { Uri.parse(this).host }.getOrNull()?.takeIf { it.isNotBlank() }
+        ?: return null
+    val encoded = runCatching { java.net.URLEncoder.encode(host, "UTF-8") }.getOrDefault(host)
+    return "https://www.google.com/s2/favicons?domain=$encoded&sz=128"
 }

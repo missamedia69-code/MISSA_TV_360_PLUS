@@ -48,6 +48,8 @@ import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UIHelper.hideKeyboard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -178,9 +180,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             }
         }
 
-        // Re-render the visible universe when the asynchronous Radio Browser catalogue arrives.
+        // Re-render the visible universe when the asynchronous multi-provider radio catalogue updates.
         DirectRadioPlayerManager.stationsUpdated.observe(viewLifecycleOwner) {
-            if (universeId == "radio" || universeId == "music") {
+            if (universeId == "radio" || universeId == "music" || universeId == "home") {
                 renderScreen()
             }
         }
@@ -626,23 +628,32 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         searchOverrideEntries = null
         renderScreen()
 
-        // Also query active background extensions progressively (HOME-07)
+        // Also query active background extensions + free online radio directories progressively (HOME-07)
         searchJob?.cancel()
         searchJob = viewLifecycleOwner.lifecycleScope.launch {
             loadingBar?.isVisible = true
             searchProgressText?.isVisible = true
             try {
-                val results = viewModel.searchUnified(trimmed) { done, total ->
-                    view?.post {
-                        if (isAdded) {
-                            searchProgressText?.isVisible = true
-                            searchProgressText?.text = getString(
-                                R.string.missa_searching_sources_progress,
-                                done,
-                                total
-                            )
+                val results = coroutineScope {
+                    val radioJob = if (universeId == "radio" || universeId == "music" || universeId == "home") {
+                        async { DirectRadioPlayerManager.searchStationsOnline(trimmed) }
+                    } else {
+                        null
+                    }
+                    val pluginResults = viewModel.searchUnified(trimmed) { done, total ->
+                        view?.post {
+                            if (isAdded) {
+                                searchProgressText?.isVisible = true
+                                searchProgressText?.text = getString(
+                                    R.string.missa_searching_sources_progress,
+                                    done,
+                                    total
+                                )
+                            }
                         }
                     }
+                    radioJob?.await()
+                    pluginResults
                 }
                 if (isAdded) {
                     if (results.isNotEmpty()) {

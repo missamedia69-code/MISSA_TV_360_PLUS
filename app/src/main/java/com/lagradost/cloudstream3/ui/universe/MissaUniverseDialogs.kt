@@ -30,6 +30,9 @@ import com.lagradost.cloudstream3.ui.search.SearchClickCallback
 import com.lagradost.cloudstream3.utils.AppContextUtils.setDefaultFocus
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UIHelper.toPx
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
@@ -386,16 +389,43 @@ internal object MissaUniverseDialogs {
                 return@setOnClickListener
             }
             urlLayout.error = null
-            val saved = DirectRadioPlayerManager.saveCustomStation(
-                context = context,
-                name = nameInput.text?.toString().orEmpty(),
-                streamUrl = url,
-                country = countryInput.text?.toString().orEmpty(),
-                existingId = editingId
-            )
-            onStationsChanged()
-            DirectRadioPlayerManager.playStation(context, saved)
-            dialog.dismiss()
+            val enteredName = nameInput.text?.toString().orEmpty()
+            val enteredCountry = countryInput.text?.toString().orEmpty()
+            val lowerPath = url.lowercase(Locale.ROOT).substringBefore('?')
+            if (editingId == null && (lowerPath.endsWith(".m3u") || lowerPath.endsWith(".pls") || lowerPath.endsWith(".m3u8"))) {
+                saveBtn.isEnabled = false
+                CoroutineScope(Dispatchers.Main).launch {
+                    val imported = DirectRadioPlayerManager.importCustomStationOrPlaylist(
+                        context = context,
+                        name = enteredName,
+                        streamOrPlaylistUrl = url,
+                        country = enteredCountry
+                    )
+                    onStationsChanged()
+                    imported.firstOrNull()?.let { first ->
+                        DirectRadioPlayerManager.playStation(context, first)
+                    }
+                    if (imported.size > 1) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.universe_radio_m3u_imported, imported.size),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    dialog.dismiss()
+                }
+            } else {
+                val saved = DirectRadioPlayerManager.saveCustomStation(
+                    context = context,
+                    name = enteredName,
+                    streamUrl = url,
+                    country = enteredCountry,
+                    existingId = editingId
+                )
+                onStationsChanged()
+                DirectRadioPlayerManager.playStation(context, saved)
+                dialog.dismiss()
+            }
         }
 
         populateCustomList()

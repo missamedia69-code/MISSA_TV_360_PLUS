@@ -1103,12 +1103,19 @@
 
     <string name="missa_cat_radio_africa">Afrique &amp; Cameroun</string>
     <string name="missa_chip_radio_africa">Afrique</string>
+    <string name="missa_cat_radio_francophone">Francophonie &amp; Monde</string>
+    <string name="missa_chip_radio_francophone">Francophonie</string>
     <string name="missa_cat_radio_news">Généralistes &amp; Info</string>
     <string name="missa_chip_radio_news">Info</string>
+    <string name="missa_cat_radio_afro_urban">Afrobeats, Makossa &amp; Urbain</string>
+    <string name="missa_chip_radio_afro_urban">Afro &amp; Urbain</string>
     <string name="missa_cat_radio_music">Musicales &amp; Thématiques</string>
     <string name="missa_chip_radio_music">Musique</string>
+    <string name="missa_cat_radio_relax">Jazz, Gospel, Classique &amp; Détente</string>
+    <string name="missa_chip_radio_relax">Jazz &amp; Détente</string>
     <string name="missa_cat_radio_all">Stations de Radio</string>
     <string name="missa_chip_radio_all">Stations</string>
+    <string name="universe_radio_m3u_imported">%1$d stations importées depuis la playlist M3U</string>
 
     <!-- Retro Games Hub & Immersive Overlay Player (GAME-01..05) -->
     <string name="universe_retro_import">Importer une ROM</string>

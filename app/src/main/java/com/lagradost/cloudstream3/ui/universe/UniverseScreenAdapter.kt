@@ -751,7 +751,10 @@ internal class UniverseScreenAdapter(
                 state.hasError -> ctx.getString(R.string.universe_radio_error, st.name)
                 state.isBuffering -> ctx.getString(R.string.universe_radio_buffering, st.name)
                 state.isPlaying -> {
-                    val base = ctx.getString(R.string.universe_radio_playing, "${st.genre} (${st.country})")
+                    val base = ctx.getString(
+                        R.string.universe_radio_playing,
+                        "${st.providerName} • ${st.genre} (${st.country})"
+                    )
                     if (state.sleepTimerMinutes > 0) "$base • ⏱ ${state.sleepTimerMinutes}m" else base
                 }
                 else -> ctx.getString(R.string.universe_radio_paused, st.name)

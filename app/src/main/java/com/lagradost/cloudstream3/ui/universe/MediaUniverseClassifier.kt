@@ -101,8 +101,11 @@ enum class MissaCategory(
 
     // Radio
     RADIO_AFRICA("radio_africa", 12, R.string.missa_cat_radio_africa, R.string.missa_chip_radio_africa),
+    RADIO_FRANCOPHONE("radio_francophone", 16, R.string.missa_cat_radio_francophone, R.string.missa_chip_radio_francophone),
     RADIO_NEWS("radio_news", 22, R.string.missa_cat_radio_news, R.string.missa_chip_radio_news),
-    RADIO_MUSIC("radio_music", 32, R.string.missa_cat_radio_music, R.string.missa_chip_radio_music),
+    RADIO_AFRO_URBAN("radio_afro_urban", 28, R.string.missa_cat_radio_afro_urban, R.string.missa_chip_radio_afro_urban),
+    RADIO_MUSIC("radio_music", 34, R.string.missa_cat_radio_music, R.string.missa_chip_radio_music),
+    RADIO_RELAX("radio_relax", 40, R.string.missa_cat_radio_relax, R.string.missa_chip_radio_relax),
     RADIO_ALL("radio_all", 900, R.string.missa_cat_radio_all, R.string.missa_chip_radio_all);
 
     companion object {
@@ -959,14 +962,74 @@ internal object MediaUniverseClassifier {
             }
 
             "radio" -> {
-                if (containsAny(text, "afrique", "africa", "cameroun", "cameroon", "douala", "yaound", "crtv", "balafon", "equinoxe", "cm ", " af")) {
+                if (containsAny(
+                        text,
+                        "afrique", "africa", "cameroun", "cameroon", "douala", "yaound",
+                        "crtv", "balafon", "equinoxe", "abidjan", "dakar", "kinshasa",
+                        "lagos", "naija", "zeno.fm afrique", "cm ", " af",
+                        "country:cm", "country:af", "country:ci", "country:sn",
+                        "country:cd", "country:cg", "country:ga", "country:bj",
+                        "country:tg", "country:ml", "country:bf", "country:gn",
+                        "country:ne", "country:td", "country:cf", "country:gq",
+                        "country:rw", "country:bi", "country:mg", "country:ma",
+                        "country:dz", "country:tn", "country:ng", "country:gh",
+                        "country:ke", "country:za", "country:et", "country:ug",
+                        "country:tz", "country:ao", "country:mz"
+                    )
+                ) {
                     categories.add(MissaCategory.RADIO_AFRICA)
                 }
-                if (containsAny(text, "info", "actu", "inter", "rfi", "rtl", "rmc", "bbc")) {
+                if (containsAny(
+                        text,
+                        "country:fr", "country:be", "country:ch", "country:ca",
+                        "country:mc", "country:lu", "france", "francophon", "rfi",
+                        "fip", "mouv", "rtl", "rmc", "europe 1", "nostalgie",
+                        "nrj", "skyrock", "cherie", "fun radio", "radio canada",
+                        "rtbf", "rts", "couleur 3"
+                    )
+                ) {
+                    categories.add(MissaCategory.RADIO_FRANCOPHONE)
+                }
+                if (containsAny(
+                        text,
+                        "info", "actu", "news", "talk", "débat", "debat",
+                        "journal", "inter", "rfi", "rtl", "rmc", "bbc",
+                        "voa", "france culture", "public radio", "npr"
+                    )
+                ) {
                     categories.add(MissaCategory.RADIO_NEWS)
                 }
-                if (containsAny(text, "musique", "music", "hit", "jazz", "classique", "groove", "afro", "makossa", "bikutsi", "fip", "nrj", "skyrock", "mouv", "nostalgie")) {
+                if (containsAny(
+                        text,
+                        "afrobeat", "afropop", "amapiano", "makossa", "bikutsi",
+                        "hip-hop", "hip hop", "rap ", "r&b", "rnb", "urbain",
+                        "urban", "gospel", "louange", "chrétien", "christian",
+                        "reggae", "dancehall", "zouk", "kompa", "rumba",
+                        "mouv", "skyrock", "trace"
+                    )
+                ) {
+                    categories.add(MissaCategory.RADIO_AFRO_URBAN)
+                }
+                if (containsAny(
+                        text,
+                        "musique", "music", "hit", "pop", "rock", "indie",
+                        "jazz", "classique", "groove", "soul", "funk", "blues",
+                        "afro", "makossa", "bikutsi", "fip", "nrj", "skyrock",
+                        "mouv", "nostalgie", "bossa", "world", "laut.fm"
+                    )
+                ) {
                     categories.add(MissaCategory.RADIO_MUSIC)
+                }
+                if (containsAny(
+                        text,
+                        "jazz", "classique", "classical", "symphon", "opera",
+                        "opéra", "ambient", "chill", "chillout", "lounge",
+                        "lofi", "lo-fi", "relax", "zen", "drone", "soma",
+                        "groovesalad", "lush", "swiss classic", "swiss jazz",
+                        "france musique"
+                    )
+                ) {
+                    categories.add(MissaCategory.RADIO_RELAX)
                 }
                 categories.add(MissaCategory.RADIO_ALL)
             }

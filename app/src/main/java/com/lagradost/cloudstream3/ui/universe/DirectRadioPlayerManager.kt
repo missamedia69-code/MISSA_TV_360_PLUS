@@ -2,6 +2,7 @@ package com.lagradost.cloudstream3.ui.universe
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
@@ -17,10 +18,13 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.R
-import com.lagradost.cloudstream3.app
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 data class RadioPlaybackState(
     val station: RadioStationPreset? = null,
@@ -31,126 +35,69 @@ data class RadioPlaybackState(
 )
 
 /**
- * Direct-listening audio stream controller for MISSA TV 360 PLUS (RAD-01..04).
+ * Direct-listening multi-provider audio stream controller for MISSA TV 360 PLUS (RAD-01..04).
  *
  * - Backed by Media3 [ExoPlayer] + [MissaRadioMediaService] for persistent mini-player,
  *   background listening, Bluetooth controls, and lockscreen media notification.
- * - Includes African, Cameroonian & international presets plus remote JSON station updates.
- * - Supports custom stream add/edit/delete, favorites, and sleep timer.
+ * - Aggregates all integrated free providers via [MissaRadioProviders] (MISSA Bouquet Direct,
+ *   Radio Browser 45k+, Zeno.FM Afrique, SomaFM, Laut.fm, GitHub M3U Playlists, Icecast Xiph).
+ * - Automatic stream failover across [RadioStationPreset.fallbackUrls] and `.pls`/`.m3u` descriptors.
+ * - Supports single stream or full `#EXTM3U` playlist import, favorites, and sleep timer.
  */
 object DirectRadioPlayerManager {
     private const val CUSTOM_STATIONS_KEY = "missa_custom_radio_stations_v2"
     private const val LEGACY_CUSTOM_STATIONS_KEY = "missa_custom_radio_stations_v1"
-    private const val REMOTE_STATIONS_CACHE_KEY = "missa_remote_radio_stations_v1"
+    private const val REMOTE_STATIONS_CACHE_KEY = "missa_remote_radio_stations_v3"
+    private const val LEGACY_REMOTE_STATIONS_CACHE_KEY = "missa_remote_radio_stations_v1"
+    private const val REMOTE_STATIONS_UPDATED_AT_KEY = "missa_remote_radio_updated_at_v3"
     private const val FAVORITE_STATIONS_KEY = "missa_favorite_radio_ids_v1"
-    // Radio Browser is a free, community-maintained directory; no API key is required.
-    private const val RADIO_BROWSER_BASE_URL = "https://de1.api.radio-browser.info/json/stations/search"
-    private const val RADIO_BROWSER_LIMIT = 200
+    private const val REMOTE_CACHE_TTL_MS = 12 * 60 * 60_000L
 
-    val defaultStations: List<RadioStationPreset> = listOf(
-        // African, Cameroonian & Pan-African Direct Presets (RAD-04)
-        RadioStationPreset(
-            id = "rfi_afrique",
-            name = "RFI Afrique",
-            genre = "Afrique • Actualités & Magazines",
-            country = "AF",
-            streamUrl = "https://rfiafrique64k.ice.infomaniak.ch/rfiafrique-64.mp3"
-        ),
-        RadioStationPreset(
-            id = "africa_radio",
-            name = "Africa Radio",
-            genre = "Panafricaine • Info, Musique & Débats",
-            country = "AF",
-            streamUrl = "https://african1paris.ice.infomaniak.ch/african1paris-128.mp3"
-        ),
-        RadioStationPreset(
-            id = "radio_balafon_cm",
-            name = "Radio Balafon 90.3 Douala",
-            genre = "Cameroun • Info, Culture & Afro",
-            country = "CM",
-            streamUrl = "https://listen.radioking.com/radio/10903/stream/22164"
-        ),
-        RadioStationPreset(
-            id = "bbc_world_africa",
-            name = "BBC World Service Africa",
-            genre = "Afrique & Monde • News 24/7",
-            country = "AF",
-            streamUrl = "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service"
-        ),
-        RadioStationPreset(
-            id = "rfi_monde",
-            name = "RFI Monde",
-            genre = "International & Francophonie",
-            country = "INT",
-            streamUrl = "https://rfimonde64k.ice.infomaniak.ch/rfimonde-64.mp3"
-        ),
-        RadioStationPreset(
-            id = "mouv",
-            name = "Mouv’ Afro & Urbain",
-            genre = "Afrobeats, Hip-Hop & Urbain",
-            country = "FR",
-            streamUrl = "https://icecast.radiofrance.fr/mouv-midfi.mp3"
-        ),
-        RadioStationPreset(
-            id = "france_info",
-            name = "franceinfo:",
-            genre = "Actualités en continu 24/7",
-            country = "FR",
-            streamUrl = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
-        ),
-        RadioStationPreset(
-            id = "france_inter",
-            name = "France Inter",
-            genre = "Généraliste & Direct",
-            country = "FR",
-            streamUrl = "https://icecast.radiofrance.fr/franceinter-midfi.mp3"
-        ),
-        RadioStationPreset(
-            id = "fip",
-            name = "FIP Radio",
-            genre = "Musique éclectique, Jazz & Groove",
-            country = "FR",
-            streamUrl = "https://icecast.radiofrance.fr/fip-midfi.mp3"
-        ),
-        RadioStationPreset(
-            id = "france_musique",
-            name = "France Musique",
-            genre = "Classique & Concerts",
-            country = "FR",
-            streamUrl = "https://icecast.radiofrance.fr/francemusique-midfi.mp3"
-        ),
-        RadioStationPreset(
-            id = "swiss_jazz",
-            name = "Radio Swiss Jazz",
-            genre = "Jazz, Soul & Blues",
-            country = "CH",
-            streamUrl = "https://stream.srg-ssr.ch/m/rsj/mp3_128"
-        )
-    )
+    val defaultStations: List<RadioStationPreset>
+        get() = MissaRadioProviders.curatedInstantStations
 
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var player: ExoPlayer? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var sleepRunnable: Runnable? = null
     private var activeSleepMinutes: Int = 0
-    private var remoteRefreshAttempted = false
+
+    @Volatile
+    private var remoteRefreshInFlight = false
+    private var activeFallbackCandidates: List<String> = emptyList()
+    private var currentFallbackIndex: Int = 0
+    private var triedPlaylistUnwrapForUrl: String? = null
+
+    private val discoveredSearchStations = ConcurrentHashMap<String, RadioStationPreset>()
 
     private val _state = MutableLiveData(RadioPlaybackState())
     val state: LiveData<RadioPlaybackState> = _state
 
     private val _stationsUpdated = MutableLiveData(0L)
-    /** Emits after a remote catalogue refresh so visible radio screens can re-project their lists. */
+    /** Emits after a remote catalogue refresh or online search so visible radio screens re-project. */
     val stationsUpdated: LiveData<Long> = _stationsUpdated
 
     fun customStations(): List<RadioStationPreset> {
         val v2 = runCatching {
             getKey<Array<RadioStationPreset>>(CUSTOM_STATIONS_KEY)?.toList()
         }.getOrNull()
-        if (v2 != null) return v2.map { it.copy(isCustom = true) }
+        if (v2 != null) {
+            return v2.map {
+                it.copy(
+                    isCustom = true,
+                    providerName = MissaRadioProviders.PROVIDER_CUSTOM
+                )
+            }
+        }
 
-        val legacy = runCatching {
+        return runCatching {
             getKey<Array<RadioStationPreset>>(LEGACY_CUSTOM_STATIONS_KEY)?.toList().orEmpty()
-        }.getOrDefault(emptyList()).map { it.copy(isCustom = true) }
-        return legacy
+        }.getOrDefault(emptyList()).map {
+            it.copy(
+                isCustom = true,
+                providerName = MissaRadioProviders.PROVIDER_CUSTOM
+            )
+        }
     }
 
     fun favoriteIds(): Set<String> = runCatching {
@@ -172,113 +119,87 @@ object DirectRadioPlayerManager {
         return nowFav
     }
 
+    private fun cachedRemoteStations(): List<RadioStationPreset> {
+        val v3 = runCatching {
+            getKey<Array<RadioStationPreset>>(REMOTE_STATIONS_CACHE_KEY)?.toList()
+        }.getOrNull()
+        if (!v3.isNullOrEmpty()) return v3
+
+        return runCatching {
+            getKey<Array<RadioStationPreset>>(LEGACY_REMOTE_STATIONS_CACHE_KEY)?.toList().orEmpty()
+        }.getOrDefault(emptyList())
+    }
+
     fun allPresetStations(): List<RadioStationPreset> {
         val custom = customStations()
-        val remote = runCatching {
-            getKey<Array<RadioStationPreset>>(REMOTE_STATIONS_CACHE_KEY)?.toList().orEmpty()
-        }.getOrDefault(emptyList())
-        val base = if (remote.isNotEmpty()) {
-            (remote + defaultStations).distinctBy { it.streamUrl.lowercase() }
-        } else {
-            defaultStations
-        }
-        val favs = favoriteIds()
-        val merged = (custom + base).distinctBy { it.streamUrl.lowercase() }
-        return merged.sortedWith(
-            compareByDescending<RadioStationPreset> { favs.contains(it.id) }
-                .thenByDescending { it.isCustom }
-        )
+        val remote = cachedRemoteStations()
+        val onlineDiscovered = discoveredSearchStations.values.toList()
+        // Curated instant bouquets come first so flagship African/Cameroonian/FIP/SomaFM streams stay prominent,
+        // while alternate mirrors discovered in remote providers fold into fallbackUrls automatically.
+        val combined = custom + defaultStations + remote + onlineDiscovered
+        return MissaRadioProviders.mergeStationCatalogues(combined, favoriteIds())
     }
 
     private val musicStationHintRegex = Regex(
-        "\\b(musiques?|music|afrobeats?|afro|hip[ -]?hop|urbain|urban|rap|r&b|rnb|jazz|groove|soul|blues|pop|rock|reggae|zouk|gospel|makossa|bikutsi|classique|concerts?|hits?)\\b",
+        "\\b(musiques?|music|afrobeats?|afropop|amapiano|afro|hip[ -]?hop|urbain|urban|rap|r&b|rnb|jazz|groove|soul|blues|pop|rock|reggae|dancehall|zouk|kompa|gospel|louange|makossa|bikutsi|classique|classical|ambient|chill|chillout|lounge|lofi|lo-fi|electro|bossa|concerts?|hits?)\\b",
         RegexOption.IGNORE_CASE
     )
 
     /** Continuous music-focused direct streams surfaced in the dedicated Music universe. */
     fun musicPresetStations(): List<RadioStationPreset> =
         allPresetStations().filter { station ->
-            musicStationHintRegex.containsMatchIn("${station.name} ${station.genre}")
+            station.providerName == MissaRadioProviders.PROVIDER_SOMAFM ||
+                station.providerName == MissaRadioProviders.PROVIDER_LAUT_FM ||
+                musicStationHintRegex.containsMatchIn("${station.name} ${station.genre}")
         }
 
     /**
-     * Loads a useful first slice of the free Radio Browser directory.
-     *
-     * The global list is ordered by community votes; separate country queries put
-     * Cameroon and nearby African stations first. Results are cached locally so
-     * the radio screen remains useful if the directory is temporarily unavailable.
-     * This is a starter catalogue, not a claim that every station in the directory
-     * is downloaded at once.
+     * Refreshes the multi-provider free radio catalogue in the background if the cached snapshot
+     * is absent/expired or [force] is requested.
      */
-    suspend fun refreshRemotePresetsIfNeeded() {
-        if (remoteRefreshAttempted) return
-        remoteRefreshAttempted = true
-        withContext(Dispatchers.IO) {
-            val parsed = LinkedHashMap<String, RadioStationPreset>()
-            val requests = listOf(
-                "$RADIO_BROWSER_BASE_URL?limit=$RADIO_BROWSER_LIMIT&hidebroken=true&order=votes&reverse=true",
-                "$RADIO_BROWSER_BASE_URL?limit=100&hidebroken=true&countrycode=CM&order=votes&reverse=true",
-                "$RADIO_BROWSER_BASE_URL?limit=100&hidebroken=true&countrycode=NG&order=votes&reverse=true",
-                "$RADIO_BROWSER_BASE_URL?limit=60&hidebroken=true&countrycode=GH&order=votes&reverse=true"
-            )
-            for (requestUrl in requests) {
-                try {
-                    val arr = JSONArray(app.get(requestUrl).text)
-                    for (i in 0 until arr.length()) {
-                        val obj = arr.optJSONObject(i) ?: continue
-                        val name = obj.optString("name").trim()
-                        val url = obj.optString("url_resolved").trim()
-                            .ifBlank { obj.optString("url").trim() }
-                        if (name.isBlank() || !isValidStreamUrl(url)) continue
+    suspend fun refreshRemotePresetsIfNeeded(force: Boolean = false) {
+        if (remoteRefreshInFlight) return
+        val now = System.currentTimeMillis()
+        val lastUpdated = runCatching { getKey<Long>(REMOTE_STATIONS_UPDATED_AT_KEY) ?: 0L }.getOrDefault(0L)
+        val hasCached = cachedRemoteStations().isNotEmpty()
+        if (!force && hasCached && now - lastUpdated in 1 until REMOTE_CACHE_TTL_MS) {
+            return
+        }
 
-                        val uuid = obj.optString("stationuuid").trim()
-                        val id = "radiobrowser_" + uuid.ifBlank { url.hashCode().toString() }
-                        val tags = obj.optString("tags")
-                            .split(',')
-                            .map { it.trim() }
-                            .filter { it.isNotBlank() }
-                            .take(4)
-                            .joinToString(" • ")
-                        val country = obj.optString("countrycode").trim()
-                            .ifBlank { obj.optString("country").trim().take(4).uppercase().ifBlank { "INT" } }
-                        val station = RadioStationPreset(
-                            id = id,
-                            name = name,
-                            genre = tags.ifBlank { "Radio • Internet" },
-                            country = country.uppercase(),
-                            streamUrl = url,
-                            isCustom = false,
-                            logoUrl = obj.optString("favicon").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }
-                                ?: obj.optString("homepage").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }?.let { homepage ->
-                                    val host = runCatching { android.net.Uri.parse(homepage).host }.getOrNull()
-                                    host?.let { "https://www.google.com/s2/favicons?domain=${android.net.Uri.encode(it)}&sz=128" }
-                                }
-                        )
-                        // URL is the stable fallback identity; avoid duplicate stations
-                        // returned by both the global and country-specific queries.
-                        val normalizedUrl = url.lowercase()
-                        if (!parsed.containsKey(normalizedUrl)) parsed[normalizedUrl] = station
-                    }
-                } catch (_: Exception) {
-                    // A failed regional query should not discard results from other servers.
-                }
-            }
-            if (parsed.isNotEmpty()) {
+        remoteRefreshInFlight = true
+        try {
+            val harvested = MissaRadioProviders.harvestAllFreeProviders()
+            if (harvested.isNotEmpty()) {
                 runCatching {
-                    setKey(REMOTE_STATIONS_CACHE_KEY, parsed.values.toTypedArray())
-                    _stationsUpdated.postValue(System.currentTimeMillis())
+                    setKey(REMOTE_STATIONS_CACHE_KEY, harvested.toTypedArray())
+                    setKey(REMOTE_STATIONS_UPDATED_AT_KEY, System.currentTimeMillis())
                 }
+                _stationsUpdated.postValue(System.currentTimeMillis())
             }
+        } finally {
+            remoteRefreshInFlight = false
         }
     }
 
-    fun isValidStreamUrl(url: String): Boolean {
-        val trimmed = url.trim()
-        return (trimmed.startsWith("https://", ignoreCase = true) ||
-            trimmed.startsWith("http://", ignoreCase = true)) &&
-            trimmed.length > 10 &&
-            !trimmed.contains(' ')
+    /**
+     * Queries online free radio directories (45,000+ Radio Browser stations by name, tag & country)
+     * in real time and merges discovered stations into the active session pool.
+     */
+    suspend fun searchStationsOnline(query: String): List<RadioStationPreset> {
+        val found = MissaRadioProviders.searchOnlineProviders(query)
+        if (found.isNotEmpty()) {
+            for (st in found) {
+                val key = st.streamUrl.trim().lowercase(Locale.ROOT)
+                if (discoveredSearchStations.size < 300 || discoveredSearchStations.containsKey(key)) {
+                    discoveredSearchStations[key] = st
+                }
+            }
+            _stationsUpdated.postValue(System.currentTimeMillis())
+        }
+        return found
     }
+
+    fun isValidStreamUrl(url: String): Boolean = MissaRadioProviders.isValidStreamUrl(url)
 
     fun saveCustomStation(
         context: Context,
@@ -292,7 +213,7 @@ object DirectRadioPlayerManager {
         val fallbackGenre = context.getString(R.string.universe_radio_custom_genre_default)
         val trimmedName = name.trim().ifBlank { fallbackName }
         val trimmedUrl = streamUrl.trim()
-        val cleanCountry = country.trim().uppercase().take(4).ifBlank { "WEB" }
+        val cleanCountry = country.trim().uppercase(Locale.ROOT).take(4).ifBlank { "WEB" }
         val id = existingId ?: "custom_${trimmedUrl.hashCode()}"
         val preset = RadioStationPreset(
             id = id,
@@ -300,13 +221,56 @@ object DirectRadioPlayerManager {
             genre = genre.trim().ifBlank { fallbackGenre },
             country = cleanCountry,
             streamUrl = trimmedUrl,
-            isCustom = true
+            isCustom = true,
+            providerName = MissaRadioProviders.PROVIDER_CUSTOM
         )
         val existing = customStations().toMutableList()
         existing.removeAll { it.id == id || it.streamUrl.equals(trimmedUrl, ignoreCase = true) }
         existing.add(0, preset)
-        runCatching { setKey(CUSTOM_STATIONS_KEY, existing.take(40).toTypedArray()) }
+        runCatching { setKey(CUSTOM_STATIONS_KEY, existing.take(160).toTypedArray()) }
+        _stationsUpdated.postValue(System.currentTimeMillis())
         return preset
+    }
+
+    /**
+     * Smart custom radio importer: if [streamOrPlaylistUrl] points to a multi-station `#EXTM3U` / `.m3u` / `.pls`
+     * playlist, imports all stations at once; otherwise saves it as a single direct custom stream.
+     */
+    suspend fun importCustomStationOrPlaylist(
+        context: Context,
+        name: String,
+        streamOrPlaylistUrl: String,
+        country: String = "WEB",
+        existingId: String? = null
+    ): List<RadioStationPreset> {
+        val trimmedUrl = streamOrPlaylistUrl.trim()
+        if (existingId == null) {
+            val playlistStations = MissaRadioProviders.fetchRemotePlaylistIfAny(
+                url = trimmedUrl,
+                defaultName = name.trim(),
+                defaultCountry = country.trim().uppercase(Locale.ROOT).take(4).ifBlank { "WEB" },
+                isCustom = true
+            )
+            if (playlistStations.isNotEmpty()) {
+                val existing = customStations().toMutableList()
+                val newUrls = playlistStations.map { it.streamUrl.lowercase(Locale.ROOT) }.toSet()
+                existing.removeAll { it.streamUrl.lowercase(Locale.ROOT) in newUrls }
+                val updated = (playlistStations + existing).take(160)
+                runCatching { setKey(CUSTOM_STATIONS_KEY, updated.toTypedArray()) }
+                _stationsUpdated.postValue(System.currentTimeMillis())
+                return playlistStations
+            }
+        }
+        val single = withContext(Dispatchers.Main) {
+            saveCustomStation(
+                context = context,
+                name = name,
+                streamUrl = trimmedUrl,
+                country = country,
+                existingId = existingId
+            )
+        }
+        return listOf(single)
     }
 
     fun deleteCustomStation(stationIdOrUrl: String) {
@@ -315,6 +279,7 @@ object DirectRadioPlayerManager {
             it.id == stationIdOrUrl || it.streamUrl.equals(stationIdOrUrl, ignoreCase = true)
         }
         runCatching { setKey(CUSTOM_STATIONS_KEY, existing.toTypedArray()) }
+        _stationsUpdated.postValue(System.currentTimeMillis())
         if (_state.value?.station?.let { it.id == stationIdOrUrl || it.streamUrl == stationIdOrUrl } == true) {
             stop()
         }
@@ -374,6 +339,44 @@ object DirectRadioPlayerManager {
 
                     override fun onPlayerError(error: PlaybackException) {
                         val current = _state.value ?: RadioPlaybackState()
+                        val station = current.station
+                        // 1. Try next mirror URL automatically if available
+                        if (station != null && currentFallbackIndex < activeFallbackCandidates.size) {
+                            val nextMirrorUrl = activeFallbackCandidates[currentFallbackIndex++]
+                            startExoStreamUri(appContext, exo, station, nextMirrorUrl)
+                            return
+                        }
+                        // 2. If the primary URL was a .pls / .m3u descriptor wrapper, unwrap it once asynchronously
+                        val failedUrl = station?.streamUrl
+                        if (station != null &&
+                            failedUrl != null &&
+                            triedPlaylistUnwrapForUrl != failedUrl &&
+                            (failedUrl.contains(".pls", ignoreCase = true) || failedUrl.contains(".m3u", ignoreCase = true))
+                        ) {
+                            triedPlaylistUnwrapForUrl = failedUrl
+                            ioScope.launch {
+                                val unwrapped = MissaRadioProviders.fetchRemotePlaylistIfAny(failedUrl)
+                                if (unwrapped.isNotEmpty()) {
+                                    val first = unwrapped.first()
+                                    mainHandler.post {
+                                        activeFallbackCandidates = first.fallbackUrls
+                                        currentFallbackIndex = 0
+                                        startExoStreamUri(appContext, exo, station, first.streamUrl)
+                                    }
+                                } else {
+                                    _state.postValue(
+                                        current.copy(
+                                            isPlaying = false,
+                                            isBuffering = false,
+                                            hasError = true,
+                                            sleepTimerMinutes = activeSleepMinutes
+                                        )
+                                    )
+                                }
+                            }
+                            return
+                        }
+
                         _state.postValue(
                             current.copy(
                                 isPlaying = false,
@@ -388,32 +391,29 @@ object DirectRadioPlayerManager {
             }
     }
 
-    fun playStation(context: Context, preset: RadioStationPreset) {
-        val appContext = context.applicationContext
-        val exo = getOrCreatePlayer(appContext)
-        _state.value = RadioPlaybackState(
-            station = preset,
-            isPlaying = false,
-            isBuffering = true,
-            hasError = false,
-            sleepTimerMinutes = activeSleepMinutes
-        )
+    private fun startExoStreamUri(
+        appContext: Context,
+        exo: ExoPlayer,
+        preset: RadioStationPreset,
+        targetStreamUrl: String
+    ) {
         runCatching {
-            val metadata = MediaMetadata.Builder()
+            val metadataBuilder = MediaMetadata.Builder()
                 .setTitle(preset.name)
-                .setArtist(preset.genre)
+                .setArtist("${preset.providerName} • ${preset.genre}")
                 .setStation(preset.name)
-                .build()
+            preset.logoUrl?.takeIf { it.isNotBlank() }?.let { logo ->
+                runCatching { metadataBuilder.setArtworkUri(Uri.parse(logo)) }
+            }
             val mediaItem = MediaItem.Builder()
                 .setMediaId(preset.id)
-                .setUri(preset.streamUrl)
-                .setMediaMetadata(metadata)
+                .setUri(targetStreamUrl)
+                .setMediaMetadata(metadataBuilder.build())
                 .build()
             exo.stop()
             exo.setMediaItem(mediaItem)
             exo.prepare()
             exo.playWhenReady = true
-            // Start Media3 session service so notification & lockscreen transport stay active (RAD-01)
             runCatching {
                 val serviceIntent = Intent(appContext, MissaRadioMediaService::class.java)
                 ContextCompat.startForegroundService(appContext, serviceIntent)
@@ -429,15 +429,38 @@ object DirectRadioPlayerManager {
         }
     }
 
+    fun playStation(context: Context, preset: RadioStationPreset) {
+        val appContext = context.applicationContext
+        val exo = getOrCreatePlayer(appContext)
+        activeFallbackCandidates = preset.fallbackUrls.filter {
+            isValidStreamUrl(it) && !it.equals(preset.streamUrl, ignoreCase = true)
+        }
+        currentFallbackIndex = 0
+        triedPlaylistUnwrapForUrl = null
+        _state.value = RadioPlaybackState(
+            station = preset,
+            isPlaying = false,
+            isBuffering = true,
+            hasError = false,
+            sleepTimerMinutes = activeSleepMinutes
+        )
+        startExoStreamUri(appContext, exo, preset, preset.streamUrl)
+        ioScope.launch {
+            MissaRadioProviders.pingRadioBrowserClickIfApplicable(preset.id)
+        }
+    }
+
     fun playDirectResponse(context: Context, response: DirectRadioSearchResponse) {
         val fallbackGenre = context.getString(R.string.universe_radio_live_genre_default)
-        val preset = allPresetStations().firstOrNull { it.streamUrl == response.url }
+        val preset = allPresetStations().firstOrNull { it.streamUrl.equals(response.url, ignoreCase = true) }
             ?: RadioStationPreset(
                 id = response.url.hashCode().toString(),
                 name = response.name,
                 genre = response.genre.ifBlank { fallbackGenre },
                 country = response.country,
-                streamUrl = response.url
+                streamUrl = response.url,
+                logoUrl = response.logoUrl ?: response.posterUrl,
+                providerName = response.apiName.ifBlank { DIRECT_RADIO_API_NAME }
             )
         playStation(context, preset)
     }

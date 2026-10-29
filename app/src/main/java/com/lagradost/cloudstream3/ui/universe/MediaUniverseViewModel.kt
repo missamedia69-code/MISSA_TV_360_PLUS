@@ -556,6 +556,9 @@ class MediaUniverseViewModel : ViewModel() {
     fun ensureCatalogLoaded(forceReload: Boolean = false) {
         if (forceReload) {
             frozenHeroKeysByUniverse.clear()
+            viewModelScope.launch {
+                DirectRadioPlayerManager.refreshRemotePresetsIfNeeded(force = true)
+            }
         }
         val current = _catalogSnapshot.value ?: UnifiedCatalogSnapshot()
         val now = System.currentTimeMillis()
@@ -817,19 +820,31 @@ class MediaUniverseViewModel : ViewModel() {
             inUniverse && matchesLocalFilter
         }
 
-        val availableSources = (overrideEntries ?: snapshot.entries)
-            .filter { universeId == "home" || it.universes.contains(universeId) }
-            .flatMap { entry -> entry.sources.map { it.apiName } }
+        val normalizedSelectedSources = selectedSources.map { it.lowercase(Locale.ROOT) }.toSet()
+
+        val radioProviderSources = when (universeId) {
+            "radio" -> DirectRadioPlayerManager.allPresetStations()
+                .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
+            "music" -> DirectRadioPlayerManager.musicPresetStations()
+                .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
+            else -> emptyList()
+        }
+
+        val availableSources = (
+            (overrideEntries ?: snapshot.entries)
+                .filter { universeId == "home" || it.universes.contains(universeId) }
+                .flatMap { entry -> entry.sources.map { it.apiName } } +
+                radioProviderSources
+            )
             .distinct()
             .sortedBy { it.lowercase(Locale.ROOT) }
 
-        val sourceFilteredEntries = if (selectedSources.isEmpty()) {
+        val sourceFilteredEntries = if (normalizedSelectedSources.isEmpty()) {
             universeEntries
         } else {
-            val normalizedSelected = selectedSources.map { it.lowercase(Locale.ROOT) }.toSet()
             universeEntries.mapNotNull { entry ->
                 val matching = entry.sources.firstOrNull {
-                    it.apiName.lowercase(Locale.ROOT) in normalizedSelected
+                    it.apiName.lowercase(Locale.ROOT) in normalizedSelectedSources
                 } ?: return@mapNotNull null
                 entry.copy(primary = matching)
             }
@@ -846,14 +861,14 @@ class MediaUniverseViewModel : ViewModel() {
 
         val buckets = LinkedHashMap<String, BucketData>()
 
-        // Radio direct presets & categorize them into Favorites / Africa & Cameroon / News / Music
-        if (universeId == "radio" && selectedSources.isEmpty()) {
+        // Radio multi-provider presets & categorize them into Favorites / Africa / Francophone / News / Afro-Urban / Music / Relax / All
+        if (universeId == "radio") {
             val presets = DirectRadioPlayerManager.allPresetStations()
                 .filter { station ->
-                    searchQuery.isBlank() ||
-                        station.name.contains(searchQuery, ignoreCase = true) ||
-                        station.genre.contains(searchQuery, ignoreCase = true) ||
-                        station.country.contains(searchQuery, ignoreCase = true)
+                    val providerOk = normalizedSelectedSources.isEmpty() ||
+                        station.providerName.ifBlank { DIRECT_RADIO_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                    val queryOk = MissaRadioProviders.matchesStationQuery(station, searchQuery)
+                    providerOk && queryOk
                 }
             val favRadioIds = DirectRadioPlayerManager.favoriteIds()
             val favPresets = presets.filter { favRadioIds.contains(it.id) }.map { it.toSearchResponse() }
@@ -874,6 +889,7 @@ class MediaUniverseViewModel : ViewModel() {
                     universeId = "radio",
                     title = "${station.name} ${station.country}",
                     sectionName = station.genre,
+                    tags = listOf("country:${station.country}", station.providerName),
                     effectiveType = TvType.Audio
                 )
                 for (cat in cats) {
@@ -885,7 +901,12 @@ class MediaUniverseViewModel : ViewModel() {
                             rank = cat.editorialRank
                         )
                     }
-                    if (bucket.items.none { it.url == resp.url }) {
+                    val rowCap = when {
+                        searchQuery.isNotBlank() -> 240
+                        cat == MissaCategory.RADIO_ALL -> 180
+                        else -> 80
+                    }
+                    if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
                         bucket.items.add(resp)
                     }
                 }
@@ -893,28 +914,61 @@ class MediaUniverseViewModel : ViewModel() {
         }
 
         // Music universe continuous musical streams alongside extension music tracks/clips/concerts
-        if (universeId == "music" && selectedSources.isEmpty()) {
+        if (universeId == "music") {
             val musicPresets = DirectRadioPlayerManager.musicPresetStations()
                 .filter { station ->
-                    searchQuery.isBlank() ||
-                        station.name.contains(searchQuery, ignoreCase = true) ||
-                        station.genre.contains(searchQuery, ignoreCase = true) ||
-                        station.country.contains(searchQuery, ignoreCase = true)
+                    val providerOk = normalizedSelectedSources.isEmpty() ||
+                        station.providerName.ifBlank { DIRECT_RADIO_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                    val queryOk = MissaRadioProviders.matchesStationQuery(station, searchQuery)
+                    providerOk && queryOk
                 }
-            if (musicPresets.isNotEmpty()) {
-                val streamCat = MissaCategory.MUSIC_STREAMS
-                val streamBucket = buckets.getOrPut(streamCat.id) {
+            for (station in musicPresets) {
+                val resp = station.toSearchResponse()
+                val thematicCats = MediaUniverseClassifier.categorizeForUniverse(
+                    universeId = "music",
+                    title = "${station.name} ${station.country}",
+                    sectionName = station.genre,
+                    tags = listOf("country:${station.country}", station.providerName),
+                    effectiveType = TvType.Audio
+                )
+                val targetCats = (thematicCats + MissaCategory.MUSIC_STREAMS).distinct()
+                for (cat in targetCats) {
+                    val bucket = buckets.getOrPut(cat.id) {
+                        BucketData(
+                            key = cat.id,
+                            rowTitle = resolveStr(ctx, cat.rowTitleRes, cat.id),
+                            chipLabel = resolveStr(ctx, cat.chipLabelRes, cat.id),
+                            rank = cat.editorialRank
+                        )
+                    }
+                    val rowCap = if (searchQuery.isNotBlank()) 200 else 75
+                    if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
+                        bucket.items.add(resp)
+                    }
+                }
+            }
+        }
+
+        // Home universe live radio showcase row alongside podcasts/audio entries
+        if (universeId == "home" && normalizedSelectedSources.isEmpty()) {
+            val homeStations = DirectRadioPlayerManager.allPresetStations()
+                .filter { station -> MissaRadioProviders.matchesStationQuery(station, searchQuery) }
+                .take(16)
+            if (homeStations.isNotEmpty()) {
+                val homeAudioCat = MissaCategory.HOME_AUDIO
+                val audioBucket = buckets.getOrPut(homeAudioCat.id) {
                     BucketData(
-                        key = streamCat.id,
-                        rowTitle = resolveStr(ctx, streamCat.rowTitleRes, streamCat.id),
-                        chipLabel = resolveStr(ctx, streamCat.chipLabelRes, streamCat.id),
-                        rank = streamCat.editorialRank
+                        key = homeAudioCat.id,
+                        rowTitle = resolveStr(ctx, homeAudioCat.rowTitleRes, homeAudioCat.id),
+                        chipLabel = resolveStr(ctx, homeAudioCat.chipLabelRes, homeAudioCat.id),
+                        rank = homeAudioCat.editorialRank,
+                        isHorizontal = false
                     )
                 }
-                for (station in musicPresets) {
+                for (station in homeStations) {
                     val resp = station.toSearchResponse()
-                    if (streamBucket.items.none { it.url == resp.url }) {
-                        streamBucket.items.add(resp)
+                    if (audioBucket.items.size < 24 && audioBucket.items.none { it.url == resp.url }) {
+                        audioBucket.items.add(resp)
                     }
                 }
             }
@@ -1028,7 +1082,7 @@ class MediaUniverseViewModel : ViewModel() {
         val heroSlides = if (searchQuery.isNotBlank()) {
             emptyList()
         } else {
-            buildHeroSlides(ctx, universeId, definition, sourceFilteredEntries)
+            buildHeroSlides(ctx, universeId, definition, sourceFilteredEntries, normalizedSelectedSources)
         }
 
         val resumeItems = if (searchQuery.isNotBlank()) {
@@ -1145,16 +1199,24 @@ class MediaUniverseViewModel : ViewModel() {
         ctx: Context?,
         universeId: String,
         definition: UniverseDefinition,
-        entries: List<UnifiedCatalogEntry>
+        entries: List<UnifiedCatalogEntry>,
+        normalizedSelectedSources: Set<String> = emptySet()
     ): List<HeroBannerSlide> {
         val eyebrowText = resolveStr(ctx, definition.eyebrowRes, "")
         val liveBadge = resolveStr(ctx, R.string.universe_live_badge, "LIVE")
 
         if ((universeId == "radio" || universeId == "music") && entries.isEmpty()) {
-            val presetPool = if (universeId == "music") {
+            val basePool = if (universeId == "music") {
                 DirectRadioPlayerManager.musicPresetStations()
             } else {
                 DirectRadioPlayerManager.allPresetStations()
+            }
+            val presetPool = if (normalizedSelectedSources.isEmpty()) {
+                basePool
+            } else {
+                basePool.filter {
+                    it.providerName.ifBlank { DIRECT_RADIO_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                }
             }
             return presetPool.take(5).map { station ->
                 HeroBannerSlide(
@@ -1162,11 +1224,11 @@ class MediaUniverseViewModel : ViewModel() {
                     details = null,
                     allSources = listOf(station.toSearchResponse()),
                     eyebrow = eyebrowText,
-                    plot = "${station.genre} • ${station.country}",
+                    plot = "${station.providerName} • ${station.genre} • ${station.country}",
                     yearText = station.country,
                     durationText = liveBadge,
                     scoreText = null,
-                    tags = listOf(station.country, station.genre),
+                    tags = listOf(station.providerName, station.country, station.genre),
                     isDirectStream = true
                 )
             }

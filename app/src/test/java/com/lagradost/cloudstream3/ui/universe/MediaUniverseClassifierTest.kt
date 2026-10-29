@@ -607,4 +607,202 @@ class MediaUniverseClassifierTest {
         )
         assertEquals(setOf("documentaries"), docSeries)
     }
+
+    @Test
+    fun `free radio providers parse RadioBrowser Zeno SomaFM LautFM M3U PLS and Icecast cleanly and merge fallback mirrors`() {
+        // 1. Instant curated bouquets cover MISSA Bouquet Direct, SomaFM, and Laut.fm with valid URLs
+        val curated = MissaRadioProviders.curatedInstantStations
+        assertTrue(curated.size >= 30)
+        assertTrue(curated.all { MissaRadioProviders.isValidStreamUrl(it.streamUrl) })
+        val fipJazz = curated.first { it.id == "fip_jazz" }
+        assertEquals(MissaRadioProviders.PROVIDER_MISSA_DIRECT, fipJazz.providerName)
+        assertTrue(fipJazz.fallbackUrls.any { it.endsWith(".aac") })
+        assertEquals(MissaRadioProviders.PROVIDER_MISSA_DIRECT, fipJazz.toSearchResponse().apiName)
+
+        // 2. Radio Browser parser extracts resolved + raw fallback URL and attributes Zeno.FM streams automatically
+        val rbJson = """
+            [
+              {
+                "stationuuid": "11111111-2222-3333-4444-555555555555",
+                "name": "Sweet FM Douala",
+                "url": "https://stream.zeno.fm/sweetfm-cm",
+                "url_resolved": "https://node-12.zeno.fm/sweetfm-cm",
+                "homepage": "https://sweetfm.cm",
+                "favicon": "",
+                "tags": "cameroun,makossa,afrobeats,info",
+                "countrycode": "cm"
+              },
+              {
+                "stationuuid": "66666666-7777-8888-9999-000000000000",
+                "name": "Couleur 3",
+                "url": "https://stream.srg-ssr.ch/m/couleur3/mp3_128",
+                "url_resolved": "https://stream.srg-ssr.ch/m/couleur3/mp3_128",
+                "favicon": "https://cdn.rts.ch/couleur3.png",
+                "tags": "pop,rock,francophonie",
+                "countrycode": "CH"
+              }
+            ]
+        """.trimIndent()
+        val rbParsed = MissaRadioProviders.parseRadioBrowserArray(rbJson)
+        assertEquals(2, rbParsed.size)
+        assertEquals(MissaRadioProviders.PROVIDER_ZENO_AFRICA, rbParsed[0].providerName)
+        assertEquals("CM", rbParsed[0].country)
+        assertEquals(listOf("https://stream.zeno.fm/sweetfm-cm"), rbParsed[0].fallbackUrls)
+        assertTrue(rbParsed[0].logoUrl?.contains("sweetfm.cm") == true)
+        assertEquals(MissaRadioProviders.PROVIDER_RADIO_BROWSER, rbParsed[1].providerName)
+
+        // 3. SomaFM JSON parser builds 512px artwork + 3 backup Icecast mirrors
+        val somaJson = """
+            {
+              "channels": [
+                {
+                  "id": "groovesalad",
+                  "title": "Groove Salad",
+                  "description": "A nicely chilled plate of ambient/downtempo beats.",
+                  "genre": "ambient|electronica",
+                  "xlimage": "https://api.somafm.com/logos/512/groovesalad512.png"
+                }
+              ]
+            }
+        """.trimIndent()
+        val somaParsed = MissaRadioProviders.parseSomaFmChannelsJson(somaJson)
+        assertEquals(1, somaParsed.size)
+        assertEquals(MissaRadioProviders.PROVIDER_SOMAFM, somaParsed[0].providerName)
+        assertEquals(3, somaParsed[0].fallbackUrls.size)
+
+        // 4. Laut.fm JSON parser extracts display_name, stream URL, and station logo
+        val lautJson = """
+            [
+              {
+                "name": "afrobeats",
+                "display_name": "Laut.fm Afrobeats",
+                "stream_url": "https://stream.laut.fm/afrobeats",
+                "genres": ["Afrobeats", "Amapiano"],
+                "images": { "station_120x120": "https://assets.laut.fm/afrobeats_120.jpg" }
+              }
+            ]
+        """.trimIndent()
+        val lautParsed = MissaRadioProviders.parseLautFmStationsJson(lautJson)
+        assertEquals(1, lautParsed.size)
+        assertEquals(MissaRadioProviders.PROVIDER_LAUT_FM, lautParsed[0].providerName)
+        assertEquals("https://assets.laut.fm/afrobeats_120.jpg", lautParsed[0].logoUrl)
+
+        // 5. M3U & PLS parsers extract multi-station lists while ignoring single HLS .m3u8 manifests
+        val hlsManifest = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-TARGETDURATION:6
+            #EXTINF:6.0,
+            segment0.ts
+        """.trimIndent()
+        assertTrue(MissaRadioProviders.isSingleHlsStreamManifest(hlsManifest))
+        assertTrue(MissaRadioProviders.parsePlaylistContent(hlsManifest).isEmpty())
+
+        val m3uPlaylist = """
+            #EXTM3U
+            #EXTINF:-1 tvg-logo="https://img.example/abidjan.png" tvg-country="CI" group-title="Afrique;Gospel", Fréquence Vie Abidjan
+            https://stream.example.org/frequence-vie.mp3
+            #EXTINF:-1 group-title="Jazz", Jazz Radio Paris
+            https://stream.zeno.fm/jazz-afrique
+        """.trimIndent()
+        val m3uParsed = MissaRadioProviders.parsePlaylistContent(m3uPlaylist)
+        assertEquals(2, m3uParsed.size)
+        assertEquals("CI", m3uParsed[0].country)
+        assertEquals("https://img.example/abidjan.png", m3uParsed[0].logoUrl)
+        assertEquals(MissaRadioProviders.PROVIDER_M3U_PLAYLISTS, m3uParsed[0].providerName)
+        assertEquals(MissaRadioProviders.PROVIDER_ZENO_AFRICA, m3uParsed[1].providerName)
+
+        val plsPlaylist = """
+            [playlist]
+            numberofentries=2
+            File1=https://ice1.somafm.com/lush-128-mp3
+            Title1=SomaFM: Lush (#1): Mellow vocals
+            File2=https://ice2.somafm.com/lush-128-mp3
+            Title2=SomaFM: Lush (#2): Mellow vocals
+        """.trimIndent()
+        val plsParsed = MissaRadioProviders.parsePlaylistContent(plsPlaylist)
+        assertEquals(1, plsParsed.size)
+        assertEquals(listOf("https://ice2.somafm.com/lush-128-mp3"), plsParsed[0].fallbackUrls)
+
+        // 6. Icecast Xiph XML parser skips low-bitrate/unnamed entries and decodes XML entities
+        val xiphXml = """
+            <directory>
+              <entry>
+                <server_name>Unspecified name</server_name>
+                <listen_url>http://ice.example.org/bad.mp3</listen_url>
+                <bitrate>128</bitrate>
+              </entry>
+              <entry>
+                <server_name> Jazz &amp; Soul Lounge </server_name>
+                <listen_url>https://ice.example.org/jazzsoul.mp3</listen_url>
+                <genre>Jazz Soul</genre>
+                <bitrate>128</bitrate>
+              </entry>
+            </directory>
+        """.trimIndent()
+        val xiphParsed = MissaRadioProviders.parseIcecastXiphXml(xiphXml)
+        assertEquals(1, xiphParsed.size)
+        assertEquals("Jazz & Soul Lounge", xiphParsed[0].name)
+        assertEquals(MissaRadioProviders.PROVIDER_ICECAST_XIPH, xiphParsed[0].providerName)
+
+        // 7. Cross-provider deduplication merges alternate stream URLs of identical (station, country) into fallbackUrls
+        val mergedCatalog = MissaRadioProviders.mergeStationCatalogues(
+            listOf(
+                RadioStationPreset(
+                    id = "a",
+                    name = "Radio Balafon 90.3",
+                    genre = "Cameroun • Makossa",
+                    country = "CM",
+                    streamUrl = "https://primary.example/balafon.mp3",
+                    providerName = MissaRadioProviders.PROVIDER_MISSA_DIRECT
+                ),
+                RadioStationPreset(
+                    id = "b",
+                    name = "Balafon FM 90.3",
+                    genre = "Douala",
+                    country = "CM",
+                    streamUrl = "https://backup.example/balafon-aac.mp3",
+                    logoUrl = "https://balafon.cm/logo.png",
+                    providerName = MissaRadioProviders.PROVIDER_RADIO_BROWSER
+                )
+            )
+        )
+        assertEquals(1, mergedCatalog.size)
+        assertEquals("https://balafon.cm/logo.png", mergedCatalog[0].logoUrl)
+        assertEquals(listOf("https://backup.example/balafon-aac.mp3"), mergedCatalog[0].fallbackUrls)
+
+        // 8. Country-alias & accent-insensitive search + expanded Radio editorial categories
+        assertTrue(MissaRadioProviders.matchesStationQuery(mergedCatalog[0], "Cameroun"))
+        assertTrue(MissaRadioProviders.matchesStationQuery(mergedCatalog[0], "Afrique"))
+        assertTrue(MissaRadioProviders.matchesStationQuery(m3uParsed[0], "Côte d'Ivoire"))
+
+        val cmCats = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "radio",
+            title = "Sweet FM Douala",
+            sectionName = "Makossa • Afrobeats",
+            tags = listOf("country:CM", MissaRadioProviders.PROVIDER_ZENO_AFRICA),
+            effectiveType = TvType.Audio
+        )
+        assertTrue(cmCats.contains(MissaCategory.RADIO_AFRICA))
+        assertTrue(cmCats.contains(MissaCategory.RADIO_AFRO_URBAN))
+
+        val relaxCats = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "radio",
+            title = "SomaFM Groove Salad",
+            sectionName = "Ambient, Chillout & Downtempo",
+            tags = listOf("country:US", MissaRadioProviders.PROVIDER_SOMAFM),
+            effectiveType = TvType.Audio
+        )
+        assertTrue(relaxCats.contains(MissaCategory.RADIO_RELAX))
+
+        val francoCats = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "radio",
+            title = "France Culture",
+            sectionName = "Savoirs & Documentaires",
+            tags = listOf("country:FR", MissaRadioProviders.PROVIDER_MISSA_DIRECT),
+            effectiveType = TvType.Audio
+        )
+        assertTrue(francoCats.contains(MissaCategory.RADIO_FRANCOPHONE))
+        assertTrue(francoCats.contains(MissaCategory.RADIO_NEWS))
+    }
 }
