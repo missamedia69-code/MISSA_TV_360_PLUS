@@ -247,7 +247,12 @@ object DirectRadioPlayerManager {
                             genre = tags.ifBlank { "Radio • Internet" },
                             country = country.uppercase(),
                             streamUrl = url,
-                            isCustom = false
+                            isCustom = false,
+                            logoUrl = obj.optString("favicon").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }
+                                ?: obj.optString("homepage").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }?.let { homepage ->
+                                    val host = runCatching { android.net.Uri.parse(homepage).host }.getOrNull()
+                                    host?.let { "https://www.google.com/s2/favicons?domain=\${android.net.Uri.encode(it)}&sz=128" }
+                                }
                         )
                         // URL is the stable fallback identity; avoid duplicate stations
                         // returned by both the global and country-specific queries.
