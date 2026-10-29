@@ -177,6 +177,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 renderScreen()
             }
         }
+
+        // Re-render the visible universe when the asynchronous Radio Browser catalogue arrives.
+        DirectRadioPlayerManager.stationsUpdated.observe(viewLifecycleOwner) {
+            if (universeId == "radio" || universeId == "music") {
+                renderScreen()
+            }
+        }
     }
 
     override fun onResume() {
