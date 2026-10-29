@@ -7,129 +7,90 @@ import androidx.core.content.withStyledAttributes
 import androidx.core.view.children
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlin.math.abs
+import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
 
 class GrdLayoutManager(val context: Context, spanCount: Int) :
     GridLayoutManager(context, spanCount) {
+
+    private var attachedRecyclerView: RecyclerView? = null
+
+    override fun onAttachedToWindow(view: RecyclerView?) {
+        super.onAttachedToWindow(view)
+        attachedRecyclerView = view
+    }
+
+    override fun onDetachedFromWindow(view: RecyclerView?, recycler: RecyclerView.Recycler?) {
+        attachedRecyclerView = null
+        super.onDetachedFromWindow(view, recycler)
+    }
+
     override fun onFocusSearchFailed(
         focused: View,
         focusDirection: Int,
         recycler: RecyclerView.Recycler,
         state: RecyclerView.State
     ): View? {
-        return try {
-            val fromPos = getPosition(focused)
-            val nextPos = getNextViewPos(fromPos, focusDirection)
-            findViewByPosition(nextPos)
-        } catch (e: Exception) {
-            null
-        }
+        return onInterceptFocusSearch(focused, focusDirection)
     }
 
-    /*override fun onRequestChildFocus(
-        parent: RecyclerView,
-        state: RecyclerView.State,
-        child: View,
-        focused: View?
-    ): Boolean {
-        // android.widget.FrameLayout$LayoutParams cannot be cast to androidx.recyclerview.widget.RecyclerView$LayoutParams
-        return try {
-            if(focused != null) {
-              //  val pos = maxOf(0, getPosition(focused) - 2) // IDK WHY
-                val pos = getPosition(focused)
-                if(pos >= 0) parent.scrollToPosition(pos)
-            }
-
-            super.onRequestChildFocus(parent, state, child, focused)
-        } catch (e: Exception) {
-            false
-        }
-    }*/
-
-    // Allows moving right and left with focus https://gist.github.com/vganin/8930b41f55820ec49e4d
     override fun onInterceptFocusSearch(focused: View, direction: Int): View? {
         return try {
-            val fromPos = getPosition(focused)
-            val nextPos = getNextViewPos(fromPos, direction)
-            findViewByPosition(nextPos)
+            if (itemCount <= 0) return null
+            val itemView = findContainingItemView(focused) ?: return null
+            val fromPos = getPosition(itemView)
+            if (fromPos == RecyclerView.NO_POSITION) return null
+
+            if (orientation == VERTICAL) {
+                val effectiveLeft = (!isLayoutRTL && direction == View.FOCUS_LEFT) ||
+                    (isLayoutRTL && direction == View.FOCUS_RIGHT)
+                val spans = spanCount.coerceAtLeast(1)
+                if (effectiveLeft && fromPos % spans == 0) {
+                    val navRail = (attachedRecyclerView?.rootView)?.findViewById<View>(R.id.nav_rail_view)
+                    if (navRail != null && navRail.isShown && navRail.isFocusable) {
+                        return navRail
+                    }
+                    return itemView
+                }
+
+                val nextPos = MissaTvFocusHelper.computeUniformGridNextPosition(
+                    fromPos = fromPos,
+                    itemCount = itemCount,
+                    spanCount = spans,
+                    direction = direction,
+                    isRtl = isLayoutRTL,
+                    trapBottomEdge = true
+                )
+                if (nextPos < 0) return null
+                if (nextPos == fromPos) return itemView
+
+                findViewByPosition(nextPos)?.let { return it }
+
+                val rv = attachedRecyclerView
+                if (rv != null && (direction == View.FOCUS_DOWN || direction == View.FOCUS_UP)) {
+                    val vStep = if (direction == View.FOCUS_DOWN) +1 else -1
+                    val stepPx = getDecoratedMeasuredHeight(itemView).coerceAtLeast(120) * vStep
+                    var tries = 0
+                    while (findViewByPosition(nextPos) == null && tries < 3 && rv.canScrollVertically(vStep)) {
+                        rv.scrollBy(0, stepPx)
+                        tries++
+                    }
+                }
+                return findViewByPosition(nextPos) ?: itemView
+            }
+
+            // Horizontal GridLayoutManager fallback
+            val step = when (direction) {
+                View.FOCUS_DOWN -> 1
+                View.FOCUS_UP -> -1
+                View.FOCUS_RIGHT -> if (isLayoutRTL) -spanCount else spanCount
+                View.FOCUS_LEFT -> if (isLayoutRTL) spanCount else -spanCount
+                else -> 0
+            }
+            val nextPos = (fromPos + step).coerceIn(0, itemCount - 1)
+            findViewByPosition(nextPos) ?: itemView
         } catch (e: Exception) {
             null
-        }
-    }
-
-    private fun getNextViewPos(fromPos: Int, direction: Int): Int {
-        val offset = calcOffsetToNextView(direction)
-
-        if (hitBorder(fromPos, offset)) {
-            return fromPos
-        }
-
-        return fromPos + offset
-    }
-
-    private fun calcOffsetToNextView(direction: Int): Int {
-        val spanCount = this.spanCount
-        val orientation = this.orientation
-
-        // fixes arabic by inverting left and right layout focus
-        val correctDirection = if (this.isLayoutRTL) {
-            when (direction) {
-                View.FOCUS_RIGHT -> View.FOCUS_LEFT
-                View.FOCUS_LEFT -> View.FOCUS_RIGHT
-                else -> direction
-            }
-        } else direction
-
-        if (orientation == VERTICAL) {
-            when (correctDirection) {
-                View.FOCUS_DOWN -> {
-                    return spanCount
-                }
-
-                View.FOCUS_UP -> {
-                    return -spanCount
-                }
-
-                View.FOCUS_RIGHT -> {
-                    return 1
-                }
-
-                View.FOCUS_LEFT -> {
-                    return -1
-                }
-            }
-        } else if (orientation == HORIZONTAL) {
-            when (correctDirection) {
-                View.FOCUS_DOWN -> {
-                    return 1
-                }
-
-                View.FOCUS_UP -> {
-                    return -1
-                }
-
-                View.FOCUS_RIGHT -> {
-                    return spanCount
-                }
-
-                View.FOCUS_LEFT -> {
-                    return -spanCount
-                }
-            }
-        }
-        return 0
-    }
-
-    private fun hitBorder(from: Int, offset: Int): Boolean {
-        val spanCount = spanCount
-
-        return if (abs(offset) == 1) {
-            val spanIndex = from % spanCount
-            val newSpanIndex = spanIndex + offset
-            newSpanIndex < 0 || newSpanIndex >= spanCount
-        } else {
-            val newPos = from + offset
-            newPos in spanCount..-1
         }
     }
 }

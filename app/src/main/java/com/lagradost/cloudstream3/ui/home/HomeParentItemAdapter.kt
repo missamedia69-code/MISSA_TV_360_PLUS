@@ -96,13 +96,15 @@ open class ParentItemAdapter(
         if (binding !is HomepageParentBinding) return
         val info = item.list
         binding.apply {
+            val effectiveUpId = homeChildRecyclerview.nextFocusUpId
+                .takeIf { homeChildMoreInfo.isFocusable } ?: View.NO_ID
             val currentAdapter = homeChildRecyclerview.adapter as? HomeChildItemAdapter
             if (currentAdapter == null) {
                 homeChildRecyclerview.setRecycledViewPool(HomeChildItemAdapter.sharedPool)
                 homeChildRecyclerview.adapter = HomeChildItemAdapter(
                     id = id + position + 100,
                     clickCallback = clickCallback,
-                    nextFocusUp = homeChildRecyclerview.nextFocusUpId,
+                    nextFocusUp = effectiveUpId,
                     nextFocusDown = homeChildRecyclerview.nextFocusDownId,
                 ).apply {
                     isHorizontal = info.isHorizontalImages
@@ -114,7 +116,7 @@ open class ParentItemAdapter(
                     isHorizontal = info.isHorizontalImages
                     hasNext = item.hasNext
                     this.clickCallback = this@ParentItemAdapter.clickCallback
-                    nextFocusUp = homeChildRecyclerview.nextFocusUpId
+                    nextFocusUp = effectiveUpId
                     nextFocusDown = homeChildRecyclerview.nextFocusDownId
                     submitIncomparableList(item.list.list)
                 }
@@ -124,6 +126,7 @@ open class ParentItemAdapter(
                 isHorizontal = true,
                 nextLeft = startFocus,
                 nextRight = endFocus,
+                nextUp = effectiveUpId,
             )
             homeChildMoreInfo.text = info.name
 

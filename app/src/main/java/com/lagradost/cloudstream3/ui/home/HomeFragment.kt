@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -54,10 +55,13 @@ import com.lagradost.cloudstream3.ui.APIRepository.Companion.randomApi
 import com.lagradost.cloudstream3.ui.BaseFragment
 import com.lagradost.cloudstream3.ui.account.AccountHelper.showAccountSelectLinear
 import com.lagradost.cloudstream3.ui.account.AccountViewModel
+import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_FOCUSED
 import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_LOAD
 import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_PLAY_FILE
 import com.lagradost.cloudstream3.ui.search.SearchAdapter
 import com.lagradost.cloudstream3.ui.search.SearchHelper.handleSearchClickCallback
+import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
+import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
 import com.lagradost.cloudstream3.ui.setRecycledViewPool
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
@@ -212,17 +216,23 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
             binding.homeExpandedDragDown.setOnClickListener {
                 bottomSheetDialogBuilder.dismissSafe(this)
             }
-
+            binding.homeExpandedDragDown.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    binding.homeExpandedRecycler.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus() == true
+                } else false
+            }
 
             // Span settings
             binding.homeExpandedRecycler.spanCount = context.getSpanCount(item.isHorizontalImages)
             binding.homeExpandedRecycler.setRecycledViewPool(SearchAdapter.sharedPool)
             binding.homeExpandedRecycler.adapter =
-                SearchAdapter(binding.homeExpandedRecycler,item.isHorizontalImages) { callback ->
+                SearchAdapter(binding.homeExpandedRecycler, item.isHorizontalImages) { callback ->
+                    if (callback.action == SEARCH_ACTION_FOCUSED) return@SearchAdapter
                     handleSearchClickCallback(callback)
-                    if (callback.action == SEARCH_ACTION_LOAD || callback.action == SEARCH_ACTION_PLAY_FILE) {
+                    val isInlineAudio = callback.card is DirectMusicSearchResponse ||
+                        callback.card is DirectRadioSearchResponse
+                    if (!isInlineAudio && (callback.action == SEARCH_ACTION_LOAD || callback.action == SEARCH_ACTION_PLAY_FILE)) {
                         bottomSheetDialogBuilder.ownHide() // we hide here because we want to resume it later
-                        //bottomSheetDialogBuilder.dismissSafe(this)
                     }
                 }.apply {
                     submitList(item.list)
@@ -274,6 +284,33 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
 
             //(recycle.adapter as SearchAdapter).notifyDataSetChanged()
 
+            val isTvMode = isLayout(TV or EMULATOR)
+            if (isTvMode) {
+                bottomSheetDialogBuilder.setCanceledOnTouchOutside(false)
+            }
+            bottomSheetDialogBuilder.setOnShowListener {
+                bottomSheetDialogBuilder.findViewById<View>(com.google.android.material.R.id.touch_outside)?.apply {
+                    if (isTvMode) {
+                        isFocusable = false
+                        isFocusableInTouchMode = false
+                        setOnClickListener(null)
+                    }
+                }
+                val bottomSheet = bottomSheetDialogBuilder.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                if (bottomSheet != null) {
+                    bottomSheet.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                    BottomSheetBehavior.from(bottomSheet).apply {
+                        isDraggable = !isTvMode
+                        state = BottomSheetBehavior.STATE_EXPANDED
+                        skipCollapsed = true
+                    }
+                }
+                if (isTvMode) {
+                    binding.homeExpandedRecycler.post {
+                        binding.homeExpandedRecycler.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                    }
+                }
+            }
             bottomSheetDialogBuilder.show()
             return bottomSheetDialogBuilder
         }

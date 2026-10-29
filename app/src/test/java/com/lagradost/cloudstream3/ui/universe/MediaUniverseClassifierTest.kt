@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.view.View
 import com.lagradost.cloudstream3.TvType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -1181,5 +1182,90 @@ class MediaUniverseClassifierTest {
         assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=140", sortedUrls[0])
         assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=139", sortedUrls[1])
         assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=251", sortedUrls[2])
+    }
+
+    @Test
+    fun `tv focus navigation helper keeps columns aligned vertically and horizontally without wrapping`() {
+        // 1. Horizontal rail scroll math: visible columns never shift (dx = 0); right overflow steps by exact column width
+        // Viewport [24..900] -> usable = 876, card width = 140 -> 6 full columns at x = 24, 164, 304, 444, 584, 724
+        assertEquals(
+            0,
+            MissaTvFocusHelper.computeAlignedHorizontalScrollDx(
+                leftEdge = 24,
+                rightEdge = 900,
+                childLeft = 304,
+                childRight = 444,
+                childWidth = 140
+            )
+        )
+        // Card 6 at x = 864..1004 overflows rightEdge (900): steps by +140 so Card 6 lands at col 5 (x = 724)
+        assertEquals(
+            140,
+            MissaTvFocusHelper.computeAlignedHorizontalScrollDx(
+                leftEdge = 24,
+                rightEdge = 900,
+                childLeft = 864,
+                childRight = 1004,
+                childWidth = 140
+            )
+        )
+        // Card clipped on left at x = -116..24 snaps back to leftEdge (24) -> dx = -140
+        assertEquals(
+            -140,
+            MissaTvFocusHelper.computeAlignedHorizontalScrollDx(
+                leftEdge = 24,
+                rightEdge = 900,
+                childLeft = -116,
+                childRight = 24,
+                childWidth = 140
+            )
+        )
+
+        // 2. Grid navigation (spanCount = 5, itemCount = 13 -> rows: [0..4], [5..9], [10..12])
+        // Right border of row 0 (pos 4) never wraps to row 1 (pos 5)
+        assertEquals(
+            4,
+            MissaTvFocusHelper.computeUniformGridNextPosition(4, 13, 5, View.FOCUS_RIGHT)
+        )
+        // Left border of row 1 (pos 5, col 0) never wraps to row 0 (pos 4)
+        assertEquals(
+            5,
+            MissaTvFocusHelper.computeUniformGridNextPosition(5, 13, 5, View.FOCUS_LEFT)
+        )
+        // Vertical DOWN and UP preserve exact column (col 2: 2 -> 7 -> 12 -> 7 -> 2)
+        assertEquals(
+            7,
+            MissaTvFocusHelper.computeUniformGridNextPosition(2, 13, 5, View.FOCUS_DOWN)
+        )
+        assertEquals(
+            12,
+            MissaTvFocusHelper.computeUniformGridNextPosition(7, 13, 5, View.FOCUS_DOWN)
+        )
+        assertEquals(
+            7,
+            MissaTvFocusHelper.computeUniformGridNextPosition(12, 13, 5, View.FOCUS_UP)
+        )
+        assertEquals(
+            2,
+            MissaTvFocusHelper.computeUniformGridNextPosition(7, 13, 5, View.FOCUS_UP)
+        )
+        // Escaping UP from row 0 returns -1 so header/sort/search controls can receive focus
+        assertEquals(
+            -1,
+            MissaTvFocusHelper.computeUniformGridNextPosition(2, 13, 5, View.FOCUS_UP)
+        )
+        // Bottom row traps in full-screen See-All sheet (`trapBottomEdge = true`) and escapes when embedded (`false`)
+        assertEquals(
+            12,
+            MissaTvFocusHelper.computeUniformGridNextPosition(12, 13, 5, View.FOCUS_DOWN, trapBottomEdge = true)
+        )
+        assertEquals(
+            -1,
+            MissaTvFocusHelper.computeUniformGridNextPosition(12, 13, 5, View.FOCUS_DOWN, trapBottomEdge = false)
+        )
+
+        // 3. Column center matching selects exact aligned column across rows
+        val rowCenters = listOf(94, 234, 374, 514, 654, 794)
+        assertEquals(3, MissaTvFocusHelper.pickClosestHorizontalIndex(rowCenters, 510))
     }
 }

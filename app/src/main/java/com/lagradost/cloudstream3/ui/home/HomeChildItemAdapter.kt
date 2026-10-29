@@ -189,9 +189,23 @@ open class HomeChildItemAdapter(
 
             layout.layoutParams = params
         }
+
+        fun updateFixedWidth(view: View, width: Int) {
+            if (width <= 0) return
+            val params = view.layoutParams ?: return
+            if (params.width == width) return
+            params.width = width
+            view.layoutParams = params
+        }
     }
 
     protected fun applyBinding(holder: ViewHolderState<Boolean>, isFirstItem: Boolean) {
+        if (minPosterSize <= 0 || maxPosterSize <= 0) {
+            updatePosterSize(holder.itemView.context)
+            updateCachedPosterSize()
+        } else if (setWidth <= 0 || setHeight <= 0) {
+            updateCachedPosterSize()
+        }
         if (isLayout(TV or EMULATOR) && MainActivity.ANIMATED_OUTLINE) {
             holder.itemView.foreground = null
         }
@@ -202,6 +216,8 @@ open class HomeChildItemAdapter(
 
             is HomeResultGridExpandedBinding -> {
                 updateLayoutParms(binding.backgroundCard, setWidth, setHeight)
+                // Constrain title label to exact poster width so every card column stays strictly aligned
+                updateFixedWidth(binding.imageText, setWidth)
 
                 if (isFirstItem) { // Keep DPAD-left anchored when horizontal top navigation is active
                     binding.backgroundCard.nextFocusLeftId = binding.backgroundCard.id

@@ -5,6 +5,7 @@ import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,6 +27,8 @@ import com.google.android.material.textfield.TextInputLayout
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
+import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_FOCUSED
+import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_SHOW_METADATA
 import com.lagradost.cloudstream3.ui.search.SearchClickCallback
 import com.lagradost.cloudstream3.utils.AppContextUtils.setDefaultFocus
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
@@ -227,7 +230,11 @@ internal object MissaUniverseDialogs {
         row: UniverseCategoryRow,
         onCardClick: (SearchClickCallback) -> Unit
     ) {
+        val isTv = MissaUiFactory.isTvLayoutMode()
         val sheet = BottomSheetDialog(activity)
+        if (isTv) {
+            sheet.setCanceledOnTouchOutside(false)
+        }
         val view = LayoutInflater.from(activity).inflate(R.layout.sheet_missa_see_all, null, false)
         val titleView: TextView = view.findViewById(R.id.see_all_title)
         val closeBtn: MaterialButton = view.findViewById(R.id.see_all_close_btn)
@@ -238,16 +245,29 @@ internal object MissaUniverseDialogs {
         closeBtn.setOnClickListener { sheet.dismiss() }
 
         val minCardPx = activity.resources.getDimensionPixelSize(R.dimen.missa_search_grid_card_min_width)
-        val span = (activity.resources.displayMetrics.widthPixels / minCardPx.coerceAtLeast(1)).coerceIn(2, 7)
-        gridRecycler.layoutManager = GridLayoutManager(
-            activity,
-            if (row.isHorizontalCards) (span - 1).coerceAtLeast(2) else span
+        val baseSpan = (activity.resources.displayMetrics.widthPixels / minCardPx.coerceAtLeast(1)).coerceIn(2, 7)
+        val spanCount = if (row.isHorizontalCards) (baseSpan - 1).coerceAtLeast(2) else baseSpan
+        gridRecycler.layoutManager = MissaAlignedGridLayoutManager(
+            context = activity,
+            spanCount = spanCount,
+            trapBottomEdge = true
         )
+        gridRecycler.itemAnimator = null
 
         val gridAdapter = HomeChildItemAdapter(
             id = "see_all_${row.id}".hashCode(),
             clickCallback = { cb ->
-                sheet.dismiss()
+                // Never close sheet on D-Pad focus change or long-press favorite toggle
+                if (cb.action == SEARCH_ACTION_FOCUSED) return@HomeChildItemAdapter
+                if (cb.action == SEARCH_ACTION_SHOW_METADATA) {
+                    onCardClick(cb)
+                    return@HomeChildItemAdapter
+                }
+                val isInlineAudio = cb.card is DirectMusicSearchResponse ||
+                    cb.card is DirectRadioSearchResponse
+                if (!isInlineAudio) {
+                    sheet.dismiss()
+                }
                 onCardClick(cb)
             }
         ).apply {
@@ -255,6 +275,31 @@ internal object MissaUniverseDialogs {
             submitList(row.items)
         }
         gridRecycler.adapter = gridAdapter
+
+        fun focusGridAlignedWith(sourceView: View): Boolean {
+            val lm = gridRecycler.layoutManager ?: return false
+            val targetX = MissaTvFocusHelper.screenCenterX(sourceView)
+            val topRowCandidates = ArrayList<View>()
+            for (i in 0 until minOf(spanCount, lm.childCount)) {
+                lm.getChildAt(i)?.takeIf { it.isShown && it.isFocusable }?.let { topRowCandidates.add(it) }
+            }
+            val chosen = if (topRowCandidates.isNotEmpty()) {
+                val idx = MissaTvFocusHelper.pickClosestHorizontalIndex(
+                    topRowCandidates.map { MissaTvFocusHelper.screenCenterX(it) },
+                    targetX
+                )
+                topRowCandidates.getOrNull(idx)
+            } else {
+                gridRecycler.findViewHolderForAdapterPosition(0)?.itemView
+            }
+            return chosen?.requestFocus() == true
+        }
+
+        closeBtn.setOnKeyListener { v, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                focusGridAlignedWith(v)
+            } else false
+        }
 
         var currentSort = 0
         val sortLabels = listOf(
@@ -285,17 +330,40 @@ internal object MissaUniverseDialogs {
             ) {
                 applySort(mode)
             }
+            pill.setOnKeyListener { v, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    focusGridAlignedWith(v)
+                } else false
+            }
             sortBar.addView(pill)
         }
 
         sheet.setContentView(view)
         sheet.setOnShowListener {
+            sheet.findViewById<View>(com.google.android.material.R.id.touch_outside)?.apply {
+                if (isTv) {
+                    isFocusable = false
+                    isFocusableInTouchMode = false
+                    setOnClickListener(null)
+                }
+            }
             val bottomSheet = sheet.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             if (bottomSheet != null) {
                 bottomSheet.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
                 BottomSheetBehavior.from(bottomSheet).apply {
+                    isDraggable = !isTv
                     state = BottomSheetBehavior.STATE_EXPANDED
                     skipCollapsed = true
+                }
+            }
+            if (isTv) {
+                gridRecycler.post {
+                    val firstCard = gridRecycler.findViewHolderForAdapterPosition(0)?.itemView
+                    if (firstCard != null) {
+                        firstCard.requestFocus()
+                    } else {
+                        sortBar.getChildAt(0)?.requestFocus()
+                    }
                 }
             }
         }

@@ -995,10 +995,22 @@ internal class UniverseScreenAdapter(
             recycler.setRecycledViewPool(HomeChildItemAdapter.sharedPool)
             recycler.setLinearListLayout(
                 isHorizontal = true,
-                nextLeft = FOCUS_SELF,
-                nextRight = FOCUS_SELF
+                nextLeft = R.id.nav_rail_view,
+                nextRight = FOCUS_SELF,
+                endEscapeTarget = { clearAllBtn.takeIf { it.isShown && it.isFocusable } }
             )
             recycler.adapter = resumeAdapter
+            clearAllBtn.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    val lm = recycler.layoutManager
+                    val rightmost = lm?.let {
+                        (it.childCount - 1 downTo 0)
+                            .mapNotNull { idx -> it.getChildAt(idx) }
+                            .firstOrNull { v -> v.isShown && v.isFocusable }
+                    }
+                    rightmost?.requestFocus() == true
+                } else false
+            }
         }
 
         fun bind(item: UniverseListItem.ResumeRow) {
@@ -1026,10 +1038,10 @@ internal class UniverseScreenAdapter(
         private val hubAdapter = UniverseHubCardAdapter { callbacks.onNavigateUniverse(it) }
 
         init {
-            recycler.layoutManager = LinearLayoutManager(
-                itemView.context,
-                LinearLayoutManager.HORIZONTAL,
-                false
+            recycler.setLinearListLayout(
+                isHorizontal = true,
+                nextLeft = R.id.nav_rail_view,
+                nextRight = FOCUS_SELF
             )
             recycler.adapter = hubAdapter
         }
@@ -1054,9 +1066,21 @@ internal class UniverseScreenAdapter(
             childRecycler.setRecycledViewPool(HomeChildItemAdapter.sharedPool)
             childRecycler.setLinearListLayout(
                 isHorizontal = true,
-                nextLeft = FOCUS_SELF,
-                nextRight = FOCUS_SELF
+                nextLeft = R.id.nav_rail_view,
+                nextRight = FOCUS_SELF,
+                endEscapeTarget = { seeAllBtn.takeIf { it.isShown && it.isFocusable } }
             )
+            seeAllBtn.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    val lm = childRecycler.layoutManager
+                    val rightmost = lm?.let {
+                        (it.childCount - 1 downTo 0)
+                            .mapNotNull { idx -> it.getChildAt(idx) }
+                            .firstOrNull { v -> v.isShown && v.isFocusable }
+                    }
+                    rightmost?.requestFocus() == true
+                } else false
+            }
         }
 
         fun bind(item: UniverseListItem.CategoryRow, adapterPosition: Int) {
@@ -1070,6 +1094,14 @@ internal class UniverseScreenAdapter(
             )
             seeAllBtn.isVisible = row.items.size > 3
             seeAllBtn.setOnClickListener { callbacks.onRowSeeAll(row) }
+
+            // On TV, cap horizontal rail preview to 12 items so "Voir tout" is reachable quickly at the right end,
+            // while preserving the full `row.items` catalogue inside the "Voir tout" full-screen grid.
+            val railItems = if (MissaUiFactory.isTvLayoutMode() && row.items.size > 12) {
+                row.items.take(12)
+            } else {
+                row.items
+            }
 
             val handleClick: (SearchClickCallback) -> Unit = { cb ->
                 if (cb.action == SEARCH_ACTION_FOCUSED) {
@@ -1086,12 +1118,12 @@ internal class UniverseScreenAdapter(
                     clickCallback = handleClick
                 ).apply {
                     isHorizontal = row.isHorizontalCards
-                    submitList(row.items)
+                    submitList(railItems)
                 }
             } else {
                 existing.isHorizontal = row.isHorizontalCards
                 existing.clickCallback = handleClick
-                existing.submitIncomparableList(row.items)
+                existing.submitIncomparableList(railItems)
             }
         }
     }
@@ -1121,9 +1153,14 @@ internal class UniverseScreenAdapter(
             val baseSpan = (screenWidthPx / minCardWidthPx.coerceAtLeast(1)).coerceIn(2, 7)
             val spanCount = if (row.isHorizontalCards) (baseSpan - 1).coerceAtLeast(2) else baseSpan
 
-            val currentLm = gridRecycler.layoutManager as? GridLayoutManager
+            val currentLm = gridRecycler.layoutManager as? MissaAlignedGridLayoutManager
             if (currentLm == null || currentLm.spanCount != spanCount) {
-                gridRecycler.layoutManager = GridLayoutManager(ctx, spanCount)
+                gridRecycler.layoutManager = MissaAlignedGridLayoutManager(
+                    context = ctx,
+                    spanCount = spanCount,
+                    trapBottomEdge = false,
+                    leftBorderEscapeProvider = { itemView.rootView?.findViewById(R.id.nav_rail_view) }
+                )
             }
 
             val handleClick: (SearchClickCallback) -> Unit = { cb ->

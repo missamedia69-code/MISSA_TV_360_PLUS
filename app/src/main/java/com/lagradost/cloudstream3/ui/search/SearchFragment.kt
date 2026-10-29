@@ -673,7 +673,8 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
             searchMasterRecycler.adapter = masterAdapter
             //searchMasterRecycler.setLinearListLayout(isHorizontal = false, nextRight = FOCUS_SELF)
 
-            searchMasterRecycler.layoutManager = GridLayoutManager(context, 1)
+            searchMasterRecycler.layoutManager =
+                com.lagradost.cloudstream3.ui.universe.MissaVerticalUniverseLayoutManager(requireContext())
 
             // Automatically search the specified query, this allows the app search to launch from intent
             var sq =

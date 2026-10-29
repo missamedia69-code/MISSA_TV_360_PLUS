@@ -158,7 +158,12 @@ class RetroGamesFragment : Fragment() {
 
         val isTvOrTablet = isLayout(TV or EMULATOR) || resources.configuration.smallestScreenWidthDp >= 600
         recyclerView.layoutManager = if (isTvOrTablet) {
-            GridLayoutManager(requireContext(), 2).apply {
+            MissaAlignedGridLayoutManager(
+                context = requireContext(),
+                spanCount = 2,
+                trapBottomEdge = true,
+                leftBorderEscapeProvider = { view.rootView?.findViewById(R.id.nav_rail_view) }
+            ).apply {
                 spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                     override fun getSpanSize(position: Int): Int {
                         return if (listAdapter.isSectionHeader(position)) 2 else 1

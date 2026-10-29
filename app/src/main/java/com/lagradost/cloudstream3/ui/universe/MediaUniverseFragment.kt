@@ -35,7 +35,9 @@ import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
+import com.lagradost.cloudstream3.ui.result.FOCUS_SELF
 import com.lagradost.cloudstream3.ui.result.START_ACTION_RESUME_LATEST
+import com.lagradost.cloudstream3.ui.result.setLinearListLayout
 import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_FOCUSED
 import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_LOAD
 import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_SHOW_METADATA
@@ -277,7 +279,15 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
         categoryPillAdapter = pillAdapter
         categoryPillsRecycler?.apply {
-            layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+            setLinearListLayout(
+                isHorizontal = true,
+                nextLeft = R.id.nav_rail_view,
+                nextRight = FOCUS_SELF,
+                endEscapeTarget = {
+                    listOfNotNull(kidsPinBtn, sourceFilterBtn, toggleFilterBtn)
+                        .firstOrNull { it.isShown && it.isFocusable }
+                }
+            )
             itemAnimator = null
             adapter = pillAdapter
         }
@@ -438,7 +448,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         screenAdapter = adapter
 
         masterRecycler?.apply {
-            layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.VERTICAL, false)
+            layoutManager = MissaVerticalUniverseLayoutManager(ctx)
             // Gentle fade item animator respecting system animation settings (HOME-02, THEME-08)
             itemAnimator = if (MissaUiFactory.areAnimationsEnabled(ctx)) {
                 DefaultItemAnimator().apply {

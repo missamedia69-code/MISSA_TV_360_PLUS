@@ -8,8 +8,11 @@ import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.FocusDirection
 import com.lagradost.cloudstream3.mvvm.logError
+import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
+import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
+import kotlin.math.abs
 
 const val FOCUS_SELF = View.NO_ID - 1
 const val FOCUS_INHERIT = FOCUS_SELF - 1
@@ -19,7 +22,9 @@ fun RecyclerView?.setLinearListLayout(
     nextLeft: Int = FOCUS_INHERIT,
     nextRight: Int = FOCUS_INHERIT,
     nextUp: Int = FOCUS_INHERIT,
-    nextDown: Int = FOCUS_INHERIT
+    nextDown: Int = FOCUS_INHERIT,
+    startEscapeTarget: (() -> View?)? = null,
+    endEscapeTarget: (() -> View?)? = null,
 ) {
     if (this == null) return
     val ctx = this.context ?: return
@@ -33,6 +38,8 @@ fun RecyclerView?.setLinearListLayout(
             if (nextUp == FOCUS_INHERIT) this@setLinearListLayout.nextFocusUpId else nextUp
         nextFocusDown =
             if (nextDown == FOCUS_INHERIT) this@setLinearListLayout.nextFocusDownId else nextDown
+        this.startEscapeTarget = startEscapeTarget
+        this.endEscapeTarget = endEscapeTarget
     }
 }
 
@@ -43,6 +50,8 @@ open class LinearListLayout(context: Context?) :
     var nextFocusRight: Int = View.NO_ID
     var nextFocusUp: Int = View.NO_ID
     var nextFocusDown: Int = View.NO_ID
+    var startEscapeTarget: (() -> View?)? = null
+    var endEscapeTarget: (() -> View?)? = null
 
     fun setHorizontal() {
         orientation = HORIZONTAL
@@ -52,40 +61,26 @@ open class LinearListLayout(context: Context?) :
         orientation = VERTICAL
     }
 
-    private fun getCorrectParent(focused: View?): View? {
-        if (focused == null) return null
-        var current: View? = focused
-        val last: ArrayList<View> = arrayListOf(focused)
-        while (current != null && current !is RecyclerView) {
-            current = (current.parent as? View?)?.also { last.add(it) }
-        }
-        return last.getOrNull(last.count() - 2)
-    }
-
-    private fun getPosition(view: View?): Int? {
-        return (view?.layoutParams as? RecyclerView.LayoutParams?)?.absoluteAdapterPosition
-    }
-
     private fun getViewFromPos(pos: Int): View? {
+        findViewByPosition(pos)?.let { return it }
         for (i in 0 until childCount) {
             val child = getChildAt(i)
-            if ((child?.layoutParams as? RecyclerView.LayoutParams?)?.absoluteAdapterPosition == pos) {
+            if ((child?.layoutParams as? RecyclerView.LayoutParams)?.absoluteAdapterPosition == pos) {
                 return child
             }
         }
         return null
-        //return recyclerView.children.firstOrNull { child -> (child.layoutParams as? RecyclerView.LayoutParams?)?.absoluteAdapterPosition == pos) }
     }
 
-    /*
-    private fun scrollTo(position: Int) {
-        val linearSmoothScroller = LinearSmoothScroller(recyclerView.context)
-        linearSmoothScroller.targetPosition = position
-        startSmoothScroll(linearSmoothScroller)
-    }*/
-
-    /** from the current focus go to a direction */
+    /** From the current focus go to a configured boundary direction. */
     private fun getNextDirection(focused: View?, direction: FocusDirection): View? {
+        if (focused == null) return null
+        if (direction == FocusDirection.Start) {
+            startEscapeTarget?.invoke()?.takeIf { it.isShown && it.isFocusable }?.let { return it }
+        } else if (direction == FocusDirection.End) {
+            endEscapeTarget?.invoke()?.takeIf { it.isShown && it.isFocusable }?.let { return it }
+        }
+
         val id = when (direction) {
             FocusDirection.Start -> if (isLayoutRTL) nextFocusRight else nextFocusLeft
             FocusDirection.End -> if (isLayoutRTL) nextFocusLeft else nextFocusRight
@@ -98,20 +93,42 @@ open class LinearListLayout(context: Context?) :
             FOCUS_SELF -> focused
             else -> CommonActivity.continueGetNextFocus(
                 activity ?: focused,
-                focused ?: return null,
+                focused,
                 direction,
                 id
-            )
+            )?.takeIf { it.isShown && it.isFocusable } ?: if (
+                direction == FocusDirection.Start || direction == FocusDirection.End
+            ) {
+                focused
+            } else {
+                null
+            }
         }
     }
 
-    fun redirectRecycleToFirstItem(focused: View): View? {
+    fun redirectRecycleToFirstItem(focused: View, referenceSource: View? = null): View? {
         return when (focused) {
             is RecyclerView -> {
-                (focused.layoutManager as? LinearListLayout)?.let { focusedLayoutManager ->
+                val lm = focused.layoutManager ?: return focused
+                if (referenceSource != null && lm.childCount > 0) {
+                    val tmp = IntArray(2)
+                    val targetX = MissaTvFocusHelper.screenCenterX(referenceSource, tmp)
+                    var bestView: View? = null
+                    var bestDist = Int.MAX_VALUE
+                    for (i in 0 until lm.childCount) {
+                        val candidate = lm.getChildAt(i) ?: continue
+                        if (!candidate.isShown || !candidate.isFocusable) continue
+                        val d = abs(MissaTvFocusHelper.screenCenterX(candidate, tmp) - targetX)
+                        if (d < bestDist) {
+                            bestDist = d
+                            bestView = candidate
+                        }
+                    }
+                    if (bestView != null) return bestView
+                }
+                (lm as? LinearListLayout)?.let { focusedLayoutManager ->
                     val firstPosition = focusedLayoutManager.findFirstVisibleItemPosition()
-                    val firstView = focusedLayoutManager.findViewByPosition(firstPosition)
-                    firstView
+                    focusedLayoutManager.findViewByPosition(firstPosition)
                 } ?: focused
             }
 
@@ -120,82 +137,86 @@ open class LinearListLayout(context: Context?) :
     }
 
     override fun onInterceptFocusSearch(focused: View, direction: Int): View? {
+        val itemView = findContainingItemView(focused) ?: return null
         val dir = if (orientation == HORIZONTAL) {
-            if (direction == View.FOCUS_DOWN) getNextDirection(
-                focused,
-                FocusDirection.Down
-            )?.let { newFocus ->
-                return redirectRecycleToFirstItem(newFocus)
+            if (direction == View.FOCUS_DOWN) {
+                getNextDirection(itemView, FocusDirection.Down)?.let { newFocus ->
+                    return redirectRecycleToFirstItem(newFocus, itemView)
+                }
+                return null
             }
-            if (direction == View.FOCUS_UP) getNextDirection(
-                focused,
-                FocusDirection.Up
-            )?.let { newFocus ->
-                return redirectRecycleToFirstItem(newFocus)
+            if (direction == View.FOCUS_UP) {
+                getNextDirection(itemView, FocusDirection.Up)?.let { newFocus ->
+                    return redirectRecycleToFirstItem(newFocus, itemView)
+                }
+                return null
             }
-
-            if (direction == View.FOCUS_DOWN || direction == View.FOCUS_UP) {
-                // This scrolls the recyclerview before doing focus search, which
-                // allows the focus search to work better.
-
-                // Without this the recyclerview focus location on the screen
-                // would change when scrolling between recyclerviews.
-                (focused.parent as? RecyclerView)?.focusSearch(direction)
+            if (direction != View.FOCUS_LEFT && direction != View.FOCUS_RIGHT) {
                 return null
             }
             var ret = if (direction == View.FOCUS_RIGHT) 1 else -1
-            // only flip on horizontal layout
             if (isLayoutRTL) {
                 ret = -ret
             }
             ret
         } else {
-            if (direction == View.FOCUS_RIGHT) getNextDirection(
-                focused,
-                FocusDirection.End
-            )?.let { newFocus ->
-                return newFocus
-            }
-            if (direction == View.FOCUS_LEFT) getNextDirection(
-                focused,
-                FocusDirection.Start
-            )?.let { newFocus ->
-                return newFocus
-            }
-
-            if (direction == View.FOCUS_RIGHT || direction == View.FOCUS_LEFT) {
-                (focused.parent as? RecyclerView)?.focusSearch(direction)
+            if (direction == View.FOCUS_RIGHT) {
+                getNextDirection(itemView, FocusDirection.End)?.let { return it }
                 return null
             }
-
-            //if (direction == View.FOCUS_RIGHT || direction == View.FOCUS_LEFT) return null
+            if (direction == View.FOCUS_LEFT) {
+                getNextDirection(itemView, FocusDirection.Start)?.let { return it }
+                return null
+            }
+            if (direction != View.FOCUS_DOWN && direction != View.FOCUS_UP) {
+                return null
+            }
             if (direction == View.FOCUS_DOWN) 1 else -1
         }
 
-        try {
-            val position = getPosition(getCorrectParent(focused)) ?: return null
-            val lookFor = dir + position
+        return try {
+            val position = getPosition(itemView)
+            if (position == RecyclerView.NO_POSITION) return itemView
+            val lookFor = position + dir
 
-            // if out of bounds then refocus as specified
-            return if (lookFor >= itemCount) {
-                getNextDirection(
-                    focused,
-                    if (orientation == HORIZONTAL) FocusDirection.End else FocusDirection.Down
-                )
-            } else if (lookFor < 0) {
-                getNextDirection(
-                    focused,
-                    if (orientation == HORIZONTAL) FocusDirection.Start else FocusDirection.Up
-                )
-            } else {
-                getViewFromPos(lookFor) ?: run {
-                    scrollToPosition(lookFor)
-                    null
+            when {
+                lookFor >= itemCount -> {
+                    getNextDirection(
+                        itemView,
+                        if (orientation == HORIZONTAL) FocusDirection.End else FocusDirection.Down
+                    ) ?: if (orientation == HORIZONTAL) itemView else null
+                }
+
+                lookFor < 0 -> {
+                    getNextDirection(
+                        itemView,
+                        if (orientation == HORIZONTAL) FocusDirection.Start else FocusDirection.Up
+                    ) ?: if (orientation == HORIZONTAL) itemView else null
+                }
+
+                else -> {
+                    getViewFromPos(lookFor) ?: run {
+                        val parentRv = itemView.parent as? RecyclerView
+                        if (parentRv != null) {
+                            if (orientation == HORIZONTAL) {
+                                val visualDir = if (isLayoutRTL) -dir else dir
+                                val stepPx = getDecoratedMeasuredWidth(itemView).coerceAtLeast(1) * visualDir
+                                parentRv.scrollBy(stepPx, 0)
+                            } else {
+                                val stepPx = getDecoratedMeasuredHeight(itemView).coerceAtLeast(1) * dir
+                                parentRv.scrollBy(0, stepPx)
+                            }
+                        } else {
+                            scrollToPosition(lookFor)
+                        }
+                        // Never return null on valid horizontal moves so FocusFinder cannot jump rows
+                        getViewFromPos(lookFor) ?: if (orientation == HORIZONTAL) itemView else null
+                    }
                 }
             }
         } catch (e: Exception) {
             logError(e)
-            return null
+            if (orientation == HORIZONTAL) itemView else null
         }
     }
 
@@ -206,76 +227,27 @@ open class LinearListLayout(context: Context?) :
         immediate: Boolean,
         focusedChildVisible: Boolean
     ): Boolean {
-        if (isLayout(TV) && orientation == HORIZONTAL) {
-            val dx = when {
-                isLayoutRTL -> getDecoratedRight(child) - (parent.width - parent.paddingRight)
-                else -> getDecoratedLeft(child) - parent.paddingLeft
-            }
+        if (isLayout(TV or EMULATOR) && orientation == HORIZONTAL) {
+            val dx = MissaTvFocusHelper.computeAlignedHorizontalScrollDx(
+                leftEdge = parent.paddingLeft,
+                rightEdge = parent.width - parent.paddingRight,
+                childLeft = getDecoratedLeft(child),
+                childRight = getDecoratedRight(child),
+                childWidth = getDecoratedMeasuredWidth(child)
+            )
             return if (dx != 0) {
-                when {
-                    immediate -> parent.scrollBy(dx, 0)
-                    else -> parent.smoothScrollBy(dx, 0)
-                }
+                parent.scrollBy(dx, 0)
                 true
             } else {
                 false
             }
-        } else {
-            return super.requestChildRectangleOnScreen(
-                parent,
-                child,
-                rect,
-                immediate,
-                focusedChildVisible
-            )
         }
+        return super.requestChildRectangleOnScreen(
+            parent,
+            child,
+            rect,
+            immediate,
+            focusedChildVisible
+        )
     }
-
-    /*override fun onRequestChildFocus(
-        parent: RecyclerView,
-        state: RecyclerView.State,
-        child: View,
-        focused: View?
-    ): Boolean {
-        return super.onRequestChildFocus(parent, state, child, focused)
-        getPosition(getCorrectParent(focused ?: return true))?.let {
-            val startView = findFirstVisibleChildClosestToStart(true,true)
-            val endView = findFirstVisibleChildClosestToEnd(true,true)
-            val start = getPosition(startView)
-            val end = getPosition(endView)
-            fill(parent,LayoutState())
-
-            val helper = mOrientationHelper ?: return false
-            val laidOutArea: Int = abs(
-                helper.getDecoratedEnd(startView)
-                        - helper.getDecoratedStart(endView)
-            )
-            val itemRange: Int = abs(
-                (start
-                        - end)
-            ) + 1
-
-            val avgSizePerRow = laidOutArea.toFloat() / itemRange
-
-            return Math.round(
-                itemsBefore * avgSizePerRow + ((orientation.getStartAfterPadding()
-                        - orientation.getDecoratedStart(startChild)))
-            )
-            recyclerView.scrollToPosition(it)
-        }
-        return true*/
-
-    //return super.onRequestChildFocus(parent, state, child, focused)
-    /* if (focused == null || focused == child) {
-         return super.onRequestChildFocus(parent, state, child, focused)
-     }
-
-     try {
-         val pos = getPosition(getCorrectParent(focused) ?: return true)
-         scrollToPosition(pos)
-     } catch (e: Exception) {
-         logError(e)
-     }
-     return true
-}*/
 }
