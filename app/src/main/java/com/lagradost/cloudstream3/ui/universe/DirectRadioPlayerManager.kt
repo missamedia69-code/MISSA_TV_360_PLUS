@@ -251,7 +251,7 @@ object DirectRadioPlayerManager {
                             logoUrl = obj.optString("favicon").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }
                                 ?: obj.optString("homepage").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }?.let { homepage ->
                                     val host = runCatching { android.net.Uri.parse(homepage).host }.getOrNull()
-                                    host?.let { "https://www.google.com/s2/favicons?domain=\${android.net.Uri.encode(it)}&sz=128" }
+                                    host?.let { "https://www.google.com/s2/favicons?domain=${android.net.Uri.encode(it)}&sz=128" }
                                 }
                         )
                         // URL is the stable fallback identity; avoid duplicate stations
