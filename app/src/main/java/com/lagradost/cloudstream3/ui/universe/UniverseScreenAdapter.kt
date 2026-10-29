@@ -8,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -821,14 +820,14 @@ internal class UniverseScreenAdapter(
         private val positionView: TextView = itemView.findViewById(R.id.music_deck_position)
         private val seekBar: SeekBar = itemView.findViewById(R.id.music_deck_seekbar)
         private val durationView: TextView = itemView.findViewById(R.id.music_deck_duration)
-        private val shuffleBtn: ImageButton = itemView.findViewById(R.id.music_deck_shuffle_btn)
-        private val prevBtn: ImageButton = itemView.findViewById(R.id.music_deck_prev_btn)
+        private val shuffleBtn: MaterialButton = itemView.findViewById(R.id.music_deck_shuffle_btn)
+        private val prevBtn: MaterialButton = itemView.findViewById(R.id.music_deck_prev_btn)
         private val playBtn: MaterialButton = itemView.findViewById(R.id.music_deck_play_btn)
-        private val nextBtn: ImageButton = itemView.findViewById(R.id.music_deck_next_btn)
-        private val repeatBtn: ImageButton = itemView.findViewById(R.id.music_deck_repeat_btn)
-        private val favBtn: ImageButton = itemView.findViewById(R.id.music_deck_fav_btn)
-        private val sleepBtn: ImageButton = itemView.findViewById(R.id.music_deck_sleep_btn)
-        private val stopBtn: ImageButton = itemView.findViewById(R.id.music_deck_stop_btn)
+        private val nextBtn: MaterialButton = itemView.findViewById(R.id.music_deck_next_btn)
+        private val repeatBtn: MaterialButton = itemView.findViewById(R.id.music_deck_repeat_btn)
+        private val favBtn: MaterialButton = itemView.findViewById(R.id.music_deck_fav_btn)
+        private val sleepBtn: MaterialButton = itemView.findViewById(R.id.music_deck_sleep_btn)
+        private val stopBtn: MaterialButton = itemView.findViewById(R.id.music_deck_stop_btn)
 
         private var isUserScrubbing = false
         private var boundDurationMs: Long = 0L
@@ -872,8 +871,8 @@ internal class UniverseScreenAdapter(
             val state = item.musicState
             val tr = state.track
             val accentColor = ctx.colorFromAttribute(R.attr.missaAccentPrimary)
-            val primaryTextColor = ctx.colorFromAttribute(R.attr.missaTextPrimary)
-            val mutedColor = ctx.colorFromAttribute(R.attr.missaTextSecondary)
+            val primaryTextColor = ctx.colorFromAttribute(R.attr.textColor)
+            val mutedColor = ctx.colorFromAttribute(R.attr.grayTextColor)
 
             titleView.text = tr?.displayLabel() ?: ctx.getString(R.string.universe_music_player_title)
 
@@ -932,29 +931,22 @@ internal class UniverseScreenAdapter(
                 if (state.isPlaying) R.drawable.ic_baseline_pause_24
                 else R.drawable.ic_baseline_play_arrow_24
             )
-            ImageViewCompat.setImageTintList(
-                shuffleBtn,
-                ColorStateList.valueOf(if (state.shuffleEnabled) accentColor else mutedColor)
-            )
-            repeatBtn.setImageResource(
+            shuffleBtn.iconTint = ColorStateList.valueOf(if (state.shuffleEnabled) accentColor else mutedColor)
+            repeatBtn.setIconResource(
                 if (state.repeatMode == MusicRepeatMode.ONE) R.drawable.ic_missa_repeat_one
                 else R.drawable.ic_missa_repeat
             )
-            ImageViewCompat.setImageTintList(
-                repeatBtn,
-                ColorStateList.valueOf(if (state.repeatMode != MusicRepeatMode.OFF) accentColor else mutedColor)
+            repeatBtn.iconTint = ColorStateList.valueOf(
+                if (state.repeatMode != MusicRepeatMode.OFF) accentColor else mutedColor
             )
 
             favBtn.isVisible = tr != null
             stopBtn.isVisible = tr != null
-            favBtn.setImageResource(
+            favBtn.setIconResource(
                 if (item.isFavoriteTrack) R.drawable.ic_baseline_favorite_24
                 else R.drawable.ic_baseline_favorite_border_24
             )
-            ImageViewCompat.setImageTintList(
-                favBtn,
-                ColorStateList.valueOf(if (item.isFavoriteTrack) accentColor else primaryTextColor)
-            )
+            favBtn.iconTint = ColorStateList.valueOf(if (item.isFavoriteTrack) accentColor else primaryTextColor)
         }
 
         private fun formatTimeMs(ms: Long): String {

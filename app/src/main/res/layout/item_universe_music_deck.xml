@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,229 +7,225 @@
     android:layout_marginHorizontal="@dimen/missa_section_horizontal_padding"
     android:layout_marginTop="8dp"
     android:layout_marginBottom="10dp"
-    app:cardBackgroundColor="?attr/missaSurfaceCard"
-    app:cardCornerRadius="@dimen/missa_card_radius"
-    app:cardElevation="0dp"
-    app:strokeColor="?attr/missaStrokeSubtle"
-    app:strokeWidth="1dp">
+    android:background="@drawable/missa_universe_card_bg"
+    android:orientation="vertical"
+    android:padding="14dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="14dp">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            app:cardBackgroundColor="?attr/missaSurfaceElevated"
+            app:cardCornerRadius="@dimen/rounded_image_radius"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/missaStrokeSubtle"
+            app:strokeWidth="1dp">
+
+            <ImageView
+                android:id="@+id/music_deck_artwork"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_missa_music"
+                app:tint="?attr/missaAccentPrimary" />
+        </com.google.android.material.card.MaterialCardView>
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/music_deck_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/universe_music_player_title"
+                android:textAppearance="@style/TextAppearance.Missa.RowTitle"
+                tools:text="Burna Boy — Last Last" />
+
+            <TextView
+                android:id="@+id/music_deck_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/universe_music_player_idle"
+                android:textAppearance="@style/TextAppearance.Missa.Caption" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/music_deck_add_server_btn"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginStart="8dp"
+            android:text="@string/universe_music_add_server"
+            app:icon="@drawable/add_24px"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:iconSize="16dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/music_deck_progress_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/music_deck_position"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Missa.Caption"
+            tools:text="01:14" />
+
+        <SeekBar
+            android:id="@+id/music_deck_seekbar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="6dp"
+            android:layout_weight="1"
+            android:focusable="true"
+            android:max="1000"
+            android:progressBackgroundTint="?attr/missaStrokeSubtle"
+            android:progressTint="?attr/missaAccentPrimary"
+            android:thumbTint="?attr/missaAccentPrimary" />
+
+        <TextView
+            android:id="@+id/music_deck_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Missa.Caption"
+            tools:text="03:42" />
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                app:cardBackgroundColor="?attr/missaSurfaceElevated"
-                app:cardCornerRadius="@dimen/rounded_image_radius"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/missaStrokeSubtle"
-                app:strokeWidth="1dp">
-
-                <ImageView
-                    android:id="@+id/music_deck_artwork"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:importantForAccessibility="no"
-                    android:padding="10dp"
-                    android:scaleType="centerInside"
-                    android:src="@drawable/ic_missa_music"
-                    app:tint="?attr/missaAccentPrimary" />
-            </com.google.android.material.card.MaterialCardView>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/music_deck_title"
-                    style="@style/TextAppearance.Missa.RowTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:text="@string/universe_music_player_title"
-                    tools:text="Burna Boy — Last Last" />
-
-                <TextView
-                    android:id="@+id/music_deck_status"
-                    style="@style/TextAppearance.Missa.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:text="@string/universe_music_player_idle" />
-            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/music_deck_add_server_btn"
+                android:id="@+id/music_deck_shuffle_btn"
                 style="@style/Widget.Missa.Button.Secondary"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:minHeight="@dimen/missa_pill_touch_height"
-                android:text="@string/universe_music_add_server"
-                app:icon="@drawable/ic_baseline_add_24"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:contentDescription="@string/universe_music_shuffle"
+                android:minWidth="@dimen/missa_pill_touch_height"
+                android:paddingHorizontal="12dp"
+                app:icon="@drawable/ic_missa_shuffle"
                 app:iconGravity="textStart"
-                app:iconPadding="4dp"
-                app:iconSize="16dp" />
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/music_deck_prev_btn"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@string/universe_music_prev"
+                android:minWidth="@dimen/missa_pill_touch_height"
+                android:paddingHorizontal="12dp"
+                app:icon="@drawable/baseline_skip_previous_24"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/music_deck_play_btn"
+                style="@style/Widget.Missa.Button.Primary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginHorizontal="8dp"
+                android:text="@string/universe_hero_listen"
+                app:icon="@drawable/ic_baseline_play_arrow_24"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="20dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/music_deck_next_btn"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:contentDescription="@string/universe_music_next"
+                android:minWidth="@dimen/missa_pill_touch_height"
+                android:paddingHorizontal="12dp"
+                app:icon="@drawable/ic_baseline_skip_next_24"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/music_deck_repeat_btn"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@string/universe_music_repeat"
+                android:minWidth="@dimen/missa_pill_touch_height"
+                android:paddingHorizontal="12dp"
+                app:icon="@drawable/ic_missa_repeat"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/music_deck_fav_btn"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@string/universe_music_favorite"
+                android:minWidth="@dimen/missa_pill_touch_height"
+                android:paddingHorizontal="12dp"
+                app:icon="@drawable/ic_baseline_favorite_border_24"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/music_deck_sleep_btn"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@string/universe_radio_sleep_timer"
+                android:minWidth="@dimen/missa_pill_touch_height"
+                android:paddingHorizontal="12dp"
+                app:icon="@drawable/ic_baseline_tune_24"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/music_deck_stop_btn"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@string/universe_music_stop"
+                android:minWidth="@dimen/missa_pill_touch_height"
+                android:paddingHorizontal="12dp"
+                app:icon="@drawable/baseline_stop_24"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp" />
         </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/music_deck_progress_row"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/music_deck_position"
-                style="@style/TextAppearance.Missa.Caption"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:text="01:14" />
-
-            <SeekBar
-                android:id="@+id/music_deck_seekbar"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="6dp"
-                android:layout_weight="1"
-                android:focusable="true"
-                android:max="1000"
-                android:progressBackgroundTint="?attr/missaStrokeSubtle"
-                android:progressTint="?attr/missaAccentPrimary"
-                android:thumbTint="?attr/missaAccentPrimary" />
-
-            <TextView
-                android:id="@+id/music_deck_duration"
-                style="@style/TextAppearance.Missa.Caption"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:text="03:42" />
-        </LinearLayout>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:clipToPadding="false"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/music_deck_shuffle_btn"
-                    android:layout_width="@dimen/missa_pill_touch_height"
-                    android:layout_height="@dimen/missa_pill_touch_height"
-                    android:background="@drawable/missa_focusable_pill_bg"
-                    android:contentDescription="@string/universe_music_shuffle"
-                    android:focusable="true"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_missa_shuffle"
-                    app:tint="?attr/missaTextSecondary" />
-
-                <ImageButton
-                    android:id="@+id/music_deck_prev_btn"
-                    android:layout_width="@dimen/missa_pill_touch_height"
-                    android:layout_height="@dimen/missa_pill_touch_height"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/missa_focusable_pill_bg"
-                    android:contentDescription="@string/universe_music_prev"
-                    android:focusable="true"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_missa_skip_previous"
-                    app:tint="?attr/missaTextPrimary" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/music_deck_play_btn"
-                    style="@style/Widget.Missa.Button.Primary"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="8dp"
-                    android:minHeight="@dimen/missa_pill_touch_height"
-                    android:text="@string/universe_hero_listen"
-                    app:icon="@drawable/ic_baseline_play_arrow_24"
-                    app:iconGravity="textStart"
-                    app:iconPadding="6dp"
-                    app:iconSize="20dp" />
-
-                <ImageButton
-                    android:id="@+id/music_deck_next_btn"
-                    android:layout_width="@dimen/missa_pill_touch_height"
-                    android:layout_height="@dimen/missa_pill_touch_height"
-                    android:background="@drawable/missa_focusable_pill_bg"
-                    android:contentDescription="@string/universe_music_next"
-                    android:focusable="true"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_missa_skip_next"
-                    app:tint="?attr/missaTextPrimary" />
-
-                <ImageButton
-                    android:id="@+id/music_deck_repeat_btn"
-                    android:layout_width="@dimen/missa_pill_touch_height"
-                    android:layout_height="@dimen/missa_pill_touch_height"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/missa_focusable_pill_bg"
-                    android:contentDescription="@string/universe_music_repeat"
-                    android:focusable="true"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_missa_repeat"
-                    app:tint="?attr/missaAccentPrimary" />
-
-                <ImageButton
-                    android:id="@+id/music_deck_fav_btn"
-                    android:layout_width="@dimen/missa_pill_touch_height"
-                    android:layout_height="@dimen/missa_pill_touch_height"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/missa_focusable_pill_bg"
-                    android:contentDescription="@string/universe_music_favorite"
-                    android:focusable="true"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_baseline_favorite_border_24"
-                    app:tint="?attr/missaTextPrimary" />
-
-                <ImageButton
-                    android:id="@+id/music_deck_sleep_btn"
-                    android:layout_width="@dimen/missa_pill_touch_height"
-                    android:layout_height="@dimen/missa_pill_touch_height"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/missa_focusable_pill_bg"
-                    android:contentDescription="@string/universe_radio_sleep_timer"
-                    android:focusable="true"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_missa_sleep_timer"
-                    app:tint="?attr/missaTextPrimary" />
-
-                <ImageButton
-                    android:id="@+id/music_deck_stop_btn"
-                    android:layout_width="@dimen/missa_pill_touch_height"
-                    android:layout_height="@dimen/missa_pill_touch_height"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/missa_focusable_pill_bg"
-                    android:contentDescription="@string/universe_music_stop"
-                    android:focusable="true"
-                    android:padding="12dp"
-                    android:src="@drawable/ic_missa_stop"
-                    app:tint="?attr/missaTextSecondary" />
-            </LinearLayout>
-        </HorizontalScrollView>
-    </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+    </HorizontalScrollView>
+</LinearLayout>

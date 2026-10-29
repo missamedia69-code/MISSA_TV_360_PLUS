@@ -13,71 +13,67 @@
 
         <TextView
             android:id="@+id/missa_music_dialog_title"
-            style="@style/TextAppearance.Missa.ScreenTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/universe_music_server_dialog_title" />
+            android:accessibilityHeading="true"
+            android:text="@string/universe_music_server_dialog_title"
+            android:textAppearance="@style/TextAppearance.Missa.ScreenTitle" />
 
         <TextView
-            style="@style/TextAppearance.Missa.RowTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/universe_music_subsonic_section" />
+            android:text="@string/universe_music_subsonic_section"
+            android:textAppearance="@style/TextAppearance.Missa.RowTitle" />
 
-        <EditText
-            android:id="@+id/missa_music_subsonic_url"
-            style="@style/TextAppearance.Missa.Body"
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:hint="@string/universe_music_subsonic_url_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/missa_music_subsonic_url"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:background="@drawable/missa_focusable_pill_bg"
-            android:hint="@string/universe_music_subsonic_url_hint"
-            android:imeOptions="actionNext"
-            android:importantForAutofill="no"
-            android:inputType="textUri"
-            android:minHeight="@dimen/missa_pill_touch_height"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:singleLine="true"
-            android:textColor="?attr/missaTextPrimary"
-            android:textColorHint="?attr/missaTextMuted" />
+            android:hint="@string/universe_music_subsonic_user_hint">
 
-        <EditText
-            android:id="@+id/missa_music_subsonic_user"
-            style="@style/TextAppearance.Missa.Body"
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/missa_music_subsonic_user"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:background="@drawable/missa_focusable_pill_bg"
-            android:hint="@string/universe_music_subsonic_user_hint"
-            android:imeOptions="actionNext"
-            android:importantForAutofill="no"
-            android:inputType="text"
-            android:minHeight="@dimen/missa_pill_touch_height"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:singleLine="true"
-            android:textColor="?attr/missaTextPrimary"
-            android:textColorHint="?attr/missaTextMuted" />
-
-        <EditText
-            android:id="@+id/missa_music_subsonic_pass"
-            style="@style/TextAppearance.Missa.Body"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/missa_focusable_pill_bg"
             android:hint="@string/universe_music_subsonic_pass_hint"
-            android:imeOptions="actionDone"
-            android:importantForAutofill="no"
-            android:inputType="textPassword"
-            android:minHeight="@dimen/missa_pill_touch_height"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:singleLine="true"
-            android:textColor="?attr/missaTextPrimary"
-            android:textColorHint="?attr/missaTextMuted" />
+            app:endIconMode="password_toggle">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/missa_music_subsonic_pass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -110,64 +106,58 @@
             android:background="?attr/missaStrokeSubtle" />
 
         <TextView
-            style="@style/TextAppearance.Missa.RowTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/universe_music_custom_section" />
+            android:text="@string/universe_music_custom_section"
+            android:textAppearance="@style/TextAppearance.Missa.RowTitle" />
 
-        <EditText
-            android:id="@+id/missa_music_track_title"
-            style="@style/TextAppearance.Missa.Body"
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:hint="@string/universe_music_track_title_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/missa_music_track_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapWords"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:background="@drawable/missa_focusable_pill_bg"
-            android:hint="@string/universe_music_track_title_hint"
-            android:imeOptions="actionNext"
-            android:importantForAutofill="no"
-            android:inputType="textCapWords"
-            android:minHeight="@dimen/missa_pill_touch_height"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:singleLine="true"
-            android:textColor="?attr/missaTextPrimary"
-            android:textColorHint="?attr/missaTextMuted" />
+            android:hint="@string/universe_music_track_artist_hint">
 
-        <EditText
-            android:id="@+id/missa_music_track_artist"
-            style="@style/TextAppearance.Missa.Body"
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/missa_music_track_artist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapWords"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:background="@drawable/missa_focusable_pill_bg"
-            android:hint="@string/universe_music_track_artist_hint"
-            android:imeOptions="actionNext"
-            android:importantForAutofill="no"
-            android:inputType="textCapWords"
-            android:minHeight="@dimen/missa_pill_touch_height"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:singleLine="true"
-            android:textColor="?attr/missaTextPrimary"
-            android:textColorHint="?attr/missaTextMuted" />
+            android:hint="@string/universe_music_track_url_hint">
 
-        <EditText
-            android:id="@+id/missa_music_track_url"
-            style="@style/TextAppearance.Missa.Body"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/missa_focusable_pill_bg"
-            android:hint="@string/universe_music_track_url_hint"
-            android:imeOptions="actionDone"
-            android:importantForAutofill="no"
-            android:inputType="textUri"
-            android:minHeight="@dimen/missa_pill_touch_height"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:singleLine="true"
-            android:textColor="?attr/missaTextPrimary"
-            android:textColorHint="?attr/missaTextMuted" />
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/missa_music_track_url"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri"
+                android:maxLines="2"
+                android:textAppearance="@style/TextAppearance.Missa.Body" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -189,7 +179,7 @@
                 style="@style/Widget.Missa.Button.Primary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/universe_radio_save_btn" />
+                android:text="@string/universe_radio_save_and_play" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
