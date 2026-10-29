@@ -1034,7 +1034,7 @@ class MediaUniverseClassifierTest {
         )
         assertEquals(1, pipedSearch.size)
         assertEquals("Rema", pipedSearch[0].artist)
-        assertEquals("ytmusic://abcDEF12345", pipedSearch[0].streamUrl)
+        assertEquals("pipedmusic://abcDEF12345", pipedSearch[0].streamUrl)
         assertTrue(pipedSearch[0].isPipedLazy)
         assertTrue(MissaMusicProviders.isLazyYouTubeAudioScheme("ytmusic://abcDEF12345"))
         assertTrue(MissaMusicProviders.isLazyYouTubeAudioScheme("pipedmusic://abcDEF12345"))

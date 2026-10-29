@@ -99,7 +99,7 @@ internal object MissaMusicProviders {
     )
 
     private val noisyVideoSuffixRegex = Regex(
-        "\\s*(?:\\((?:clip\\s+officiel|official\\s+(?:music\\s+)?video|official\\s+audio|official\\s+lyric\\s+video|audio\\s+officiel|vid[eé]o\\s+officielle|lyrics?|paroles?|hd|hq|4k)\\)|\\[(?:clip\\s+officiel|official\\s+(?:music\\s+)?video|official\\s+audio|lyrics?|hd|hq|4k)\\])\\s*",
+        "\\s*[\\(\\[](?:clip\\s+officiel|official\\s+(?:music\\s+)?video|official\\s+audio|official\\s+lyric\\s+video|audio\\s+officiel|vid[eé]o\\s+officielle|lyrics?|paroles?|hd|hq|4k)[\\)\\]]\\s*",
         RegexOption.IGNORE_CASE
     )
 
@@ -181,13 +181,15 @@ internal object MissaMusicProviders {
         )
     )
 
+    private val outerQuoteChars = charArrayOf('"', '\'', '«', '»', '“', '”', '‘', '’', '`')
+
     /**
      * Cleans user search input (removes accidental leading/trailing quotes like `"lady ponce '`
      * or repeated spaces typed on TV/mobile keyboards).
      */
     fun sanitizeMusicQuery(rawQuery: String): String =
-        rawQuery.trim()
-            .trim('"', '\'', '«', '»', '“', '”', '‘', '’', '`')
+        rawQuery
+            .trim { it.isWhitespace() || it in outerQuoteChars }
             .replace(Regex("\\s+"), " ")
             .trim()
 
