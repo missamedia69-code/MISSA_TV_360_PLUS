@@ -137,6 +137,10 @@ object DirectRadioPlayerManager {
     private val _state = MutableLiveData(RadioPlaybackState())
     val state: LiveData<RadioPlaybackState> = _state
 
+    private val _stationsUpdated = MutableLiveData(0L)
+    /** Emits after a remote catalogue refresh so visible radio screens can re-project their lists. */
+    val stationsUpdated: LiveData<Long> = _stationsUpdated
+
     fun customStations(): List<RadioStationPreset> {
         val v2 = runCatching {
             getKey<Array<RadioStationPreset>>(CUSTOM_STATIONS_KEY)?.toList()
@@ -247,7 +251,8 @@ object DirectRadioPlayerManager {
                         )
                         // URL is the stable fallback identity; avoid duplicate stations
                         // returned by both the global and country-specific queries.
-                        parsed.putIfAbsent(url.lowercase(), station)
+                        val normalizedUrl = url.lowercase()
+                        if (!parsed.containsKey(normalizedUrl)) parsed[normalizedUrl] = station
                     }
                 } catch (_: Exception) {
                     // A failed regional query should not discard results from other servers.
@@ -256,6 +261,7 @@ object DirectRadioPlayerManager {
             if (parsed.isNotEmpty()) {
                 runCatching {
                     setKey(REMOTE_STATIONS_CACHE_KEY, parsed.values.toTypedArray())
+                    _stationsUpdated.postValue(System.currentTimeMillis())
                 }
             }
         }
