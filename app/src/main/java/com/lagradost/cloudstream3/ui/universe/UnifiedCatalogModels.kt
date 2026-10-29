@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.net.Uri
 import androidx.annotation.DrawableRes
 import androidx.annotation.IdRes
 import androidx.annotation.StringRes
@@ -23,7 +24,8 @@ data class DirectRadioSearchResponse(
     override var quality: SearchQuality? = null,
     override var score: Score? = null,
     val genre: String = "",
-    val country: String = ""
+    val country: String = "",
+    val logoUrl: String? = null
 ) : SearchResponse
 
 /**
@@ -262,12 +264,21 @@ data class RadioStationPreset(
     val genre: String,
     val country: String,
     val streamUrl: String,
-    val isCustom: Boolean = false
+    val isCustom: Boolean = false,
+    val logoUrl: String? = null
 ) {
     fun toSearchResponse(): DirectRadioSearchResponse = DirectRadioSearchResponse(
         name = name,
         url = streamUrl,
+        posterUrl = logoUrl ?: streamUrl.toRadioLogoFallback(),
         genre = genre,
-        country = country
+        country = country,
+        logoUrl = logoUrl ?: streamUrl.toRadioLogoFallback()
     )
+}
+
+/** Uses a station-provided logo first; a host favicon is a graceful fallback for older presets. */
+private fun String.toRadioLogoFallback(): String? {
+    val host = runCatching { Uri.parse(this).host }.getOrNull()?.takeIf { it.isNotBlank() } ?: return null
+    return "https://www.google.com/s2/favicons?domain=\${Uri.encode(host)}&sz=128"
 }
