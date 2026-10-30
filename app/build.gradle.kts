@@ -18,10 +18,12 @@ val javaTarget = JvmTarget.fromTarget(libs.versions.jvmTarget.get())
 abstract class GenerateGitHashTask : DefaultTask() {
 
     @get:InputFile
+    @get:org.gradle.api.tasks.Optional
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val headFile: RegularFileProperty
 
     @get:InputDirectory
+    @get:org.gradle.api.tasks.Optional
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val headsDir: DirectoryProperty
 
@@ -30,18 +32,18 @@ abstract class GenerateGitHashTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val head = headFile.get().asFile
+        val head = headFile.orNull?.asFile
 
         val hash = try {
-            if (head.exists()) {
+            if (head != null && head.exists()) {
                 // Read the commit hash from .git/HEAD
                 val headContent = head.readText().trim()
                 if (headContent.startsWith("ref:")) {
-                    val refPath = headContent.substring(5) // e.g., refs/heads/main
+                    val refPath = headContent.substring(5).trim() // e.g., refs/heads/main
                     val commitFile = File(head.parentFile, refPath)
                     if (commitFile.exists()) commitFile.readText().trim() else ""
                 } else headContent // If it's a detached HEAD (commit hash directly)
-            } else "" // If .git/HEAD doesn't exist
+            } else "" // Works seamlessly even when opened from a downloaded ZIP without .git
         } catch (_: Throwable) {
             "" // Just set to an empty string if any exception occurs
         }.take(7) // Get the short commit hash
@@ -54,9 +56,15 @@ abstract class GenerateGitHashTask : DefaultTask() {
 
 val generateGitHash = tasks.register<GenerateGitHashTask>("generateGitHash") {
     val gitDir = layout.projectDirectory.dir("../.git")
+    val headCandidate = gitDir.file("HEAD")
+    val headsCandidate = gitDir.dir("refs/heads")
 
-    headFile.set(gitDir.file("HEAD"))
-    headsDir.set(gitDir.dir("refs/heads"))
+    if (headCandidate.asFile.isFile) {
+        headFile.set(headCandidate)
+    }
+    if (headsCandidate.asFile.isDirectory) {
+        headsDir.set(headsCandidate)
+    }
 
     outputDir.set(layout.buildDirectory.dir("generated/git"))
 }
@@ -168,6 +176,7 @@ android {
             dimension = "state"
         }
         create("prerelease") {
+            isDefault = true
             dimension = "state"
             applicationIdSuffix = ".prerelease"
             if (signingConfigs.names.contains("prerelease")) {
@@ -186,13 +195,8 @@ android {
         targetCompatibility = JavaVersion.toVersion(javaTarget.target)
     }
 
-    java {
-        // Use Java 17 toolchain even if a higher JDK runs the build.
-        // We still use Java 8 for now which higher JDKs have deprecated.
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(libs.versions.jdkToolchain.get()))
-        }
-    }
+    // Compatible with Android Studio's embedded JBR (JDK 17 or JDK 21+) without requiring
+    // any external JDK toolchain download; bytecode target remains pinned via javaTarget (11).
 
     lint {
         checkReleaseBuilds = false

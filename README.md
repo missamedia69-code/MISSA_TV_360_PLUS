@@ -41,16 +41,18 @@ MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agr�
 
 ---
 
-## Compilation & Tests / Build & CI
+## Compilation & Lancement dans Android Studio (Zéro téléchargement externe)
 
-Prérequis : **JDK 17+** et **Android SDK (API 37)**.
+Le projet est préconfiguré pour s'ouvrir et se lancer directement dans **Android Studio** sans installer d'outil supplémentaire :
+
+1. **Ouvrez le dossier dans Android Studio** (**File → Open…**) — fonctionne aussi bien via `git clone` qu'en téléchargeant l'archive **Download ZIP** depuis GitHub.
+2. **Aucun JDK externe à télécharger** : le projet utilise directement le **JDK embarqué dans Android Studio** (JetBrains Runtime 17 ou 21+) sans exiger de JDK 17 ou JDK 25 séparé.
+3. **Configuration prête à l'emploi** : la variante **`prereleaseDebug`**, la configuration d'exécution **`MISSA TV 360 PLUS`** (bouton **Run ▶**) et le provisionnement automatique du SDK Android (`android.builder.sdkDownload=true`) sont déjà activés.
+4. Cliquez simplement sur **Run ▶** en haut d'Android Studio pour compiler et lancer l'application sur téléphone, tablette ou Android TV.
 
 ```bash
-# Exécuter les tests unitaires JUnit4 (classifieur, déduplication, filtres, parité i18n)
-./gradlew :app:testPrereleaseDebugUnitTest
-
-# Générer l'APK de debug Prerelease
-./gradlew :app:assemblePrereleaseDebug
+# En ligne de commande (tests unitaires + génération de l'APK)
+./gradlew :app:testPrereleaseDebugUnitTest :app:assemblePrereleaseDebug
 ```
 
 Le workflow GitHub Actions (`.github/workflows/missa-tv-ci.yml`) compile automatiquement le projet, exécute la suite de tests unitaires et publie l'artefact APK `missa-tv-360-prerelease-debug`.

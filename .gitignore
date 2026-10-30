@@ -1,11 +1,4 @@
 /local.properties
-/.idea/caches
-/.idea/misc.xml
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
 .DS_Store
 /build
 /captures
@@ -33,9 +26,11 @@ captures/
 *.apk
 output.json
 
-# IntelliJ
+# IntelliJ / Android Studio (keep shared Run Configurations tracked)
 *.iml
-.idea/
+.idea/*
+!.idea/runConfigurations/
+!.idea/runConfigurations/*.xml
 misc.xml
 deploymentTargetDropDown.xml
 render.experimental.xml
