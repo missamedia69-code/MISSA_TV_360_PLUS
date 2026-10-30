@@ -196,6 +196,7 @@ import java.nio.charset.Charset
 import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
 import com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment
+import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
 import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
 import com.lagradost.cloudstream3.ui.universe.MissaUniverseDialogs
 import com.lagradost.cloudstream3.ui.universe.MissaUniverses
@@ -597,14 +598,38 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             .onFailure { logError(it) }
     }
 
-    private fun focusCurrentDestinationContent(): Boolean {
+    private fun focusCurrentDestinationContent(sourceView: View? = null): Boolean {
+        val navHostView = binding?.navHostFragment
+        if (sourceView != null && navHostView != null && navHostView.isShown) {
+            MissaTvFocusHelper.findAdjacentFocusableInContainer(
+                container = navHostView,
+                sourceView = sourceView,
+                direction = View.FOCUS_DOWN
+            )?.let { adjacent ->
+                if (adjacent.requestFocus()) return true
+            }
+        }
         val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
         val currentFragment = navHost?.childFragmentManager?.primaryNavigationFragment
         return when (currentFragment) {
-            is MediaUniverseFragment -> currentFragment.requestPrimaryContentFocus()
+            is MediaUniverseFragment -> currentFragment.requestPrimaryContentFocus(sourceView)
             is RetroGamesFragment -> currentFragment.requestPrimaryContentFocus()
-            else -> binding?.navHostFragment?.requestFocus() == true
+            else -> navHostView?.requestFocus() == true
         }
+    }
+
+    private fun focusAdjacentAboveMiniPlayer(sourceView: View): Boolean {
+        val navHostView = binding?.navHostFragment ?: return false
+        if (navHostView.isShown) {
+            MissaTvFocusHelper.findAdjacentFocusableInContainer(
+                container = navHostView,
+                sourceView = sourceView,
+                direction = View.FOCUS_UP
+            )?.let { adjacent ->
+                if (adjacent.requestFocus()) return true
+            }
+        }
+        return focusCurrentDestinationContent(sourceView)
     }
 
     private fun setupTopNavigation(navController: NavController) {
@@ -647,9 +672,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 isFocusable = isTvMode
                 isFocusableInTouchMode = false
                 if (isTvMode) {
-                    setOnKeyListener { _, keyCode, event ->
+                    setOnKeyListener { v, keyCode, event ->
                         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && event.action == KeyEvent.ACTION_DOWN) {
-                            focusCurrentDestinationContent()
+                            focusCurrentDestinationContent(v)
                         } else {
                             false
                         }
@@ -694,9 +719,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     setPadding(0, 0, 0, 0)
                     isFocusable = true
                     isFocusableInTouchMode = false
-                    setOnKeyListener { _, keyCode, event ->
+                    setOnKeyListener { v, keyCode, event ->
                         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && event.action == KeyEvent.ACTION_DOWN) {
-                            focusCurrentDestinationContent()
+                            focusCurrentDestinationContent(v)
                         } else {
                             false
                         }
@@ -712,19 +737,24 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 val button = allTopButtons[index]
                 button.nextFocusLeftId = if (index == 0) button.id else allTopButtons[index - 1].id
                 button.nextFocusRightId = if (index == allTopButtons.lastIndex) button.id else allTopButtons[index + 1].id
-                button.nextFocusDownId = R.id.nav_host_fragment
+                button.nextFocusUpId = button.id
             }
-            binding?.navHostFragment?.nextFocusUpId = allTopButtons.firstOrNull()?.id ?: View.NO_ID
         }
     }
 
     private fun setupPersistentRadioMiniPlayer(navController: NavController) {
         val bar = binding?.missaRadioMiniPlayer ?: return
+        val infoCell = binding?.missaMiniRadioInfo
+        val prevBtn = binding?.missaMiniRadioPrev
         val playPauseBtn = binding?.missaMiniRadioPlayPause
         val nextBtn = binding?.missaMiniRadioNext
         val stopBtn = binding?.missaMiniRadioStop
 
-        bar.setOnClickListener {
+        bar.isFocusable = false
+        bar.isClickable = false
+        bar.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+
+        val openAudioUniverse = View.OnClickListener {
             val isMusicActive = DirectMusicPlayerManager.state.value?.track != null
             val targetDest = if (isMusicActive) {
                 R.id.navigation_universe_music
@@ -732,6 +762,15 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 R.id.navigation_universe_radio
             }
             navigateTopLevelDestination(navController, targetDest)
+        }
+        infoCell?.setOnClickListener(openAudioUniverse)
+
+        prevBtn?.setOnClickListener {
+            if (DirectMusicPlayerManager.state.value?.track != null) {
+                DirectMusicPlayerManager.previousTrack(this)
+            } else {
+                DirectRadioPlayerManager.previousStation(this)
+            }
         }
         playPauseBtn?.setOnClickListener {
             if (DirectMusicPlayerManager.state.value?.track != null) {
@@ -747,12 +786,32 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 DirectRadioPlayerManager.nextStation(this)
             }
         }
-        stopBtn?.setOnClickListener {
+        stopBtn?.setOnClickListener { v ->
+            if (v.hasFocus()) {
+                focusAdjacentAboveMiniPlayer(v)
+            }
             if (DirectMusicPlayerManager.state.value?.track != null) {
                 DirectMusicPlayerManager.stop()
             } else {
                 DirectRadioPlayerManager.stop()
             }
+        }
+
+        val miniControls = listOfNotNull(infoCell, prevBtn, playPauseBtn, nextBtn, stopBtn)
+        val upEscapeListener = View.OnKeyListener { v, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                focusAdjacentAboveMiniPlayer(v)
+            } else {
+                false
+            }
+        }
+        for (i in miniControls.indices) {
+            val ctrl = miniControls[i]
+            ctrl.isFocusable = true
+            ctrl.nextFocusLeftId = if (i == 0) ctrl.id else miniControls[i - 1].id
+            ctrl.nextFocusRightId = if (i == miniControls.lastIndex) ctrl.id else miniControls[i + 1].id
+            ctrl.nextFocusDownId = ctrl.id
+            ctrl.setOnKeyListener(upEscapeListener)
         }
 
         DirectRadioPlayerManager.state.observe(this) { radioState ->
@@ -1511,56 +1570,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
             if (visible && newFocus != null) {
                 lastFocus = WeakReference(newFocus)
-                val parent = newFocus.parent
-                var targetDx = 0
-                if (parent is RecyclerView) {
-                    val layoutManager = parent.layoutManager
-                    if (layoutManager is LinearListLayout && layoutManager.orientation == LinearLayoutManager.HORIZONTAL) {
-                        val dx =
-                            LinearSnapHelper().calculateDistanceToFinalSnap(layoutManager, newFocus)
-                                ?.get(0)
-
-                        if (dx != null) {
-                            val rdx = if (LEFTMOST_MOVE_LIST) {
-                                // this makes the item the leftmost in ltr, instead of center
-                                val diff =
-                                    ((layoutManager.width - layoutManager.paddingStart - newFocus.measuredWidth) / 2) - newFocus.marginStart
-                                dx + if (parent.isRtl()) {
-                                    -diff
-                                } else {
-                                    diff
-                                }
-                            } else {
-                                if (dx > 0) dx else 0
-                            }
-
-                            if (!NO_MOVE_LIST) {
-                                parent.smoothScrollBy(rdx, 0)
-                            } else {
-                                val smoothScroll = reflectedScroll
-                                if (smoothScroll == null) {
-                                    parent.smoothScrollBy(rdx, 0)
-                                } else {
-                                    try {
-                                        // this is very fucked but because it is a protected method to
-                                        // be able to compute the scroll I use reflection, scroll, then
-                                        // scroll back, then smooth scroll and set the no move
-                                        val out = IntArray(2)
-                                        smoothScroll.invoke(parent, rdx, 0, out)
-                                        val scrolledX = out[0]
-                                        if (abs(scrolledX) <= 0) { // newFocus.measuredWidth*2
-                                            smoothScroll.invoke(parent, -rdx, 0, out)
-                                            parent.smoothScrollBy(scrolledX, 0)
-                                            if (NO_MOVE_LIST) targetDx = scrolledX
-                                        }
-                                    } catch (t: Throwable) {
-                                        parent.smoothScrollBy(rdx, 0)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                // Horizontal rails step strictly at viewport edges via LinearListLayout.requestChildRectangleOnScreen;
+                // never auto-snap focused items back to column 0 so adjacent cell columns stay static across rows.
+                val targetDx = 0
 
                 val sx = newFocus.scaleX
                 val sy = newFocus.scaleY
@@ -1772,6 +1784,25 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
                     newLocalBinding.root.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
                         if (exceptionButtons.contains(newFocus?.id)) return@addOnGlobalFocusChangeListener
+                        var ancestor: View? = newFocus?.parent as? View
+                        while (ancestor != null) {
+                            if (ancestor is RecyclerView) {
+                                val lm = ancestor.layoutManager
+                                if (lm is com.lagradost.cloudstream3.ui.universe.MissaVerticalUniverseLayoutManager ||
+                                    lm is com.lagradost.cloudstream3.ui.universe.MissaAlignedGridLayoutManager ||
+                                    lm is LinearListLayout ||
+                                    lm is com.lagradost.cloudstream3.ui.GrdLayoutManager
+                                ) {
+                                    return@addOnGlobalFocusChangeListener
+                                }
+                            }
+                            if (ancestor.id == R.id.missa_radio_mini_player ||
+                                ancestor.id == R.id.missa_top_shell
+                            ) {
+                                return@addOnGlobalFocusChangeListener
+                            }
+                            ancestor = ancestor.parent as? View
+                        }
                         centerView(newFocus)
                     }
                 }

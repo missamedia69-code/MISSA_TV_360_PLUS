@@ -768,7 +768,12 @@ internal class UniverseScreenAdapter(
             prevBtn.setOnClickListener { callbacks.onRadioPrevStation() }
             playPauseBtn.setOnClickListener { callbacks.onRadioTogglePlayPause() }
             nextBtn.setOnClickListener { callbacks.onRadioNextStation() }
-            stopBtn.setOnClickListener { callbacks.onRadioStop() }
+            stopBtn.setOnClickListener {
+                if (stopBtn.hasFocus()) {
+                    playPauseBtn.requestFocus()
+                }
+                callbacks.onRadioStop()
+            }
             favBtn.setOnClickListener { callbacks.onRadioToggleFavorite() }
             sleepBtn.setOnClickListener { callbacks.onRadioCycleSleepTimer() }
             addStreamBtn.setOnClickListener { callbacks.onRadioOpenCustomStreamDialog() }
@@ -802,6 +807,20 @@ internal class UniverseScreenAdapter(
             favBtn.setIconResource(
                 if (item.isFavoriteStation) R.drawable.ic_baseline_bookmark_24
                 else R.drawable.ic_baseline_bookmark_border_24
+            )
+            val deckControls = listOf(
+                prevBtn,
+                playPauseBtn,
+                nextBtn,
+                stopBtn,
+                favBtn,
+                sleepBtn,
+                addStreamBtn
+            ).filter { it.isVisible }
+            MissaTvFocusHelper.chainHorizontalFocusRing(
+                controls = deckControls,
+                clampStart = true,
+                clampEnd = true
             )
         }
     }
@@ -842,7 +861,34 @@ internal class UniverseScreenAdapter(
             repeatBtn.setOnClickListener { callbacks.onMusicCycleRepeat() }
             favBtn.setOnClickListener { callbacks.onMusicToggleFavorite() }
             sleepBtn.setOnClickListener { callbacks.onMusicCycleSleepTimer() }
-            stopBtn.setOnClickListener { callbacks.onMusicStop() }
+            stopBtn.setOnClickListener {
+                if (stopBtn.hasFocus()) {
+                    playBtn.requestFocus()
+                }
+                callbacks.onMusicStop()
+            }
+
+            addServerBtn.nextFocusLeftId = addServerBtn.id
+            addServerBtn.nextFocusRightId = addServerBtn.id
+            seekBar.nextFocusLeftId = seekBar.id
+            seekBar.nextFocusRightId = seekBar.id
+
+            seekBar.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && boundDurationMs > 0L &&
+                    (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                ) {
+                    val dir = if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1
+                    val stepPermille = 50 * dir
+                    val newProgress = (seekBar.progress + stepPermille).coerceIn(0, 1000)
+                    seekBar.progress = newProgress
+                    val targetMs = (boundDurationMs * newProgress) / 1000L
+                    positionView.text = formatTimeMs(targetMs)
+                    callbacks.onMusicSeekTo(targetMs)
+                    true
+                } else {
+                    false
+                }
+            }
 
             seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -947,6 +993,22 @@ internal class UniverseScreenAdapter(
                 else R.drawable.ic_baseline_favorite_border_24
             )
             favBtn.iconTint = ColorStateList.valueOf(if (item.isFavoriteTrack) accentColor else primaryTextColor)
+
+            val transportControls = listOf(
+                shuffleBtn,
+                prevBtn,
+                playBtn,
+                nextBtn,
+                repeatBtn,
+                favBtn,
+                sleepBtn,
+                stopBtn
+            ).filter { it.isVisible }
+            MissaTvFocusHelper.chainHorizontalFocusRing(
+                controls = transportControls,
+                clampStart = true,
+                clampEnd = true
+            )
         }
 
         private fun formatTimeMs(ms: Long): String {
@@ -1000,6 +1062,7 @@ internal class UniverseScreenAdapter(
                 endEscapeTarget = { clearAllBtn.takeIf { it.isShown && it.isFocusable } }
             )
             recycler.adapter = resumeAdapter
+            clearAllBtn.nextFocusRightId = clearAllBtn.id
             clearAllBtn.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                     val lm = recycler.layoutManager
@@ -1070,6 +1133,7 @@ internal class UniverseScreenAdapter(
                 nextRight = FOCUS_SELF,
                 endEscapeTarget = { seeAllBtn.takeIf { it.isShown && it.isFocusable } }
             )
+            seeAllBtn.nextFocusRightId = seeAllBtn.id
             seeAllBtn.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
                     val lm = childRecycler.layoutManager

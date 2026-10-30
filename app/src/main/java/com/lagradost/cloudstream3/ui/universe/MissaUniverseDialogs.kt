@@ -2,6 +2,7 @@ package com.lagradost.cloudstream3.ui.universe
 
 import android.app.Activity
 import android.content.Context
+import android.graphics.drawable.ColorDrawable
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
@@ -9,12 +10,14 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatDialog
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -231,9 +234,13 @@ internal object MissaUniverseDialogs {
         onCardClick: (SearchClickCallback) -> Unit
     ) {
         val isTv = MissaUiFactory.isTvLayoutMode()
-        val sheet = BottomSheetDialog(activity)
-        if (isTv) {
-            sheet.setCanceledOnTouchOutside(false)
+        val dialog: AppCompatDialog = if (isTv) {
+            AppCompatDialog(activity).apply {
+                supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
+                setCanceledOnTouchOutside(false)
+            }
+        } else {
+            BottomSheetDialog(activity)
         }
         val view = LayoutInflater.from(activity).inflate(R.layout.sheet_missa_see_all, null, false)
         val titleView: TextView = view.findViewById(R.id.see_all_title)
@@ -242,17 +249,56 @@ internal object MissaUniverseDialogs {
         val gridRecycler: RecyclerView = view.findViewById(R.id.see_all_grid_recycler)
 
         titleView.text = "${row.title} (${row.items.size})"
-        closeBtn.setOnClickListener { sheet.dismiss() }
+        closeBtn.setOnClickListener { dialog.dismiss() }
 
         val minCardPx = activity.resources.getDimensionPixelSize(R.dimen.missa_search_grid_card_min_width)
         val baseSpan = (activity.resources.displayMetrics.widthPixels / minCardPx.coerceAtLeast(1)).coerceIn(2, 7)
         val spanCount = if (row.isHorizontalCards) (baseSpan - 1).coerceAtLeast(2) else baseSpan
-        gridRecycler.layoutManager = MissaAlignedGridLayoutManager(
+
+        val sortPills = ArrayList<MaterialButton>()
+
+        val gridLayoutManager = MissaAlignedGridLayoutManager(
             context = activity,
             spanCount = spanCount,
-            trapBottomEdge = true
+            trapBottomEdge = true,
+            topBorderEscapeProvider = { cardView ->
+                val headerTargets = ArrayList<View>(sortPills.size + 1).apply {
+                    addAll(sortPills.filter { it.isShown && it.isFocusable })
+                    if (closeBtn.isShown && closeBtn.isFocusable) add(closeBtn)
+                }
+                if (headerTargets.isEmpty()) {
+                    null
+                } else {
+                    val tmp = IntArray(2)
+                    val (fLeft, fRight) = MissaTvFocusHelper.screenHorizontalBounds(cardView, tmp)
+                    val idx = MissaTvFocusHelper.pickBestAdjacentIndex(
+                        candidateBounds = headerTargets.map {
+                            MissaTvFocusHelper.screenHorizontalBounds(it, tmp)
+                        },
+                        focusedLeft = fLeft,
+                        focusedRight = fRight
+                    )
+                    headerTargets.getOrNull(idx)
+                }
+            }
         )
+        gridRecycler.isFocusable = false
+        gridRecycler.isFocusableInTouchMode = false
+        gridRecycler.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        gridRecycler.isNestedScrollingEnabled = !isTv
+        gridRecycler.layoutManager = gridLayoutManager
         gridRecycler.itemAnimator = null
+
+        fun focusFirstGridCard(): Boolean {
+            val firstHolder = gridRecycler.findViewHolderForAdapterPosition(0)?.itemView
+                ?: gridLayoutManager.getChildAt(0)
+            if (firstHolder != null) {
+                firstHolder.isFocusable = true
+                firstHolder.isFocusableInTouchMode = true
+                if (firstHolder.requestFocus()) return true
+            }
+            return false
+        }
 
         val gridAdapter = HomeChildItemAdapter(
             id = "see_all_${row.id}".hashCode(),
@@ -266,27 +312,47 @@ internal object MissaUniverseDialogs {
                 val isInlineAudio = cb.card is DirectMusicSearchResponse ||
                     cb.card is DirectRadioSearchResponse
                 if (!isInlineAudio) {
-                    sheet.dismiss()
+                    dialog.dismiss()
                 }
                 onCardClick(cb)
             }
         ).apply {
+            forceFocusOutline = true
             isHorizontal = row.isHorizontalCards
-            submitList(row.items)
         }
         gridRecycler.adapter = gridAdapter
+        gridAdapter.submitList(row.items) {
+            if (isTv && dialog.isShowing) {
+                gridRecycler.post {
+                    val currentFocus = dialog.window?.currentFocus
+                    if (currentFocus == null || currentFocus === gridRecycler) {
+                        if (!focusFirstGridCard()) {
+                            sortPills.firstOrNull()?.requestFocus()
+                        }
+                    }
+                }
+            }
+        }
 
         fun focusGridAlignedWith(sourceView: View): Boolean {
             val lm = gridRecycler.layoutManager ?: return false
-            val targetX = MissaTvFocusHelper.screenCenterX(sourceView)
+            val tmp = IntArray(2)
+            val (sLeft, sRight) = MissaTvFocusHelper.screenHorizontalBounds(sourceView, tmp)
             val topRowCandidates = ArrayList<View>()
             for (i in 0 until minOf(spanCount, lm.childCount)) {
-                lm.getChildAt(i)?.takeIf { it.isShown && it.isFocusable }?.let { topRowCandidates.add(it) }
+                val child = lm.getChildAt(i) ?: continue
+                if (!child.isShown) continue
+                child.isFocusable = true
+                child.isFocusableInTouchMode = true
+                topRowCandidates.add(child)
             }
             val chosen = if (topRowCandidates.isNotEmpty()) {
-                val idx = MissaTvFocusHelper.pickClosestHorizontalIndex(
-                    topRowCandidates.map { MissaTvFocusHelper.screenCenterX(it) },
-                    targetX
+                val idx = MissaTvFocusHelper.pickBestAdjacentIndex(
+                    candidateBounds = topRowCandidates.map {
+                        MissaTvFocusHelper.screenHorizontalBounds(it, tmp)
+                    },
+                    focusedLeft = sLeft,
+                    focusedRight = sRight
                 )
                 topRowCandidates.getOrNull(idx)
             } else {
@@ -329,45 +395,61 @@ internal object MissaUniverseDialogs {
                 selected = mode == currentSort
             ) {
                 applySort(mode)
+            }.apply {
+                id = View.generateViewId()
+                isFocusable = true
+                nextFocusUpId = id
+                setOnKeyListener { v, keyCode, event ->
+                    if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                        focusGridAlignedWith(v)
+                    } else false
+                }
             }
-            pill.setOnKeyListener { v, keyCode, event ->
-                if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    focusGridAlignedWith(v)
-                } else false
-            }
+            sortPills.add(pill)
             sortBar.addView(pill)
         }
 
-        sheet.setContentView(view)
-        sheet.setOnShowListener {
-            sheet.findViewById<View>(com.google.android.material.R.id.touch_outside)?.apply {
-                if (isTv) {
-                    isFocusable = false
-                    isFocusableInTouchMode = false
-                    setOnClickListener(null)
-                }
+        closeBtn.nextFocusUpId = closeBtn.id
+        MissaTvFocusHelper.chainHorizontalFocusRing(
+            controls = sortPills + closeBtn,
+            clampStart = true,
+            clampEnd = true
+        )
+
+        dialog.setContentView(view)
+        if (isTv) {
+            dialog.window?.apply {
+                setBackgroundDrawable(
+                    ColorDrawable(activity.colorFromAttribute(R.attr.primaryBlackBackground))
+                )
+                setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             }
-            val bottomSheet = sheet.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-            if (bottomSheet != null) {
-                bottomSheet.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-                BottomSheetBehavior.from(bottomSheet).apply {
-                    isDraggable = !isTv
-                    state = BottomSheetBehavior.STATE_EXPANDED
-                    skipCollapsed = true
+        }
+        dialog.setOnShowListener {
+            if (dialog is BottomSheetDialog) {
+                val bottomSheet =
+                    dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+                if (bottomSheet != null) {
+                    bottomSheet.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                    BottomSheetBehavior.from(bottomSheet).apply {
+                        state = BottomSheetBehavior.STATE_EXPANDED
+                        skipCollapsed = true
+                    }
                 }
             }
             if (isTv) {
+                dialog.window?.setLayout(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
                 gridRecycler.post {
-                    val firstCard = gridRecycler.findViewHolderForAdapterPosition(0)?.itemView
-                    if (firstCard != null) {
-                        firstCard.requestFocus()
-                    } else {
-                        sortBar.getChildAt(0)?.requestFocus()
+                    if (!focusFirstGridCard()) {
+                        sortPills.firstOrNull()?.requestFocus()
                     }
                 }
             }
         }
-        sheet.show()
+        dialog.show()
     }
 
     // --- 5. Custom Radio Stream XML Dialog with Test, Edit & Delete (RAD-03) ---

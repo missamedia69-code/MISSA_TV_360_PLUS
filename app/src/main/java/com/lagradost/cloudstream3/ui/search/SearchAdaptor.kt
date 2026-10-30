@@ -4,7 +4,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.core.content.ContextCompat
 import com.lagradost.cloudstream3.MainActivity
+import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.databinding.SearchResultGridBinding
 import com.lagradost.cloudstream3.databinding.SearchResultGridExpandedBinding
@@ -84,7 +86,14 @@ class SearchAdapter(
 
     override fun onBindContent(holder: ViewHolderState<Any>, item: SearchResponse, position: Int) {
         if (isLayout(TV or EMULATOR) && MainActivity.ANIMATED_OUTLINE) {
-            holder.itemView.foreground = null
+            val hasFloatingOutlineInWindow =
+                holder.itemView.rootView?.findViewById<View>(R.id.focus_outline) != null
+            if (hasFloatingOutlineInWindow) {
+                holder.itemView.foreground = null
+            } else if (holder.itemView.foreground == null) {
+                holder.itemView.foreground =
+                    ContextCompat.getDrawable(holder.itemView.context, R.drawable.outline_drawable)
+            }
         }
         val imageView = when (val binding = holder.view) {
             is SearchResultGridExpandedBinding -> binding.imageView

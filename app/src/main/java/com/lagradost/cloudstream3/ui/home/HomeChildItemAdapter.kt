@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
 import androidx.viewbinding.ViewBinding
 import com.lagradost.cloudstream3.MainActivity
@@ -125,6 +126,7 @@ open class HomeChildItemAdapter(
             })
     ) {
     var hasNext: Boolean = false
+    var forceFocusOutline: Boolean = false
     var isHorizontal: Boolean = false
         set(value) {
             field = value
@@ -207,7 +209,14 @@ open class HomeChildItemAdapter(
             updateCachedPosterSize()
         }
         if (isLayout(TV or EMULATOR) && MainActivity.ANIMATED_OUTLINE) {
-            holder.itemView.foreground = null
+            val hasFloatingOutlineInWindow = !forceFocusOutline &&
+                holder.itemView.rootView?.findViewById<View>(R.id.focus_outline) != null
+            if (hasFloatingOutlineInWindow) {
+                holder.itemView.foreground = null
+            } else if (holder.itemView.foreground == null) {
+                holder.itemView.foreground =
+                    ContextCompat.getDrawable(holder.itemView.context, R.drawable.outline_drawable)
+            }
         }
         when (val binding = holder.view) {
             is HomeResultGridBinding -> {
@@ -218,10 +227,6 @@ open class HomeChildItemAdapter(
                 updateLayoutParms(binding.backgroundCard, setWidth, setHeight)
                 // Constrain title label to exact poster width so every card column stays strictly aligned
                 updateFixedWidth(binding.imageText, setWidth)
-
-                if (isFirstItem) { // Keep DPAD-left anchored when horizontal top navigation is active
-                    binding.backgroundCard.nextFocusLeftId = binding.backgroundCard.id
-                }
             }
         }
     }

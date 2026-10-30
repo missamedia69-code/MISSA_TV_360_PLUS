@@ -213,19 +213,31 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
                     }
                 }
             }
+            val isTvMode = isLayout(TV or EMULATOR)
+            binding.homeExpandedDragDown.nextFocusLeftId = binding.homeExpandedDragDown.id
+            binding.homeExpandedDragDown.nextFocusRightId = binding.homeExpandedDragDown.id
+            binding.homeExpandedDragDown.nextFocusUpId = binding.homeExpandedDragDown.id
             binding.homeExpandedDragDown.setOnClickListener {
                 bottomSheetDialogBuilder.dismissSafe(this)
             }
             binding.homeExpandedDragDown.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    binding.homeExpandedRecycler.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus() == true
+                    val firstChild = binding.homeExpandedRecycler.findViewHolderForAdapterPosition(0)?.itemView
+                        ?: binding.homeExpandedRecycler.layoutManager?.getChildAt(0)
+                    firstChild?.apply {
+                        isFocusable = true
+                        isFocusableInTouchMode = true
+                    }?.requestFocus() == true
                 } else false
             }
 
             // Span settings
+            binding.homeExpandedRecycler.isFocusable = false
+            binding.homeExpandedRecycler.isFocusableInTouchMode = false
+            binding.homeExpandedRecycler.isNestedScrollingEnabled = !isTvMode
             binding.homeExpandedRecycler.spanCount = context.getSpanCount(item.isHorizontalImages)
             binding.homeExpandedRecycler.setRecycledViewPool(SearchAdapter.sharedPool)
-            binding.homeExpandedRecycler.adapter =
+            val expandedAdapter =
                 SearchAdapter(binding.homeExpandedRecycler, item.isHorizontalImages) { callback ->
                     if (callback.action == SEARCH_ACTION_FOCUSED) return@SearchAdapter
                     handleSearchClickCallback(callback)
@@ -235,9 +247,22 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
                         bottomSheetDialogBuilder.ownHide() // we hide here because we want to resume it later
                     }
                 }.apply {
-                    submitList(item.list)
                     hasNext = expand.hasNext
                 }
+            binding.homeExpandedRecycler.adapter = expandedAdapter
+            expandedAdapter.submitList(item.list) {
+                if (isTvMode && bottomSheetDialogBuilder.isShowing) {
+                    binding.homeExpandedRecycler.post {
+                        val firstCard = binding.homeExpandedRecycler.findViewHolderForAdapterPosition(0)?.itemView
+                            ?: binding.homeExpandedRecycler.layoutManager?.getChildAt(0)
+                        firstCard?.apply {
+                            isFocusable = true
+                            isFocusableInTouchMode = true
+                            requestFocus()
+                        }
+                    }
+                }
+            }
 
             binding.homeExpandedRecycler.addOnScrollListener(object :
                 RecyclerView.OnScrollListener() {
@@ -284,7 +309,6 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
 
             //(recycle.adapter as SearchAdapter).notifyDataSetChanged()
 
-            val isTvMode = isLayout(TV or EMULATOR)
             if (isTvMode) {
                 bottomSheetDialogBuilder.setCanceledOnTouchOutside(false)
             }
@@ -307,7 +331,13 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(
                 }
                 if (isTvMode) {
                     binding.homeExpandedRecycler.post {
-                        binding.homeExpandedRecycler.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                        val firstCard = binding.homeExpandedRecycler.findViewHolderForAdapterPosition(0)?.itemView
+                            ?: binding.homeExpandedRecycler.layoutManager?.getChildAt(0)
+                        firstCard?.apply {
+                            isFocusable = true
+                            isFocusableInTouchMode = true
+                            requestFocus()
+                        }
                     }
                 }
             }

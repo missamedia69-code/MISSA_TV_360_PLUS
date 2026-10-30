@@ -5,7 +5,6 @@ import android.graphics.Rect
 import android.view.FocusFinder
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -13,15 +12,15 @@ import com.lagradost.cloudstream3.R
 import kotlin.math.abs
 
 /**
- * Pure math & layout helpers for deterministic, column-aligned D-Pad navigation across
- * horizontal rails, vertical category lists, and multi-column media grids on Android TV.
+ * Pure math & layout helpers for deterministic, strictly adjacent cell-to-cell D-Pad navigation
+ * across horizontal rails, vertical category lists, player bars, and multi-column media grids.
  */
 internal object MissaTvFocusHelper {
 
     /**
      * Computes the horizontal scroll delta (`dx`) for a horizontal rail so that:
      * 1. Cards already completely inside `[leftEdge, rightEdge]` do NOT scroll (`dx = 0`),
-     *    keeping column X coordinates stable across adjacent rows.
+     *    keeping column X coordinates strictly static across adjacent rows.
      * 2. Cards clipped on the left snap cleanly to `leftEdge`.
      * 3. Cards clipped on the right step by exact `childWidth` column multiples so the
      *    newly revealed card lands in the rightmost full column (`leftEdge + (visibleCols - 1) * childWidth`),
@@ -119,9 +118,180 @@ internal object MissaTvFocusHelper {
         return bestIdx
     }
 
+    /**
+     * Picks the index of the candidate horizontal interval `[left, right]` that is most
+     * directly adjacent to `[focusedLeft, focusedRight]`:
+     * 1. Candidates that horizontally overlap `[focusedLeft, focusedRight]` win first,
+     *    ranked by largest overlap and tie-broken by closest center X.
+     * 2. If no candidate overlaps horizontally, picks the candidate with the smallest
+     *    horizontal gap / center distance.
+     */
+    fun pickBestAdjacentIndex(
+        candidateBounds: List<Pair<Int, Int>>,
+        focusedLeft: Int,
+        focusedRight: Int
+    ): Int {
+        if (candidateBounds.isEmpty()) return -1
+        val fCenter = (focusedLeft + focusedRight) / 2
+        var bestOverlapIdx = -1
+        var bestOverlapPx = 0
+        var bestOverlapCenterDist = Int.MAX_VALUE
+
+        var bestGapIdx = 0
+        var bestGapPx = Int.MAX_VALUE
+        var bestGapCenterDist = Int.MAX_VALUE
+
+        for (i in candidateBounds.indices) {
+            val (cLeft, cRight) = candidateBounds[i]
+            val cCenter = (cLeft + cRight) / 2
+            val centerDist = abs(cCenter - fCenter)
+            val overlap = minOf(focusedRight, cRight) - maxOf(focusedLeft, cLeft)
+            if (overlap > 0) {
+                if (overlap > bestOverlapPx ||
+                    (overlap == bestOverlapPx && centerDist < bestOverlapCenterDist)
+                ) {
+                    bestOverlapPx = overlap
+                    bestOverlapCenterDist = centerDist
+                    bestOverlapIdx = i
+                }
+            } else {
+                val gap = -overlap
+                if (gap < bestGapPx || (gap == bestGapPx && centerDist < bestGapCenterDist)) {
+                    bestGapPx = gap
+                    bestGapCenterDist = centerDist
+                    bestGapIdx = i
+                }
+            }
+        }
+        return if (bestOverlapIdx >= 0) bestOverlapIdx else bestGapIdx
+    }
+
     fun screenCenterX(view: View, tmpLoc: IntArray = IntArray(2)): Int {
         view.getLocationOnScreen(tmpLoc)
         return tmpLoc[0] + view.width / 2
+    }
+
+    fun screenHorizontalBounds(view: View, tmpLoc: IntArray = IntArray(2)): Pair<Int, Int> {
+        view.getLocationOnScreen(tmpLoc)
+        return tmpLoc[0] to (tmpLoc[0] + view.width.coerceAtLeast(1))
+    }
+
+    /**
+     * Collects visible leaf-level focusable controls inside [container] (excluding full-screen or
+     * scrolling wrapper `ViewGroup`s) and returns the cell in the nearest vertical band (`topmost`
+     * for [View.FOCUS_DOWN], `bottommost` for [View.FOCUS_UP]) most directly aligned with [sourceView].
+     */
+    fun findAdjacentFocusableInContainer(
+        container: View,
+        sourceView: View,
+        direction: Int
+    ): View? {
+        val raw = ArrayList<View>()
+        container.addFocusables(raw, direction, View.FOCUSABLES_ALL)
+        val candidates = raw.filter { v ->
+            v !== sourceView &&
+                v.isShown &&
+                v.width > 0 &&
+                v.height > 0 &&
+                !isWrapperContainer(v)
+        }
+        if (candidates.isEmpty()) return null
+        val tmp = IntArray(2)
+        val (fLeft, fRight) = screenHorizontalBounds(sourceView, tmp)
+        return pickNearestBandAdjacentView(candidates, direction, fLeft, fRight, tmp)
+    }
+
+    internal fun isWrapperContainer(view: View): Boolean {
+        if (view is RecyclerView ||
+            view is android.widget.ScrollView ||
+            view is android.widget.HorizontalScrollView ||
+            view is androidx.core.widget.NestedScrollView ||
+            view is androidx.fragment.app.FragmentContainerView ||
+            view is androidx.swiperefreshlayout.widget.SwipeRefreshLayout ||
+            view.id == R.id.missa_radio_mini_player
+        ) {
+            return true
+        }
+        return false
+    }
+
+    internal fun pickNearestBandAdjacentView(
+        views: List<View>,
+        direction: Int,
+        focusedLeft: Int,
+        focusedRight: Int,
+        tmpLoc: IntArray = IntArray(2)
+    ): View? {
+        if (views.isEmpty()) return null
+        data class MeasuredView(
+            val view: View,
+            val left: Int,
+            val right: Int,
+            val top: Int,
+            val bottom: Int
+        )
+        val measured = views.map { v ->
+            v.getLocationOnScreen(tmpLoc)
+            MeasuredView(
+                view = v,
+                left = tmpLoc[0],
+                right = tmpLoc[0] + v.width.coerceAtLeast(1),
+                top = tmpLoc[1],
+                bottom = tmpLoc[1] + v.height.coerceAtLeast(1)
+            )
+        }
+        val anchorY = if (direction == View.FOCUS_DOWN) {
+            measured.minOf { it.top }
+        } else {
+            measured.maxOf { it.bottom }
+        }
+        val bandTolerancePx = 56
+        val inBand = measured.filter { mv ->
+            if (direction == View.FOCUS_DOWN) {
+                abs(mv.top - anchorY) <= bandTolerancePx
+            } else {
+                abs(mv.bottom - anchorY) <= bandTolerancePx
+            }
+        }.ifEmpty { measured }
+
+        val idx = pickBestAdjacentIndex(
+            candidateBounds = inBand.map { it.left to it.right },
+            focusedLeft = focusedLeft,
+            focusedRight = focusedRight
+        )
+        return inBand.getOrNull(idx)?.view
+    }
+
+    /**
+     * Chains deterministic horizontal `nextFocusLeftId` / `nextFocusRightId` across a list of
+     * visible controls on a bar/deck so lateral D-Pad presses step strictly cell-by-cell without
+     * stalling on wide spacers or jumping out to neighboring rows.
+     */
+    fun chainHorizontalFocusRing(
+        controls: List<View>,
+        clampStart: Boolean = true,
+        clampEnd: Boolean = true
+    ) {
+        val visible = controls.filter { it.isShown && it.isFocusable }
+        if (visible.isEmpty()) return
+        for (v in visible) {
+            if (v.id == View.NO_ID) {
+                v.id = View.generateViewId()
+            }
+        }
+        for (i in visible.indices) {
+            val cur = visible[i]
+            cur.nextFocusLeftId = when {
+                i > 0 -> visible[i - 1].id
+                clampStart -> cur.id
+                else -> View.NO_ID
+            }
+            cur.nextFocusRightId = when {
+                i < visible.lastIndex -> visible[i + 1].id
+                clampEnd -> cur.id
+                else -> View.NO_ID
+            }
+        }
     }
 }
 
@@ -138,7 +308,8 @@ class MissaAlignedGridLayoutManager(
     context: Context,
     spanCount: Int,
     var trapBottomEdge: Boolean = false,
-    var leftBorderEscapeProvider: (() -> View?)? = null
+    var leftBorderEscapeProvider: (() -> View?)? = null,
+    var topBorderEscapeProvider: ((View) -> View?)? = null
 ) : GridLayoutManager(context, spanCount) {
 
     private var attachedRecyclerView: RecyclerView? = null
@@ -208,7 +379,9 @@ class MissaAlignedGridLayoutManager(
                     step = -1
                 )
                 if (targetPos < 0) {
-                    // Escape cleanly above row 0 (e.g. sort pills / close button / search bar)
+                    topBorderEscapeProvider?.invoke(itemView)
+                        ?.takeIf { it.isShown && it.isFocusable }
+                        ?.let { return it }
                     return null
                 }
                 return resolveAndFocusPosition(targetPos, itemView, verticalDelta = -1)
@@ -263,7 +436,6 @@ class MissaAlignedGridLayoutManager(
                 continue
             }
             if (targetGroup == null) {
-                // Skip non-focusable section headers if we know view type, otherwise check coverage
                 targetGroup = g
             }
             if (g != targetGroup) break
@@ -283,84 +455,108 @@ class MissaAlignedGridLayoutManager(
         return bestPos
     }
 
+    private fun isSelectableGridChild(view: View): Boolean {
+        if (view.isFocusable) return true
+        // Skip non-interactive section headers while allowing clickable cards in Emulator/touch mode
+        if (view.isClickable) {
+            view.isFocusable = true
+            view.isFocusableInTouchMode = true
+            return true
+        }
+        return false
+    }
+
     private fun resolveAndFocusPosition(
         targetPos: Int,
         fallbackItemView: View,
         verticalDelta: Int
-    ): View {
+    ): View? {
+        val rv = attachedRecyclerView
         findViewByPosition(targetPos)?.let { existing ->
-            if (existing.isFocusable) return existing
+            if (isSelectableGridChild(existing)) {
+                if (rv != null && verticalDelta != 0) {
+                    ensureGridRowVisible(rv, existing)
+                }
+                return existing
+            }
         }
 
-        val rv = attachedRecyclerView
         if (rv != null && verticalDelta != 0) {
             val stepPx = (getDecoratedMeasuredHeight(fallbackItemView).coerceAtLeast(120)) * verticalDelta
             var attempts = 0
-            while (findViewByPosition(targetPos) == null && attempts < 3) {
+            while (findViewByPosition(targetPos) == null && attempts < 4) {
                 if (!rv.canScrollVertically(verticalDelta)) break
                 rv.scrollBy(0, stepPx)
                 attempts++
             }
             findViewByPosition(targetPos)?.let { revealed ->
-                if (revealed.isFocusable) return revealed
-                // If targetPos was a non-focusable header row, step one more row in same direction
+                if (isSelectableGridChild(revealed)) {
+                    ensureGridRowVisible(rv, revealed)
+                    return revealed
+                }
+                // Target position was a non-focusable section header row (e.g., Retro Games header):
+                // step one more group in the same vertical direction, or escape upward if at group 0.
                 val lookup = spanSizeLookup
                 val spans = spanCount.coerceAtLeast(1)
                 val targetSpan = lookup.getSpanIndex(getPosition(fallbackItemView).coerceAtLeast(0), spans)
                 val afterHeader = findPositionInAdjacentGroup(targetPos, targetSpan, spans, verticalDelta)
+                if (afterHeader < 0 && verticalDelta < 0) {
+                    topBorderEscapeProvider?.invoke(fallbackItemView)
+                        ?.takeIf { it.isShown && it.isFocusable }
+                        ?.let { return it }
+                    return null
+                }
                 if (afterHeader in 0 until itemCount) {
                     if (findViewByPosition(afterHeader) == null && rv.canScrollVertically(verticalDelta)) {
                         rv.scrollBy(0, stepPx)
                     }
-                    findViewByPosition(afterHeader)?.takeIf { it.isFocusable }?.let { return it }
+                    findViewByPosition(afterHeader)?.takeIf { isSelectableGridChild(it) }?.let {
+                        ensureGridRowVisible(rv, it)
+                        return it
+                    }
                 }
             }
         }
         return fallbackItemView
     }
+
+    private fun ensureGridRowVisible(rv: RecyclerView, item: View) {
+        val topLimit = rv.paddingTop + 8
+        val bottomLimit = rv.height - rv.paddingBottom - 8
+        val itemTop = getDecoratedTop(item)
+        val itemBottom = getDecoratedBottom(item)
+        val dy = when {
+            itemTop < topLimit -> itemTop - topLimit
+            itemBottom > bottomLimit -> itemBottom - bottomLimit
+            else -> 0
+        }
+        if (dy != 0) {
+            rv.scrollBy(0, dy)
+        }
+    }
 }
 
 /**
- * Column-preserving vertical [LinearLayoutManager] for universe & search master lists
+ * Strictly adjacent cell-to-cell vertical [LinearLayoutManager] for universe & search master lists
  * (`MediaUniverseFragment` and `SearchFragment`).
  *
- * Guarantees that pressing `DPAD_DOWN` / `DPAD_UP` across horizontal rails and grids:
- * 1. Scrolls the next/previous row completely into the viewport BEFORE picking the target card
- *    (so header buttons like `Voir tout` never hijack focus while cards are still below the fold).
- * 2. Preserves the active visual column (`preferredColumnCenterX`) across rows, updating it
- *    automatically whenever focus moves horizontally within the same row.
+ * Guarantees that pressing `DPAD_DOWN` / `DPAD_UP` always correlates cursor movement to the
+ * immediately adjacent cell directly below or above the currently focused cell's live screen
+ * horizontal bounds `[focusedLeft, focusedRight]`.
  */
 class MissaVerticalUniverseLayoutManager(
     context: Context
 ) : LinearLayoutManager(context, VERTICAL, false) {
 
     private var attachedRecyclerView: RecyclerView? = null
-    private var preferredColumnCenterX: Int? = null
-    private var lastFocusedRowPosition: Int = RecyclerView.NO_POSITION
-    private var inVerticalDispatch: Boolean = false
     private val tmpLoc = IntArray(2)
-
-    private val globalFocusListener = ViewTreeObserver.OnGlobalFocusChangeListener { _, newFocus ->
-        val rv = attachedRecyclerView ?: return@OnGlobalFocusChangeListener
-        if (newFocus == null || !isDescendantOf(newFocus, rv)) return@OnGlobalFocusChangeListener
-        val rowView = findContainingItemView(newFocus) ?: return@OnGlobalFocusChangeListener
-        val newRowPos = getPosition(rowView)
-        if (!inVerticalDispatch) {
-            if (newRowPos == lastFocusedRowPosition || preferredColumnCenterX == null) {
-                preferredColumnCenterX = MissaTvFocusHelper.screenCenterX(newFocus, tmpLoc)
-            }
-        }
-        lastFocusedRowPosition = newRowPos
-    }
 
     override fun onAttachedToWindow(view: RecyclerView?) {
         super.onAttachedToWindow(view)
         attachedRecyclerView = view
-        view?.viewTreeObserver?.addOnGlobalFocusChangeListener(globalFocusListener)
     }
 
     override fun onDetachedFromWindow(view: RecyclerView?, recycler: RecyclerView.Recycler?) {
-        view?.viewTreeObserver?.removeOnGlobalFocusChangeListener(globalFocusListener)
         attachedRecyclerView = null
         super.onDetachedFromWindow(view, recycler)
     }
@@ -374,51 +570,54 @@ class MissaVerticalUniverseLayoutManager(
         val currentRowPos = getPosition(rowView)
         if (currentRowPos == RecyclerView.NO_POSITION) return null
 
-        val currentCenterX = MissaTvFocusHelper.screenCenterX(focused, tmpLoc)
-        val targetCenterX = preferredColumnCenterX ?: currentCenterX
-        preferredColumnCenterX = targetCenterX
+        val (focusedLeft, focusedRight) = MissaTvFocusHelper.screenHorizontalBounds(focused, tmpLoc)
 
-        inVerticalDispatch = true
-        try {
-            // 1. Check intra-row vertical navigation first (decks, hero controls, embedded grids, or header buttons)
-            findIntraRowVerticalTarget(rv, rowView, focused, direction, targetCenterX)?.let { intra ->
-                ensureDescendantVisibleVertically(rv, intra)
-                return intra
-            }
+        // 1. Check intra-row vertical navigation first (decks, hero controls, embedded grids, or header buttons)
+        findIntraRowVerticalTarget(rv, rowView, focused, direction, focusedLeft, focusedRight)?.let { intra ->
+            ensureDescendantVisibleVertically(rv, intra)
+            return intra
+        }
 
-            // 2. Scan adjacent top-level rows in masterRecycler
-            val step = if (direction == View.FOCUS_DOWN) +1 else -1
-            var candidatePos = currentRowPos + step
-            while (candidatePos in 0 until itemCount) {
-                val nextRowView = bringRowIntoViewport(rv, candidatePos, step, rowView.height)
-                if (nextRowView != null) {
-                    val alignedTarget = findAlignedTargetInRow(nextRowView, direction, targetCenterX)
-                    if (alignedTarget != null) {
-                        ensureDescendantVisibleVertically(rv, alignedTarget)
-                        return alignedTarget
-                    }
+        // 2. Scan adjacent top-level rows in masterRecycler strictly one row at a time
+        val step = if (direction == View.FOCUS_DOWN) +1 else -1
+        var candidatePos = currentRowPos + step
+        while (candidatePos in 0 until itemCount) {
+            val nextRowView = bringRowIntoViewport(rv, candidatePos, step, rowView.height)
+            if (nextRowView != null) {
+                val alignedTarget = findAlignedTargetInRow(nextRowView, direction, focusedLeft, focusedRight)
+                if (alignedTarget != null) {
+                    ensureDescendantVisibleVertically(rv, alignedTarget)
+                    return alignedTarget
                 }
-                candidatePos += step
             }
+            candidatePos += step
+        }
 
-            // 3. Top/bottom boundary handling
-            return if (direction == View.FOCUS_UP) {
-                // Allow escaping upward to sticky category pills / search input / top bar
-                null
+        // 3. Top/bottom boundary handling
+        return if (direction == View.FOCUS_UP) {
+            // Escape cleanly upward to the adjacent cell in sticky filter bar or top navigation bar
+            val root = rv.rootView as? ViewGroup
+            val stickyBar = root?.findViewById<View>(R.id.universe_sticky_filter_bar)
+            if (stickyBar != null && stickyBar.isShown) {
+                MissaTvFocusHelper.findAdjacentFocusableInContainer(stickyBar, focused, View.FOCUS_UP)
+                    ?.let { return it }
+            }
+            val topShell = root?.findViewById<View>(R.id.missa_top_shell)
+            if (topShell != null && topShell.isShown) {
+                MissaTvFocusHelper.findAdjacentFocusableInContainer(topShell, focused, View.FOCUS_UP)
+                    ?.let { return it }
+            }
+            null
+        } else {
+            // At the bottom-most row: step down into the adjacent cell of the persistent Radio/Music bar if visible
+            val root = rv.rootView as? ViewGroup
+            val miniPlayer = root?.findViewById<View>(R.id.missa_radio_mini_player)
+            if (miniPlayer != null && miniPlayer.isShown) {
+                MissaTvFocusHelper.findAdjacentFocusableInContainer(miniPlayer, focused, View.FOCUS_DOWN)
+                    ?: focused
             } else {
-                // At the bottom-most row: check if persistent audio mini-player is focusable below, else stay anchored
-                val root = rv.rootView as? ViewGroup
-                val miniPlayer = root?.findViewById<View>(R.id.missa_radio_mini_player)
-                if (miniPlayer != null && miniPlayer.isShown) {
-                    val focusables = ArrayList<View>()
-                    miniPlayer.addFocusables(focusables, View.FOCUS_DOWN, View.FOCUSABLES_ALL)
-                    pickClosestByCenterX(focusables, targetCenterX) ?: focused
-                } else {
-                    focused
-                }
+                focused
             }
-        } finally {
-            rv.post { inVerticalDispatch = false }
         }
     }
 
@@ -439,23 +638,31 @@ class MissaVerticalUniverseLayoutManager(
         rowView: View,
         focused: View,
         direction: Int,
-        targetCenterX: Int
+        focusedLeft: Int,
+        focusedRight: Int
     ): View? {
-        // Case A: Focused is a row header action button (`Voir tout` / `Tout effacer`) and user presses DOWN
-        if (direction == View.FOCUS_DOWN &&
-            (focused.id == R.id.row_see_all_button || focused.id == R.id.resume_clear_all_btn)
-        ) {
-            val childRv = findPrimaryChildRecycler(rowView)
-            if (childRv != null) {
-                return pickAlignedCardFromChildRecycler(childRv, direction, targetCenterX)
+        // Case A: Focused is a row header action button (`Voir tout` / `Tout effacer`)
+        if (focused.id == R.id.row_see_all_button || focused.id == R.id.resume_clear_all_btn) {
+            if (direction == View.FOCUS_DOWN) {
+                val childRv = findPrimaryChildRecycler(rowView)
+                if (childRv != null) {
+                    return pickAlignedCardFromChildRecycler(childRv, direction, focusedLeft, focusedRight)
+                }
             }
+            // For FOCUS_UP on header button, return null so Step 2 moves to the row above
+            return null
         }
 
-        // Case B: Focused is inside a horizontal child RecyclerView -> single row of cards, always exit row vertically
+        // Case B: Focused is inside a child RecyclerView of this row
         val containingChildRv = findAncestorChildRecycler(focused, rowView)
         if (containingChildRv != null) {
             val lm = containingChildRv.layoutManager
             if (lm is LinearLayoutManager && lm.orientation == HORIZONTAL) {
+                // When pressing UP from a card directly beneath this row's `Voir tout` / `Tout effacer` button,
+                // visit that adjacent header button; all other columns step straight to the row above.
+                if (direction == View.FOCUS_UP) {
+                    findOverlappingRowHeaderButton(rowView, focusedLeft, focusedRight)?.let { return it }
+                }
                 return null
             }
             if (lm is MissaAlignedGridLayoutManager) {
@@ -485,7 +692,9 @@ class MissaVerticalUniverseLayoutManager(
             val candidates = ArrayList<View>()
             rowView.addFocusables(candidates, direction, View.FOCUSABLES_ALL)
             val directionalCandidates = candidates.filter { cand ->
-                if (cand === focused || !cand.isShown) return@filter false
+                if (cand === focused || !cand.isShown || MissaTvFocusHelper.isWrapperContainer(cand)) {
+                    return@filter false
+                }
                 cand.getLocationOnScreen(tmpLoc)
                 val cTop = tmpLoc[1]
                 val cBottom = cTop + cand.height
@@ -496,11 +705,37 @@ class MissaVerticalUniverseLayoutManager(
                 }
             }
             if (directionalCandidates.isNotEmpty()) {
-                return pickNearestBandAndCenterX(directionalCandidates, direction, targetCenterX)
+                return MissaTvFocusHelper.pickNearestBandAdjacentView(
+                    views = directionalCandidates,
+                    direction = direction,
+                    focusedLeft = focusedLeft,
+                    focusedRight = focusedRight,
+                    tmpLoc = tmpLoc
+                )
             }
-            // Fallback to FocusFinder strictly within rowView if subviews slightly overlap
             val ff = FocusFinder.getInstance().findNextFocus(rowView, focused, direction)
-            if (ff != null && ff !== focused) return ff
+            if (ff != null && ff !== focused && !MissaTvFocusHelper.isWrapperContainer(ff)) {
+                return ff
+            }
+        }
+        return null
+    }
+
+    private fun findOverlappingRowHeaderButton(
+        rowView: View,
+        focusedLeft: Int,
+        focusedRight: Int
+    ): View? {
+        if (rowView !is ViewGroup) return null
+        val headerIds = intArrayOf(R.id.row_see_all_button, R.id.resume_clear_all_btn)
+        for (id in headerIds) {
+            val btn = rowView.findViewById<View>(id) ?: continue
+            if (!btn.isShown || !btn.isFocusable || btn.width <= 0) continue
+            val (bLeft, bRight) = MissaTvFocusHelper.screenHorizontalBounds(btn, tmpLoc)
+            val overlap = minOf(focusedRight, bRight) - maxOf(focusedLeft, bLeft)
+            if (overlap > 0) {
+                return btn
+            }
         }
         return null
     }
@@ -561,21 +796,36 @@ class MissaVerticalUniverseLayoutManager(
     private fun findAlignedTargetInRow(
         rowView: View,
         direction: Int,
-        targetCenterX: Int
+        focusedLeft: Int,
+        focusedRight: Int
     ): View? {
+        // When entering from ABOVE in the far-right column directly over `Voir tout` / `Tout effacer`,
+        // visit that immediately adjacent header button first; all other columns land directly on the aligned card.
+        if (direction == View.FOCUS_DOWN) {
+            findOverlappingRowHeaderButton(rowView, focusedLeft, focusedRight)?.let { return it }
+        }
         val childRv = findPrimaryChildRecycler(rowView)
         if (childRv != null && childRv.isShown) {
-            pickAlignedCardFromChildRecycler(childRv, direction, targetCenterX)?.let { return it }
+            pickAlignedCardFromChildRecycler(childRv, direction, focusedLeft, focusedRight)?.let { return it }
         }
         if (rowView is ViewGroup) {
             val focusables = ArrayList<View>()
             rowView.addFocusables(focusables, direction, View.FOCUSABLES_ALL)
             val valid = focusables.filter {
                 it.isShown &&
+                    !MissaTvFocusHelper.isWrapperContainer(it) &&
                     it.id != R.id.row_see_all_button &&
                     it.id != R.id.resume_clear_all_btn
-            }.ifEmpty { focusables.filter { it.isShown } }
-            return pickNearestBandAndCenterX(valid, direction, targetCenterX)
+            }.ifEmpty {
+                focusables.filter { it.isShown && !MissaTvFocusHelper.isWrapperContainer(it) }
+            }
+            return MissaTvFocusHelper.pickNearestBandAdjacentView(
+                views = valid,
+                direction = direction,
+                focusedLeft = focusedLeft,
+                focusedRight = focusedRight,
+                tmpLoc = tmpLoc
+            )
         }
         return rowView.takeIf { it.isFocusable && it.isShown }
     }
@@ -583,57 +833,36 @@ class MissaVerticalUniverseLayoutManager(
     private fun pickAlignedCardFromChildRecycler(
         childRv: RecyclerView,
         direction: Int,
-        targetCenterX: Int
+        focusedLeft: Int,
+        focusedRight: Int
     ): View? {
         val lm = childRv.layoutManager ?: return null
         val visibleCards = ArrayList<View>(lm.childCount)
         for (i in 0 until lm.childCount) {
             val child = lm.getChildAt(i) ?: continue
-            if (child.isShown && child.isFocusable) {
+            if (!child.isShown) continue
+            if (!child.isFocusable && child.isClickable) {
+                child.isFocusable = true
+                child.isFocusableInTouchMode = true
+            }
+            if (child.isFocusable) {
                 visibleCards.add(child)
             }
         }
         if (visibleCards.isEmpty()) return null
         return if (lm is GridLayoutManager) {
-            pickNearestBandAndCenterX(visibleCards, direction, targetCenterX)
+            MissaTvFocusHelper.pickNearestBandAdjacentView(
+                views = visibleCards,
+                direction = direction,
+                focusedLeft = focusedLeft,
+                focusedRight = focusedRight,
+                tmpLoc = tmpLoc
+            )
         } else {
-            pickClosestByCenterX(visibleCards, targetCenterX)
+            val bounds = visibleCards.map { MissaTvFocusHelper.screenHorizontalBounds(it, tmpLoc) }
+            val idx = MissaTvFocusHelper.pickBestAdjacentIndex(bounds, focusedLeft, focusedRight)
+            visibleCards.getOrNull(idx)
         }
-    }
-
-    private fun pickNearestBandAndCenterX(
-        views: List<View>,
-        direction: Int,
-        targetCenterX: Int
-    ): View? {
-        if (views.isEmpty()) return null
-        data class PosView(val view: View, val topY: Int, val bottomY: Int, val centerX: Int)
-        val measured = views.map { v ->
-            v.getLocationOnScreen(tmpLoc)
-            PosView(v, tmpLoc[1], tmpLoc[1] + v.height, tmpLoc[0] + v.width / 2)
-        }
-        val anchorY = if (direction == View.FOCUS_DOWN) {
-            measured.minOf { it.topY }
-        } else {
-            measured.maxOf { it.bottomY }
-        }
-        val bandTolerancePx = 48
-        val inBand = measured.filter { pv ->
-            if (direction == View.FOCUS_DOWN) {
-                abs(pv.topY - anchorY) <= bandTolerancePx
-            } else {
-                abs(pv.bottomY - anchorY) <= bandTolerancePx
-            }
-        }.ifEmpty { measured }
-
-        return inBand.minByOrNull { abs(it.centerX - targetCenterX) }?.view
-    }
-
-    private fun pickClosestByCenterX(views: List<View>, targetCenterX: Int): View? {
-        if (views.isEmpty()) return null
-        val centers = views.map { MissaTvFocusHelper.screenCenterX(it, tmpLoc) }
-        val idx = MissaTvFocusHelper.pickClosestHorizontalIndex(centers, targetCenterX)
-        return views.getOrNull(idx)
     }
 
     private fun findPrimaryChildRecycler(rowView: View): RecyclerView? {

@@ -292,6 +292,43 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             adapter = pillAdapter
         }
 
+        val rightFilterControls = listOfNotNull(kidsPinBtn, sourceFilterBtn, toggleFilterBtn)
+        val filterBarDownHandler = View.OnKeyListener { v, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        val visibleRight = rightFilterControls.filter { it.isShown && it.isFocusable }
+                        if (v === visibleRight.firstOrNull()) {
+                            val lm = categoryPillsRecycler?.layoutManager
+                            val rightmostPill = lm?.let {
+                                (it.childCount - 1 downTo 0)
+                                    .mapNotNull { idx -> it.getChildAt(idx) }
+                                    .firstOrNull { p -> p.isShown && p.isFocusable }
+                            }
+                            if (rightmostPill?.requestFocus() == true) return@OnKeyListener true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        val visibleRight = rightFilterControls.filter { it.isShown && it.isFocusable }
+                        if (v === visibleRight.lastOrNull()) {
+                            return@OnKeyListener true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        if (inlineFilterPanel?.isVisible != true) {
+                            val rv = masterRecycler
+                            if (rv != null && rv.isShown) {
+                                MissaTvFocusHelper.findAdjacentFocusableInContainer(rv, v, View.FOCUS_DOWN)
+                                    ?.let { if (it.requestFocus()) return@OnKeyListener true }
+                            }
+                        }
+                    }
+                }
+            }
+            false
+        }
+        rightFilterControls.forEach { it.setOnKeyListener(filterBarDownHandler) }
+
         // Kids Parental PIN button (TRUST-01)
         kidsPinBtn?.isVisible = universeId == "kids"
         updateKidsPinButtonLabel()
@@ -1128,8 +1165,24 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     /** Moves TV D-pad focus into the contextual filter strip (in dedicated universes) or primary content (NAV-02). */
-    fun requestPrimaryContentFocus(): Boolean {
+    fun requestPrimaryContentFocus(sourceView: View? = null): Boolean {
         val rv = masterRecycler ?: return false
+        if (sourceView != null) {
+            if (showContextualFilterBar && stickyFilterBar?.isVisible == true) {
+                MissaTvFocusHelper.findAdjacentFocusableInContainer(
+                    container = stickyFilterBar!!,
+                    sourceView = sourceView,
+                    direction = View.FOCUS_DOWN
+                )?.let { if (it.requestFocus()) return true }
+            }
+            if (rv.isShown) {
+                MissaTvFocusHelper.findAdjacentFocusableInContainer(
+                    container = rv,
+                    sourceView = sourceView,
+                    direction = View.FOCUS_DOWN
+                )?.let { if (it.requestFocus()) return true }
+            }
+        }
         val rememberedRowId = focusMemoryByUniverse[universeId]
         if (rememberedRowId != null) {
             val adapterItems = screenAdapter?.currentList.orEmpty()

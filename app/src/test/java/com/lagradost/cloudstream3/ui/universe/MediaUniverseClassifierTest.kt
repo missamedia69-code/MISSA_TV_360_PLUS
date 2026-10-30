@@ -1267,5 +1267,21 @@ class MediaUniverseClassifierTest {
         // 3. Column center matching selects exact aligned column across rows
         val rowCenters = listOf(94, 234, 374, 514, 654, 794)
         assertEquals(3, MissaTvFocusHelper.pickClosestHorizontalIndex(rowCenters, 510))
+
+        // 4. Interval overlap adjacency picks the exact cell directly below/above in all layouts
+        val posterCols = listOf(
+            24 to 164,
+            164 to 304,
+            304 to 444,
+            444 to 584,
+            584 to 724,
+            724 to 864
+        )
+        // Exact column match (col 2 -> col 2)
+        assertEquals(2, MissaTvFocusHelper.pickBestAdjacentIndex(posterCols, 304, 444))
+        // Hero CTA button [24..210] overlaps col 0 [24..164] by 140px vs col 1 [164..304] by 46px -> picks col 0
+        assertEquals(0, MissaTvFocusHelper.pickBestAdjacentIndex(posterCols, 24, 210))
+        // Shorter row [col 0, col 1] when coming from col 4 [584..724] picks nearest adjacent cell (col 1)
+        assertEquals(1, MissaTvFocusHelper.pickBestAdjacentIndex(posterCols.take(2), 584, 724))
     }
 }

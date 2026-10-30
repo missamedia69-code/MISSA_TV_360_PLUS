@@ -137,11 +137,12 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:background="?attr/missaSurfaceElevated"
-            android:clickable="true"
-            android:focusable="true"
+            android:clickable="false"
+            android:descendantFocusability="afterDescendants"
+            android:focusable="false"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="18dp"
+            android:paddingStart="14dp"
             android:paddingTop="4dp"
             android:paddingEnd="14dp"
             android:paddingBottom="4dp"
@@ -150,38 +151,61 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:importantForAccessibility="no"
-                android:src="@drawable/ic_missa_radio"
-                app:tint="?attr/missaAccentSuccess" />
-
             <LinearLayout
+                android:id="@+id/missa_mini_radio_info"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
+                android:layout_marginEnd="8dp"
                 android:layout_weight="1"
-                android:orientation="vertical">
+                android:background="@color/transparent"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="4dp">
 
-                <TextView
-                    android:id="@+id/missa_mini_radio_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:textAppearance="@style/TextAppearance.Missa.Body"
-                    android:textStyle="bold" />
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_missa_radio"
+                    app:tint="?attr/missaAccentSuccess" />
 
-                <TextView
-                    android:id="@+id/missa_mini_radio_status"
-                    android:layout_width="match_parent"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:textAppearance="@style/TextAppearance.Missa.Caption"
-                    android:textColor="?attr/missaAccentSuccess" />
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/missa_mini_radio_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textAppearance="@style/TextAppearance.Missa.Body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/missa_mini_radio_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textAppearance="@style/TextAppearance.Missa.Caption"
+                        android:textColor="?attr/missaAccentSuccess" />
+                </LinearLayout>
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/missa_mini_radio_prev"
+                style="@style/Widget.Missa.Button.Icon"
+                android:contentDescription="@string/universe_radio_prev_station"
+                app:icon="@drawable/baseline_skip_previous_24" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/missa_mini_radio_play_pause"

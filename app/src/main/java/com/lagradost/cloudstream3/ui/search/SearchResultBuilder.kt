@@ -19,6 +19,7 @@ import com.lagradost.cloudstream3.SearchQuality
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.isMovieType
 import com.lagradost.cloudstream3.syncproviders.SyncAPI
+import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
@@ -208,7 +209,7 @@ object SearchResultBuilder {
 
         bg.isFocusable = false
         bg.isFocusableInTouchMode = false
-        if (!isLayout(TV)) {
+        if (!isLayout(TV or EMULATOR)) {
             bg.setOnClickListener {
                 click(it)
             }
@@ -216,6 +217,11 @@ object SearchResultBuilder {
                 longClick(it)
                 return@setOnLongClickListener true
             }
+        } else {
+            bg.setOnClickListener(null)
+            bg.setOnLongClickListener(null)
+            bg.isClickable = false
+            bg.isLongClickable = false
         }
         //
         //
@@ -232,29 +238,7 @@ object SearchResultBuilder {
             itemView.nextFocusDownId = nextFocusDown
         }
 
-        /*when (nextFocusBehavior) {
-            true -> itemView.nextFocusLeftId = bg.id
-            false -> itemView.nextFocusRightId = bg.id
-            null -> {
-                bg.nextFocusRightId = -1
-                bg.nextFocusLeftId = -1
-            }
-        }*/
-
-        /*if (nextFocusUp != null) {
-            bg.nextFocusUpId = nextFocusUp
-        }
-
-        if (nextFocusDown != null) {
-            bg.nextFocusDownId = nextFocusDown
-        }
-
-        */
-
-        if (isLayout(TV)) {
-            // bg.isFocusable = true
-            // bg.isFocusableInTouchMode = true
-            // bg.touchscreenBlocksFocus = false
+        if (isLayout(TV or EMULATOR)) {
             itemView.isFocusableInTouchMode = true
             itemView.isFocusable = true
         }
