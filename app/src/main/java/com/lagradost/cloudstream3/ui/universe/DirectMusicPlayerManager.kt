@@ -11,6 +11,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
@@ -39,6 +40,13 @@ data class MusicPlaybackState(
     val durationMs: Long = 0L,
     val queueSize: Int = 0,
     val queueIndex: Int = 0,
+    val queueTracks: List<MusicTrackPreset> = emptyList(),
+    val activeCollectionTitle: String? = null,
+    val activeCollectionKind: MusicItemKind? = null,
+    val isLoadingCollection: Boolean = false,
+    val isPlaylistExpanded: Boolean = false,
+    val videoClipModeEnabled: Boolean = true,
+    val hasRenderedVideo: Boolean = false,
     val shuffleEnabled: Boolean = false,
     val repeatMode: MusicRepeatMode = MusicRepeatMode.ALL,
     val sleepTimerMinutes: Int = 0
@@ -67,6 +75,7 @@ object DirectMusicPlayerManager {
     private const val FAVORITE_TRACKS_KEY = "missa_favorite_music_track_ids_v1"
     private const val SHUFFLE_ENABLED_KEY = "missa_music_shuffle_enabled_v1"
     private const val REPEAT_MODE_KEY = "missa_music_repeat_mode_v1"
+    private const val VIDEO_CLIP_MODE_KEY = "missa_music_video_clip_mode_v1"
     private const val REMOTE_CACHE_TTL_MS = 2 * 60 * 60_000L // Refresh newest releases every 2 hours
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -74,6 +83,12 @@ object DirectMusicPlayerManager {
 
     @Volatile
     private var isOwningPlayback: Boolean = false
+
+    @Volatile
+    private var isMusicScreenVisible: Boolean = true
+
+    @Volatile
+    private var activeTrackUsingVideoSource: Boolean = false
 
     @Volatile
     private var listenerAttachedPlayer: ExoPlayer? = null
@@ -106,6 +121,7 @@ object DirectMusicPlayerManager {
 
     private val _state = MutableLiveData(
         MusicPlaybackState(
+            videoClipModeEnabled = getKey<Boolean>(VIDEO_CLIP_MODE_KEY, true) != false,
             shuffleEnabled = getKey<Boolean>(SHUFFLE_ENABLED_KEY, false) == true,
             repeatMode = loadSavedRepeatMode()
         )
@@ -353,13 +369,44 @@ object DirectMusicPlayerManager {
 
     internal fun onSharedPlayerReleased() {
         listenerAttachedPlayer = null
+        activeTrackUsingVideoSource = false
         mainHandler.removeCallbacks(progressTicker)
+    }
+
+    fun peekActiveExoPlayer(): ExoPlayer? =
+        if (isOwningPlayback) DirectRadioPlayerManager.peekPlayer() else null
+
+    fun setMusicScreenVisible(context: Context?, visible: Boolean) {
+        isMusicScreenVisible = visible
+        if (!isOwningPlayback) return
+        val exo = DirectRadioPlayerManager.peekPlayer() ?: return
+        val clipMode = _state.value?.videoClipModeEnabled == true
+        val disableVideo = !visible || !clipMode
+        runCatching {
+            exo.trackSelectionParameters = exo.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, disableVideo)
+                .build()
+        }
+        if (visible && clipMode && !activeTrackUsingVideoSource && context != null && exo.isPlaying) {
+            val resumePos = exo.currentPosition.coerceAtLeast(0L)
+            startCurrentQueueTrack(context.applicationContext, resumePositionMs = resumePos)
+        }
     }
 
     private fun ensurePlayerListenerAttached(exo: ExoPlayer) {
         if (listenerAttachedPlayer === exo) return
         listenerAttachedPlayer = exo
         exo.addListener(object : Player.Listener {
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                if (!isOwningPlayback) return
+                val hasVideo = videoSize.width > 0 && videoSize.height > 0
+                val current = _state.value ?: MusicPlaybackState()
+                if (current.hasRenderedVideo != hasVideo) {
+                    _state.postValue(current.copy(hasRenderedVideo = hasVideo))
+                }
+            }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (!isOwningPlayback) return
                 val current = _state.value ?: MusicPlaybackState()
@@ -380,11 +427,14 @@ object DirectMusicPlayerManager {
                 if (!isOwningPlayback) return
                 val current = _state.value ?: MusicPlaybackState()
                 val dur = exo.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: current.durationMs
+                val vSize = exo.videoSize
+                val hasVideo = vSize.width > 0 && vSize.height > 0 && current.videoClipModeEnabled
                 _state.postValue(
                     current.copy(
                         isPlaying = exo.isPlaying,
                         isBuffering = playbackState == Player.STATE_BUFFERING,
                         hasError = if (playbackState == Player.STATE_READY) false else current.hasError,
+                        hasRenderedVideo = if (playbackState == Player.STATE_READY) hasVideo else current.hasRenderedVideo,
                         durationMs = dur,
                         positionMs = exo.currentPosition.coerceAtLeast(0L),
                         sleepTimerMinutes = activeSleepMinutes
@@ -397,19 +447,26 @@ object DirectMusicPlayerManager {
 
             override fun onPlayerError(error: PlaybackException) {
                 if (!isOwningPlayback) return
-                val nextIdx = activeCandidateIndex + 1
-                if (nextIdx < activeCandidateUrls.size) {
-                    activeCandidateIndex = nextIdx
-                    val ctx = activeAppContext ?: return
-                    val currentTrack = activeQueue.getOrNull(activeQueueIndex) ?: _state.value?.track ?: return
-                    startExoTrackUri(ctx, currentTrack, activeCandidateUrls[nextIdx])
+                val ctx = activeAppContext
+                val currentTrack = activeQueue.getOrNull(activeQueueIndex) ?: _state.value?.track
+
+                // 0. If a video clip stream failed, fall back seamlessly to pure cached audio first
+                if (activeTrackUsingVideoSource && activeCandidateUrls.isNotEmpty() && ctx != null && currentTrack != null) {
+                    activeTrackUsingVideoSource = false
+                    activeCandidateIndex = 0
+                    startExoPureAudioUri(ctx, currentTrack, activeCandidateUrls.first(), resumePositionMs = 0L)
                     return
                 }
 
-                // Self-healing retry: if a cached YouTube audio URL expired early (HTTP 403/410),
+                val nextIdx = activeCandidateIndex + 1
+                if (nextIdx < activeCandidateUrls.size && ctx != null && currentTrack != null) {
+                    activeCandidateIndex = nextIdx
+                    startExoPureAudioUri(ctx, currentTrack, activeCandidateUrls[nextIdx], resumePositionMs = 0L)
+                    return
+                }
+
+                // Self-healing retry: if a cached YouTube stream URL expired early (HTTP 403/410),
                 // invalidate its cache entry and re-extract fresh YouTube streams once automatically.
-                val currentTrack = activeQueue.getOrNull(activeQueueIndex) ?: _state.value?.track
-                val ctx = activeAppContext
                 if (currentTrack != null &&
                     ctx != null &&
                     MissaMusicProviders.isLazyYouTubeAudioScheme(currentTrack.streamUrl) &&
@@ -427,6 +484,7 @@ object DirectMusicPlayerManager {
                         isPlaying = false,
                         isBuffering = false,
                         hasError = true,
+                        hasRenderedVideo = false,
                         sleepTimerMinutes = activeSleepMinutes
                     )
                 )
@@ -556,20 +614,27 @@ object DirectMusicPlayerManager {
         val exo = DirectRadioPlayerManager.getOrCreatePlayer(appCtx)
         ensurePlayerListenerAttached(exo)
 
-        // Album / Playlist expansion (`ytplaylist://`) -> extract full track queue and play Track 1
+        // Album / Playlist expansion (`ytplaylist://`) -> extract full track queue, show ALL clips, and play Clip 1
         if (track.isAlbumOrPlaylist()) {
             resolveJob?.cancel()
             val prev = _state.value ?: MusicPlaybackState()
+            val collectionTitle = track.displayLabel()
             _state.postValue(
                 prev.copy(
                     track = track,
                     isPlaying = false,
                     isBuffering = true,
                     hasError = false,
+                    hasRenderedVideo = false,
                     positionMs = 0L,
                     durationMs = 0L,
                     queueSize = track.trackCount.coerceAtLeast(1),
                     queueIndex = 0,
+                    queueTracks = emptyList(),
+                    activeCollectionTitle = collectionTitle,
+                    activeCollectionKind = track.itemKind,
+                    isLoadingCollection = true,
+                    isPlaylistExpanded = true,
                     sleepTimerMinutes = activeSleepMinutes
                 )
             )
@@ -588,11 +653,22 @@ object DirectMusicPlayerManager {
                         _state.value = cur.copy(
                             isPlaying = false,
                             isBuffering = false,
-                            hasError = true
+                            hasError = true,
+                            isLoadingCollection = false
                         )
                     } else {
                         activeQueue = expandedTracks
                         activeQueueIndex = 0
+                        val cur = _state.value ?: MusicPlaybackState()
+                        _state.value = cur.copy(
+                            queueTracks = expandedTracks,
+                            queueSize = expandedTracks.size,
+                            queueIndex = 0,
+                            activeCollectionTitle = collectionTitle,
+                            activeCollectionKind = track.itemKind,
+                            isLoadingCollection = false,
+                            isPlaylistExpanded = true
+                        )
                         startCurrentQueueTrack(appCtx)
                     }
                 }
@@ -611,10 +687,80 @@ object DirectMusicPlayerManager {
             activeQueueIndex = 0
         }
 
+        val prev = _state.value ?: MusicPlaybackState()
+        _state.postValue(
+            prev.copy(
+                queueTracks = activeQueue,
+                queueSize = activeQueue.size,
+                queueIndex = activeQueueIndex,
+                activeCollectionTitle = null,
+                activeCollectionKind = null,
+                isLoadingCollection = false
+            )
+        )
+
         startCurrentQueueTrack(appCtx)
     }
 
-    private fun startCurrentQueueTrack(appContext: Context) {
+    fun playQueueIndex(context: Context, index: Int) {
+        if (activeQueue.isEmpty()) return
+        val safeIdx = index.coerceIn(0, activeQueue.lastIndex)
+        val appCtx = context.applicationContext
+        activeAppContext = appCtx
+        if (DirectRadioPlayerManager.isOwningPlayback) {
+            DirectRadioPlayerManager.stop()
+        }
+        DirectRadioPlayerManager.isOwningPlayback = false
+        isOwningPlayback = true
+        activeQueueIndex = safeIdx
+        retriedFreshExtractionForTrackId = null
+        startCurrentQueueTrack(appCtx)
+    }
+
+    fun togglePlaylistExpanded(): Boolean {
+        val current = _state.value ?: MusicPlaybackState()
+        if (current.queueTracks.isEmpty() && !current.isLoadingCollection) return false
+        val next = !current.isPlaylistExpanded
+        _state.postValue(current.copy(isPlaylistExpanded = next))
+        return next
+    }
+
+    fun setPlaylistExpanded(expanded: Boolean) {
+        val current = _state.value ?: MusicPlaybackState()
+        if (current.isPlaylistExpanded != expanded) {
+            _state.postValue(current.copy(isPlaylistExpanded = expanded))
+        }
+    }
+
+    fun toggleVideoClipMode(context: Context): Boolean {
+        val current = _state.value ?: MusicPlaybackState()
+        val nextMode = !current.videoClipModeEnabled
+        runCatching { setKey(VIDEO_CLIP_MODE_KEY, nextMode) }
+        _state.postValue(
+            current.copy(
+                videoClipModeEnabled = nextMode,
+                hasRenderedVideo = if (nextMode) current.hasRenderedVideo else false
+            )
+        )
+        if (isOwningPlayback) {
+            val appCtx = context.applicationContext
+            activeAppContext = appCtx
+            val exo = DirectRadioPlayerManager.getOrCreatePlayer(appCtx)
+            runCatching {
+                exo.trackSelectionParameters = exo.trackSelectionParameters
+                    .buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, !nextMode || !isMusicScreenVisible)
+                    .build()
+            }
+            if (nextMode && isMusicScreenVisible && !activeTrackUsingVideoSource) {
+                val resumePos = exo.currentPosition.coerceAtLeast(0L)
+                startCurrentQueueTrack(appCtx, resumePositionMs = resumePos)
+            }
+        }
+        return nextMode
+    }
+
+    private fun startCurrentQueueTrack(appContext: Context, resumePositionMs: Long = 0L) {
         val track = activeQueue.getOrNull(activeQueueIndex) ?: return
         if (track.isAlbumOrPlaylist()) {
             playTrack(appContext, track, queue = null)
@@ -629,46 +775,54 @@ object DirectMusicPlayerManager {
                 isPlaying = false,
                 isBuffering = true,
                 hasError = false,
-                positionMs = 0L,
+                hasRenderedVideo = false,
+                positionMs = resumePositionMs,
                 durationMs = (track.durationSeconds * 1000L).coerceAtLeast(0L),
                 queueSize = activeQueue.size,
                 queueIndex = activeQueueIndex,
+                queueTracks = activeQueue,
+                isLoadingCollection = false,
                 sleepTimerMinutes = activeSleepMinutes
             )
         )
 
         resolveJob = ioScope.launch {
-            val urls = MissaMusicProviders.resolvePlayableAudioUrls(
+            val media = MissaMusicProviders.resolvePlayableYouTubeMedia(
                 streamUrl = track.streamUrl,
                 fallbackUrls = track.fallbackUrls
             )
             withContext(Dispatchers.Main) {
                 if (!isOwningPlayback) return@withContext
-                if (urls.isEmpty()) {
+                if (!media.hasPlayableStream) {
                     val cur = _state.value ?: MusicPlaybackState()
                     _state.value = cur.copy(
                         track = track,
                         isPlaying = false,
                         isBuffering = false,
                         hasError = true,
+                        hasRenderedVideo = false,
                         queueSize = activeQueue.size,
-                        queueIndex = activeQueueIndex
+                        queueIndex = activeQueueIndex,
+                        queueTracks = activeQueue
                     )
                 } else {
-                    activeCandidateUrls = urls
+                    activeCandidateUrls = media.audioUrls
                     activeCandidateIndex = 0
-                    startExoTrackUri(appContext, track, urls.first())
+                    val wantVideoClip = (_state.value?.videoClipModeEnabled != false) && isMusicScreenVisible
+                    startExoResolvedMedia(
+                        context = appContext,
+                        track = track,
+                        media = media,
+                        preferVideoClip = wantVideoClip,
+                        resumePositionMs = resumePositionMs
+                    )
                     prefetchUpcomingTracksInQueue()
                 }
             }
         }
     }
 
-    private fun startExoTrackUri(context: Context, track: MusicTrackPreset, uri: String) {
-        val appContext = context.applicationContext
-        val exo = DirectRadioPlayerManager.getOrCreatePlayer(appContext)
-        ensurePlayerListenerAttached(exo)
-
+    private fun buildTrackMediaItem(track: MusicTrackPreset, uri: String): MediaItem {
         val metadataBuilder = MediaMetadata.Builder()
             .setTitle(track.title)
             .setArtist(track.artist.ifBlank { MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC })
@@ -676,19 +830,84 @@ object DirectMusicPlayerManager {
         track.artworkUrl?.takeIf { it.isNotBlank() }?.let { art ->
             runCatching { metadataBuilder.setArtworkUri(Uri.parse(art)) }
         }
-        val mediaItem = MediaItem.Builder()
+        return MediaItem.Builder()
             .setMediaId(track.id)
             .setUri(uri)
             .setMediaMetadata(metadataBuilder.build())
             .build()
+    }
 
-        // Use disk-cached MediaSource for direct progressive/DASH YouTube audio; HLS uses default factory
+    private fun startExoResolvedMedia(
+        context: Context,
+        track: MusicTrackPreset,
+        media: MissaMusicProviders.ResolvedYouTubeMedia,
+        preferVideoClip: Boolean,
+        resumePositionMs: Long
+    ) {
+        val appContext = context.applicationContext
+        val exo = DirectRadioPlayerManager.getOrCreatePlayer(appContext)
+        ensurePlayerListenerAttached(exo)
+
+        runCatching {
+            exo.trackSelectionParameters = exo.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, !preferVideoClip)
+                .build()
+        }
+
+        if (preferVideoClip && !media.muxedVideoUrl.isNullOrBlank()) {
+            activeTrackUsingVideoSource = true
+            val item = buildTrackMediaItem(track, media.muxedVideoUrl)
+            exo.setMediaSource(DirectRadioPlayerManager.createVideoClipMediaSource(appContext, item))
+            if (resumePositionMs > 0L) exo.seekTo(resumePositionMs)
+            exo.prepare()
+            exo.playWhenReady = true
+            mainHandler.removeCallbacks(progressTicker)
+            mainHandler.post(progressTicker)
+            return
+        }
+
+        if (preferVideoClip && !media.videoOnlyUrl.isNullOrBlank() && media.audioUrls.isNotEmpty()) {
+            activeTrackUsingVideoSource = true
+            val audioItem = buildTrackMediaItem(track, media.audioUrls.first())
+            exo.setMediaSource(
+                DirectRadioPlayerManager.createMergedClipMediaSource(
+                    context = appContext,
+                    audioMediaItem = audioItem,
+                    videoUri = media.videoOnlyUrl
+                )
+            )
+            if (resumePositionMs > 0L) exo.seekTo(resumePositionMs)
+            exo.prepare()
+            exo.playWhenReady = true
+            mainHandler.removeCallbacks(progressTicker)
+            mainHandler.post(progressTicker)
+            return
+        }
+
+        val audioUri = media.audioUrls.firstOrNull() ?: media.muxedVideoUrl ?: return
+        activeTrackUsingVideoSource = false
+        startExoPureAudioUri(appContext, track, audioUri, resumePositionMs)
+    }
+
+    private fun startExoPureAudioUri(
+        context: Context,
+        track: MusicTrackPreset,
+        uri: String,
+        resumePositionMs: Long
+    ) {
+        val appContext = context.applicationContext
+        val exo = DirectRadioPlayerManager.getOrCreatePlayer(appContext)
+        ensurePlayerListenerAttached(exo)
+
+        val mediaItem = buildTrackMediaItem(track, uri)
         val isHlsManifest = uri.contains(".m3u8", ignoreCase = true) || uri.contains("manifest/hls", ignoreCase = true)
         if (isHlsManifest) {
             exo.setMediaItem(mediaItem)
         } else {
             exo.setMediaSource(DirectRadioPlayerManager.createCachedMusicMediaSource(appContext, mediaItem))
         }
+        if (resumePositionMs > 0L) exo.seekTo(resumePositionMs)
         exo.prepare()
         exo.playWhenReady = true
         mainHandler.removeCallbacks(progressTicker)
@@ -832,6 +1051,7 @@ object DirectMusicPlayerManager {
         sleepRunnable?.let { mainHandler.removeCallbacks(it) }
         sleepRunnable = null
         activeSleepMinutes = 0
+        activeTrackUsingVideoSource = false
         if (isOwningPlayback) {
             activeAppContext?.let { ctx ->
                 DirectRadioPlayerManager.getOrCreatePlayer(ctx).stop()
@@ -845,6 +1065,8 @@ object DirectMusicPlayerManager {
                 isPlaying = false,
                 isBuffering = false,
                 hasError = false,
+                hasRenderedVideo = false,
+                isLoadingCollection = false,
                 positionMs = 0L,
                 durationMs = 0L
             )

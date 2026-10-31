@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/playlist_track_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="3dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="@drawable/missa_primary_btn_focus_foreground"
+    app:cardBackgroundColor="?attr/missaSurfaceElevated"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    app:strokeColor="?attr/missaStrokeSubtle"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="58dp"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
+
+        <!-- Track Number (01, 02…) or ▶ Active Indicator -->
+        <TextView
+            android:id="@+id/playlist_track_index"
+            style="@style/TextAppearance.Missa.Body"
+            android:layout_width="32dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="?attr/grayTextColor"
+            android:textStyle="bold" />
+
+        <!-- Clip / Cover Thumbnail -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/playlist_track_thumb_card"
+            android:layout_width="64dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="6dp"
+            app:cardBackgroundColor="?attr/primaryBlackBackground"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/missaStrokeSubtle"
+            app:strokeWidth="1dp">
+
+            <ImageView
+                android:id="@+id/playlist_track_thumb"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_missa_music" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Clip Title + Artist -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/playlist_track_title"
+                style="@style/TextAppearance.Missa.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/textColor"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/playlist_track_artist"
+                style="@style/TextAppearance.Missa.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/grayTextColor" />
+        </LinearLayout>
+
+        <!-- Active Playing Pill -->
+        <TextView
+            android:id="@+id/playlist_track_playing_badge"
+            style="@style/TextAppearance.Missa.Badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/missa_eyebrow_pill_bg"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:text="@string/universe_music_track_now_playing"
+            android:textColor="?attr/missaAccentPrimary"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <!-- Clip Duration -->
+        <TextView
+            android:id="@+id/playlist_track_duration"
+            style="@style/TextAppearance.Missa.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:gravity="end"
+            android:minWidth="40dp"
+            android:textColor="?attr/grayTextColor" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

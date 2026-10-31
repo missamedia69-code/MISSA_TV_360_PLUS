@@ -25,6 +25,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
@@ -373,6 +374,42 @@ object DirectRadioPlayerManager {
         }
         return DefaultMediaSourceFactory(factory).createMediaSource(mediaItem)
     }
+
+    /**
+     * Streams a progressive muxed video clip (`360p..720p` MP4) over the pooled HTTP/2 client
+     * without evicting pure audio tracks from the 128 MB audio disk cache.
+     */
+    @OptIn(UnstableApi::class)
+    fun createVideoClipMediaSource(context: Context, mediaItem: MediaItem): MediaSource {
+        val appContext = context.applicationContext
+        val upstream = DefaultDataSource.Factory(appContext, createUpstreamHttpDataSourceFactory())
+        return DefaultMediaSourceFactory(upstream).createMediaSource(mediaItem)
+    }
+
+    /**
+     * Merges a `360p..720p` progressive H.264 video-only YouTube stream with a disk-cached
+     * M4A/Opus audio stream for live video clip playback inside the top MP3 player console.
+     */
+    @OptIn(UnstableApi::class)
+    fun createMergedClipMediaSource(
+        context: Context,
+        audioMediaItem: MediaItem,
+        videoUri: String
+    ): MediaSource {
+        val appContext = context.applicationContext
+        val videoFactory = DefaultMediaSourceFactory(
+            DefaultDataSource.Factory(appContext, createUpstreamHttpDataSourceFactory())
+        )
+        val videoItem = MediaItem.Builder()
+            .setMediaId("${audioMediaItem.mediaId}_video")
+            .setUri(videoUri)
+            .build()
+        val videoSource = videoFactory.createMediaSource(videoItem)
+        val audioSource = createCachedMusicMediaSource(appContext, audioMediaItem)
+        return MergingMediaSource(videoSource, audioSource)
+    }
+
+    fun peekPlayer(): ExoPlayer? = player
 
     @OptIn(UnstableApi::class)
     fun getOrCreatePlayer(context: Context): ExoPlayer {

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/music_playlist_queue_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="@dimen/missa_section_horizontal_padding"
+    android:layout_marginEnd="@dimen/missa_section_horizontal_padding"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/missa_universe_card_bg"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <!-- Header: Playlist / Album Title + Clip Count + Hide Button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_baseline_playlist_play_24"
+            app:tint="?attr/missaAccentPrimary" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/music_playlist_title"
+                style="@style/TextAppearance.Missa.RowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/universe_music_playlist_header_queue" />
+
+            <TextView
+                android:id="@+id/music_playlist_subtitle"
+                style="@style/TextAppearance.Missa.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/grayTextColor" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/music_playlist_close_btn"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:layout_marginStart="8dp"
+            android:minHeight="38dp"
+            android:paddingHorizontal="12dp"
+            android:text="@string/universe_music_playlist_hide"
+            app:icon="@drawable/ic_baseline_close_24"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:iconSize="16dp" />
+    </LinearLayout>
+
+    <!-- Loading Banner while extracting all playlist clips -->
+    <LinearLayout
+        android:id="@+id/music_playlist_loading_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingVertical="12dp"
+        android:visibility="gone">
+
+        <ProgressBar
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:indeterminateTint="?attr/missaAccentPrimary" />
+
+        <TextView
+            android:id="@+id/music_playlist_loading_text"
+            style="@style/TextAppearance.Missa.Body"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:textColor="?attr/textColor" />
+    </LinearLayout>
+
+    <!-- Interactive List of All Clips / Tracks in the Opened Playlist or Album -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/music_playlist_tracks_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:clipToPadding="false"
+        android:nestedScrollingEnabled="false"
+        android:overScrollMode="never" />
+</LinearLayout>

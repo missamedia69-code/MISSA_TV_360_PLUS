@@ -23,6 +23,7 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.ui.PlayerView
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DefaultItemAnimator
@@ -205,6 +206,20 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 renderScreen()
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (universeId == "music") {
+            DirectMusicPlayerManager.setMusicScreenVisible(context, true)
+        }
+    }
+
+    override fun onStop() {
+        if (universeId == "music") {
+            DirectMusicPlayerManager.setMusicScreenVisible(context, false)
+        }
+        super.onStop()
     }
 
     override fun onResume() {
@@ -632,7 +647,18 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         val items = ArrayList<UniverseListItem>()
         val dataSaver = MissaUiFactory.isDataSaverActive(ctx)
 
-        if (projection.heroSlides.isNotEmpty()) {
+        if (universeId == "music") {
+            // Musiques puts the Sophisticated Studio MP3 & Live Clip Player Console directly at position 0,
+            // followed immediately by the interactive Playlist / Album Tracklist whenever opened.
+            val musicState = DirectMusicPlayerManager.state.value ?: MusicPlaybackState()
+            val isFav = musicState.track?.id?.let { DirectMusicPlayerManager.isFavorite(it) } == true
+            items.add(UniverseListItem.MusicDeck(musicState = musicState, isFavoriteTrack = isFav))
+            if (musicState.isLoadingCollection ||
+                (musicState.isPlaylistExpanded && musicState.queueTracks.isNotEmpty())
+            ) {
+                items.add(UniverseListItem.MusicPlaylistQueue(musicState = musicState))
+            }
+        } else if (projection.heroSlides.isNotEmpty()) {
             items.add(
                 UniverseListItem.HeroCarousel(
                     universeId = universeId,
@@ -655,12 +681,6 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             val radioState = DirectRadioPlayerManager.state.value ?: RadioPlaybackState()
             val isFav = radioState.station?.id?.let { DirectRadioPlayerManager.isFavorite(it) } == true
             items.add(UniverseListItem.RadioDeck(radioState = radioState, isFavoriteStation = isFav))
-        }
-
-        if (universeId == "music") {
-            val musicState = DirectMusicPlayerManager.state.value ?: MusicPlaybackState()
-            val isFav = musicState.track?.id?.let { DirectMusicPlayerManager.isFavorite(it) } == true
-            items.add(UniverseListItem.MusicDeck(musicState = musicState, isFavoriteTrack = isFav))
         }
 
         if (projection.resumeItems.isNotEmpty() && currentSearchQuery.isBlank()) {
@@ -878,6 +898,11 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 renderScreen()
             } else {
                 DirectMusicPlayerManager.playDirectResponse(requireContext(), card, collectVisibleMusicQueue(card))
+                if (universeId == "music") {
+                    masterRecycler?.post {
+                        masterRecycler?.smoothScrollToPosition(0)
+                    }
+                }
             }
             return
         }
@@ -1169,6 +1194,33 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         MissaUniverseDialogs.showMusicStyleOnboardingDialog(
             context = requireContext(),
             isInitialOnboarding = false
+        ) {
+            renderScreen()
+        }
+    }
+
+    override fun onMusicToggleVideoClipMode() {
+        DirectMusicPlayerManager.toggleVideoClipMode(requireContext())
+        renderScreen()
+    }
+
+    override fun onMusicTogglePlaylistDrawer() {
+        DirectMusicPlayerManager.togglePlaylistExpanded()
+        renderScreen()
+    }
+
+    override fun onMusicSelectQueueTrack(index: Int) {
+        DirectMusicPlayerManager.playQueueIndex(requireContext(), index)
+        masterRecycler?.post {
+            masterRecycler?.smoothScrollToPosition(0)
+        }
+    }
+
+    override fun onMusicOpenFullscreenClip(deckPlayerView: PlayerView) {
+        val act = activity ?: return
+        MissaUniverseDialogs.showFullscreenMusicClipDialog(
+            activity = act,
+            deckPlayerView = deckPlayerView
         ) {
             renderScreen()
         }

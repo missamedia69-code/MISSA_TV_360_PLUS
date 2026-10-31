@@ -13,6 +13,9 @@ import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
+import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
+import com.lagradost.cloudstream3.ui.universe.MissaUniverses
+import com.lagradost.cloudstream3.ui.universe.MusicItemKind
 import com.lagradost.cloudstream3.utils.AppContextUtils.loadSearchResult
 import com.lagradost.cloudstream3.utils.DataStoreHelper
 import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
@@ -32,6 +35,14 @@ object SearchHelper {
                 )
             } else if (ctx != null) {
                 DirectMusicPlayerManager.playDirectResponse(ctx, card)
+                if (card.itemKind == MusicItemKind.PLAYLIST ||
+                    card.itemKind == MusicItemKind.ALBUM ||
+                    MissaMusicProviders.isYouTubePlaylistOrAlbumScheme(card.url)
+                ) {
+                    (activity as? MainActivity)?.navigateToUniverseWithParentalGuard(
+                        MissaUniverses.byId("music")
+                    )
+                }
             }
             return
         }

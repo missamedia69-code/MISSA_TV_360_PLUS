@@ -23,6 +23,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDialog
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible
+import androidx.lifecycle.Observer
+import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -316,9 +318,11 @@ internal object MissaUniverseDialogs {
                     onCardClick(cb)
                     return@HomeChildItemAdapter
                 }
-                val isInlineAudio = cb.card is DirectMusicSearchResponse ||
-                    cb.card is DirectRadioSearchResponse
-                if (!isInlineAudio) {
+                // Keep See-All open only for quick live Radio zapping; clicking a Music Clip,
+                // Album or Playlist dismisses See-All so the Top MP3/Clip Player & Playlist
+                // Tracklist are immediately visible at position 0.
+                val keepSheetOpen = cb.card is DirectRadioSearchResponse
+                if (!keepSheetOpen) {
                     dialog.dismiss()
                 }
                 onCardClick(cb)
@@ -858,5 +862,88 @@ internal object MissaUniverseDialogs {
         } else {
             dialog.setDefaultFocus()
         }
+    }
+
+    // --- 7. Fullscreen Official Video Clip Monitor for the Sophisticated MP3 Player ---
+
+    @Volatile
+    var isMusicFullscreenClipDialogOpen: Boolean = false
+        private set
+
+    fun showFullscreenMusicClipDialog(
+        activity: Activity,
+        deckPlayerView: PlayerView,
+        onDismissed: () -> Unit
+    ) {
+        val exo = DirectMusicPlayerManager.peekActiveExoPlayer() ?: return
+        val dialog = AppCompatDialog(activity).apply {
+            supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
+        }
+        val view = LayoutInflater.from(activity)
+            .inflate(R.layout.dialog_missa_music_fullscreen_clip, null, false)
+
+        val fullscreenPlayerView: PlayerView = view.findViewById(R.id.fullscreen_clip_player_view)
+        val titleView: TextView = view.findViewById(R.id.fullscreen_clip_title)
+        val subtitleView: TextView = view.findViewById(R.id.fullscreen_clip_subtitle)
+        val prevBtn: MaterialButton = view.findViewById(R.id.fullscreen_clip_prev_btn)
+        val playBtn: MaterialButton = view.findViewById(R.id.fullscreen_clip_play_btn)
+        val nextBtn: MaterialButton = view.findViewById(R.id.fullscreen_clip_next_btn)
+        val closeBtn: MaterialButton = view.findViewById(R.id.fullscreen_clip_close_btn)
+
+        MissaTvFocusHelper.chainHorizontalFocusRing(
+            controls = listOf(prevBtn, playBtn, nextBtn, closeBtn),
+            clampStart = true,
+            clampEnd = true
+        )
+
+        val stateObserver = Observer<MusicPlaybackState> { st ->
+            val tr = st.track
+            if (tr == null) {
+                dialog.dismiss()
+                return@Observer
+            }
+            titleView.text = tr.title
+            subtitleView.text = listOf(tr.artist, tr.album, tr.genre)
+                .filter { it.isNotBlank() }
+                .distinct()
+                .joinToString(" • ")
+            playBtn.setIconResource(
+                if (st.isPlaying) R.drawable.ic_baseline_pause_24
+                else R.drawable.ic_baseline_play_arrow_24
+            )
+            val currentExo = DirectMusicPlayerManager.peekActiveExoPlayer()
+            if (currentExo != null && fullscreenPlayerView.player !== currentExo) {
+                fullscreenPlayerView.player = currentExo
+            }
+        }
+
+        prevBtn.setOnClickListener { DirectMusicPlayerManager.previousTrack(activity) }
+        playBtn.setOnClickListener { DirectMusicPlayerManager.togglePlayPause(activity) }
+        nextBtn.setOnClickListener { DirectMusicPlayerManager.nextTrack(activity) }
+        closeBtn.setOnClickListener { dialog.dismiss() }
+
+        isMusicFullscreenClipDialogOpen = true
+        deckPlayerView.player = null
+        fullscreenPlayerView.player = exo
+        DirectMusicPlayerManager.state.observeForever(stateObserver)
+
+        dialog.setOnDismissListener {
+            DirectMusicPlayerManager.state.removeObserver(stateObserver)
+            fullscreenPlayerView.player = null
+            isMusicFullscreenClipDialogOpen = false
+            val currentExo = DirectMusicPlayerManager.peekActiveExoPlayer()
+            if (currentExo != null && DirectMusicPlayerManager.state.value?.videoClipModeEnabled == true) {
+                deckPlayerView.player = currentExo
+            }
+            onDismissed()
+        }
+
+        dialog.setContentView(view)
+        dialog.show()
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(android.graphics.Color.BLACK))
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        }
+        playBtn.post { playBtn.requestFocus() }
     }
 }

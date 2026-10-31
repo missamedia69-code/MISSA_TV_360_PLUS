@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/fullscreen_clip_player_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"
+        app:resize_mode="fit"
+        app:shutter_background_color="@android:color/transparent"
+        app:surface_type="texture_view"
+        app:use_controller="false" />
+
+    <!-- Bottom HUD Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/missa_hero_scrim_cinematic"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="28dp"
+        android:paddingBottom="20dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/fullscreen_clip_title"
+                style="@style/TextAppearance.Missa.RowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/white" />
+
+            <TextView
+                android:id="@+id/fullscreen_clip_subtitle"
+                style="@style/TextAppearance.Missa.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/white" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fullscreen_clip_prev_btn"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginStart="12dp"
+            android:contentDescription="@string/universe_music_prev"
+            android:minWidth="@dimen/missa_pill_touch_height"
+            android:paddingHorizontal="12dp"
+            app:icon="@drawable/baseline_skip_previous_24"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fullscreen_clip_play_btn"
+            style="@style/Widget.Missa.Button.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginHorizontal="8dp"
+            android:paddingHorizontal="18dp"
+            android:text="@string/universe_hero_listen"
+            app:icon="@drawable/ic_baseline_pause_24"
+            app:iconGravity="textStart"
+            app:iconPadding="6dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fullscreen_clip_next_btn"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:contentDescription="@string/universe_music_next"
+            android:minWidth="@dimen/missa_pill_touch_height"
+            android:paddingHorizontal="12dp"
+            app:icon="@drawable/ic_baseline_skip_next_24"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fullscreen_clip_close_btn"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/missa_pill_touch_height"
+            android:layout_marginStart="10dp"
+            android:paddingHorizontal="14dp"
+            android:text="@string/universe_music_exit_fullscreen"
+            app:icon="@drawable/baseline_fullscreen_exit_24"
+            app:iconGravity="textStart"
+            app:iconPadding="6dp" />
+    </LinearLayout>
+</FrameLayout>

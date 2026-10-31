@@ -1236,4 +1236,103 @@ class MediaUniverseClassifierTest {
             com.lagradost.cloudstream3.ui.settings.appLanguages.any { it.second == "qt" }
         )
     }
+
+    @Test
+    fun `sophisticated MP3 player selects crisp 480p-720p clip streams and tracks playlist clips state`() {
+        val muxed360 = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("18")
+            .setContent("https://rr1.googlevideo.com/muxed_360.mp4", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.MPEG_4)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(false)
+            .setResolution("360p")
+            .build()
+        val muxed720 = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("22")
+            .setContent("https://rr1.googlevideo.com/muxed_720.mp4", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.MPEG_4)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(false)
+            .setResolution("720p")
+            .build()
+        val videoOnly480 = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("135")
+            .setContent("https://rr1.googlevideo.com/video_only_480.mp4", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.MPEG_4)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(true)
+            .setResolution("480p")
+            .build()
+        val videoOnly1440 = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("271")
+            .setContent("https://rr1.googlevideo.com/video_only_1440.webm", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.WEBM)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(true)
+            .setResolution("1440p")
+            .build()
+
+        val (bestMuxed, bestVideoOnly) = MissaMusicProviders.selectBestVideoStreams(
+            muxedStreams = listOf(muxed360, muxed720),
+            videoOnlyStreams = listOf(videoOnly1440, videoOnly480)
+        )
+        assertEquals("https://rr1.googlevideo.com/muxed_720.mp4", bestMuxed)
+        assertEquals("https://rr1.googlevideo.com/video_only_480.mp4", bestVideoOnly)
+
+        val sampleClips = listOf(
+            MusicTrackPreset(
+                id = "ytm_abc1",
+                title = "Sawa Romance",
+                artist = "Locko",
+                streamUrl = "ytmusic://abc1",
+                durationSeconds = 215,
+                itemKind = MusicItemKind.CLIP
+            ),
+            MusicTrackPreset(
+                id = "ytm_abc2",
+                title = "Bikutsi VIP",
+                artist = "Lady Ponce",
+                streamUrl = "ytmusic://abc2",
+                durationSeconds = 242,
+                itemKind = MusicItemKind.CLIP
+            )
+        )
+        val playlistState = MusicPlaybackState(
+            track = sampleClips.first(),
+            isPlaying = true,
+            queueSize = sampleClips.size,
+            queueIndex = 0,
+            queueTracks = sampleClips,
+            activeCollectionTitle = "Hits Cameroun 2026",
+            activeCollectionKind = MusicItemKind.PLAYLIST,
+            isPlaylistExpanded = true,
+            videoClipModeEnabled = true,
+            hasRenderedVideo = true
+        )
+        assertTrue(playlistState.videoClipModeEnabled)
+        assertTrue(playlistState.isPlaylistExpanded)
+        assertEquals(2, playlistState.queueTracks.size)
+        assertEquals("03:35", UniverseScreenAdapter.MusicDeckHolder.formatTimeMs(215_000L))
+        assertEquals("1:05:09", UniverseScreenAdapter.MusicDeckHolder.formatTimeMs(3_909_000L))
+
+        val layoutDir = java.io.File("src/main/res/layout").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/res/layout")
+        val musicLayouts = listOf(
+            "item_universe_music_deck.xml",
+            "item_universe_music_playlist_queue.xml",
+            "item_music_playlist_track_row.xml",
+            "dialog_missa_music_fullscreen_clip.xml"
+        )
+        val hexColorRegex = Regex("#[0-9A-Fa-f]{6,8}")
+        val rawSpRegex = Regex("\"\\d+(\\.\\d+)?sp\"")
+        for (fileName in musicLayouts) {
+            val f = java.io.File(layoutDir, fileName)
+            assertTrue("Expected layout $fileName to exist", f.isFile)
+            val xml = f.readText()
+            assertFalse("Layout $fileName must not contain hardcoded hex colors", hexColorRegex.containsMatchIn(xml))
+            assertFalse("Layout $fileName must not contain hardcoded sp sizes", rawSpRegex.containsMatchIn(xml))
+        }
+        assertTrue(java.io.File(layoutDir, "item_universe_music_deck.xml").readText().contains("music_deck_video_surface"))
+        assertTrue(java.io.File(layoutDir, "item_universe_music_playlist_queue.xml").readText().contains("music_playlist_tracks_recycler"))
+    }
 }

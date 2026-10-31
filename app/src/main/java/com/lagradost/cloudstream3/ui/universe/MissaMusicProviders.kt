@@ -28,6 +28,7 @@ import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.StreamType
+import org.schabi.newpipe.extractor.stream.VideoStream
 import java.net.URLEncoder
 import java.text.Normalizer
 import java.util.Calendar
@@ -206,8 +207,17 @@ object MissaMusicProviders {
         }
     }
 
-    private data class CachedResolvedAudio(
-        val urls: List<String>,
+    data class ResolvedYouTubeMedia(
+        val audioUrls: List<String>,
+        val muxedVideoUrl: String? = null,
+        val videoOnlyUrl: String? = null
+    ) {
+        val hasPlayableStream: Boolean
+            get() = audioUrls.isNotEmpty() || !muxedVideoUrl.isNullOrBlank()
+    }
+
+    private data class CachedResolvedMedia(
+        val media: ResolvedYouTubeMedia,
         val expiresAtMs: Long
     )
 
@@ -231,8 +241,8 @@ object MissaMusicProviders {
     private var newPipeInitialized = false
 
     private val audioCacheLock = Any()
-    private val resolvedAudioCache = LinkedHashMap<String, CachedResolvedAudio>(64, 0.75f, true)
-    private val inFlightAudioResolutions = HashMap<String, CompletableDeferred<List<String>>>()
+    private val resolvedAudioCache = LinkedHashMap<String, CachedResolvedMedia>(64, 0.75f, true)
+    private val inFlightAudioResolutions = HashMap<String, CompletableDeferred<ResolvedYouTubeMedia>>()
 
     private val searchCacheLock = Any()
     private val searchResultsCache = LinkedHashMap<String, CachedSearchBatch>(24, 0.75f, true)
@@ -987,8 +997,9 @@ object MissaMusicProviders {
                 val tracks = ArrayList<MusicTrackPreset>(streamItems.size)
                 val seenIds = HashSet<String>()
 
+                val isAlbumStyleCover = isStudioSquareArtworkUrl(albumCover)
                 for (streamItem in streamItems) {
-                    if (tracks.size >= 50) break
+                    if (tracks.size >= 80) break
                     val st = streamItem.streamType
                     if (st == StreamType.LIVE_STREAM || st == StreamType.AUDIO_LIVE_STREAM) continue
                     val dur = streamItem.duration
@@ -1004,7 +1015,7 @@ object MissaMusicProviders {
                         rawTitle,
                         streamItem.uploaderName ?: albumUploader
                     )
-                    val trackArt = if (isStudioSquareArtworkUrl(albumCover)) {
+                    val trackArt = if (isAlbumStyleCover) {
                         albumCover
                     } else {
                         pickBestThumbnailUrl(
@@ -1025,7 +1036,7 @@ object MissaMusicProviders {
                             durationSeconds = dur.coerceAtLeast(0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                             providerName = PROVIDER_YOUTUBE_MUSIC,
                             isPipedLazy = true,
-                            itemKind = MusicItemKind.SONG
+                            itemKind = if (isAlbumStyleCover) MusicItemKind.SONG else MusicItemKind.CLIP
                         )
                     )
                 }
@@ -1064,6 +1075,69 @@ object MissaMusicProviders {
             .distinct()
     }
 
+    /**
+     * Selects crisp, fast-starting YouTube video streams (`360p..720p`) for the top MP3/Clip
+     * player monitor without pulling heavy `1080p`/`4K` streams:
+     * 1. [Pair.first] = progressive muxed MP4 (`video + audio` in a single HTTP stream),
+     * 2. [Pair.second] = progressive H.264/MP4 video-only stream (merged with cached audio in ExoPlayer).
+     */
+    fun selectBestVideoStreams(
+        muxedStreams: List<VideoStream>,
+        videoOnlyStreams: List<VideoStream>
+    ): Pair<String?, String?> {
+        val resDigitsRegex = Regex("(\\d{3,4})p", RegexOption.IGNORE_CASE)
+        fun effectiveHeight(stream: VideoStream): Int {
+            if (stream.height > 0) return stream.height
+            return resDigitsRegex.find(stream.getResolution())
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toIntOrNull()
+                ?: 0
+        }
+
+        fun heightScore(height: Int): Int = when {
+            height in 480..720 -> 4
+            height in 360..479 -> 3
+            height in 240..359 -> 2
+            height in 721..1080 -> 1
+            else -> 0
+        }
+
+        val bestMuxed = muxedStreams
+            .filter { stream ->
+                stream.isUrl &&
+                    !stream.content.isNullOrBlank() &&
+                    stream.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
+                    (stream.format == MediaFormat.MPEG_4 || stream.format == null)
+            }
+            .sortedWith(
+                compareByDescending<VideoStream> { heightScore(effectiveHeight(it)) }
+                    .thenByDescending { effectiveHeight(it) }
+            )
+            .firstOrNull()
+            ?.content
+
+        val bestVideoOnly = videoOnlyStreams
+            .filter { stream ->
+                val codecLower = stream.codec?.lowercase(Locale.ROOT).orEmpty()
+                val h = effectiveHeight(stream)
+                stream.isUrl &&
+                    !stream.content.isNullOrBlank() &&
+                    stream.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
+                    (stream.format == MediaFormat.MPEG_4 || codecLower.startsWith("avc")) &&
+                    h in 240..720
+            }
+            .sortedWith(
+                compareByDescending<VideoStream> { heightScore(effectiveHeight(it)) }
+                    .thenByDescending { it.codec?.lowercase(Locale.ROOT)?.startsWith("avc") == true }
+                    .thenByDescending { effectiveHeight(it) }
+            )
+            .firstOrNull()
+            ?.content
+
+        return bestMuxed to bestVideoOnly
+    }
+
     fun invalidateCachedAudio(streamUrlOrVideoId: String) {
         val videoId = extractYouTubeVideoId(streamUrlOrVideoId) ?: streamUrlOrVideoId.trim()
         if (videoId.isEmpty()) return
@@ -1077,20 +1151,20 @@ object MissaMusicProviders {
         val now = System.currentTimeMillis()
         synchronized(audioCacheLock) {
             val cached = resolvedAudioCache[videoId] ?: return false
-            return cached.expiresAtMs > now && cached.urls.isNotEmpty()
+            return cached.expiresAtMs > now && cached.media.hasPlayableStream
         }
     }
 
-    private suspend fun resolveYouTubeAudioStreamUrls(videoId: String): List<String> {
-        if (videoId.isBlank()) return emptyList()
+    private suspend fun resolveYouTubeMediaStreams(videoId: String): ResolvedYouTubeMedia {
+        if (videoId.isBlank()) return ResolvedYouTubeMedia(emptyList())
         val now = System.currentTimeMillis()
-        var existingDeferred: CompletableDeferred<List<String>>? = null
-        var ownedDeferred: CompletableDeferred<List<String>>? = null
+        var existingDeferred: CompletableDeferred<ResolvedYouTubeMedia>? = null
+        var ownedDeferred: CompletableDeferred<ResolvedYouTubeMedia>? = null
 
         synchronized(audioCacheLock) {
             val cached = resolvedAudioCache[videoId]
-            if (cached != null && cached.expiresAtMs > now && cached.urls.isNotEmpty()) {
-                return cached.urls
+            if (cached != null && cached.expiresAtMs > now && cached.media.hasPlayableStream) {
+                return cached.media
             }
             val inFlight = inFlightAudioResolutions[videoId]
             if (inFlight != null) {
@@ -1110,24 +1184,33 @@ object MissaMusicProviders {
                     val watchUrl = "https://www.youtube.com/watch?v=$videoId"
                     val streamInfo = StreamInfo.getInfo(ServiceList.YouTube, watchUrl)
                     val sortedAudio = sortNewPipeAudioStreams(streamInfo.audioStreams.orEmpty())
-                    if (sortedAudio.isNotEmpty()) {
+                    val (muxedVideo, videoOnly) = selectBestVideoStreams(
+                        muxedStreams = streamInfo.videoStreams.orEmpty(),
+                        videoOnlyStreams = streamInfo.videoOnlyStreams.orEmpty()
+                    )
+                    val finalAudio = if (sortedAudio.isNotEmpty()) {
                         sortedAudio
                     } else {
                         val hls = streamInfo.hlsUrl?.trim().orEmpty()
                         if (hls.startsWith("http", ignoreCase = true)) listOf(hls) else emptyList()
                     }
-                }.getOrDefault(emptyList())
+                    ResolvedYouTubeMedia(
+                        audioUrls = finalAudio,
+                        muxedVideoUrl = muxedVideo,
+                        videoOnlyUrl = videoOnly
+                    )
+                }.getOrDefault(ResolvedYouTubeMedia(emptyList()))
             }
-        } ?: emptyList()
+        } ?: ResolvedYouTubeMedia(emptyList())
 
         synchronized(audioCacheLock) {
             inFlightAudioResolutions.remove(videoId)
-            if (resolved.isNotEmpty()) {
+            if (resolved.hasPlayableStream) {
                 if (resolvedAudioCache.size >= MAX_AUDIO_CACHE_ENTRIES) {
                     resolvedAudioCache.entries.firstOrNull()?.key?.let { resolvedAudioCache.remove(it) }
                 }
-                resolvedAudioCache[videoId] = CachedResolvedAudio(
-                    urls = resolved,
+                resolvedAudioCache[videoId] = CachedResolvedMedia(
+                    media = resolved,
                     expiresAtMs = System.currentTimeMillis() + RESOLVED_AUDIO_TTL_MS
                 )
             }
@@ -1136,18 +1219,24 @@ object MissaMusicProviders {
         return resolved
     }
 
+    suspend fun resolvePlayableYouTubeMedia(
+        streamUrl: String,
+        fallbackUrls: List<String> = emptyList()
+    ): ResolvedYouTubeMedia {
+        if (isLazyYouTubeAudioScheme(streamUrl)) {
+            val videoId = extractYouTubeVideoId(streamUrl).orEmpty()
+            return resolveYouTubeMediaStreams(videoId)
+        }
+        val directUrls = (listOf(streamUrl) + fallbackUrls).filter {
+            it.startsWith("https://", ignoreCase = true) || it.startsWith("http://", ignoreCase = true)
+        }.distinct()
+        return ResolvedYouTubeMedia(audioUrls = directUrls)
+    }
+
     suspend fun resolvePlayableAudioUrls(
         streamUrl: String,
         fallbackUrls: List<String> = emptyList()
-    ): List<String> {
-        if (isLazyYouTubeAudioScheme(streamUrl)) {
-            val videoId = extractYouTubeVideoId(streamUrl).orEmpty()
-            return resolveYouTubeAudioStreamUrls(videoId)
-        }
-        return (listOf(streamUrl) + fallbackUrls).filter {
-            it.startsWith("https://", ignoreCase = true) || it.startsWith("http://", ignoreCase = true)
-        }.distinct()
-    }
+    ): List<String> = resolvePlayableYouTubeMedia(streamUrl, fallbackUrls).audioUrls
 
     // -------------------------------------------------------------------------
     // Progressive Style-Driven YouTube Catalog & On-Demand Search
