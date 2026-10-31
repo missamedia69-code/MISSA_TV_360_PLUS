@@ -1332,8 +1332,66 @@ class MediaUniverseClassifierTest {
             assertFalse("Layout $fileName must not contain hardcoded hex colors", hexColorRegex.containsMatchIn(xml))
             assertFalse("Layout $fileName must not contain hardcoded sp sizes", rawSpRegex.containsMatchIn(xml))
         }
-        assertTrue(java.io.File(layoutDir, "item_universe_music_deck.xml").readText().contains("music_deck_video_surface"))
+        val deckXml = java.io.File(layoutDir, "item_universe_music_deck.xml").readText()
+        assertTrue(deckXml.contains("music_deck_video_surface"))
+        assertTrue(deckXml.contains("music_deck_video_loading_spinner"))
+        assertTrue(deckXml.contains("music_deck_mode_mp3_btn"))
+        assertTrue(deckXml.contains("music_deck_mode_video_btn"))
         assertTrue(java.io.File(layoutDir, "item_universe_music_playlist_queue.xml").readText().contains("music_playlist_tracks_recycler"))
+    }
+
+    @Test
+    fun `music MP3 and Video mode switching builds full video candidate chain without state races`() {
+        val muxed360 = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("18")
+            .setContent("https://rr1.googlevideo.com/videoplayback?itag=18", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.MPEG_4)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(false)
+            .setResolution("360p")
+            .build()
+
+        val vp9VideoOnly = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("244")
+            .setContent("https://rr1.googlevideo.com/videoplayback?itag=244", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.WEBM)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(true)
+            .setResolution("480p")
+            .build()
+
+        val h264VideoOnly = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("135")
+            .setContent("https://rr1.googlevideo.com/videoplayback?itag=135", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.MPEG_4)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(true)
+            .setResolution("480p")
+            .build()
+
+        val candidates = MissaMusicProviders.buildVideoClipCandidates(
+            muxedStreams = listOf(muxed360),
+            videoOnlyStreams = listOf(vp9VideoOnly, h264VideoOnly),
+            hlsUrl = "https://manifest.googlevideo.com/api/manifest/hls_variant/id/test.m3u8",
+            hasAudioStreams = true
+        )
+        assertEquals(4, candidates.size)
+        assertEquals(MissaMusicProviders.VideoClipSourceKind.MUXED_PROGRESSIVE, candidates[0].kind)
+        assertEquals(MissaMusicProviders.VideoClipSourceKind.VIDEO_ONLY_MERGED, candidates[1].kind)
+        assertEquals("https://rr1.googlevideo.com/videoplayback?itag=135", candidates[1].url)
+        assertEquals("https://rr1.googlevideo.com/videoplayback?itag=244", candidates[2].url)
+        assertEquals(MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE, candidates[3].kind)
+
+        val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
+        val managerSrc = java.io.File(javaRoot, "ui/universe/DirectMusicPlayerManager.kt").readText()
+        val postValueOccurrences = Regex("_state\\.postValue").findAll(managerSrc).count()
+        assertEquals(
+            "DirectMusicPlayerManager must funnel all state updates through atomic updateState() with a single postValue site",
+            1,
+            postValueOccurrences
+        )
+        assertTrue(managerSrc.contains("fun setVideoClipMode("))
     }
 
     @Test

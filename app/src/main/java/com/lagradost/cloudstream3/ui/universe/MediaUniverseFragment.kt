@@ -650,7 +650,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         if (universeId == "music") {
             // Musiques puts the Sophisticated Studio MP3 & Live Clip Player Console directly at position 0,
             // followed immediately by the interactive Playlist / Album Tracklist whenever opened.
-            val musicState = DirectMusicPlayerManager.state.value ?: MusicPlaybackState()
+            val musicState = DirectMusicPlayerManager.currentState()
             val isFav = musicState.track?.id?.let { DirectMusicPlayerManager.isFavorite(it) } == true
             items.add(UniverseListItem.MusicDeck(musicState = musicState, isFavoriteTrack = isFav))
             if (musicState.isLoadingCollection ||
@@ -1159,7 +1159,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     override fun onMusicToggleFavorite() {
-        val tr = DirectMusicPlayerManager.state.value?.track ?: return
+        val tr = DirectMusicPlayerManager.currentState().track ?: return
         DirectMusicPlayerManager.toggleFavorite(tr.id)
         renderScreen()
     }
@@ -1200,8 +1200,18 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     override fun onMusicToggleVideoClipMode() {
-        DirectMusicPlayerManager.toggleVideoClipMode(requireContext())
+        onMusicSetVideoClipMode(!DirectMusicPlayerManager.currentState().videoClipModeEnabled)
+    }
+
+    override fun onMusicSetVideoClipMode(enabled: Boolean) {
+        val ctx = requireContext()
+        DirectMusicPlayerManager.setVideoClipMode(ctx, enabled)
         renderScreen()
+        Toast.makeText(
+            ctx,
+            if (enabled) R.string.universe_music_mode_clip_toast else R.string.universe_music_mode_mp3_toast,
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     override fun onMusicTogglePlaylistDrawer() {

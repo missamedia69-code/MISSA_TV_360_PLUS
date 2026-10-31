@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.view.isVisible
@@ -285,6 +286,7 @@ internal class UniverseScreenAdapter(
         fun onMusicCycleSleepTimer()
         fun onMusicOpenServerDialog()
         fun onMusicToggleVideoClipMode()
+        fun onMusicSetVideoClipMode(enabled: Boolean)
         fun onMusicTogglePlaylistDrawer()
         fun onMusicSelectQueueTrack(index: Int)
         fun onMusicOpenFullscreenClip(deckPlayerView: PlayerView)
@@ -861,10 +863,12 @@ internal class UniverseScreenAdapter(
         private val controlsColumn: LinearLayout = itemView.findViewById(R.id.music_deck_controls_column)
         private val artworkView: ImageView = itemView.findViewById(R.id.music_deck_artwork)
         private val videoSurface: PlayerView = itemView.findViewById(R.id.music_deck_video_surface)
+        private val videoLoadingSpinner: ProgressBar = itemView.findViewById(R.id.music_deck_video_loading_spinner)
         private val liveBadge: TextView = itemView.findViewById(R.id.music_deck_live_badge)
         private val fullscreenBtn: MaterialButton = itemView.findViewById(R.id.music_deck_fullscreen_btn)
         private val eyebrowView: TextView = itemView.findViewById(R.id.music_deck_eyebrow)
-        private val modeBtn: MaterialButton = itemView.findViewById(R.id.music_deck_mode_btn)
+        private val modeMp3Btn: MaterialButton = itemView.findViewById(R.id.music_deck_mode_mp3_btn)
+        private val modeVideoBtn: MaterialButton = itemView.findViewById(R.id.music_deck_mode_video_btn)
         private val queueBtn: MaterialButton = itemView.findViewById(R.id.music_deck_queue_btn)
         private val addServerBtn: MaterialButton = itemView.findViewById(R.id.music_deck_add_server_btn)
         private val titleView: TextView = itemView.findViewById(R.id.music_deck_title)
@@ -885,11 +889,16 @@ internal class UniverseScreenAdapter(
 
         private var isUserScrubbing = false
         private var boundDurationMs: Long = 0L
-        private var lastArtworkUrl: String? = "__init__"
+        private var lastArtworkKey: String? = "__init__"
         private var lastAppliedLandscape: Boolean? = null
 
         init {
-            modeBtn.setOnClickListener { callbacks.onMusicToggleVideoClipMode() }
+            modeMp3Btn.tag = "missa_pill"
+            modeVideoBtn.tag = "missa_pill"
+            MissaUiFactory.attachInteractiveMotion(modeMp3Btn)
+            MissaUiFactory.attachInteractiveMotion(modeVideoBtn)
+            modeMp3Btn.setOnClickListener { callbacks.onMusicSetVideoClipMode(false) }
+            modeVideoBtn.setOnClickListener { callbacks.onMusicSetVideoClipMode(true) }
             queueBtn.setOnClickListener { callbacks.onMusicTogglePlaylistDrawer() }
             addServerBtn.setOnClickListener { callbacks.onMusicOpenServerDialog() }
             fullscreenBtn.setOnClickListener { callbacks.onMusicOpenFullscreenClip(videoSurface) }
@@ -1011,18 +1020,9 @@ internal class UniverseScreenAdapter(
                 ctx.getString(R.string.universe_music_eyebrow_idle)
             }
 
-            // Clip vs MP3 Studio Mode Button
-            modeBtn.setText(
-                if (state.videoClipModeEnabled) R.string.universe_music_mode_clip
-                else R.string.universe_music_mode_mp3
-            )
-            modeBtn.setIconResource(
-                if (state.videoClipModeEnabled) R.drawable.ic_baseline_ondemand_video_24
-                else R.drawable.ic_missa_music
-            )
-            modeBtn.iconTint = ColorStateList.valueOf(
-                if (state.videoClipModeEnabled) accentColor else primaryTextColor
-            )
+            // Explicit MP3 vs Video Studio Mode Pills (MISSA Yellow active selection)
+            MissaUiFactory.stylePillSelection(modeMp3Btn, selected = !state.videoClipModeEnabled)
+            MissaUiFactory.stylePillSelection(modeVideoBtn, selected = state.videoClipModeEnabled)
 
             // Playlist / Queue Drawer Button
             val hasQueue = state.queueTracks.isNotEmpty() || state.isLoadingCollection
@@ -1062,21 +1062,27 @@ internal class UniverseScreenAdapter(
 
             // Authentic Cover Backdrop
             val artUrl = tr?.artworkUrl?.takeIf { it.isNotBlank() }
-            if (artUrl != lastArtworkUrl) {
-                lastArtworkUrl = artUrl
+            val idleFallbackRes = if (state.videoClipModeEnabled) {
+                R.drawable.ic_baseline_ondemand_video_24
+            } else {
+                R.drawable.ic_missa_music
+            }
+            val artKey = artUrl ?: "idle_${state.videoClipModeEnabled}"
+            if (artKey != lastArtworkKey) {
+                lastArtworkKey = artKey
                 if (artUrl != null) {
                     ImageViewCompat.setImageTintList(artworkView, null)
                     artworkView.scaleType = ImageView.ScaleType.CENTER_CROP
                     artworkView.setPadding(0, 0, 0, 0)
                     artworkView.loadImage(artUrl) {
-                        error { getImageFromDrawable(ctx, R.drawable.ic_missa_music) }
+                        error { getImageFromDrawable(ctx, idleFallbackRes) }
                     }
                 } else {
                     ImageViewCompat.setImageTintList(artworkView, ColorStateList.valueOf(accentColor))
                     artworkView.scaleType = ImageView.ScaleType.CENTER_INSIDE
                     val pad = 44.toPx
                     artworkView.setPadding(pad, pad, pad, pad)
-                    artworkView.setImageResource(R.drawable.ic_missa_music)
+                    artworkView.setImageResource(idleFallbackRes)
                 }
             }
 
@@ -1087,6 +1093,10 @@ internal class UniverseScreenAdapter(
                 state.hasRenderedVideo &&
                 activeExo != null &&
                 !MissaUniverseDialogs.isMusicFullscreenClipDialogOpen
+            val isVideoLoading = tr != null &&
+                state.videoClipModeEnabled &&
+                !showLiveVideo &&
+                (state.isBuffering || DirectMusicPlayerManager.isUsingVideoSource())
 
             if (tr != null && state.videoClipModeEnabled && activeExo != null &&
                 !MissaUniverseDialogs.isMusicFullscreenClipDialogOpen
@@ -1098,13 +1108,16 @@ internal class UniverseScreenAdapter(
                 videoSurface.player = null
             }
             videoSurface.isVisible = showLiveVideo
+            videoLoadingSpinner.isVisible = isVideoLoading
             fullscreenBtn.isVisible = showLiveVideo
 
             liveBadge.setText(
                 when {
                     showLiveVideo -> R.string.universe_music_badge_clip_live
+                    isVideoLoading -> R.string.universe_music_badge_clip_loading
                     tr != null -> R.string.universe_music_badge_mp3_audio
-                    else -> R.string.universe_music_badge_idle
+                    state.videoClipModeEnabled -> R.string.universe_music_badge_clip_ready
+                    else -> R.string.universe_music_badge_mp3_ready
                 }
             )
 
@@ -1157,7 +1170,8 @@ internal class UniverseScreenAdapter(
             }
 
             val topToolbarControls = listOf(
-                modeBtn,
+                modeMp3Btn,
+                modeVideoBtn,
                 queueBtn,
                 addServerBtn
             ).filter { it.isVisible }

@@ -37,12 +37,16 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.ConnectionPool
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 data class RadioPlaybackState(
     val station: RadioStationPreset? = null,
@@ -312,6 +316,9 @@ object DirectRadioPlayerManager {
 
     private const val STREAM_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    private const val YOUTUBE_ORIGIN_URL = "https://www.youtube.com"
+    private val YT_VIDEOPLAYBACK_POST_BODY = byteArrayOf(0x78, 0x00)
+    private val ytRequestCounter = AtomicLong(1L)
 
     private const val MUSIC_AUDIO_DISK_CACHE_BYTES = 128L * 1024L * 1024L // 128 MB LRU cache for on-demand music
     private val musicCacheLock = Any()
@@ -319,6 +326,65 @@ object DirectRadioPlayerManager {
     @OptIn(UnstableApi::class)
     @Volatile
     private var musicSimpleCache: SimpleCache? = null
+
+    /**
+     * Aligns `googlevideo.com/videoplayback` requests with YouTube's client signature rules
+     * (Android / iOS / visionOS / Web User-Agent, `&rn=` sequence number, and automatic fallback
+     * to `POST` `{0x78, 0x00}` if a CDN edge rejects `GET` with HTTP 400/403).
+     */
+    private val youTubePlaybackInterceptor = Interceptor { chain ->
+        val original = chain.request()
+        val host = original.url.host.lowercase(Locale.ROOT)
+        val isGoogleVideo = host.contains("googlevideo.com")
+        if (!isGoogleVideo) {
+            return@Interceptor chain.proceed(original)
+        }
+
+        val rawUrl = original.url.toString()
+        val isVideoPlayback = original.url.encodedPath.startsWith("/videoplayback") &&
+            original.url.query != null &&
+            !rawUrl.contains(".m3u8", ignoreCase = true)
+
+        val effectiveUrl = if (isVideoPlayback && !rawUrl.contains("&rn=") && !rawUrl.contains("?rn=")) {
+            "$rawUrl&rn=${ytRequestCounter.getAndIncrement()}"
+        } else {
+            rawUrl
+        }
+
+        val matchedUa = runCatching {
+            when {
+                YoutubeParsingHelper.isVisionOsStreamingUrl(rawUrl) ->
+                    YoutubeParsingHelper.getVisionOsUserAgent(null)
+                YoutubeParsingHelper.isIosStreamingUrl(rawUrl) ->
+                    YoutubeParsingHelper.getIosUserAgent(null)
+                YoutubeParsingHelper.isAndroidStreamingUrl(rawUrl) ->
+                    YoutubeParsingHelper.getAndroidUserAgent(null)
+                else -> STREAM_USER_AGENT
+            }
+        }.getOrDefault(STREAM_USER_AGENT)
+
+        val builder = original.newBuilder()
+            .url(effectiveUrl)
+            .header("User-Agent", matchedUa)
+
+        if (runCatching { YoutubeParsingHelper.isWebStreamingUrl(rawUrl) }.getOrDefault(false)) {
+            builder.header("Origin", YOUTUBE_ORIGIN_URL)
+            builder.header("Referer", YOUTUBE_ORIGIN_URL)
+        }
+
+        val firstResponse = chain.proceed(builder.build())
+        if (isVideoPlayback &&
+            original.method.equals("GET", ignoreCase = true) &&
+            (firstResponse.code == 403 || firstResponse.code == 400)
+        ) {
+            firstResponse.close()
+            val postReq = builder
+                .post(YT_VIDEOPLAYBACK_POST_BODY.toRequestBody(null, 0, YT_VIDEOPLAYBACK_POST_BODY.size))
+                .build()
+            return@Interceptor chain.proceed(postReq)
+        }
+        firstResponse
+    }
 
     private val audioOkHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
@@ -328,6 +394,7 @@ object DirectRadioPlayerManager {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            .addInterceptor(youTubePlaybackInterceptor)
             .build()
     }
 

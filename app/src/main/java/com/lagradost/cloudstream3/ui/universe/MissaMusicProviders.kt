@@ -207,13 +207,32 @@ object MissaMusicProviders {
         }
     }
 
+    enum class VideoClipSourceKind {
+        MUXED_PROGRESSIVE,
+        HLS_ADAPTIVE,
+        VIDEO_ONLY_MERGED
+    }
+
+    data class VideoClipCandidate(
+        val kind: VideoClipSourceKind,
+        val url: String
+    )
+
     data class ResolvedYouTubeMedia(
         val audioUrls: List<String>,
         val muxedVideoUrl: String? = null,
-        val videoOnlyUrl: String? = null
+        val videoOnlyUrl: String? = null,
+        val hlsVideoUrl: String? = null,
+        val videoCandidates: List<VideoClipCandidate> = emptyList()
     ) {
         val hasPlayableStream: Boolean
-            get() = audioUrls.isNotEmpty() || !muxedVideoUrl.isNullOrBlank()
+            get() = audioUrls.isNotEmpty() || !muxedVideoUrl.isNullOrBlank() || !hlsVideoUrl.isNullOrBlank()
+
+        val hasPlayableVideo: Boolean
+            get() = videoCandidates.isNotEmpty() ||
+                !muxedVideoUrl.isNullOrBlank() ||
+                !hlsVideoUrl.isNullOrBlank() ||
+                (!videoOnlyUrl.isNullOrBlank() && audioUrls.isNotEmpty())
     }
 
     private data class CachedResolvedMedia(
@@ -250,6 +269,7 @@ object MissaMusicProviders {
 
     private val artworkCacheLock = Any()
     private val studioArtworkCache = LinkedHashMap<String, String>(128, 0.75f, true)
+    private val officialClipVideoIdCache = LinkedHashMap<String, String>(64, 0.75f, true)
 
     private val coverLookupSemaphore = Semaphore(4)
     private val youTubeQuerySemaphore = Semaphore(6)
@@ -1138,6 +1158,97 @@ object MissaMusicProviders {
         return bestMuxed to bestVideoOnly
     }
 
+    /**
+     * Builds an ordered failover chain of video clip candidates (`360p..720p` progressive muxed,
+     * adaptive HLS `.m3u8`, and H.264/VP9 video-only streams) so switching to Video Mode reliably
+     * renders moving video even when a particular YouTube CDN format is unavailable.
+     */
+    fun buildVideoClipCandidates(
+        muxedStreams: List<VideoStream>,
+        videoOnlyStreams: List<VideoStream>,
+        hlsUrl: String?,
+        hasAudioStreams: Boolean
+    ): List<VideoClipCandidate> {
+        val resDigitsRegex = Regex("(\\d{3,4})p", RegexOption.IGNORE_CASE)
+        fun effectiveHeight(stream: VideoStream): Int {
+            if (stream.height > 0) return stream.height
+            return resDigitsRegex.find(stream.getResolution())
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toIntOrNull()
+                ?: 0
+        }
+
+        fun heightScore(height: Int): Int = when {
+            height in 480..720 -> 5
+            height in 360..479 -> 4
+            height in 240..359 -> 3
+            height in 721..1080 -> 2
+            height > 0 -> 1
+            else -> 1 // Unknown height when itagItem == null
+        }
+
+        val candidates = ArrayList<VideoClipCandidate>(6)
+        val seenUrls = HashSet<String>()
+
+        // 1. Progressive muxed MP4/WebM streams (single HTTP stream with video + audio)
+        muxedStreams
+            .filter { s ->
+                s.isUrl &&
+                    !s.content.isNullOrBlank() &&
+                    s.deliveryMethod != DeliveryMethod.TORRENT
+            }
+            .sortedWith(
+                compareByDescending<VideoStream> { s -> s.format == MediaFormat.MPEG_4 }
+                    .thenByDescending { s -> heightScore(effectiveHeight(s)) }
+                    .thenByDescending { s -> effectiveHeight(s) }
+            )
+            .take(2)
+            .forEach { s ->
+                if (seenUrls.add(s.content)) {
+                    candidates.add(VideoClipCandidate(VideoClipSourceKind.MUXED_PROGRESSIVE, s.content))
+                }
+            }
+
+        // 2. Adaptive video-only streams merged with cached M4A/Opus audio (H.264 first, then VP9)
+        if (hasAudioStreams) {
+            videoOnlyStreams
+                .filter { s ->
+                    val h = effectiveHeight(s)
+                    s.isUrl &&
+                        !s.content.isNullOrBlank() &&
+                        s.deliveryMethod != DeliveryMethod.TORRENT &&
+                        (h == 0 || h in 144..1080)
+                }
+                .sortedWith(
+                    compareByDescending<VideoStream> { s ->
+                        val c = s.codec?.lowercase(Locale.ROOT).orEmpty()
+                        when {
+                            c.startsWith("avc") || s.format == MediaFormat.MPEG_4 -> 3
+                            c.startsWith("vp9") || c.startsWith("vp09") || s.format == MediaFormat.WEBM -> 2
+                            else -> 1
+                        }
+                    }
+                        .thenByDescending { s -> heightScore(effectiveHeight(s)) }
+                        .thenByDescending { s -> effectiveHeight(s) }
+                )
+                .take(3)
+                .forEach { s ->
+                    if (seenUrls.add(s.content)) {
+                        candidates.add(VideoClipCandidate(VideoClipSourceKind.VIDEO_ONLY_MERGED, s.content))
+                    }
+                }
+        }
+
+        // 3. Apple iOS HLS `.m3u8` master playlist (video + audio)
+        val cleanHls = hlsUrl?.trim().orEmpty()
+        if (cleanHls.startsWith("http", ignoreCase = true) && seenUrls.add(cleanHls)) {
+            candidates.add(VideoClipCandidate(VideoClipSourceKind.HLS_ADAPTIVE, cleanHls))
+        }
+
+        return candidates
+    }
+
     fun invalidateCachedAudio(streamUrlOrVideoId: String) {
         val videoId = extractYouTubeVideoId(streamUrlOrVideoId) ?: streamUrlOrVideoId.trim()
         if (videoId.isEmpty()) return
@@ -1184,20 +1295,34 @@ object MissaMusicProviders {
                     val watchUrl = "https://www.youtube.com/watch?v=$videoId"
                     val streamInfo = StreamInfo.getInfo(ServiceList.YouTube, watchUrl)
                     val sortedAudio = sortNewPipeAudioStreams(streamInfo.audioStreams.orEmpty())
+                    val muxedList = streamInfo.videoStreams.orEmpty()
+                    val videoOnlyList = streamInfo.videoOnlyStreams.orEmpty()
                     val (muxedVideo, videoOnly) = selectBestVideoStreams(
-                        muxedStreams = streamInfo.videoStreams.orEmpty(),
-                        videoOnlyStreams = streamInfo.videoOnlyStreams.orEmpty()
+                        muxedStreams = muxedList,
+                        videoOnlyStreams = videoOnlyList
                     )
+                    val cleanHls = streamInfo.hlsUrl?.trim()?.takeIf {
+                        it.startsWith("http", ignoreCase = true)
+                    }
                     val finalAudio = if (sortedAudio.isNotEmpty()) {
                         sortedAudio
+                    } else if (cleanHls != null) {
+                        listOf(cleanHls)
                     } else {
-                        val hls = streamInfo.hlsUrl?.trim().orEmpty()
-                        if (hls.startsWith("http", ignoreCase = true)) listOf(hls) else emptyList()
+                        emptyList()
                     }
+                    val videoCandidates = buildVideoClipCandidates(
+                        muxedStreams = muxedList,
+                        videoOnlyStreams = videoOnlyList,
+                        hlsUrl = cleanHls,
+                        hasAudioStreams = sortedAudio.isNotEmpty()
+                    )
                     ResolvedYouTubeMedia(
                         audioUrls = finalAudio,
                         muxedVideoUrl = muxedVideo,
-                        videoOnlyUrl = videoOnly
+                        videoOnlyUrl = videoOnly,
+                        hlsVideoUrl = cleanHls,
+                        videoCandidates = videoCandidates
                     )
                 }.getOrDefault(ResolvedYouTubeMedia(emptyList()))
             }
@@ -1217,6 +1342,59 @@ object MissaMusicProviders {
         }
         ownedDeferred?.complete(resolved)
         return resolved
+    }
+
+    /**
+     * When the user activates Video Mode while listening to a YouTube Music `SONG` ("Artist - Topic"
+     * static cover art track), searches for the matching Official Music Video (`MUSIC_VIDEOS`) so
+     * the top monitor displays the actual moving video clip rather than a static cover frame.
+     */
+    suspend fun resolveOfficialVideoClipMediaIfAvailable(track: MusicTrackPreset): ResolvedYouTubeMedia? {
+        if (track.itemKind != MusicItemKind.SONG) return null
+        val songVideoId = extractYouTubeVideoId(track.streamUrl).orEmpty()
+        val query = listOf(track.artist.trim(), track.title.trim())
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+            .trim()
+        if (query.length < 3) return null
+
+        val cacheKey = "${normalizeForMatch(track.artist)}|${normalizeForMatch(track.title)}"
+        val cachedClipVideoId = synchronized(artworkCacheLock) { officialClipVideoIdCache[cacheKey] }
+        if (cachedClipVideoId == "__none__") return null
+        if (!cachedClipVideoId.isNullOrBlank()) {
+            val media = resolveYouTubeMediaStreams(cachedClipVideoId)
+            if (media.hasPlayableVideo) return media
+        }
+
+        val foundClip = withTimeoutOrNull(5_500L) {
+            val clips = searchYouTubeTracksByFilter(
+                query = "$query clip officiel",
+                contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_VIDEOS,
+                maxResults = 5
+            ).ifEmpty {
+                searchYouTubeTracksByFilter(
+                    query = "$query official video",
+                    contentFilter = YoutubeSearchQueryHandlerFactory.VIDEOS,
+                    maxResults = 5
+                )
+            }
+            clips.firstOrNull { cand ->
+                val cid = extractYouTubeVideoId(cand.streamUrl).orEmpty()
+                cid.isNotBlank() && cid != songVideoId
+            }
+        }
+
+        val clipId = foundClip?.let { extractYouTubeVideoId(it.streamUrl) }.orEmpty()
+        synchronized(artworkCacheLock) {
+            if (officialClipVideoIdCache.size >= 64) {
+                officialClipVideoIdCache.entries.firstOrNull()?.key?.let { officialClipVideoIdCache.remove(it) }
+            }
+            officialClipVideoIdCache[cacheKey] = clipId.ifBlank { "__none__" }
+        }
+        if (clipId.isBlank()) return null
+
+        val clipMedia = resolveYouTubeMediaStreams(clipId)
+        return clipMedia.takeIf { it.hasPlayableVideo }
     }
 
     suspend fun resolvePlayableYouTubeMedia(

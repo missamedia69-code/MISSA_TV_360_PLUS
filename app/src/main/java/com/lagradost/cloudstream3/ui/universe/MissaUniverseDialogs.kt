@@ -932,7 +932,7 @@ internal object MissaUniverseDialogs {
             fullscreenPlayerView.player = null
             isMusicFullscreenClipDialogOpen = false
             val currentExo = DirectMusicPlayerManager.peekActiveExoPlayer()
-            if (currentExo != null && DirectMusicPlayerManager.state.value?.videoClipModeEnabled == true) {
+            if (currentExo != null && DirectMusicPlayerManager.currentState().videoClipModeEnabled) {
                 deckPlayerView.player = currentExo
             }
             onDismissed()
