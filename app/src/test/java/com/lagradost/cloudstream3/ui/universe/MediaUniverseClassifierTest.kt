@@ -1284,4 +1284,14 @@ class MediaUniverseClassifierTest {
         // Shorter row [col 0, col 1] when coming from col 4 [584..724] picks nearest adjacent cell (col 1)
         assertEquals(1, MissaTvFocusHelper.pickBestAdjacentIndex(posterCols.take(2), 584, 724))
     }
+
+    @Test
+    fun updaterRepositoryPointsToMissaTvAndRemovesMonkeLocale() {
+        assertEquals("missamedia69-code", com.lagradost.cloudstream3.ui.settings.GithubReleases.APK_USERNAME)
+        assertEquals("MISSA_TV_360_PLUS", com.lagradost.cloudstream3.ui.settings.GithubReleases.APK_REPOSITORY)
+        assertFalse(
+            "Easter-egg monke locale ('qt') must not appear in supported app languages",
+            com.lagradost.cloudstream3.ui.settings.appLanguages.any { it.second == "qt" }
+        )
+    }
 }

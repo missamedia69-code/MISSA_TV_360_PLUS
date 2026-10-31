@@ -2,9 +2,7 @@ package com.lagradost.cloudstream3.ui.settings
 
 import android.content.Context
 import android.net.Uri
-import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.edit
@@ -17,62 +15,28 @@ import com.lagradost.cloudstream3.APIHolder.allProviders
 import com.lagradost.cloudstream3.CloudStreamApp
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
-import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
-import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.databinding.AddRemoveSitesBinding
 import com.lagradost.cloudstream3.databinding.AddSiteInputBinding
-import com.lagradost.cloudstream3.mvvm.logError
-import com.lagradost.cloudstream3.mvvm.safe
-import com.lagradost.cloudstream3.network.initClient
-import com.lagradost.cloudstream3.ui.BasePreferenceFragmentCompat
-import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
-import com.lagradost.cloudstream3.ui.settings.Globals.TV
-import com.lagradost.cloudstream3.ui.settings.Globals.beneneCount
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.getPref
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.hideOn
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.setPaddingBottom
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.setToolBarScrollFlags
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.setUpToolbar
-import com.lagradost.cloudstream3.ui.settings.utils.getChooseFolderLauncher
-import com.lagradost.cloudstream3.utils.BatteryOptimizationChecker.isAppRestricted
-import com.lagradost.cloudstream3.utils.BatteryOptimizationChecker.showBatteryOptimizationDialog
-import com.lagradost.cloudstream3.utils.SingleSelectionHelper.showBottomDialog
 import com.lagradost.cloudstream3.utils.SingleSelectionHelper.showDialog
 import com.lagradost.cloudstream3.utils.SingleSelectionHelper.showMultiDialog
 import com.lagradost.cloudstream3.utils.SubtitleHelper
 import com.lagradost.cloudstream3.utils.UIHelper.dismissSafe
-import com.lagradost.cloudstream3.utils.UIHelper.hideKeyboard
-import com.lagradost.cloudstream3.utils.UIHelper.navigate
 import com.lagradost.cloudstream3.utils.USER_PROVIDER_API
-import com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement
-import com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.getBasePath
-import com.lagradost.cloudstream3.utils.downloader.DownloadQueueManager
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
 import java.util.Locale
 
-// Change local language settings in the app.
 fun getCurrentLocale(context: Context): String {
     val conf = context.resources.configuration
     return ConfigurationCompat.getLocales(conf).get(0)?.toLanguageTag() ?: "en"
 }
 
-/**
- * List of app supported languages.
- * Language code shall be a IETF BCP 47 conformant tag
- *
- * See locales on:
- * https://github.com/unicode-org/cldr-json/blob/main/cldr-json/cldr-core/availableLocales.json
- * https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
- * https://android.googlesource.com/platform/frameworks/base/+/android-16.0.0_r2/core/res/res/values/locale_config.xml
- * https://iso639-3.sil.org/code_tables/639/data/all
-*/
 val appLanguages = arrayListOf(
     /* begin language list */
     Pair("Afrikaans", "af"),
@@ -92,7 +56,6 @@ val appLanguages = arrayListOf(
     Pair("Lietuvių kalba", "lt"),
     Pair("Magyar", "hu"),
     Pair("Malti", "mt"),
-    Pair("mmmm... monke", "qt"),
     Pair("Nederlands", "nl"),
     Pair("Norsk bokmål", "no"),
     Pair("Norsk nynorsk", "nn"),
@@ -138,30 +101,21 @@ val appLanguages = arrayListOf(
     Pair("日本語 (にほんご)", "ja"),
     Pair("正體中文(臺灣)", "zh-TW"),
     Pair("한국어", "ko"),
-/* end language list */
-).sortedBy { it.first.lowercase(Locale.ROOT) } // ye, we go alphabetical, so ppl don't put their lang on top
+    /* end language list */
+).sortedBy { it.first.lowercase(Locale.ROOT) }
 
 fun Pair<String, String>.nameNextToFlagEmoji(): String {
-    // fallback to [A][A] -> [?] question mak flag
     val flag = SubtitleHelper.getFlagFromIso(this.second) ?: "\ud83c\udde6\ud83c\udde6"
-
-    return "$flag\u00a0${this.first}" // \u00a0 non-breaking space
+    return "$flag\u00a0${this.first}"
 }
 
-class SettingsGeneral : BasePreferenceFragmentCompat() {
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setUpToolbar(R.string.category_general)
-        setPaddingBottom()
-        setToolBarScrollFlags()
-    }
-
-    @OptIn(ExperimentalSerializationApi::class) // JsonNames is an experimental annotation for now
+class SettingsGeneral {
+    @OptIn(ExperimentalSerializationApi::class)
     @Serializable
     data class CustomSite(
         @JsonProperty("parentClassName") @JsonAlias("parentJavaClass")
         @SerialName("parentClassName") @JsonNames("parentJavaClass")
-        val parentClassName: String, // ::class.simpleName
+        val parentClassName: String,
         @JsonProperty("name") @SerialName("name") val name: String,
         @JsonProperty("url") @SerialName("url") val url: String,
         @JsonProperty("lang") @SerialName("lang") val lang: String,
@@ -183,6 +137,7 @@ class SettingsGeneral : BasePreferenceFragmentCompat() {
             return getKey<Array<CustomSite>>(USER_PROVIDER_API)?.toMutableList()
                 ?: mutableListOf()
         }
+
         fun showAdd() {
             val providers = allProviders.distinctBy { it::class }.sortedBy { it.name }
             val context = activity
@@ -191,12 +146,15 @@ class SettingsGeneral : BasePreferenceFragmentCompat() {
                 -1,
                 context.getString(R.string.add_site_pref),
                 true,
-                {}) { selection ->
+                {}
+            ) { selection ->
                 val provider = providers.getOrNull(selection) ?: return@showDialog
 
-                val binding : AddSiteInputBinding = AddSiteInputBinding.inflate(LayoutInflater.from(
-                    context
-                ),null,false)
+                val binding: AddSiteInputBinding = AddSiteInputBinding.inflate(
+                    LayoutInflater.from(context),
+                    null,
+                    false
+                )
 
                 val builder =
                     AlertDialog.Builder(context, R.style.AlertDialogCustom)
@@ -221,7 +179,6 @@ class SettingsGeneral : BasePreferenceFragmentCompat() {
                     val newSite = CustomSite(simpleName, name, url, realLang)
                     current.add(newSite)
                     setKey(USER_PROVIDER_API, current.toTypedArray())
-                    // reload apis
                     MainActivity.afterPluginsLoadedEvent.invoke(false)
 
                     dialog.dismissSafe(activity)
@@ -239,7 +196,8 @@ class SettingsGeneral : BasePreferenceFragmentCompat() {
                 current.map { it.name },
                 listOf(),
                 context.getString(R.string.remove_site_pref),
-                {}) { indexes ->
+                {}
+            ) { indexes ->
                 current.removeAll(indexes.map { current[it] })
                 setKey(USER_PROVIDER_API, current.toTypedArray())
             }
@@ -248,10 +206,11 @@ class SettingsGeneral : BasePreferenceFragmentCompat() {
         fun showAddOrDelete() {
             val context = activity
 
-            val binding : AddRemoveSitesBinding = AddRemoveSitesBinding.inflate(
-                LayoutInflater.from(
-                    context
-                ),null,false)
+            val binding: AddRemoveSitesBinding = AddRemoveSitesBinding.inflate(
+                LayoutInflater.from(context),
+                null,
+                false
+            )
             val builder =
                 AlertDialog.Builder(context ?: return, R.style.AlertDialogCustom)
                     .setView(binding.root)
@@ -267,192 +226,6 @@ class SettingsGeneral : BasePreferenceFragmentCompat() {
                 showDelete()
                 dialog.dismissSafe(activity)
             }
-        }
-    }
-
-    private val pathPicker = getChooseFolderLauncher { uri, path ->
-        pickDownloadPath(uri, path)
-    }
-
-    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-        hideKeyboard()
-        setPreferencesFromResource(R.xml.settings_general, rootKey)
-        val settingsManager = PreferenceManager.getDefaultSharedPreferences(requireContext())
-
-
-        getPref(R.string.locale_key)?.setOnPreferenceClickListener { pref ->
-            val current = getCurrentLocale(pref.context)
-            val languageTagsIETF = appLanguages.map { it.second }
-            val languageNames = appLanguages.map { it.nameNextToFlagEmoji() }
-            val currentIndex = languageTagsIETF.indexOf(current)
-
-            activity?.showDialog(
-                languageNames, currentIndex, getString(R.string.app_language), true, { }
-            ) { selectedLangIndex ->
-                try {
-                    val langTagIETF = languageTagsIETF[selectedLangIndex]
-                    CommonActivity.setLocale(activity, langTagIETF)
-                    settingsManager.edit {
-                        putString(getString(R.string.locale_key), langTagIETF)
-                    }
-                    activity?.recreate()
-                } catch (e: Exception) {
-                    logError(e)
-                }
-            }
-            return@setOnPreferenceClickListener true
-        }
-
-        getPref(R.string.battery_optimisation_key)?.hideOn(TV or EMULATOR)?.setOnPreferenceClickListener {
-            val ctx = context ?: return@setOnPreferenceClickListener false
-
-            if (isAppRestricted(ctx)) {
-                ctx.showBatteryOptimizationDialog()
-            } else {
-                showToast(R.string.app_unrestricted_toast)
-            }
-
-            true
-        }
-
-
-
-        getPref(R.string.override_site_key)?.setOnPreferenceClickListener { _ ->
-
-            if (getCurrent().isEmpty()) {
-                showAdd()
-            } else {
-                showAddOrDelete()
-            }
-
-            return@setOnPreferenceClickListener true
-        }
-
-        getPref(R.string.legal_notice_key)?.setOnPreferenceClickListener {
-            val builder: AlertDialog.Builder =
-                AlertDialog.Builder(it.context, R.style.AlertDialogCustom)
-            builder.setTitle(R.string.legal_notice)
-            builder.setMessage(R.string.legal_notice_text)
-            builder.show()
-            return@setOnPreferenceClickListener true
-        }
-
-        getPref(R.string.dns_key)?.setOnPreferenceClickListener {
-            val prefNames = resources.getStringArray(R.array.dns_pref)
-            val prefValues = resources.getIntArray(R.array.dns_pref_values)
-
-            val currentDns =
-                settingsManager.getInt(getString(R.string.dns_key), 0)
-
-            activity?.showBottomDialog(
-                prefNames.toList(),
-                prefValues.indexOf(currentDns),
-                getString(R.string.dns_pref),
-                true,
-                {}) {
-                settingsManager.edit { putInt(getString(R.string.dns_key), prefValues[it]) }
-                (context ?: CloudStreamApp.context)?.let { ctx -> app.initClient(ctx) }
-            }
-            return@setOnPreferenceClickListener true
-        }
-
-        fun getDownloadDirs(): List<String> {
-            return safe {
-                context?.let { ctx ->
-                    val defaultDir = DownloadFileManagement.getDefaultDir(ctx)?.filePath()
-
-                    val first = listOf(defaultDir)
-                    (try {
-                        val currentDir = ctx.getBasePath().let { it.first?.filePath() ?: it.second }
-
-                        (first +
-                                ctx.getExternalFilesDirs("").mapNotNull { it.path } +
-                                currentDir)
-                    } catch (_: Exception) {
-                        first
-                    }).filterNotNull().distinct()
-                }
-            } ?: emptyList()
-        }
-
-        settingsManager.edit { putBoolean(getString(R.string.jsdelivr_proxy_key), getKey<Boolean>(getString(R.string.jsdelivr_proxy_key), false) ?: false) }
-        getPref(R.string.jsdelivr_proxy_key)?.setOnPreferenceChangeListener { _, newValue ->
-            setKey(getString(R.string.jsdelivr_proxy_key), newValue)
-            return@setOnPreferenceChangeListener true
-        }
-
-        getPref(R.string.download_parallel_key)?.setOnPreferenceChangeListener { _, _ ->
-            // Notify that the queue logic has been changed
-            DownloadQueueManager.forceRefreshQueue()
-            return@setOnPreferenceChangeListener true
-        }
-
-        getPref(R.string.download_path_key)?.setOnPreferenceClickListener {
-            val dirs = getDownloadDirs()
-
-            val currentDir =
-                settingsManager.getString(getString(R.string.download_path_key_visual), null)
-                    ?: context?.let { ctx -> DownloadFileManagement.getDefaultDir(ctx)?.filePath() }
-
-            activity?.showBottomDialog(
-                dirs + listOf(getString(R.string.custom)),
-                dirs.indexOf(currentDir),
-                getString(R.string.download_path_pref),
-                true,
-                {}) {
-                // Last = custom
-                if (it == dirs.size) {
-                    try {
-                        pathPicker.launch(Uri.EMPTY)
-                    } catch (e: Exception) {
-                        logError(e)
-                    }
-                } else {
-                    // Sets both visual and actual paths.
-                    // key = used path
-                    // visual = visual path
-                    settingsManager.edit {
-                        putString(getString(R.string.download_path_key), dirs[it])
-                        putString(getString(R.string.download_path_key_visual), dirs[it])
-                    }
-                }
-            }
-            return@setOnPreferenceClickListener true
-        }
-
-        try {
-            beneneCount =
-                settingsManager.getInt(getString(R.string.benene_count), 0)
-            getPref(R.string.benene_count)?.let { pref ->
-                pref.summary =
-                    if (beneneCount <= 0) getString(R.string.benene_count_text_none) else getString(
-                        R.string.benene_count_text
-                    ).format(
-                        beneneCount
-                    )
-
-                pref.setOnPreferenceClickListener {
-                    try {
-                        beneneCount++
-                        if (beneneCount%20 == 0) {
-                            activity?.navigate(R.id.action_navigation_settings_general_to_easterEggMonkeFragment)
-                        }
-                        settingsManager.edit {
-                            putInt(
-                                getString(R.string.benene_count),
-                                beneneCount
-                            )
-                        }
-                        it.summary = getString(R.string.benene_count_text).format(beneneCount)
-                    } catch (e: Exception) {
-                        logError(e)
-                    }
-
-                    return@setOnPreferenceClickListener true
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 }

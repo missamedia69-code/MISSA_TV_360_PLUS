@@ -6,13 +6,16 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.fragment.findNavController
 import com.lagradost.cloudstream3.MainActivity
+import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.USER_AGENT
 import com.lagradost.cloudstream3.databinding.FragmentWebviewBinding
 import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.utils.AppContextUtils.loadRepository
+import com.lagradost.cloudstream3.utils.AppContextUtils.setDefaultFocus
 
 class WebviewFragment : BaseFragment<FragmentWebviewBinding>(
     BaseFragment.BindingCreator.Inflate(FragmentWebviewBinding::inflate)
@@ -48,6 +51,8 @@ class WebviewFragment : BaseFragment<FragmentWebviewBinding>(
             settings.javaScriptEnabled = true
             settings.userAgentString = USER_AGENT
             settings.domStorageEnabled = true
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
 
             loadUrl(url)
         }
@@ -64,7 +69,21 @@ class WebviewFragment : BaseFragment<FragmentWebviewBinding>(
     private class RepoApi(val activity: FragmentActivity?) {
         @JavascriptInterface
         fun installRepo(repoUrl: String) {
-            activity?.loadRepository(repoUrl)
+            val sanitizedUrl = repoUrl.trim()
+            if (!sanitizedUrl.startsWith("https://", ignoreCase = true)) return
+            val hostActivity = activity ?: return
+            hostActivity.runOnUiThread {
+                if (hostActivity.isFinishing || hostActivity.isDestroyed) return@runOnUiThread
+                AlertDialog.Builder(hostActivity)
+                    .setTitle(R.string.add_repository)
+                    .setMessage(sanitizedUrl)
+                    .setPositiveButton(R.string.ok) { _, _ ->
+                        hostActivity.loadRepository(sanitizedUrl)
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+                    .setDefaultFocus()
+            }
         }
     }
 }

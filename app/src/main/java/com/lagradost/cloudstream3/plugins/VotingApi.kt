@@ -1,24 +1,16 @@
 package com.lagradost.cloudstream3.plugins
 
-import android.util.Log
 import android.widget.Toast
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.context
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.R
-import java.security.MessageDigest
-import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.utils.Coroutines.main
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import java.security.MessageDigest
 
 object VotingApi {
-    private const val LOGKEY = "VotingApi"
-    private const val API_DOMAIN = "https://api.countify.xyz"
-
     private fun transformUrl(url: String): String =
         MessageDigest
             .getInstance("SHA-256")
@@ -32,23 +24,8 @@ object VotingApi {
 
     private val votesCache = mutableMapOf<String, Int>()
 
-    private suspend fun readVote(pluginUrl: String): Int {
-        val id = transformUrl(pluginUrl)
-        val url = "$API_DOMAIN/get-total/$id"
-        Log.d(LOGKEY, "Requesting GET: $url")
-        return app.get(url).parsedSafe<CountifyResult>()?.count ?: 0
-    }
-
-    private suspend fun writeVote(pluginUrl: String): Boolean {
-        val id = transformUrl(pluginUrl)
-        val url = "$API_DOMAIN/increment/$id"
-        Log.d(LOGKEY, "Requesting POST: $url")
-        return app.post(url, emptyMap<String, String>())
-            .parsedSafe<CountifyResult>()?.count != null
-    }
-
     suspend fun getVotes(pluginUrl: String): Int =
-        votesCache[pluginUrl] ?: readVote(pluginUrl).also {
+        votesCache[pluginUrl] ?: (if (hasVoted(pluginUrl)) 1 else 0).also {
             votesCache[pluginUrl] = it
         }
 
@@ -84,18 +61,9 @@ object VotingApi {
                 return getVotes(pluginUrl)
             }
 
-            if (writeVote(pluginUrl)) {
-                setKey("cs3-votes/${transformUrl(pluginUrl)}", true)
-                votesCache[pluginUrl] = votesCache[pluginUrl]?.plus(1) ?: 1
-            }
-
+            setKey("cs3-votes/${transformUrl(pluginUrl)}", true)
+            votesCache[pluginUrl] = 1
             return getVotes(pluginUrl)
         }
     }
-
-    @Serializable
-    private data class CountifyResult(
-        @JsonProperty("id") @SerialName("id") val id: String? = null,
-        @JsonProperty("count") @SerialName("count") val count: Int? = null,
-    )
 }

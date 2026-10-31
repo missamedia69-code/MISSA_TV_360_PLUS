@@ -42,8 +42,8 @@ object GithubReleases : GithubRepository {
         @JsonProperty("object") @SerialName("object") val githubObject: GithubObject,
     )
 
-    const val APK_USERNAME = "recloudstream"
-    const val APK_REPOSITORY = "cloudstream"
+    const val APK_USERNAME = "missamedia69-code"
+    const val APK_REPOSITORY = "MISSA_TV_360_PLUS"
     const val APK_PRERELEASE = "pre-release"
     const val APK_CONTENT_TYPE = "application/vnd.android.package-archive"
 

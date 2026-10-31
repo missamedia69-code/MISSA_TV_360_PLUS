@@ -3,22 +3,16 @@ package com.lagradost.cloudstream3.ui.settings
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.Bitmap
-import android.os.Bundle
 import android.os.CountDownTimer
-import android.view.View
 import android.view.View.FOCUS_DOWN
 import android.view.inputmethod.EditorInfo
 import android.widget.TextView
 import androidx.annotation.UiThread
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.edit
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
-import androidx.preference.PreferenceManager
-import androidx.preference.SwitchPreference
 import androidx.recyclerview.widget.RecyclerView
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.openBrowser
-import com.lagradost.cloudstream3.CommonActivity.onDialogDismissedEvent
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.R
@@ -27,51 +21,24 @@ import com.lagradost.cloudstream3.databinding.AccountSwitchBinding
 import com.lagradost.cloudstream3.databinding.AddAccountInputBinding
 import com.lagradost.cloudstream3.databinding.DeviceAuthBinding
 import com.lagradost.cloudstream3.mvvm.logError
-import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.aniListApi
-import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.animeSkipApi
-import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.kitsuApi
-import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.malApi
-import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.openSubtitlesApi
-import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.simklApi
-import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.subDlApi
 import com.lagradost.cloudstream3.syncproviders.AuthLoginResponse
 import com.lagradost.cloudstream3.syncproviders.AuthRepo
 import com.lagradost.cloudstream3.syncproviders.AuthUser
-import com.lagradost.cloudstream3.syncproviders.PlainAuthRepo
-import com.lagradost.cloudstream3.syncproviders.SubtitleRepo
-import com.lagradost.cloudstream3.syncproviders.SyncRepo
-import com.lagradost.cloudstream3.ui.BasePreferenceFragmentCompat
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.getPref
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.hideOn
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.setPaddingBottom
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.setToolBarScrollFlags
-import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.setUpToolbar
-import com.lagradost.cloudstream3.utils.AppContextUtils.html
-import com.lagradost.cloudstream3.utils.BackupUtils
-import com.lagradost.cloudstream3.utils.BiometricAuthenticator.BiometricCallback
-import com.lagradost.cloudstream3.utils.BiometricAuthenticator.authCallback
-import com.lagradost.cloudstream3.utils.BiometricAuthenticator.biometricPrompt
-import com.lagradost.cloudstream3.utils.BiometricAuthenticator.deviceHasPasswordPinLock
-import com.lagradost.cloudstream3.utils.BiometricAuthenticator.isAuthEnabled
-import com.lagradost.cloudstream3.utils.BiometricAuthenticator.promptInfo
-import com.lagradost.cloudstream3.utils.BiometricAuthenticator.startBiometricAuthentication
 import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
-import com.lagradost.cloudstream3.utils.SingleSelectionHelper.showBottomDialogText
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UIHelper.dismissSafe
-import com.lagradost.cloudstream3.utils.UIHelper.hideKeyboard
 import com.lagradost.cloudstream3.utils.UIHelper.hideProgress
 import com.lagradost.cloudstream3.utils.UIHelper.showProgress
 import com.lagradost.cloudstream3.utils.setText
 import com.lagradost.cloudstream3.utils.txt
 import qrcode.QRCode
 
-class SettingsAccount : BasePreferenceFragmentCompat(), BiometricCallback {
+class SettingsAccount {
     companion object {
         /** Used by nginx plugin too */
         @SuppressLint("StringFormatInvalid")
@@ -404,93 +371,6 @@ class SettingsAccount : BasePreferenceFragmentCompat(), BiometricCallback {
             } catch (t: Throwable) {
                 showToast(txt(R.string.authenticated_user_fail, api.name))
                 logError(t)
-            }
-        }
-    }
-
-    private fun updateAuthPreference(enabled: Boolean) {
-        val biometricKey = getString(R.string.biometric_key)
-
-        PreferenceManager.getDefaultSharedPreferences(context ?: return).edit {
-            putBoolean(biometricKey, enabled)
-        }
-        findPreference<SwitchPreference>(biometricKey)?.isChecked = enabled
-    }
-
-    override fun onAuthenticationError() {
-        updateAuthPreference(!isAuthEnabled(context ?: return))
-    }
-
-    override fun onAuthenticationSuccess() {
-        if (isAuthEnabled(context ?: return)) {
-            updateAuthPreference(true)
-            BackupUtils.backup(activity)
-            activity?.showBottomDialogText(
-                getString(R.string.biometric_setting),
-                getString(R.string.biometric_warning).html()
-            ) { onDialogDismissedEvent }
-        } else {
-            updateAuthPreference(false)
-        }
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setUpToolbar(R.string.category_account)
-        setPaddingBottom()
-        setToolBarScrollFlags()
-    }
-
-    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-        hideKeyboard()
-        setPreferencesFromResource(R.xml.settings_account, rootKey)
-
-        //Hides the security  category on TV as it's only Biometric for now
-        getPref(R.string.pref_category_security_key)?.hideOn(TV or EMULATOR)
-
-        getPref(R.string.biometric_key)?.hideOn(TV or EMULATOR)?.setOnPreferenceClickListener {
-            val ctx = context ?: return@setOnPreferenceClickListener false
-
-            if (deviceHasPasswordPinLock(ctx)) {
-                startBiometricAuthentication(
-                    activity ?: return@setOnPreferenceClickListener false,
-                    R.string.biometric_authentication_title,
-                    false
-                )
-                promptInfo?.let {
-                    authCallback = this
-                    biometricPrompt?.authenticate(it)
-                }
-            }
-
-            false
-        }
-
-        val syncApis =
-            listOf(
-                R.string.mal_key to SyncRepo(malApi),
-                R.string.kitsu_key to SyncRepo(kitsuApi),
-                R.string.anilist_key to SyncRepo(aniListApi),
-                R.string.simkl_key to SyncRepo(simklApi),
-                R.string.opensubtitles_key to SubtitleRepo(openSubtitlesApi),
-                R.string.subdl_key to SubtitleRepo(subDlApi),
-                R.string.animeskip_key to PlainAuthRepo(animeSkipApi),
-            )
-
-        for ((key, api) in syncApis) {
-            getPref(key)?.apply {
-                title = api.name
-                setOnPreferenceClickListener {
-                    val activity = activity ?: return@setOnPreferenceClickListener false
-                    val info = api.authUser()
-                    val index = api.accounts.indexOfFirst { account -> account.user.id == info?.id }
-                    if (api.accounts.isNotEmpty()) {
-                        showLoginInfo(activity, api, info, index)
-                    } else {
-                        addAccount(activity, api)
-                    }
-                    return@setOnPreferenceClickListener true
-                }
             }
         }
     }
