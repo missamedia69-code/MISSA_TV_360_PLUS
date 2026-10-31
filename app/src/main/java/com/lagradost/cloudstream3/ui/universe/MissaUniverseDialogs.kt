@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.ui.universe
 import android.app.Activity
 import android.content.Context
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.drawable.ColorDrawable
 import android.text.Editable
 import android.text.TextWatcher
@@ -38,7 +39,6 @@ import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_SHOW_METADATA
 import com.lagradost.cloudstream3.ui.search.SearchClickCallback
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
-import com.lagradost.cloudstream3.ui.settings.Globals.isLandscape
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.utils.AppContextUtils.setDefaultFocus
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
@@ -714,7 +714,9 @@ internal object MissaUniverseDialogs {
             }
         )
 
-        val columns = if (isLayout(TV or EMULATOR) || context.isLandscape()) 3 else 2
+        val isWideLayout = isLayout(TV or EMULATOR) ||
+            context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val columns = if (isWideLayout) 3 else 2
         grid.columnCount = columns
 
         val accentColor = context.colorFromAttribute(R.attr.missaAccentPrimary)
@@ -845,11 +847,16 @@ internal object MissaUniverseDialogs {
         dialog.show()
         dialog.window?.let { win ->
             win.setBackgroundDrawableResource(android.R.color.transparent)
-            if (isLayout(TV or EMULATOR) || context.isLandscape()) {
+            if (isWideLayout) {
                 val maxWidth = (context.resources.displayMetrics.widthPixels * 0.86f).toInt()
                 win.setLayout(maxWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
             }
         }
-        styleButtons.firstOrNull()?.second?.setDefaultFocus() ?: dialog.setDefaultFocus()
+        val firstStyleButton = styleButtons.firstOrNull()?.second
+        if (firstStyleButton != null) {
+            firstStyleButton.post { firstStyleButton.requestFocus() }
+        } else {
+            dialog.setDefaultFocus()
+        }
     }
 }
