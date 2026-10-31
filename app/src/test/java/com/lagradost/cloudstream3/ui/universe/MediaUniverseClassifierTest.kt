@@ -1335,4 +1335,74 @@ class MediaUniverseClassifierTest {
         assertTrue(java.io.File(layoutDir, "item_universe_music_deck.xml").readText().contains("music_deck_video_surface"))
         assertTrue(java.io.File(layoutDir, "item_universe_music_playlist_queue.xml").readText().contains("music_playlist_tracks_recycler"))
     }
+
+    @Test
+    fun `all custom RecyclerView focus interceptors guard against detached focused views`() {
+        assertEquals(
+            MissaTvFocusHelper.FocusSearchOutcome.RETURN_FOCUSED_ONLY,
+            MissaTvFocusHelper.resolveFocusSearchOutcome(
+                sameAsFocused = true,
+                focusedStillAttached = false,
+                targetValidAndAttached = false
+            )
+        )
+        assertEquals(
+            MissaTvFocusHelper.FocusSearchOutcome.REQUEST_TARGET_AND_RETURN_FOCUSED,
+            MissaTvFocusHelper.resolveFocusSearchOutcome(
+                sameAsFocused = false,
+                focusedStillAttached = false,
+                targetValidAndAttached = true
+            )
+        )
+        assertEquals(
+            MissaTvFocusHelper.FocusSearchOutcome.RETURN_FOCUSED_ONLY,
+            MissaTvFocusHelper.resolveFocusSearchOutcome(
+                sameAsFocused = false,
+                focusedStillAttached = false,
+                targetValidAndAttached = false
+            )
+        )
+        assertEquals(
+            MissaTvFocusHelper.FocusSearchOutcome.RETURN_TARGET,
+            MissaTvFocusHelper.resolveFocusSearchOutcome(
+                sameAsFocused = false,
+                focusedStillAttached = true,
+                targetValidAndAttached = true
+            )
+        )
+        assertEquals(
+            MissaTvFocusHelper.FocusSearchOutcome.RETURN_NULL,
+            MissaTvFocusHelper.resolveFocusSearchOutcome(
+                sameAsFocused = false,
+                focusedStillAttached = true,
+                targetValidAndAttached = false
+            )
+        )
+
+        val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
+        val guardedFiles = listOf(
+            "ui/universe/MissaTvFocusNavigation.kt",
+            "ui/result/LinearListLayout.kt",
+            "ui/CustomRecyclerViews.kt",
+            "widget/LinearRecycleViewLayoutManager.kt"
+        )
+        for (relPath in guardedFiles) {
+            val file = java.io.File(javaRoot, relPath)
+            assertTrue("Expected $relPath to exist", file.isFile)
+            assertTrue(
+                "$relPath must guard onInterceptFocusSearch via safeFocusSearchReturn",
+                file.readText().contains("safeFocusSearchReturn")
+            )
+        }
+        val commonActivityText = java.io.File(javaRoot, "CommonActivity.kt").readText()
+        assertTrue(
+            "CommonActivity.dispatchKeyEvent must sanitize detached windowFocused views",
+            commonActivityText.contains("MissaTvFocusHelper.isDescendantOf(windowFocused, decorView)")
+        )
+        assertTrue(
+            "CommonActivity.continueGetNextFocus must prevent cross-window ViewRootImpl returns",
+            commonActivityText.contains("next.rootView !== viewWindowRoot")
+        )
+    }
 }

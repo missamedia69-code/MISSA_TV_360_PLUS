@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.widget
 import android.content.Context
 import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
 
 class LinearRecycleViewLayoutManager(
     val context: Context,
@@ -10,10 +11,10 @@ class LinearRecycleViewLayoutManager(
     val nextFocusDown: Int
 ) : LinearLayoutManager(context) {
     override fun onInterceptFocusSearch(focused: View, direction: Int): View? {
-        return try {
-            val position = getPosition(focused)
+        val raw = try {
+            val itemView = findContainingItemView(focused)
+            val position = if (itemView != null) getPosition(itemView) else getPosition(focused)
             val count = itemCount
-            //println("onInterceptFocusSearch position=$position count=$count focused=$focused direction=$direction")
 
             (if (position == count - 1 && direction == View.FOCUS_DOWN) {
                 focused.rootView.findViewById(nextFocusDown)
@@ -22,9 +23,10 @@ class LinearRecycleViewLayoutManager(
             } else {
                 super.onInterceptFocusSearch(focused, direction)
             }) ?: super.onInterceptFocusSearch(focused, direction)
-        } catch (t : Throwable)  {
+        } catch (t: Throwable) {
             super.onInterceptFocusSearch(focused, direction)
         }
+        return MissaTvFocusHelper.safeFocusSearchReturn(null, focused, raw, direction)
     }
 }
 

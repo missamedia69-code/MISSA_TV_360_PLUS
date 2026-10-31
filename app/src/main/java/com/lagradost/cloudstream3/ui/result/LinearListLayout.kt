@@ -137,6 +137,11 @@ open class LinearListLayout(context: Context?) :
     }
 
     override fun onInterceptFocusSearch(focused: View, direction: Int): View? {
+        val raw = computeInterceptedLinearFocusTarget(focused, direction)
+        return MissaTvFocusHelper.safeFocusSearchReturn(focused.parent as? View, focused, raw, direction)
+    }
+
+    private fun computeInterceptedLinearFocusTarget(focused: View, direction: Int): View? {
         val itemView = findContainingItemView(focused) ?: return null
         val dir = if (orientation == HORIZONTAL) {
             if (direction == View.FOCUS_DOWN) {

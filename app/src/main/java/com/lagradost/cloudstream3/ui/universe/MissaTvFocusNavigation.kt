@@ -293,6 +293,88 @@ internal object MissaTvFocusHelper {
             }
         }
     }
+
+    fun isDescendantOf(child: View?, ancestor: View?): Boolean {
+        if (child == null || ancestor == null) return false
+        var cur: View? = child
+        while (cur != null) {
+            if (cur === ancestor) return true
+            cur = cur.parent as? View
+        }
+        return false
+    }
+
+    enum class FocusSearchOutcome {
+        RETURN_TARGET,
+        RETURN_FOCUSED_ONLY,
+        REQUEST_TARGET_AND_RETURN_FOCUSED,
+        RETURN_NULL
+    }
+
+    fun resolveFocusSearchOutcome(
+        sameAsFocused: Boolean,
+        focusedStillAttached: Boolean,
+        targetValidAndAttached: Boolean
+    ): FocusSearchOutcome {
+        if (sameAsFocused) return FocusSearchOutcome.RETURN_FOCUSED_ONLY
+        if (!focusedStillAttached) {
+            return if (targetValidAndAttached) {
+                FocusSearchOutcome.REQUEST_TARGET_AND_RETURN_FOCUSED
+            } else {
+                FocusSearchOutcome.RETURN_FOCUSED_ONLY
+            }
+        }
+        return if (targetValidAndAttached) {
+            FocusSearchOutcome.RETURN_TARGET
+        } else {
+            FocusSearchOutcome.RETURN_NULL
+        }
+    }
+
+    /**
+     * Prevents `IllegalArgumentException: parameter must be a descendant of this view` in
+     * Android's `ViewRootImpl$ViewPostImeInputStage.performFocusNavigation` and
+     * `RecyclerView.focusSearch` whenever synchronous `scrollBy(...)` inside
+     * `onInterceptFocusSearch` recycles/detaches [focused] (or [target]) from the window root:
+     *
+     * 1. If [focused] was detached from `decorRoot` during scrolling:
+     *    - Directly focuses [target] (when valid & attached to `decorRoot`),
+     *    - Returns [focused] (`result === focused`, non-null), which causes BOTH
+     *      `RecyclerView.focusSearch` (`if (result != null) return result`) AND
+     *      `ViewRootImpl.performFocusNavigation` (`if (v != null && v != focused)`) to exit
+     *      immediately without calling `offsetDescendantRectToMyCoords` on the detached [focused]!
+     * 2. If [focused] is still attached, returns [target] only when [target] is also attached to
+     *    `decorRoot` (otherwise `null`).
+     */
+    fun safeFocusSearchReturn(
+        containerView: View?,
+        focused: View,
+        target: View?,
+        direction: Int = View.FOCUS_DOWN
+    ): View? {
+        if (target === focused) return focused
+        val decorRoot = containerView?.rootView ?: focused.rootView
+        val focusedStillAttached = focused.isAttachedToWindow && isDescendantOf(focused, decorRoot)
+        val targetValidAndAttached = target != null &&
+            target.isAttachedToWindow &&
+            isDescendantOf(target, decorRoot)
+
+        return when (
+            resolveFocusSearchOutcome(
+                sameAsFocused = false,
+                focusedStillAttached = focusedStillAttached,
+                targetValidAndAttached = targetValidAndAttached
+            )
+        ) {
+            FocusSearchOutcome.REQUEST_TARGET_AND_RETURN_FOCUSED -> {
+                target?.requestFocus(direction)
+                focused
+            }
+            FocusSearchOutcome.RETURN_FOCUSED_ONLY -> focused
+            FocusSearchOutcome.RETURN_TARGET -> target
+            FocusSearchOutcome.RETURN_NULL -> null
+        }
+    }
 }
 
 /**
@@ -325,6 +407,11 @@ class MissaAlignedGridLayoutManager(
     }
 
     override fun onInterceptFocusSearch(focused: View, direction: Int): View? {
+        val rawTarget = computeInterceptedGridFocusTarget(focused, direction)
+        return MissaTvFocusHelper.safeFocusSearchReturn(attachedRecyclerView, focused, rawTarget, direction)
+    }
+
+    private fun computeInterceptedGridFocusTarget(focused: View, direction: Int): View? {
         if (itemCount <= 0) return null
         val itemView = findContainingItemView(focused) ?: return null
         val fromPos = getPosition(itemView)
@@ -562,19 +649,35 @@ class MissaVerticalUniverseLayoutManager(
     }
 
     override fun onInterceptFocusSearch(focused: View, direction: Int): View? {
+        val rv = attachedRecyclerView
         if (direction != View.FOCUS_DOWN && direction != View.FOCUS_UP) {
-            return super.onInterceptFocusSearch(focused, direction)
+            val delegated = super.onInterceptFocusSearch(focused, direction)
+            return MissaTvFocusHelper.safeFocusSearchReturn(rv, focused, delegated, direction)
         }
-        val rv = attachedRecyclerView ?: return super.onInterceptFocusSearch(focused, direction)
-        val rowView = findContainingItemView(focused) ?: return super.onInterceptFocusSearch(focused, direction)
+        if (rv == null) return null
+        val rowView = findContainingItemView(focused)
+            ?: return MissaTvFocusHelper.safeFocusSearchReturn(rv, focused, null, direction)
         val currentRowPos = getPosition(rowView)
-        if (currentRowPos == RecyclerView.NO_POSITION) return null
+        if (currentRowPos == RecyclerView.NO_POSITION) {
+            return MissaTvFocusHelper.safeFocusSearchReturn(rv, focused, null, direction)
+        }
 
+        val resolved = computeInterceptedVerticalTarget(rv, rowView, currentRowPos, focused, direction)
+        return MissaTvFocusHelper.safeFocusSearchReturn(rv, focused, resolved, direction)
+    }
+
+    private fun computeInterceptedVerticalTarget(
+        rv: RecyclerView,
+        rowView: View,
+        currentRowPos: Int,
+        focused: View,
+        direction: Int
+    ): View? {
         val (focusedLeft, focusedRight) = MissaTvFocusHelper.screenHorizontalBounds(focused, tmpLoc)
 
-        // 1. Check intra-row vertical navigation first (decks, hero controls, embedded grids, or header buttons)
+        // 1. Check intra-row vertical navigation first (decks, hero controls, embedded grids/tracklists, or header buttons)
         findIntraRowVerticalTarget(rv, rowView, focused, direction, focusedLeft, focusedRight)?.let { intra ->
-            ensureDescendantVisibleVertically(rv, intra)
+            ensureDescendantVisibleVertically(rv, intra, focused)
             return intra
         }
 
@@ -582,11 +685,11 @@ class MissaVerticalUniverseLayoutManager(
         val step = if (direction == View.FOCUS_DOWN) +1 else -1
         var candidatePos = currentRowPos + step
         while (candidatePos in 0 until itemCount) {
-            val nextRowView = bringRowIntoViewport(rv, candidatePos, step, rowView.height)
+            val nextRowView = bringRowIntoViewport(rv, candidatePos, step, focused)
             if (nextRowView != null) {
                 val alignedTarget = findAlignedTargetInRow(nextRowView, direction, focusedLeft, focusedRight)
                 if (alignedTarget != null) {
-                    ensureDescendantVisibleVertically(rv, alignedTarget)
+                    ensureDescendantVisibleVertically(rv, alignedTarget, focused)
                     return alignedTarget
                 }
             }
@@ -641,8 +744,11 @@ class MissaVerticalUniverseLayoutManager(
         focusedLeft: Int,
         focusedRight: Int
     ): View? {
-        // Case A: Focused is a row header action button (`Voir tout` / `Tout effacer`)
-        if (focused.id == R.id.row_see_all_button || focused.id == R.id.resume_clear_all_btn) {
+        // Case A: Focused is a row header action button (`Voir tout` / `Tout effacer` / `Masquer`)
+        if (focused.id == R.id.row_see_all_button ||
+            focused.id == R.id.resume_clear_all_btn ||
+            focused.id == R.id.music_playlist_close_btn
+        ) {
             if (direction == View.FOCUS_DOWN) {
                 val childRv = findPrimaryChildRecycler(rowView)
                 if (childRv != null) {
@@ -680,6 +786,27 @@ class MissaVerticalUniverseLayoutManager(
                     masterRv.scrollBy(0, stepY)
                 }
                 return lm.findViewByPosition(nextGridPos)
+            }
+            if (lm is LinearLayoutManager && lm.orientation == VERTICAL) {
+                val itemView = lm.findContainingItemView(focused) ?: return null
+                val fromPos = lm.getPosition(itemView)
+                if (fromPos == RecyclerView.NO_POSITION) return null
+                val step = if (direction == View.FOCUS_DOWN) +1 else -1
+                val nextPos = fromPos + step
+                if (nextPos !in 0 until lm.itemCount) {
+                    if (direction == View.FOCUS_UP) {
+                        findOverlappingRowHeaderButton(rowView, focusedLeft, focusedRight)?.let { return it }
+                    }
+                    return null
+                }
+                lm.findViewByPosition(nextPos)?.let { return it }
+                val stepY = itemView.height.coerceAtLeast(64) * step
+                if (containingChildRv.canScrollVertically(step)) {
+                    containingChildRv.scrollBy(0, stepY)
+                } else if (masterRv.canScrollVertically(step)) {
+                    masterRv.scrollBy(0, stepY)
+                }
+                return lm.findViewByPosition(nextPos)
             }
         }
 
@@ -727,7 +854,11 @@ class MissaVerticalUniverseLayoutManager(
         focusedRight: Int
     ): View? {
         if (rowView !is ViewGroup) return null
-        val headerIds = intArrayOf(R.id.row_see_all_button, R.id.resume_clear_all_btn)
+        val headerIds = intArrayOf(
+            R.id.row_see_all_button,
+            R.id.resume_clear_all_btn,
+            R.id.music_playlist_close_btn
+        )
         for (id in headerIds) {
             val btn = rowView.findViewById<View>(id) ?: continue
             if (!btn.isShown || !btn.isFocusable || btn.width <= 0) continue
@@ -744,13 +875,13 @@ class MissaVerticalUniverseLayoutManager(
         rv: RecyclerView,
         targetPos: Int,
         step: Int,
-        referenceRowHeight: Int
+        focused: View
     ): View? {
-        val fallbackStepPx = referenceRowHeight.coerceAtLeast(180) * step
+        val incrementalStepPx = 96 * step
         var attempts = 0
-        while (findViewByPosition(targetPos) == null && attempts < 4) {
+        while (findViewByPosition(targetPos) == null && attempts < 8) {
             if (!rv.canScrollVertically(step)) break
-            rv.scrollBy(0, fallbackStepPx)
+            rv.scrollBy(0, incrementalStepPx)
             attempts++
         }
         val rowView = findViewByPosition(targetPos) ?: return null
@@ -758,27 +889,43 @@ class MissaVerticalUniverseLayoutManager(
         val bottomLimit = rv.height - rv.paddingBottom
         val rowTop = getDecoratedTop(rowView)
         val rowBottom = getDecoratedBottom(rowView)
-        val rowHeight = rowBottom - rowTop
-        val viewportHeight = (bottomLimit - topLimit).coerceAtLeast(1)
+        val minRevealPx = minOf((rowBottom - rowTop).coerceAtLeast(1), 96)
 
+        // Reveal just enough of `targetPos` during focusSearch so its child cards are laid out,
+        // without unnecessarily pushing `focused` out of the RecyclerView before focus handoff.
         val dy = when {
-            step > 0 && rowBottom > bottomLimit -> {
-                if (rowHeight <= viewportHeight) rowBottom - bottomLimit else rowTop - topLimit
-            }
-            step < 0 && rowTop < topLimit -> {
-                if (rowHeight <= viewportHeight) rowTop - topLimit else rowBottom - bottomLimit
-            }
+            step > 0 && rowTop > bottomLimit - minRevealPx -> rowTop - (bottomLimit - minRevealPx)
+            step < 0 && rowBottom < topLimit + minRevealPx -> rowBottom - (topLimit + minRevealPx)
             else -> 0
         }
         if (dy != 0 && rv.canScrollVertically(step)) {
-            rv.scrollBy(0, dy)
+            val maxSafeDy = computeMaxScrollKeepingFocusedAttached(rv, focused, dy)
+            if (maxSafeDy != 0) {
+                rv.scrollBy(0, maxSafeDy)
+            }
         }
         return findViewByPosition(targetPos) ?: rowView
     }
 
-    private fun ensureDescendantVisibleVertically(rv: RecyclerView, target: View) {
+    private fun computeMaxScrollKeepingFocusedAttached(
+        rv: RecyclerView,
+        focused: View,
+        desiredDy: Int
+    ): Int {
+        val focusedRow = findContainingItemView(focused) ?: return desiredDy
+        return if (desiredDy > 0) {
+            // Keep at least 16px of focusedRow inside viewport if possible
+            val safeMax = (getDecoratedBottom(focusedRow) - rv.paddingTop - 16).coerceAtLeast(0)
+            if (safeMax > 0) minOf(desiredDy, safeMax) else desiredDy
+        } else {
+            val safeMin = (getDecoratedTop(focusedRow) - (rv.height - rv.paddingBottom - 16)).coerceAtMost(0)
+            if (safeMin < 0) maxOf(desiredDy, safeMin) else desiredDy
+        }
+    }
+
+    private fun ensureDescendantVisibleVertically(rv: RecyclerView, target: View, focused: View) {
         val rect = Rect(0, 0, target.width, target.height)
-        if (isDescendantOf(target, rv)) {
+        if (MissaTvFocusHelper.isDescendantOf(target, rv)) {
             rv.offsetDescendantRectToMyCoords(target, rect)
             val topMargin = rv.paddingTop + 12
             val bottomMargin = rv.height - rv.paddingBottom - 12
@@ -788,7 +935,10 @@ class MissaVerticalUniverseLayoutManager(
                 else -> 0
             }
             if (dy != 0) {
-                rv.scrollBy(0, dy)
+                val safeDy = computeMaxScrollKeepingFocusedAttached(rv, focused, dy)
+                if (safeDy != 0) {
+                    rv.scrollBy(0, safeDy)
+                }
             }
         }
     }
@@ -850,7 +1000,7 @@ class MissaVerticalUniverseLayoutManager(
             }
         }
         if (visibleCards.isEmpty()) return null
-        return if (lm is GridLayoutManager) {
+        return if (lm is GridLayoutManager || (lm is LinearLayoutManager && lm.orientation == VERTICAL)) {
             MissaTvFocusHelper.pickNearestBandAdjacentView(
                 views = visibleCards,
                 direction = direction,
@@ -873,6 +1023,7 @@ class MissaVerticalUniverseLayoutManager(
             R.id.resume_recycler,
             R.id.hub_shortcuts_recycler,
             R.id.search_grid_recycler,
+            R.id.music_playlist_tracks_recycler,
             R.id.home_child_recyclerview
         )
         for (id in knownIds) {

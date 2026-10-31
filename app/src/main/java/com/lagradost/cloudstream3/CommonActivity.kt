@@ -441,16 +441,19 @@ object CommonActivity {
     ): View? {
         if (nextId == NO_ID) return null
 
-        // do an initial search for the view, in case the localLook is too deep we can use this as
-        // an early break and backup view
-        var next =
-            when (root) {
-                is Activity -> root.findViewById(nextId)
-                is View -> root.rootView.findViewById<View?>(nextId)
-                else -> null
-            } ?: return null
+        // Search within `view.rootView` first so Dialog windows resolve IDs inside their own
+        // DecorView and never cross into a different window's ViewRootImpl.
+        val viewWindowRoot = view.rootView
+        var next = viewWindowRoot?.findViewById<View?>(nextId) ?: when (root) {
+            is Activity -> root.findViewById(nextId)
+            is View -> root.rootView.findViewById<View?>(nextId)
+            else -> null
+        } ?: return null
 
         next = localLook(view, nextId) ?: next
+        if (!next.isAttachedToWindow || (viewWindowRoot != null && next.rootView !== viewWindowRoot)) {
+            return null
+        }
         val shown = next.hasContent()
 
         // if cant focus but visible then break and let android decide
@@ -541,6 +544,24 @@ object CommonActivity {
     /** overrides focus and custom key events */
     fun dispatchKeyEvent(act: Activity?, event: KeyEvent?): Boolean? {
         if (act == null) return null
+
+        // Guard against Android ViewRootImpl.performFocusNavigation crashing with
+        // `IllegalArgumentException: parameter must be a descendant of this view` if a recycled
+        // RecyclerView child retained focus after detachment from decorView.
+        val decorView = act.window?.decorView as? ViewGroup
+        val windowFocused = decorView?.findFocus()
+        if (decorView != null && windowFocused != null &&
+            (!windowFocused.isAttachedToWindow ||
+                !com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper.isDescendantOf(windowFocused, decorView))
+        ) {
+            windowFocused.clearFocus()
+            decorView.clearFocus()
+            decorView.requestFocus()
+            if (event?.action == KeyEvent.ACTION_DOWN) {
+                return true
+            }
+        }
+
         val currentFocus = act.currentFocus
 
         event?.keyCode?.let { keyCode ->
@@ -574,7 +595,7 @@ object CommonActivity {
             }
 
             // println("NEXT FOCUS : $nextView")
-            if (nextView != null) {
+            if (nextView != null && nextView.isAttachedToWindow) {
                 nextView.requestFocus()
                 keyEventListener?.invoke(Pair(event, true))
                 return true

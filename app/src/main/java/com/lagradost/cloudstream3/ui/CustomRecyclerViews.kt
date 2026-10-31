@@ -35,6 +35,11 @@ class GrdLayoutManager(val context: Context, spanCount: Int) :
     }
 
     override fun onInterceptFocusSearch(focused: View, direction: Int): View? {
+        val raw = computeInterceptedGridTarget(focused, direction)
+        return MissaTvFocusHelper.safeFocusSearchReturn(attachedRecyclerView, focused, raw, direction)
+    }
+
+    private fun computeInterceptedGridTarget(focused: View, direction: Int): View? {
         return try {
             if (itemCount <= 0) return null
             val itemView = findContainingItemView(focused) ?: return null
