@@ -15,14 +15,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
-import com.lagradost.cloudstream3.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
@@ -34,184 +32,170 @@ enum class MusicRepeatMode {
 
 data class MusicPlaybackState(
     val track: MusicTrackPreset? = null,
-    val queueSize: Int = 0,
-    val queueIndex: Int = 0,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val hasError: Boolean = false,
-    val shuffleEnabled: Boolean = false,
-    val repeatMode: MusicRepeatMode = MusicRepeatMode.ALL,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
+    val queueSize: Int = 0,
+    val queueIndex: Int = 0,
+    val shuffleEnabled: Boolean = false,
+    val repeatMode: MusicRepeatMode = MusicRepeatMode.ALL,
     val sleepTimerMinutes: Int = 0
 )
 
 /**
- * Dedicated 100%-Music queue & playback manager for MISSA TV 360 PLUS (`universeId = "music"`).
+ * Exclusive YouTube Music playback & style-curated catalog controller for **Musiques**.
  *
- * - Shares the Media3 [ExoPlayer] + [MissaRadioMediaService] session with [DirectRadioPlayerManager]
- *   via strict ownership handoff so background playback, lockscreen controls, and Bluetooth audio
- *   work seamlessly without running duplicate services or overlapping streams.
- * - Full queue auto-advance (`STATE_ENDED`), Previous/Next, Shuffle, Repeat (`ALL` / `ONE` / `OFF`),
- *   seekbar scrubbing, multi-node stream failover, Piped audio-only lazy resolution, Favorites,
- *   OpenSubsonic / Navidrome server sync, and Sleep Timer.
+ * Performance architecture:
+ * - Persists user-selected musical styles (`missa_selected_music_styles_v1`) chosen at 1st launch.
+ * - Caches the user's YouTube style catalog in DataStore (`missa_yt_music_catalog_v4`) for 0 ms
+ *   display on subsequent launches while progressively refreshing newest YouTube Clips, Singles,
+ *   Albums, and Playlists in 2 waves.
+ * - Expands YouTube Albums & Playlists (`ytplaylist://`) on click into full playable track queues.
+ * - Streams tracks via [DirectRadioPlayerManager.createCachedMusicMediaSource] (OkHttp HTTP/2 +
+ *   128 MB disk `SimpleCache` + 600 ms fast-start `DefaultLoadControl`).
+ * - Pre-resolves upcoming queue tracks (`idx + 1`, `idx + 2`) and top catalog hits in the
+ *   background so track transitions and first clicks start without extraction latency.
  */
 object DirectMusicPlayerManager {
-    private const val CUSTOM_TRACKS_KEY = "missa_custom_music_tracks_v1"
-    private const val REMOTE_TRACKS_CACHE_KEY = "missa_remote_music_tracks_v2"
-    private const val REMOTE_TRACKS_UPDATED_AT_KEY = "missa_remote_music_updated_at_v2"
-    private const val FAVORITE_TRACKS_KEY = "missa_favorite_music_ids_v1"
-    private const val SUBSONIC_CONFIG_KEY = "missa_subsonic_server_config_v1"
-    private const val REMOTE_CACHE_TTL_MS = 12 * 60 * 60_000L
+    private const val SELECTED_MUSIC_STYLES_KEY = "missa_selected_music_styles_v1"
+    private const val HAS_SELECTED_MUSIC_STYLES_KEY = "missa_has_selected_music_styles_v1"
+    private const val REMOTE_TRACKS_CACHE_KEY = "missa_yt_music_catalog_v4"
+    private const val REMOTE_TRACKS_STYLES_SIG_KEY = "missa_yt_music_styles_sig_v4"
+    private const val REMOTE_TRACKS_UPDATED_AT_KEY = "missa_yt_music_updated_at_v4"
+    private const val FAVORITE_TRACKS_KEY = "missa_favorite_music_track_ids_v1"
+    private const val SHUFFLE_ENABLED_KEY = "missa_music_shuffle_enabled_v1"
+    private const val REPEAT_MODE_KEY = "missa_music_repeat_mode_v1"
+    private const val REMOTE_CACHE_TTL_MS = 2 * 60 * 60_000L // Refresh newest releases every 2 hours
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile
-    internal var isOwningPlayback: Boolean = false
+    private var isOwningPlayback: Boolean = false
 
-    private var boundExoPlayer: ExoPlayer? = null
-    private var appContextRef: Context? = null
-    private var resolveStreamJob: Job? = null
+    @Volatile
+    private var listenerAttachedPlayer: ExoPlayer? = null
+
+    @Volatile
+    private var remoteRefreshInFlight: Boolean = false
+
+    @Volatile
+    private var activeAppContext: Context? = null
+
+    @Volatile
+    private var inMemoryStyleTracks: List<MusicTrackPreset> = emptyList()
+
+    @Volatile
+    var hasPromptedOnboardingThisSession: Boolean = false
+
+    private var resolveJob: Job? = null
+    private var prefetchJob: Job? = null
+    private var refreshJob: Job? = null
     private var sleepRunnable: Runnable? = null
     private var activeSleepMinutes: Int = 0
 
-    @Volatile
-    private var remoteRefreshInFlight = false
-
     private var activeQueue: List<MusicTrackPreset> = emptyList()
     private var activeQueueIndex: Int = 0
-    private var shuffleEnabled: Boolean = false
-    private var repeatMode: MusicRepeatMode = MusicRepeatMode.ALL
-
-    private var activeFallbackCandidates: List<String> = emptyList()
-    private var currentFallbackIndex: Int = 0
-    private var consecutiveErrorSkips: Int = 0
+    private var activeCandidateUrls: List<String> = emptyList()
+    private var activeCandidateIndex: Int = 0
+    private var retriedFreshExtractionForTrackId: String? = null
 
     private val discoveredSearchTracks = ConcurrentHashMap<String, MusicTrackPreset>()
 
-    private val _state = MutableLiveData(MusicPlaybackState())
+    private val _state = MutableLiveData(
+        MusicPlaybackState(
+            shuffleEnabled = getKey<Boolean>(SHUFFLE_ENABLED_KEY, false) == true,
+            repeatMode = loadSavedRepeatMode()
+        )
+    )
     val state: LiveData<MusicPlaybackState> = _state
 
     private val _tracksUpdated = MutableLiveData(0L)
     val tracksUpdated: LiveData<Long> = _tracksUpdated
 
-    private val progressRunnable = object : Runnable {
+    private val progressTicker = object : Runnable {
         override fun run() {
-            val exo = boundExoPlayer
-            if (isOwningPlayback && exo != null) {
-                val current = _state.value ?: MusicPlaybackState()
-                val rawDur = exo.duration
-                val fallbackDurMs = (current.track?.durationSeconds ?: 0) * 1_000L
-                val resolvedDur = if (rawDur != C.TIME_UNSET && rawDur > 0L) rawDur else fallbackDurMs
-                val resolvedPos = exo.currentPosition.coerceAtLeast(0L)
-                if (current.positionMs != resolvedPos || current.durationMs != resolvedDur) {
-                    _state.value = current.copy(
-                        positionMs = resolvedPos,
-                        durationMs = resolvedDur
+            if (!isOwningPlayback) return
+            val ctx = activeAppContext ?: return
+            val exo = DirectRadioPlayerManager.getOrCreatePlayer(ctx)
+            val current = _state.value ?: return
+            val dur = exo.duration.takeIf { it != C.TIME_UNSET && it > 0L }
+                ?: ((current.track?.durationSeconds ?: 0) * 1000L)
+            val pos = exo.currentPosition.coerceAtLeast(0L)
+            if (current.positionMs != pos || current.durationMs != dur) {
+                _state.postValue(
+                    current.copy(
+                        positionMs = pos,
+                        durationMs = dur,
+                        isPlaying = exo.isPlaying,
+                        isBuffering = exo.playbackState == Player.STATE_BUFFERING
                     )
-                }
-                if (exo.isPlaying) {
-                    mainHandler.postDelayed(this, 1_000L)
-                }
+                )
+            }
+            if (isOwningPlayback && (exo.isPlaying || exo.playbackState == Player.STATE_BUFFERING)) {
+                mainHandler.postDelayed(this, 900L)
             }
         }
     }
 
-    private val musicPlayerListener = object : Player.Listener {
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (!isOwningPlayback) return
-            val exo = boundExoPlayer ?: return
-            mainHandler.removeCallbacks(progressRunnable)
-            if (isPlaying) {
-                consecutiveErrorSkips = 0
-                mainHandler.post(progressRunnable)
+    private fun loadSavedRepeatMode(): MusicRepeatMode {
+        val raw = runCatching { getKey<String>(REPEAT_MODE_KEY) }.getOrNull()
+        return MusicRepeatMode.entries.firstOrNull { it.name == raw } ?: MusicRepeatMode.ALL
+    }
+
+    // -------------------------------------------------------------------------
+    // 1st-Launch Musical Style Preferences
+    // -------------------------------------------------------------------------
+
+    fun hasSelectedMusicStyles(): Boolean = runCatching {
+        getKey<Boolean>(HAS_SELECTED_MUSIC_STYLES_KEY, false) == true &&
+            !getKey<Array<String>>(SELECTED_MUSIC_STYLES_KEY).isNullOrEmpty()
+    }.getOrDefault(false)
+
+    fun selectedMusicStyleIds(): List<String> {
+        val saved = runCatching {
+            getKey<Array<String>>(SELECTED_MUSIC_STYLES_KEY)?.toList().orEmpty()
+        }.getOrDefault(emptyList())
+        return MissaMusicProviders.resolveSelectedStyles(saved).map { it.id }
+    }
+
+    fun saveSelectedMusicStyles(styleIds: Collection<String>, triggerReload: Boolean = true) {
+        val normalized = MissaMusicProviders.resolveSelectedStyles(styleIds).map { it.id }
+        val previousSig = stylesSignature(selectedMusicStyleIds())
+        val newSig = stylesSignature(normalized)
+
+        runCatching {
+            setKey(SELECTED_MUSIC_STYLES_KEY, normalized.toTypedArray())
+            setKey(HAS_SELECTED_MUSIC_STYLES_KEY, true)
+        }
+        hasPromptedOnboardingThisSession = true
+
+        if (previousSig != newSig) {
+            inMemoryStyleTracks = emptyList()
+            discoveredSearchTracks.clear()
+            runCatching {
+                removeKey(REMOTE_TRACKS_CACHE_KEY)
+                removeKey(REMOTE_TRACKS_UPDATED_AT_KEY)
+                setKey(REMOTE_TRACKS_STYLES_SIG_KEY, newSig)
             }
-            val current = _state.value ?: MusicPlaybackState()
-            val rawDur = exo.duration
-            val fallbackDur = (current.track?.durationSeconds ?: 0) * 1_000L
-            _state.postValue(
-                current.copy(
-                    isPlaying = isPlaying,
-                    isBuffering = exo.playbackState == Player.STATE_BUFFERING,
-                    positionMs = exo.currentPosition.coerceAtLeast(0L),
-                    durationMs = if (rawDur != C.TIME_UNSET && rawDur > 0L) rawDur else fallbackDur,
-                    sleepTimerMinutes = activeSleepMinutes
-                )
-            )
+            _tracksUpdated.postValue(System.currentTimeMillis())
         }
 
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            if (!isOwningPlayback) return
-            val exo = boundExoPlayer ?: return
-            if (playbackState == Player.STATE_ENDED) {
-                val ctx = appContextRef
-                if (ctx != null) {
-                    handleTrackEnded(ctx)
-                }
-                return
+        if (triggerReload) {
+            ioScope.launch {
+                refreshRemoteTracksIfNeeded(force = true)
             }
-            val current = _state.value ?: MusicPlaybackState()
-            val rawDur = exo.duration
-            val fallbackDur = (current.track?.durationSeconds ?: 0) * 1_000L
-            _state.postValue(
-                current.copy(
-                    isPlaying = exo.isPlaying,
-                    isBuffering = playbackState == Player.STATE_BUFFERING,
-                    hasError = if (playbackState == Player.STATE_READY) false else current.hasError,
-                    durationMs = if (rawDur != C.TIME_UNSET && rawDur > 0L) rawDur else fallbackDur,
-                    sleepTimerMinutes = activeSleepMinutes
-                )
-            )
-        }
-
-        override fun onPlayerError(error: PlaybackException) {
-            if (!isOwningPlayback) return
-            val ctx = appContextRef ?: return
-            val exo = boundExoPlayer ?: return
-            val current = _state.value ?: MusicPlaybackState()
-            val track = current.track
-
-            // 1. Try next mirror/fallback URL for the same track
-            if (track != null && currentFallbackIndex < activeFallbackCandidates.size) {
-                val nextUrl = activeFallbackCandidates[currentFallbackIndex++]
-                startExoTrackUri(ctx, exo, track, nextUrl)
-                return
-            }
-
-            // 2. Auto-skip to next playable track in queue (up to 3 consecutive broken tracks)
-            if (activeQueue.size > 1 && consecutiveErrorSkips < 3) {
-                consecutiveErrorSkips++
-                nextTrack(ctx, autoAdvanced = true)
-                return
-            }
-
-            _state.postValue(
-                current.copy(
-                    isPlaying = false,
-                    isBuffering = false,
-                    hasError = true,
-                    sleepTimerMinutes = activeSleepMinutes
-                )
-            )
         }
     }
 
-    // --- Persistence & Catalogues ---
+    private fun stylesSignature(ids: List<String>): String =
+        ids.map { it.trim().lowercase() }.sorted().joinToString(",")
 
-    fun subsonicConfig(): OpenSubsonicServerConfig? = runCatching {
-        getKey<OpenSubsonicServerConfig>(SUBSONIC_CONFIG_KEY)?.takeIf { it.isConfigured() }
-    }.getOrNull()
-
-    fun customTracks(): List<MusicTrackPreset> = runCatching {
-        getKey<Array<MusicTrackPreset>>(CUSTOM_TRACKS_KEY)?.toList().orEmpty()
-    }.getOrDefault(emptyList()).map {
-        it.copy(isCustom = true, providerName = MissaMusicProviders.PROVIDER_CUSTOM_MUSIC)
-    }
-
-    private fun cachedRemoteTracks(): List<MusicTrackPreset> = runCatching {
-        getKey<Array<MusicTrackPreset>>(REMOTE_TRACKS_CACHE_KEY)?.toList().orEmpty()
-    }.getOrDefault(emptyList())
+    // -------------------------------------------------------------------------
+    // Favorites & Catalog State
+    // -------------------------------------------------------------------------
 
     fun favoriteIds(): Set<String> = runCatching {
         getKey<Array<String>>(FAVORITE_TRACKS_KEY)?.toSet().orEmpty()
@@ -229,35 +213,100 @@ object DirectMusicPlayerManager {
             true
         }
         runCatching { setKey(FAVORITE_TRACKS_KEY, mutable.toTypedArray()) }
+        _tracksUpdated.postValue(System.currentTimeMillis())
         return nowFav
     }
 
+    private fun cachedRemoteTracks(): List<MusicTrackPreset> {
+        val mem = inMemoryStyleTracks
+        if (mem.isNotEmpty()) return mem
+        val expectedSig = stylesSignature(selectedMusicStyleIds())
+        val cachedSig = runCatching { getKey<String>(REMOTE_TRACKS_STYLES_SIG_KEY) }.getOrNull()
+        if (!cachedSig.isNullOrBlank() && cachedSig != expectedSig) {
+            return emptyList()
+        }
+        val persisted = runCatching {
+            getKey<Array<MusicTrackPreset>>(REMOTE_TRACKS_CACHE_KEY)?.toList().orEmpty()
+        }.getOrDefault(emptyList())
+        if (persisted.isNotEmpty()) {
+            inMemoryStyleTracks = persisted
+        }
+        return persisted
+    }
+
+    /**
+     * Returns all YouTube Clips, Studio Singles, Official Albums, and Playlists currently loaded
+     * for the user's musical styles plus recent on-demand YouTube searches.
+     */
     fun allPresetTracks(): List<MusicTrackPreset> {
-        val custom = customTracks()
-        val remote = cachedRemoteTracks()
-        val discovered = discoveredSearchTracks.values.toList()
-        val combined = custom + discovered + remote + MissaMusicProviders.curatedStarterTracks
-        return MissaMusicProviders.mergeMusicCatalogues(combined, favoriteIds())
+        val styleTracks = cachedRemoteTracks()
+        val onlineDiscovered = discoveredSearchTracks.values.toList()
+        if (styleTracks.isEmpty() && onlineDiscovered.isEmpty()) return emptyList()
+
+        val merged = ArrayList<MusicTrackPreset>(styleTracks.size + onlineDiscovered.size)
+        val seenIds = HashSet<String>()
+        for (track in styleTracks + onlineDiscovered) {
+            if (track.title.isBlank() || track.streamUrl.isBlank()) continue
+            if (seenIds.add(track.id)) {
+                merged.add(track)
+            }
+        }
+        return merged
+    }
+
+    private fun prefetchTopPlayableTracks(tracks: List<MusicTrackPreset>, count: Int = 2) {
+        val candidates = tracks
+            .filter { MissaMusicProviders.isLazyYouTubeAudioScheme(it.streamUrl) && !MissaMusicProviders.hasCachedAudioUrl(it.streamUrl) }
+            .take(count)
+        if (candidates.isEmpty()) return
+        ioScope.launch {
+            for (track in candidates) {
+                runCatching {
+                    MissaMusicProviders.resolvePlayableAudioUrls(track.streamUrl, track.fallbackUrls)
+                }
+            }
+        }
     }
 
     suspend fun refreshRemoteTracksIfNeeded(force: Boolean = false) {
-        if (remoteRefreshInFlight) return
-        val now = System.currentTimeMillis()
+        val currentStyleIds = selectedMusicStyleIds()
+        val currentSig = stylesSignature(currentStyleIds)
+        val cachedSig = runCatching { getKey<String>(REMOTE_TRACKS_STYLES_SIG_KEY) }.getOrNull()
         val lastUpdated = runCatching { getKey<Long>(REMOTE_TRACKS_UPDATED_AT_KEY) ?: 0L }.getOrDefault(0L)
-        val hasCached = cachedRemoteTracks().isNotEmpty()
-        if (!force && hasCached && now - lastUpdated in 1 until REMOTE_CACHE_TTL_MS) {
+        val now = System.currentTimeMillis()
+        val hasCached = cachedRemoteTracks().isNotEmpty() && cachedSig == currentSig
+
+        if (!force && hasCached && (now - lastUpdated) < REMOTE_CACHE_TTL_MS) {
+            prefetchTopPlayableTracks(inMemoryStyleTracks, count = 2)
             return
         }
 
+        if (remoteRefreshInFlight && !force) return
+        if (force) {
+            refreshJob?.cancel()
+        }
         remoteRefreshInFlight = true
         try {
-            val harvested = MissaMusicProviders.harvestAllMusicProviders(subsonicConfig())
-            if (harvested.isNotEmpty()) {
+            MissaMusicProviders.warmUpYouTubeEngine()
+            val fullCatalog = MissaMusicProviders.fetchStyleCatalogProgressive(
+                styleIds = currentStyleIds,
+                onFirstWaveReady = { firstWave ->
+                    if (firstWave.isNotEmpty()) {
+                        inMemoryStyleTracks = firstWave
+                        _tracksUpdated.postValue(System.currentTimeMillis())
+                        prefetchTopPlayableTracks(firstWave, count = 2)
+                    }
+                }
+            )
+            if (fullCatalog.isNotEmpty()) {
+                inMemoryStyleTracks = fullCatalog
                 runCatching {
-                    setKey(REMOTE_TRACKS_CACHE_KEY, harvested.toTypedArray())
+                    setKey(REMOTE_TRACKS_CACHE_KEY, fullCatalog.toTypedArray())
+                    setKey(REMOTE_TRACKS_STYLES_SIG_KEY, currentSig)
                     setKey(REMOTE_TRACKS_UPDATED_AT_KEY, System.currentTimeMillis())
                 }
                 _tracksUpdated.postValue(System.currentTimeMillis())
+                prefetchTopPlayableTracks(fullCatalog, count = 2)
             }
         } finally {
             remoteRefreshInFlight = false
@@ -265,356 +314,499 @@ object DirectMusicPlayerManager {
     }
 
     suspend fun searchTracksOnline(query: String): List<MusicTrackPreset> {
-        val found = MissaMusicProviders.searchAllMusicProviders(query, subsonicConfig())
+        val cleanQuery = MissaMusicProviders.sanitizeMusicQuery(query)
+        if (cleanQuery.length < 2) return emptyList()
+        val found = MissaMusicProviders.searchAllMusicServers(cleanQuery)
         if (found.isNotEmpty()) {
-            if (discoveredSearchTracks.size + found.size > 600) {
-                discoveredSearchTracks.clear()
-            }
-            for (tr in found) {
-                val key = tr.streamUrl.trim().lowercase(Locale.ROOT)
-                discoveredSearchTracks[key] = tr
-            }
+            found.forEach { track -> discoveredSearchTracks[track.id] = track }
             _tracksUpdated.postValue(System.currentTimeMillis())
+            prefetchTopPlayableTracks(found, count = 2)
         }
         return found
     }
 
-    suspend fun connectOpenSubsonicServer(config: OpenSubsonicServerConfig): Int {
-        val clean = config.copy(
-            baseUrl = config.baseUrl.trim().trimEnd('/'),
-            username = config.username.trim()
-        )
-        if (!clean.isConfigured()) return 0
-        val songs = MissaMusicProviders.fetchOpenSubsonicCatalog(clean)
-        if (songs.isEmpty()) return 0
-
-        runCatching { setKey(SUBSONIC_CONFIG_KEY, clean) }
-        val nonSubsonic = cachedRemoteTracks().filterNot {
-            it.providerName == MissaMusicProviders.PROVIDER_SUBSONIC
-        }
-        val merged = MissaMusicProviders.mergeMusicCatalogues(songs + nonSubsonic).take(650)
-        runCatching {
-            setKey(REMOTE_TRACKS_CACHE_KEY, merged.toTypedArray())
-            setKey(REMOTE_TRACKS_UPDATED_AT_KEY, System.currentTimeMillis())
-        }
-        _tracksUpdated.postValue(System.currentTimeMillis())
-        return songs.size
-    }
-
-    fun disconnectOpenSubsonicServer() {
-        runCatching { removeKey(SUBSONIC_CONFIG_KEY) }
-        val remaining = cachedRemoteTracks().filterNot {
-            it.providerName == MissaMusicProviders.PROVIDER_SUBSONIC
-        }
-        runCatching { setKey(REMOTE_TRACKS_CACHE_KEY, remaining.toTypedArray()) }
-        _tracksUpdated.postValue(System.currentTimeMillis())
-    }
-
-    suspend fun importCustomTrackOrPlaylist(
-        context: Context,
-        title: String,
-        artist: String,
-        url: String
-    ): List<MusicTrackPreset> {
-        val trimmedUrl = url.trim()
-        val cleanArtist = artist.trim().ifBlank {
-            context.getString(R.string.universe_music_custom_artist_default)
-        }
-        val lower = trimmedUrl.lowercase(Locale.ROOT).substringBefore('?')
-        if (lower.endsWith(".m3u") || lower.endsWith(".m3u8")) {
-            val imported = MissaMusicProviders.fetchRemoteMusicPlaylistIfAny(trimmedUrl, cleanArtist)
-            if (imported.isNotEmpty()) {
-                val existing = customTracks().toMutableList()
-                val newUrls = imported.map { it.streamUrl.lowercase(Locale.ROOT) }.toSet()
-                existing.removeAll { it.streamUrl.lowercase(Locale.ROOT) in newUrls }
-                val updated = (imported + existing).take(200)
-                runCatching { setKey(CUSTOM_TRACKS_KEY, updated.toTypedArray()) }
-                _tracksUpdated.postValue(System.currentTimeMillis())
-                return imported
-            }
-        }
-
-        val cleanTitle = title.trim().ifBlank {
-            context.getString(R.string.universe_music_custom_title_default)
-        }
-        val preset = MusicTrackPreset(
-            id = "custom_music_${System.currentTimeMillis()}",
-            title = cleanTitle,
-            artist = cleanArtist,
-            genre = MissaMusicProviders.PROVIDER_CUSTOM_MUSIC,
-            streamUrl = trimmedUrl,
-            providerName = MissaMusicProviders.PROVIDER_CUSTOM_MUSIC,
-            isCustom = true
-        )
-        val existing = customTracks().toMutableList()
-        existing.removeAll { it.streamUrl.equals(trimmedUrl, ignoreCase = true) }
-        existing.add(0, preset)
-        runCatching { setKey(CUSTOM_TRACKS_KEY, existing.take(200).toTypedArray()) }
-        _tracksUpdated.postValue(System.currentTimeMillis())
-        return listOf(preset)
-    }
-
-    // --- Shared ExoPlayer Attachment & Handoff ---
-
-    private fun ensurePlayerAttached(context: Context): ExoPlayer {
-        val appCtx = context.applicationContext
-        appContextRef = appCtx
-        val exo = DirectRadioPlayerManager.getOrCreatePlayer(appCtx)
-        if (boundExoPlayer !== exo) {
-            boundExoPlayer?.removeListener(musicPlayerListener)
-            exo.addListener(musicPlayerListener)
-            boundExoPlayer = exo
-        }
-        return exo
-    }
+    // -------------------------------------------------------------------------
+    // Playback Controls, Album/Playlist Queue Expansion & Next-Track Prefetch
+    // -------------------------------------------------------------------------
 
     internal fun yieldPlaybackToRadio() {
-        resolveStreamJob?.cancel()
-        resolveStreamJob = null
-        mainHandler.removeCallbacks(progressRunnable)
+        if (!isOwningPlayback) return
+        isOwningPlayback = false
+        resolveJob?.cancel()
+        prefetchJob?.cancel()
+        mainHandler.removeCallbacks(progressTicker)
         sleepRunnable?.let { mainHandler.removeCallbacks(it) }
         sleepRunnable = null
         activeSleepMinutes = 0
-        isOwningPlayback = false
+        val current = _state.value ?: MusicPlaybackState()
         _state.postValue(
-            MusicPlaybackState(
-                shuffleEnabled = shuffleEnabled,
-                repeatMode = repeatMode
+            current.copy(
+                track = null,
+                isPlaying = false,
+                isBuffering = false,
+                hasError = false,
+                positionMs = 0L,
+                durationMs = 0L
             )
         )
     }
 
     internal fun onSharedPlayerReleased() {
-        yieldPlaybackToRadio()
-        boundExoPlayer = null
+        listenerAttachedPlayer = null
+        mainHandler.removeCallbacks(progressTicker)
     }
 
-    private fun startExoTrackUri(
-        appContext: Context,
-        exo: ExoPlayer,
-        track: MusicTrackPreset,
-        targetStreamUrl: String
-    ) {
-        runCatching {
-            DirectRadioPlayerManager.ensureMediaSessionBound(appContext)
-            val subtitle = listOf(track.artist, track.providerName)
-                .filter { it.isNotBlank() }
-                .joinToString(" • ")
-            val metadataBuilder = MediaMetadata.Builder()
-                .setTitle(track.title)
-                .setArtist(subtitle.ifBlank { track.genre })
-                .setAlbumTitle(track.album.ifBlank { track.genre })
-            track.artworkUrl?.takeIf { it.isNotBlank() }?.let { art ->
-                runCatching { metadataBuilder.setArtworkUri(Uri.parse(art)) }
-            }
-            val mediaItem = MediaItem.Builder()
-                .setMediaId(track.id)
-                .setUri(targetStreamUrl)
-                .setMediaMetadata(metadataBuilder.build())
-                .build()
-            exo.stop()
-            exo.setMediaItem(mediaItem)
-            exo.prepare()
-            exo.playWhenReady = true
-        }.onFailure {
-            _state.postValue(
-                (_state.value ?: MusicPlaybackState()).copy(
-                    track = track,
-                    isPlaying = false,
-                    isBuffering = false,
-                    hasError = true
+    private fun ensurePlayerListenerAttached(exo: ExoPlayer) {
+        if (listenerAttachedPlayer === exo) return
+        listenerAttachedPlayer = exo
+        exo.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (!isOwningPlayback) return
+                val current = _state.value ?: MusicPlaybackState()
+                _state.postValue(
+                    current.copy(
+                        isPlaying = isPlaying,
+                        isBuffering = exo.playbackState == Player.STATE_BUFFERING,
+                        sleepTimerMinutes = activeSleepMinutes
+                    )
                 )
-            )
-        }
-    }
-
-    fun playTrack(
-        context: Context,
-        track: MusicTrackPreset,
-        queueContext: List<MusicTrackPreset>? = null
-    ) {
-        val appContext = context.applicationContext
-        DirectRadioPlayerManager.yieldPlaybackToMusic()
-        isOwningPlayback = true
-        resolveStreamJob?.cancel()
-
-        val resolvedQueue = (queueContext?.takeIf { it.isNotEmpty() } ?: allPresetTracks()).let { base ->
-            if (base.any { it.streamUrl.equals(track.streamUrl, ignoreCase = true) }) {
-                base
-            } else {
-                listOf(track) + base
-            }
-        }
-        activeQueue = resolvedQueue
-        activeQueueIndex = resolvedQueue.indexOfFirst {
-            it.streamUrl.equals(track.streamUrl, ignoreCase = true)
-        }.coerceAtLeast(0)
-
-        val exo = ensurePlayerAttached(appContext)
-        _state.value = MusicPlaybackState(
-            track = track,
-            queueSize = activeQueue.size,
-            queueIndex = activeQueueIndex,
-            isPlaying = false,
-            isBuffering = true,
-            hasError = false,
-            shuffleEnabled = shuffleEnabled,
-            repeatMode = repeatMode,
-            positionMs = 0L,
-            durationMs = track.durationSeconds.coerceAtLeast(0) * 1_000L,
-            sleepTimerMinutes = activeSleepMinutes
-        )
-
-        if (track.isPipedLazy || MissaMusicProviders.isLazyYouTubeAudioScheme(track.streamUrl)) {
-            resolveStreamJob = ioScope.launch {
-                val audioUrls = MissaMusicProviders.resolveYouTubeOrPipedAudioUrls(track.streamUrl)
-                mainHandler.post {
-                    if (!isOwningPlayback) return@post
-                    if (audioUrls.isEmpty()) {
-                        if (activeQueue.size > 1 && consecutiveErrorSkips < 3) {
-                            consecutiveErrorSkips++
-                            nextTrack(appContext, autoAdvanced = true)
-                        } else {
-                            _state.value = (_state.value ?: MusicPlaybackState()).copy(
-                                isPlaying = false,
-                                isBuffering = false,
-                                hasError = true
-                            )
-                        }
-                    } else {
-                        activeFallbackCandidates = audioUrls.drop(1)
-                        currentFallbackIndex = 0
-                        startExoTrackUri(appContext, exo, track, audioUrls.first())
-                    }
+                mainHandler.removeCallbacks(progressTicker)
+                if (isPlaying || exo.playbackState == Player.STATE_BUFFERING) {
+                    mainHandler.post(progressTicker)
                 }
             }
-        } else {
-            activeFallbackCandidates = track.fallbackUrls.filter {
-                MissaMusicProviders.isValidAudioUrl(it) && !it.equals(track.streamUrl, ignoreCase = true)
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (!isOwningPlayback) return
+                val current = _state.value ?: MusicPlaybackState()
+                val dur = exo.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: current.durationMs
+                _state.postValue(
+                    current.copy(
+                        isPlaying = exo.isPlaying,
+                        isBuffering = playbackState == Player.STATE_BUFFERING,
+                        hasError = if (playbackState == Player.STATE_READY) false else current.hasError,
+                        durationMs = dur,
+                        positionMs = exo.currentPosition.coerceAtLeast(0L),
+                        sleepTimerMinutes = activeSleepMinutes
+                    )
+                )
+                if (playbackState == Player.STATE_ENDED) {
+                    handleTrackEnded()
+                }
             }
-            currentFallbackIndex = 0
-            startExoTrackUri(appContext, exo, track, track.streamUrl)
+
+            override fun onPlayerError(error: PlaybackException) {
+                if (!isOwningPlayback) return
+                val nextIdx = activeCandidateIndex + 1
+                if (nextIdx < activeCandidateUrls.size) {
+                    activeCandidateIndex = nextIdx
+                    val ctx = activeAppContext ?: return
+                    val currentTrack = activeQueue.getOrNull(activeQueueIndex) ?: _state.value?.track ?: return
+                    startExoTrackUri(ctx, currentTrack, activeCandidateUrls[nextIdx])
+                    return
+                }
+
+                // Self-healing retry: if a cached YouTube audio URL expired early (HTTP 403/410),
+                // invalidate its cache entry and re-extract fresh YouTube streams once automatically.
+                val currentTrack = activeQueue.getOrNull(activeQueueIndex) ?: _state.value?.track
+                val ctx = activeAppContext
+                if (currentTrack != null &&
+                    ctx != null &&
+                    MissaMusicProviders.isLazyYouTubeAudioScheme(currentTrack.streamUrl) &&
+                    retriedFreshExtractionForTrackId != currentTrack.id
+                ) {
+                    retriedFreshExtractionForTrackId = currentTrack.id
+                    MissaMusicProviders.invalidateCachedAudio(currentTrack.streamUrl)
+                    startCurrentQueueTrack(ctx)
+                    return
+                }
+
+                val current = _state.value ?: MusicPlaybackState()
+                _state.postValue(
+                    current.copy(
+                        isPlaying = false,
+                        isBuffering = false,
+                        hasError = true,
+                        sleepTimerMinutes = activeSleepMinutes
+                    )
+                )
+            }
+        })
+    }
+
+    private fun handleTrackEnded() {
+        val ctx = activeAppContext ?: return
+        val current = _state.value ?: MusicPlaybackState()
+        when (current.repeatMode) {
+            MusicRepeatMode.ONE -> {
+                val exo = DirectRadioPlayerManager.getOrCreatePlayer(ctx)
+                exo.seekTo(0L)
+                exo.playWhenReady = true
+            }
+            MusicRepeatMode.ALL -> {
+                if (activeQueue.size > 1) {
+                    advanceQueue(ctx, forward = true, wrap = true)
+                } else {
+                    val exo = DirectRadioPlayerManager.getOrCreatePlayer(ctx)
+                    exo.seekTo(0L)
+                    exo.playWhenReady = true
+                }
+            }
+            MusicRepeatMode.OFF -> {
+                if (activeQueueIndex + 1 < activeQueue.size) {
+                    advanceQueue(ctx, forward = true, wrap = false)
+                }
+            }
+        }
+    }
+
+    private fun prefetchUpcomingTracksInQueue() {
+        prefetchJob?.cancel()
+        val queueSnapshot = activeQueue
+        if (queueSnapshot.size <= 1) return
+        val baseIdx = activeQueueIndex
+        val upcoming = listOf(1, 2).mapNotNull { offset ->
+            queueSnapshot.getOrNull((baseIdx + offset) % queueSnapshot.size)
+        }.filter {
+            MissaMusicProviders.isLazyYouTubeAudioScheme(it.streamUrl) &&
+                !MissaMusicProviders.hasCachedAudioUrl(it.streamUrl)
+        }
+        if (upcoming.isEmpty()) return
+
+        prefetchJob = ioScope.launch {
+            for (nextTrack in upcoming) {
+                if (!isOwningPlayback) break
+                runCatching {
+                    MissaMusicProviders.resolvePlayableAudioUrls(nextTrack.streamUrl, nextTrack.fallbackUrls)
+                }
+            }
         }
     }
 
     fun playDirectResponse(
         context: Context,
-        response: DirectMusicSearchResponse,
-        queueResponses: List<DirectMusicSearchResponse>? = null
+        card: DirectMusicSearchResponse,
+        visibleQueue: List<DirectMusicSearchResponse>? = null
     ) {
-        val allPresets = allPresetTracks()
-        val presetByUrl = allPresets.associateBy { it.streamUrl.lowercase(Locale.ROOT) }
+        val preset = allPresetTracks().firstOrNull {
+            (card.trackId.isNotBlank() && it.id == card.trackId) || it.streamUrl == card.url
+        } ?: MusicTrackPreset(
+            id = card.trackId.ifBlank { "music_${card.url.hashCode()}" },
+            title = card.title.ifBlank { card.name },
+            artist = card.artist,
+            album = card.album,
+            genre = card.genre,
+            streamUrl = card.url,
+            artworkUrl = card.artworkUrl ?: card.posterUrl,
+            durationSeconds = card.durationSeconds,
+            providerName = card.apiName,
+            fallbackUrls = card.fallbackUrls,
+            isPipedLazy = card.isPipedLazy,
+            itemKind = card.itemKind,
+            trackCount = card.trackCount
+        )
 
-        fun DirectMusicSearchResponse.toPreset(): MusicTrackPreset =
-            presetByUrl[url.lowercase(Locale.ROOT)] ?: MusicTrackPreset(
-                id = trackId.ifBlank { "music_${url.hashCode()}" },
-                title = title.ifBlank { name },
-                artist = artist,
-                album = album,
-                genre = genre,
-                streamUrl = url,
-                artworkUrl = artworkUrl ?: posterUrl,
-                durationSeconds = durationSeconds,
-                providerName = apiName.ifBlank { DIRECT_MUSIC_API_NAME },
-                fallbackUrls = fallbackUrls,
-                isPipedLazy = isPipedLazy || MissaMusicProviders.isLazyYouTubeAudioScheme(url)
-            )
+        if (preset.isAlbumOrPlaylist()) {
+            playTrack(context, preset, queue = null)
+            return
+        }
 
-        val targetPreset = response.toPreset()
-        val queuePresets = queueResponses?.map { it.toPreset() }
-        playTrack(context, targetPreset, queuePresets)
+        val queuePresets = visibleQueue
+            ?.filter { !MissaMusicProviders.isYouTubePlaylistOrAlbumScheme(it.url) }
+            ?.map { item ->
+                allPresetTracks().firstOrNull {
+                    (item.trackId.isNotBlank() && it.id == item.trackId) || it.streamUrl == item.url
+                } ?: MusicTrackPreset(
+                    id = item.trackId.ifBlank { "music_${item.url.hashCode()}" },
+                    title = item.title.ifBlank { item.name },
+                    artist = item.artist,
+                    album = item.album,
+                    genre = item.genre,
+                    streamUrl = item.url,
+                    artworkUrl = item.artworkUrl ?: item.posterUrl,
+                    durationSeconds = item.durationSeconds,
+                    providerName = item.apiName,
+                    fallbackUrls = item.fallbackUrls,
+                    isPipedLazy = item.isPipedLazy,
+                    itemKind = item.itemKind,
+                    trackCount = item.trackCount
+                )
+            }
+            ?.takeIf { it.isNotEmpty() }
+
+        playTrack(context, preset, queuePresets)
     }
 
-    private fun handleTrackEnded(context: Context) {
-        val currentTrack = _state.value?.track ?: return
-        if (repeatMode == MusicRepeatMode.ONE) {
-            val exo = ensurePlayerAttached(context)
-            exo.seekTo(0L)
-            exo.playWhenReady = true
+    fun playTrack(
+        context: Context,
+        track: MusicTrackPreset,
+        queue: List<MusicTrackPreset>? = null
+    ) {
+        val appCtx = context.applicationContext
+        activeAppContext = appCtx
+
+        // Mutual audio exclusion: stop active Radio stream before starting Music
+        if (DirectRadioPlayerManager.isOwningPlayback) {
+            DirectRadioPlayerManager.stop()
+        }
+        DirectRadioPlayerManager.isOwningPlayback = false
+        isOwningPlayback = true
+        retriedFreshExtractionForTrackId = null
+
+        val exo = DirectRadioPlayerManager.getOrCreatePlayer(appCtx)
+        ensurePlayerListenerAttached(exo)
+
+        // Album / Playlist expansion (`ytplaylist://`) -> extract full track queue and play Track 1
+        if (track.isAlbumOrPlaylist()) {
+            resolveJob?.cancel()
+            val prev = _state.value ?: MusicPlaybackState()
+            _state.postValue(
+                prev.copy(
+                    track = track,
+                    isPlaying = false,
+                    isBuffering = true,
+                    hasError = false,
+                    positionMs = 0L,
+                    durationMs = 0L,
+                    queueSize = track.trackCount.coerceAtLeast(1),
+                    queueIndex = 0,
+                    sleepTimerMinutes = activeSleepMinutes
+                )
+            )
+            resolveJob = ioScope.launch {
+                val expandedTracks = MissaMusicProviders.extractYouTubeAlbumOrPlaylistTracks(
+                    playlistOrLazyUrl = track.streamUrl,
+                    fallbackAlbumTitle = track.title,
+                    fallbackArtist = track.artist,
+                    fallbackArtworkUrl = track.artworkUrl,
+                    fallbackGenre = track.genre
+                )
+                withContext(Dispatchers.Main) {
+                    if (!isOwningPlayback) return@withContext
+                    if (expandedTracks.isEmpty()) {
+                        val cur = _state.value ?: MusicPlaybackState()
+                        _state.value = cur.copy(
+                            isPlaying = false,
+                            isBuffering = false,
+                            hasError = true
+                        )
+                    } else {
+                        activeQueue = expandedTracks
+                        activeQueueIndex = 0
+                        startCurrentQueueTrack(appCtx)
+                    }
+                }
+            }
             return
         }
-        if (activeQueue.isEmpty()) return
-        if (!shuffleEnabled && repeatMode == MusicRepeatMode.OFF && activeQueueIndex >= activeQueue.lastIndex) {
-            val current = _state.value ?: MusicPlaybackState()
-            _state.postValue(current.copy(isPlaying = false, isBuffering = false, positionMs = 0L))
+
+        val resolvedQueue = (queue ?: allPresetTracks().filter { !it.isAlbumOrPlaylist() })
+            .ifEmpty { listOf(track) }
+        val idx = resolvedQueue.indexOfFirst { it.id == track.id || it.streamUrl == track.streamUrl }
+        if (idx >= 0) {
+            activeQueue = resolvedQueue
+            activeQueueIndex = idx
+        } else {
+            activeQueue = listOf(track) + resolvedQueue
+            activeQueueIndex = 0
+        }
+
+        startCurrentQueueTrack(appCtx)
+    }
+
+    private fun startCurrentQueueTrack(appContext: Context) {
+        val track = activeQueue.getOrNull(activeQueueIndex) ?: return
+        if (track.isAlbumOrPlaylist()) {
+            playTrack(appContext, track, queue = null)
             return
         }
-        nextTrack(context, autoAdvanced = true)
+
+        resolveJob?.cancel()
+        val prev = _state.value ?: MusicPlaybackState()
+        _state.postValue(
+            prev.copy(
+                track = track,
+                isPlaying = false,
+                isBuffering = true,
+                hasError = false,
+                positionMs = 0L,
+                durationMs = (track.durationSeconds * 1000L).coerceAtLeast(0L),
+                queueSize = activeQueue.size,
+                queueIndex = activeQueueIndex,
+                sleepTimerMinutes = activeSleepMinutes
+            )
+        )
+
+        resolveJob = ioScope.launch {
+            val urls = MissaMusicProviders.resolvePlayableAudioUrls(
+                streamUrl = track.streamUrl,
+                fallbackUrls = track.fallbackUrls
+            )
+            withContext(Dispatchers.Main) {
+                if (!isOwningPlayback) return@withContext
+                if (urls.isEmpty()) {
+                    val cur = _state.value ?: MusicPlaybackState()
+                    _state.value = cur.copy(
+                        track = track,
+                        isPlaying = false,
+                        isBuffering = false,
+                        hasError = true,
+                        queueSize = activeQueue.size,
+                        queueIndex = activeQueueIndex
+                    )
+                } else {
+                    activeCandidateUrls = urls
+                    activeCandidateIndex = 0
+                    startExoTrackUri(appContext, track, urls.first())
+                    prefetchUpcomingTracksInQueue()
+                }
+            }
+        }
+    }
+
+    private fun startExoTrackUri(context: Context, track: MusicTrackPreset, uri: String) {
+        val appContext = context.applicationContext
+        val exo = DirectRadioPlayerManager.getOrCreatePlayer(appContext)
+        ensurePlayerListenerAttached(exo)
+
+        val metadataBuilder = MediaMetadata.Builder()
+            .setTitle(track.title)
+            .setArtist(track.artist.ifBlank { MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC })
+            .setAlbumTitle(track.album.ifBlank { track.genre })
+        track.artworkUrl?.takeIf { it.isNotBlank() }?.let { art ->
+            runCatching { metadataBuilder.setArtworkUri(Uri.parse(art)) }
+        }
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(track.id)
+            .setUri(uri)
+            .setMediaMetadata(metadataBuilder.build())
+            .build()
+
+        // Use disk-cached MediaSource for direct progressive/DASH YouTube audio; HLS uses default factory
+        val isHlsManifest = uri.contains(".m3u8", ignoreCase = true) || uri.contains("manifest/hls", ignoreCase = true)
+        if (isHlsManifest) {
+            exo.setMediaItem(mediaItem)
+        } else {
+            exo.setMediaSource(DirectRadioPlayerManager.createCachedMusicMediaSource(appContext, mediaItem))
+        }
+        exo.prepare()
+        exo.playWhenReady = true
+        mainHandler.removeCallbacks(progressTicker)
+        mainHandler.post(progressTicker)
     }
 
     fun togglePlayPause(context: Context) {
-        val current = _state.value ?: MusicPlaybackState()
-        val track = current.track ?: allPresetTracks().firstOrNull() ?: return
-        if (!isOwningPlayback) {
-            playTrack(context, track)
+        val current = _state.value
+        val activeTrack = current?.track
+        if (activeTrack == null) {
+            val first = allPresetTracks().firstOrNull() ?: return
+            playTrack(context, first)
             return
         }
-        val exo = ensurePlayerAttached(context)
+        if (!isOwningPlayback) {
+            playTrack(context, activeTrack, activeQueue.takeIf { it.isNotEmpty() })
+            return
+        }
+        val exo = DirectRadioPlayerManager.getOrCreatePlayer(context)
         if (exo.isPlaying) {
             exo.pause()
-        } else if (current.hasError || exo.playbackState == Player.STATE_IDLE || exo.playbackState == Player.STATE_ENDED) {
-            playTrack(context, track, activeQueue.takeIf { it.isNotEmpty() })
         } else {
-            exo.play()
+            if (exo.playbackState == Player.STATE_IDLE || current.hasError) {
+                retriedFreshExtractionForTrackId = null
+                startCurrentQueueTrack(context.applicationContext)
+            } else {
+                exo.play()
+            }
         }
     }
 
-    fun nextTrack(context: Context, autoAdvanced: Boolean = false) {
-        val queue = activeQueue.takeIf { it.isNotEmpty() } ?: allPresetTracks()
-        if (queue.isEmpty()) return
-        if (!autoAdvanced) {
-            consecutiveErrorSkips = 0
+    fun nextTrack(context: Context) {
+        if (activeQueue.isEmpty()) {
+            val presets = allPresetTracks().filter { !it.isAlbumOrPlaylist() }
+            if (presets.isNotEmpty()) playTrack(context, presets.first(), presets)
+            return
         }
-        val nextIndex = if (shuffleEnabled && queue.size > 1) {
-            var candidate = Random.nextInt(queue.size)
-            if (candidate == activeQueueIndex) {
-                candidate = (activeQueueIndex + 1) % queue.size
-            }
-            candidate
-        } else {
-            (activeQueueIndex + 1).mod(queue.size)
+        activeAppContext = context.applicationContext
+        if (!isOwningPlayback) {
+            playTrack(context, activeQueue[activeQueueIndex.coerceIn(0, activeQueue.lastIndex)], activeQueue)
+            return
         }
-        playTrack(context, queue[nextIndex], queue)
+        advanceQueue(context.applicationContext, forward = true, wrap = true)
     }
 
     fun previousTrack(context: Context) {
-        val queue = activeQueue.takeIf { it.isNotEmpty() } ?: allPresetTracks()
-        if (queue.isEmpty()) return
-        consecutiveErrorSkips = 0
-        val exo = boundExoPlayer
-        if (isOwningPlayback && exo != null && exo.currentPosition > 4_000L) {
-            exo.seekTo(0L)
-            return
+        if (activeQueue.isEmpty()) return
+        val appCtx = context.applicationContext
+        activeAppContext = appCtx
+        if (isOwningPlayback) {
+            val exo = DirectRadioPlayerManager.getOrCreatePlayer(appCtx)
+            if (exo.currentPosition > 4_000L) {
+                exo.seekTo(0L)
+                return
+            }
         }
-        val prevIndex = (activeQueueIndex - 1).mod(queue.size)
-        playTrack(context, queue[prevIndex], queue)
+        advanceQueue(appCtx, forward = false, wrap = true)
+    }
+
+    private fun advanceQueue(appContext: Context, forward: Boolean, wrap: Boolean) {
+        if (activeQueue.isEmpty()) return
+        val shuffle = _state.value?.shuffleEnabled == true
+        val nextIndex = if (shuffle && activeQueue.size > 2) {
+            var candidate = Random.nextInt(activeQueue.size)
+            if (candidate == activeQueueIndex) {
+                candidate = (candidate + 1) % activeQueue.size
+            }
+            candidate
+        } else if (forward) {
+            if (activeQueueIndex + 1 < activeQueue.size) {
+                activeQueueIndex + 1
+            } else if (wrap) {
+                0
+            } else {
+                return
+            }
+        } else {
+            if (activeQueueIndex - 1 >= 0) {
+                activeQueueIndex - 1
+            } else if (wrap) {
+                activeQueue.lastIndex
+            } else {
+                0
+            }
+        }
+        activeQueueIndex = nextIndex
+        retriedFreshExtractionForTrackId = null
+        startCurrentQueueTrack(appContext)
     }
 
     fun seekTo(positionMs: Long) {
         if (!isOwningPlayback) return
-        val exo = boundExoPlayer ?: return
-        val target = positionMs.coerceAtLeast(0L)
-        runCatching { exo.seekTo(target) }
+        val ctx = activeAppContext ?: return
+        val exo = DirectRadioPlayerManager.getOrCreatePlayer(ctx)
+        val safePos = positionMs.coerceAtLeast(0L)
+        exo.seekTo(safePos)
         val current = _state.value ?: return
-        _state.value = current.copy(positionMs = target)
+        _state.postValue(current.copy(positionMs = safePos))
     }
 
     fun toggleShuffle(): Boolean {
-        shuffleEnabled = !shuffleEnabled
         val current = _state.value ?: MusicPlaybackState()
-        _state.value = current.copy(shuffleEnabled = shuffleEnabled)
-        return shuffleEnabled
+        val nextVal = !current.shuffleEnabled
+        runCatching { setKey(SHUFFLE_ENABLED_KEY, nextVal) }
+        _state.postValue(current.copy(shuffleEnabled = nextVal))
+        return nextVal
     }
 
     fun cycleRepeatMode(): MusicRepeatMode {
-        repeatMode = when (repeatMode) {
+        val current = _state.value ?: MusicPlaybackState()
+        val nextMode = when (current.repeatMode) {
             MusicRepeatMode.ALL -> MusicRepeatMode.ONE
             MusicRepeatMode.ONE -> MusicRepeatMode.OFF
             MusicRepeatMode.OFF -> MusicRepeatMode.ALL
         }
-        val current = _state.value ?: MusicPlaybackState()
-        _state.value = current.copy(repeatMode = repeatMode)
-        return repeatMode
+        runCatching { setKey(REPEAT_MODE_KEY, nextMode.name) }
+        _state.postValue(current.copy(repeatMode = nextMode))
+        return nextMode
     }
 
     fun scheduleSleepTimer(minutes: Int) {
@@ -634,22 +826,28 @@ object DirectMusicPlayerManager {
     }
 
     fun stop() {
-        resolveStreamJob?.cancel()
-        resolveStreamJob = null
-        mainHandler.removeCallbacks(progressRunnable)
+        resolveJob?.cancel()
+        prefetchJob?.cancel()
+        mainHandler.removeCallbacks(progressTicker)
         sleepRunnable?.let { mainHandler.removeCallbacks(it) }
         sleepRunnable = null
         activeSleepMinutes = 0
         if (isOwningPlayback) {
-            isOwningPlayback = false
-            runCatching {
-                boundExoPlayer?.stop()
-                boundExoPlayer?.clearMediaItems()
+            activeAppContext?.let { ctx ->
+                DirectRadioPlayerManager.getOrCreatePlayer(ctx).stop()
             }
+            isOwningPlayback = false
         }
-        _state.value = MusicPlaybackState(
-            shuffleEnabled = shuffleEnabled,
-            repeatMode = repeatMode
+        val current = _state.value ?: MusicPlaybackState()
+        _state.postValue(
+            current.copy(
+                track = null,
+                isPlaying = false,
+                isBuffering = false,
+                hasError = false,
+                positionMs = 0L,
+                durationMs = 0L
+            )
         )
     }
 }

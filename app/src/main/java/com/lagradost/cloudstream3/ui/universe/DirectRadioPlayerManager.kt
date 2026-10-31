@@ -15,10 +15,16 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
@@ -29,9 +35,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import java.io.File
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 
 data class RadioPlaybackState(
     val station: RadioStationPreset? = null,
@@ -302,6 +312,68 @@ object DirectRadioPlayerManager {
     private const val STREAM_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+    private const val MUSIC_AUDIO_DISK_CACHE_BYTES = 128L * 1024L * 1024L // 128 MB LRU cache for on-demand music
+    private val musicCacheLock = Any()
+
+    @OptIn(UnstableApi::class)
+    @Volatile
+    private var musicSimpleCache: SimpleCache? = null
+
+    private val audioOkHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .retryOnConnectionFailure(true)
+            .build()
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun createUpstreamHttpDataSourceFactory(): OkHttpDataSource.Factory =
+        OkHttpDataSource.Factory(audioOkHttpClient)
+            .setUserAgent(STREAM_USER_AGENT)
+
+    @OptIn(UnstableApi::class)
+    private fun getOrCreateMusicSimpleCache(appContext: Context): SimpleCache? {
+        musicSimpleCache?.let { return it }
+        synchronized(musicCacheLock) {
+            musicSimpleCache?.let { return it }
+            return runCatching {
+                val cacheDir = File(appContext.cacheDir, "missa_yt_music_audio_cache")
+                if (!cacheDir.exists()) cacheDir.mkdirs()
+                SimpleCache(
+                    cacheDir,
+                    LeastRecentlyUsedCacheEvictor(MUSIC_AUDIO_DISK_CACHE_BYTES),
+                    StandaloneDatabaseProvider(appContext)
+                ).also { created ->
+                    musicSimpleCache = created
+                }
+            }.getOrNull()
+        }
+    }
+
+    /**
+     * Builds a disk-cached [MediaSource] dedicated to finite on-demand music tracks (so seeking and
+     * replays hit the 128 MB disk cache in 0 ms without polluting it with infinite live radio streams).
+     */
+    @OptIn(UnstableApi::class)
+    fun createCachedMusicMediaSource(context: Context, mediaItem: MediaItem): MediaSource {
+        val appContext = context.applicationContext
+        val upstream = DefaultDataSource.Factory(appContext, createUpstreamHttpDataSourceFactory())
+        val simpleCache = getOrCreateMusicSimpleCache(appContext)
+        val factory = if (simpleCache != null) {
+            CacheDataSource.Factory()
+                .setCache(simpleCache)
+                .setUpstreamDataSourceFactory(upstream)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        } else {
+            upstream
+        }
+        return DefaultMediaSourceFactory(factory).createMediaSource(mediaItem)
+    }
+
     @OptIn(UnstableApi::class)
     fun getOrCreatePlayer(context: Context): ExoPlayer {
         player?.let { return it }
@@ -310,14 +382,18 @@ object DirectRadioPlayerManager {
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
-        val httpFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent(STREAM_USER_AGENT)
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(12_000)
-            .setReadTimeoutMs(18_000)
-        val dataSourceFactory = DefaultDataSource.Factory(appContext, httpFactory)
+        val dataSourceFactory = DefaultDataSource.Factory(appContext, createUpstreamHttpDataSourceFactory())
+        val fastAudioLoadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs = */ 15_000,
+                /* maxBufferMs = */ 60_000,
+                /* bufferForPlaybackMs = */ 600,
+                /* bufferForPlaybackAfterRebufferMs = */ 1_500
+            )
+            .build()
         return ExoPlayer.Builder(appContext)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setLoadControl(fastAudioLoadControl)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .build()

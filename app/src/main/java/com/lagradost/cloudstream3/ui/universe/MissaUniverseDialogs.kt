@@ -2,6 +2,7 @@ package com.lagradost.cloudstream3.ui.universe
 
 import android.app.Activity
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.drawable.ColorDrawable
 import android.text.Editable
 import android.text.TextWatcher
@@ -13,11 +14,13 @@ import android.view.ViewGroup
 import android.view.Window
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDialog
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -33,6 +36,10 @@ import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
 import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_FOCUSED
 import com.lagradost.cloudstream3.ui.search.SEARCH_ACTION_SHOW_METADATA
 import com.lagradost.cloudstream3.ui.search.SearchClickCallback
+import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
+import com.lagradost.cloudstream3.ui.settings.Globals.TV
+import com.lagradost.cloudstream3.ui.settings.Globals.isLandscape
+import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.utils.AppContextUtils.setDefaultFocus
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UIHelper.toPx
@@ -675,107 +682,174 @@ internal object MissaUniverseDialogs {
             .setDefaultFocus()
     }
 
-    // --- 8. Dedicated Music Server (Navidrome / OpenSubsonic) & Custom MP3/M3U Dialog ---
+    // --- 8. 1st-Launch & On-Demand Musical Style Selector Dialog (YouTube Music Engine) ---
 
-    fun showMusicServerDialog(
+    private var activeMusicStyleDialog: AlertDialog? = null
+
+    fun showMusicStyleOnboardingDialog(
         context: Context,
-        onTracksChanged: () -> Unit
+        isInitialOnboarding: Boolean = false,
+        onStylesSaved: (() -> Unit)? = null
     ) {
-        val view = LayoutInflater.from(context).inflate(R.layout.dialog_missa_music_server, null, false)
-        val subUrlInput: EditText = view.findViewById(R.id.missa_music_subsonic_url)
-        val subUserInput: EditText = view.findViewById(R.id.missa_music_subsonic_user)
-        val subPassInput: EditText = view.findViewById(R.id.missa_music_subsonic_pass)
-        val subConnectBtn: MaterialButton = view.findViewById(R.id.missa_music_subsonic_connect_btn)
-        val subDisconnectBtn: MaterialButton = view.findViewById(R.id.missa_music_subsonic_disconnect_btn)
+        if (activeMusicStyleDialog?.isShowing == true) return
+        val activity = context as? Activity
+        if (activity != null && (activity.isFinishing || activity.isDestroyed)) return
 
-        val trackTitleInput: EditText = view.findViewById(R.id.missa_music_track_title)
-        val trackArtistInput: EditText = view.findViewById(R.id.missa_music_track_artist)
-        val trackUrlInput: EditText = view.findViewById(R.id.missa_music_track_url)
-        val cancelBtn: MaterialButton = view.findViewById(R.id.missa_music_cancel_btn)
-        val saveBtn: MaterialButton = view.findViewById(R.id.missa_music_save_btn)
+        val inflater = LayoutInflater.from(context)
+        val view = inflater.inflate(R.layout.dialog_missa_music_styles, null, false)
 
-        val existingConfig = DirectMusicPlayerManager.subsonicConfig()
-        if (existingConfig != null) {
-            subUrlInput.setText(existingConfig.baseUrl)
-            subUserInput.setText(existingConfig.username)
-            subPassInput.setText(existingConfig.password)
-            subDisconnectBtn.isVisible = true
+        val titleView: TextView = view.findViewById(R.id.missa_music_styles_title)
+        val countView: TextView = view.findViewById(R.id.missa_music_styles_count)
+        val selectAllBtn: MaterialButton = view.findViewById(R.id.missa_music_styles_select_all_btn)
+        val clearBtn: MaterialButton = view.findViewById(R.id.missa_music_styles_clear_btn)
+        val grid: GridLayout = view.findViewById(R.id.missa_music_styles_grid)
+        val laterBtn: MaterialButton = view.findViewById(R.id.missa_music_styles_later_btn)
+        val confirmBtn: MaterialButton = view.findViewById(R.id.missa_music_styles_confirm_btn)
+
+        titleView.setText(
+            if (isInitialOnboarding) {
+                R.string.universe_music_styles_onboarding_title
+            } else {
+                R.string.universe_music_styles_manage_title
+            }
+        )
+
+        val columns = if (isLayout(TV or EMULATOR) || context.isLandscape()) 3 else 2
+        grid.columnCount = columns
+
+        val accentColor = context.colorFromAttribute(R.attr.missaAccentPrimary)
+        val primaryTextColor = context.colorFromAttribute(R.attr.textColor)
+        val subtleStrokeColor = context.colorFromAttribute(R.attr.missaStrokeSubtle)
+        val surfaceColor = context.colorFromAttribute(R.attr.missaSurfaceCard)
+        val selectedSurfaceColor = ColorUtils.blendARGB(surfaceColor, accentColor, 0.20f)
+
+        val selectedIds = LinkedHashSet<String>().apply {
+            addAll(DirectMusicPlayerManager.selectedMusicStyleIds())
         }
+
+        val allStyles = MissaMusicProviders.MUSIC_STYLE_OPTIONS
+        val styleButtons = ArrayList<Pair<MissaMusicProviders.MusicStyleOption, MaterialButton>>(allStyles.size)
+
+        fun refreshButtonsUi() {
+            countView.text = context.getString(R.string.universe_music_styles_selected_count, selectedIds.size)
+            for ((style, btn) in styleButtons) {
+                val checked = selectedIds.contains(style.id)
+                val baseLabel = context.getString(style.labelRes)
+                btn.text = if (checked) "✓  $baseLabel" else baseLabel
+                btn.strokeColor = ColorStateList.valueOf(if (checked) accentColor else subtleStrokeColor)
+                btn.strokeWidth = if (checked) 2.toPx else 1.toPx
+                btn.backgroundTintList = ColorStateList.valueOf(if (checked) selectedSurfaceColor else surfaceColor)
+                btn.setTextColor(if (checked) accentColor else primaryTextColor)
+            }
+        }
+
+        allStyles.forEachIndexed { index, style ->
+            val btn = inflater.inflate(R.layout.item_missa_music_style_choice, grid, false) as MaterialButton
+            btn.id = View.generateViewId()
+            val row = index / columns
+            val col = index % columns
+            val lp = GridLayout.LayoutParams(
+                GridLayout.spec(row, 1),
+                GridLayout.spec(col, 1, 1f)
+            ).apply {
+                width = 0
+                val halfGap = 5.toPx
+                setMargins(
+                    if (col == 0) 0 else halfGap,
+                    if (row == 0) 0 else halfGap,
+                    if (col == columns - 1) 0 else halfGap,
+                    halfGap
+                )
+            }
+            btn.layoutParams = lp
+            btn.setOnClickListener {
+                if (selectedIds.contains(style.id)) {
+                    selectedIds.remove(style.id)
+                } else {
+                    selectedIds.add(style.id)
+                }
+                refreshButtonsUi()
+            }
+            grid.addView(btn)
+            styleButtons.add(style to btn)
+        }
+
+        // Strict adjacent-cell D-Pad focus wiring inside the style grid
+        val total = styleButtons.size
+        styleButtons.forEachIndexed { index, (_, btn) ->
+            val col = index % columns
+            btn.nextFocusLeftId = if (col > 0) styleButtons[index - 1].second.id else btn.id
+            btn.nextFocusRightId = if (col < columns - 1 && index + 1 < total) {
+                styleButtons[index + 1].second.id
+            } else {
+                btn.id
+            }
+            val upIdx = index - columns
+            btn.nextFocusUpId = if (upIdx >= 0) styleButtons[upIdx].second.id else selectAllBtn.id
+            val downIdx = index + columns
+            btn.nextFocusDownId = when {
+                downIdx < total -> styleButtons[downIdx].second.id
+                col == 0 -> laterBtn.id
+                else -> confirmBtn.id
+            }
+        }
+
+        selectAllBtn.setOnClickListener {
+            allStyles.forEach { selectedIds.add(it.id) }
+            refreshButtonsUi()
+        }
+
+        clearBtn.setOnClickListener {
+            selectedIds.clear()
+            refreshButtonsUi()
+        }
+
+        refreshButtonsUi()
 
         val dialog = AlertDialog.Builder(context)
             .setView(view)
             .create()
+        activeMusicStyleDialog = dialog
+        dialog.setOnDismissListener {
+            if (activeMusicStyleDialog === dialog) {
+                activeMusicStyleDialog = null
+            }
+            DirectMusicPlayerManager.hasPromptedOnboardingThisSession = true
+        }
 
-        cancelBtn.setOnClickListener { dialog.dismiss() }
-
-        subDisconnectBtn.setOnClickListener {
-            DirectMusicPlayerManager.disconnectOpenSubsonicServer()
-            subDisconnectBtn.isVisible = false
-            onTracksChanged()
+        laterBtn.setOnClickListener {
+            DirectMusicPlayerManager.hasPromptedOnboardingThisSession = true
             dialog.dismiss()
         }
 
-        subConnectBtn.setOnClickListener {
-            val config = OpenSubsonicServerConfig(
-                baseUrl = subUrlInput.text?.toString()?.trim().orEmpty(),
-                username = subUserInput.text?.toString()?.trim().orEmpty(),
-                password = subPassInput.text?.toString().orEmpty()
-            )
-            if (!MissaMusicProviders.isValidAudioUrl(config.baseUrl) || !config.isConfigured()) {
-                Toast.makeText(context, R.string.universe_music_subsonic_error_toast, Toast.LENGTH_SHORT).show()
+        confirmBtn.setOnClickListener {
+            if (selectedIds.isEmpty()) {
+                Toast.makeText(
+                    context,
+                    R.string.universe_music_styles_empty_warning,
+                    Toast.LENGTH_SHORT
+                ).show()
                 return@setOnClickListener
             }
-            subConnectBtn.isEnabled = false
-            CoroutineScope(Dispatchers.Main).launch {
-                val count = DirectMusicPlayerManager.connectOpenSubsonicServer(config)
-                subConnectBtn.isEnabled = true
-                if (count > 0) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.universe_music_subsonic_connected_toast, count),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    onTracksChanged()
-                    dialog.dismiss()
-                } else {
-                    Toast.makeText(context, R.string.universe_music_subsonic_error_toast, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        saveBtn.setOnClickListener {
-            val url = trackUrlInput.text?.toString()?.trim().orEmpty()
-            if (!MissaMusicProviders.isValidAudioUrl(url)) {
-                Toast.makeText(context, R.string.universe_radio_invalid_url, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val enteredTitle = trackTitleInput.text?.toString().orEmpty()
-            val enteredArtist = trackArtistInput.text?.toString().orEmpty()
-            saveBtn.isEnabled = false
-            CoroutineScope(Dispatchers.Main).launch {
-                val imported = DirectMusicPlayerManager.importCustomTrackOrPlaylist(
-                    context = context,
-                    title = enteredTitle,
-                    artist = enteredArtist,
-                    url = url
-                )
-                onTracksChanged()
-                imported.firstOrNull()?.let { first ->
-                    DirectMusicPlayerManager.playTrack(context, first, imported.takeIf { it.size > 1 })
-                }
-                if (imported.size > 1) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.universe_music_m3u_imported, imported.size),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                dialog.dismiss()
-            }
+            val chosen = selectedIds.toList()
+            DirectMusicPlayerManager.saveSelectedMusicStyles(chosen, triggerReload = true)
+            Toast.makeText(
+                context,
+                context.getString(R.string.universe_music_styles_saved_toast, chosen.size),
+                Toast.LENGTH_SHORT
+            ).show()
+            onStylesSaved?.invoke()
+            dialog.dismiss()
         }
 
         dialog.show()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        dialog.setDefaultFocus()
+        dialog.window?.let { win ->
+            win.setBackgroundDrawableResource(android.R.color.transparent)
+            if (isLayout(TV or EMULATOR) || context.isLandscape()) {
+                val maxWidth = (context.resources.displayMetrics.widthPixels * 0.86f).toInt()
+                win.setLayout(maxWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
+            }
+        }
+        styleButtons.firstOrNull()?.second?.setDefaultFocus() ?: dialog.setDefaultFocus()
     }
 }

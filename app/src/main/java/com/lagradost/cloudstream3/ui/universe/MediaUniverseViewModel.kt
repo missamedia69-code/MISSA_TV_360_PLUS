@@ -817,13 +817,18 @@ class MediaUniverseViewModel : ViewModel() {
         val definition = MissaUniverses.byId(universeId)
         val baseSourceEntries = overrideEntries ?: snapshot.entries
 
-        // Match entries belonging to this universe + filter local query if overrideEntries not provided
-        val universeEntries = baseSourceEntries.filter { entry ->
-            val inUniverse = universeId == "home" || entry.universes.contains(universeId)
-            val matchesLocalFilter = overrideEntries != null || searchQuery.isBlank() ||
-                entry.primary.name.contains(searchQuery.trim(), ignoreCase = true) ||
-                entry.sectionHints.any { it.contains(searchQuery.trim(), ignoreCase = true) }
-            inUniverse && matchesLocalFilter
+        // Match entries belonging to this universe + filter local query if overrideEntries not provided.
+        // "music" is 100% exclusively powered by YouTube (DirectMusicPlayerManager) — zero plugin entries.
+        val universeEntries = if (universeId == "music") {
+            emptyList()
+        } else {
+            baseSourceEntries.filter { entry ->
+                val inUniverse = universeId == "home" || entry.universes.contains(universeId)
+                val matchesLocalFilter = overrideEntries != null || searchQuery.isBlank() ||
+                    entry.primary.name.contains(searchQuery.trim(), ignoreCase = true) ||
+                    entry.sectionHints.any { it.contains(searchQuery.trim(), ignoreCase = true) }
+                inUniverse && matchesLocalFilter
+            }
         }
 
         val normalizedSelectedSources = selectedSources.map { it.lowercase(Locale.ROOT) }.toSet()
@@ -831,19 +836,22 @@ class MediaUniverseViewModel : ViewModel() {
         val builtInProviderSources = when (universeId) {
             "radio" -> DirectRadioPlayerManager.allPresetStations()
                 .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
-            "music" -> DirectMusicPlayerManager.allPresetTracks()
-                .map { it.providerName.ifBlank { DIRECT_MUSIC_API_NAME } }
+            "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
             else -> emptyList()
         }
 
-        val availableSources = (
-            (overrideEntries ?: snapshot.entries)
-                .filter { universeId == "home" || it.universes.contains(universeId) }
-                .flatMap { entry -> entry.sources.map { it.apiName } } +
-                builtInProviderSources
-            )
-            .distinct()
-            .sortedBy { it.lowercase(Locale.ROOT) }
+        val availableSources = if (universeId == "music") {
+            listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
+        } else {
+            (
+                (overrideEntries ?: snapshot.entries)
+                    .filter { universeId == "home" || it.universes.contains(universeId) }
+                    .flatMap { entry -> entry.sources.map { it.apiName } } +
+                    builtInProviderSources
+                )
+                .distinct()
+                .sortedBy { it.lowercase(Locale.ROOT) }
+        }
 
         val sourceFilteredEntries = if (normalizedSelectedSources.isEmpty()) {
             universeEntries
@@ -919,7 +927,7 @@ class MediaUniverseViewModel : ViewModel() {
             }
         }
 
-        // Dedicated 100%-Music universe: on-demand tracks, albums, DJ mixes & playlists (zero radio/TV)
+        // Dedicated 100%-YouTube Music universe: newest clips, singles, official albums & playlists (zero long mixes)
         val rankedMusicSearchResponses: List<DirectMusicSearchResponse> = if (universeId == "music") {
             val matchedMusicTracks = DirectMusicPlayerManager.allPresetTracks()
                 .filter { track ->
@@ -952,18 +960,16 @@ class MediaUniverseViewModel : ViewModel() {
                     universeId = "music",
                     title = "${track.artist} ${track.title} ${track.album}",
                     sectionName = track.genre,
-                    tags = listOf(track.providerName, track.genre),
+                    tags = listOf(track.genre, track.album).filter { it.isNotBlank() },
                     isTrending = track.isTrending,
                     effectiveType = TvType.Music
                 )
-                val targetCats = if (track.isCustom ||
-                    track.providerName == MissaMusicProviders.PROVIDER_SUBSONIC ||
-                    track.providerName == MissaMusicProviders.PROVIDER_FUNKWHALE
-                ) {
-                    (thematicCats + MissaCategory.MUSIC_STREAMS).distinct()
+                val formatCat = if (track.isAlbumOrPlaylist()) {
+                    MissaCategory.MUSIC_STREAMS
                 } else {
-                    thematicCats
+                    MissaCategory.MUSIC_CLIPS_LIVE
                 }
+                val targetCats = (listOf(formatCat) + thematicCats).distinct()
                 for (cat in targetCats) {
                     val bucket = buckets.getOrPut(cat.id) {
                         BucketData(
@@ -1155,8 +1161,7 @@ class MediaUniverseViewModel : ViewModel() {
                         hasLiveNow = false
                     )
                     "music" -> {
-                        val pluginCount = snapshot.entries.count { it.universes.contains("music") }
-                        val total = pluginCount + DirectMusicPlayerManager.allPresetTracks().size
+                        val total = DirectMusicPlayerManager.allPresetTracks().size
                         val badge = if (total > 0) {
                             ctx?.resources?.getQuantityString(R.plurals.missa_tracks_count, total, total)
                         } else {

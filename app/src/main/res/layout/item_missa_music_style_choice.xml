@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.button.MaterialButton xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.Missa.Button.Secondary"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:ellipsize="end"
+    android:focusable="true"
+    android:foreground="@drawable/missa_primary_btn_focus_foreground"
+    android:gravity="start|center_vertical"
+    android:insetTop="0dp"
+    android:insetBottom="0dp"
+    android:maxLines="2"
+    android:minHeight="48dp"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp"
+    android:textAllCaps="false"
+    app:cornerRadius="12dp" />

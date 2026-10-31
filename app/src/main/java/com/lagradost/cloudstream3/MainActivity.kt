@@ -194,6 +194,7 @@ import java.nio.charset.Charset
 import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
 import com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment
+import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
 import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
 import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
 import com.lagradost.cloudstream3.ui.universe.MissaUniverseDialogs
@@ -2214,6 +2215,30 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     showConfirmExitDialog(settingsManager)
                 }
             } else detachBackPressedCallback("MainActivity")
+
+            // 1st-Launch Musical Style Onboarding: once initial app setup is complete and the user
+            // enters a primary universe screen, prompt them to select their music style(s) so
+            // YouTube loads their newest official clips, singles, albums & playlists.
+            val isPrimaryUniverseDest = universeNavigationEntries.any { it.destinationId == navDestination.id }
+            if (isPrimaryUniverseDest &&
+                getKey<Boolean>(HAS_DONE_SETUP_KEY, false) == true &&
+                !DirectMusicPlayerManager.hasSelectedMusicStyles() &&
+                !DirectMusicPlayerManager.hasPromptedOnboardingThisSession
+            ) {
+                binding?.root?.post {
+                    if (!isFinishing &&
+                        !isDestroyed &&
+                        getKey<Boolean>(HAS_DONE_SETUP_KEY, false) == true &&
+                        !DirectMusicPlayerManager.hasSelectedMusicStyles() &&
+                        !DirectMusicPlayerManager.hasPromptedOnboardingThisSession
+                    ) {
+                        MissaUniverseDialogs.showMusicStyleOnboardingDialog(
+                            context = this@MainActivity,
+                            isInitialOnboarding = true
+                        )
+                    }
+                }
+            }
         }
 
         //val navController = findNavController(R.id.nav_host_fragment)
@@ -2515,6 +2540,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         ioSafe {
             migrateResumeWatching()
+            MissaMusicProviders.warmUpYouTubeEngine()
         }
 
         main {

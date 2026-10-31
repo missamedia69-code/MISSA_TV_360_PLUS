@@ -86,15 +86,15 @@ enum class MissaCategory(
     SPORTS_MOTORS("sports_motors", 45, R.string.missa_cat_sports_motors, R.string.missa_chip_sports_motors),
     SPORTS_ALL("sports_all", 900, R.string.missa_cat_sports_all, R.string.missa_chip_sports_all),
 
-    // Music (Musiques — 100% dedicated on-demand music tracks, albums & DJ mixes)
+    // Music (Musiques — 100% YouTube on-demand clips, singles, albums & playlists)
     MUSIC_TRENDING("music_trending", 8, R.string.missa_cat_music_trending, R.string.missa_chip_music_trending),
-    MUSIC_AFRICA("music_africa", 12, R.string.missa_cat_music_africa, R.string.missa_chip_music_africa),
+    MUSIC_CLIPS_LIVE("music_clips", 10, R.string.missa_cat_music_clips, R.string.missa_chip_music_clips),
+    MUSIC_STREAMS("music_streams", 11, R.string.missa_cat_music_streams, R.string.missa_chip_music_streams),
+    MUSIC_AFRICA("music_africa", 14, R.string.missa_cat_music_africa, R.string.missa_chip_music_africa),
     MUSIC_URBAN("music_urban", 20, R.string.missa_cat_music_urban, R.string.missa_chip_music_urban),
     MUSIC_DJ_MIXES("music_dj_mixes", 26, R.string.missa_cat_music_dj_mixes, R.string.missa_chip_music_dj_mixes),
     MUSIC_POP_WORLD("music_pop", 32, R.string.missa_cat_music_pop, R.string.missa_chip_music_pop),
     MUSIC_JAZZ_CLASSICAL("music_jazz_classical", 38, R.string.missa_cat_music_jazz_classical, R.string.missa_chip_music_jazz_classical),
-    MUSIC_CLIPS_LIVE("music_clips", 44, R.string.missa_cat_music_clips, R.string.missa_chip_music_clips),
-    MUSIC_STREAMS("music_streams", 52, R.string.missa_cat_music_streams, R.string.missa_chip_music_streams),
     MUSIC_ALL("music_all", 900, R.string.missa_cat_music_all, R.string.missa_chip_music_all),
 
     // Podcasts
@@ -927,16 +927,16 @@ internal object MediaUniverseClassifier {
                 if (containsAny(
                         text,
                         "hip-hop", "hip hop", "hiphop", "rap", "r&b", "rnb", "urbain",
-                        "urban", "trap", "drill", "freestyle", "soul", "funk", "groove"
+                        "urban", "mbol", "trap", "drill", "freestyle", "soul", "funk", "groove"
                     )
                 ) {
                     categories.add(MissaCategory.MUSIC_URBAN)
                 }
                 if (containsAny(
                         text,
-                        "dj", "mix", "set", "remix", "amapiano", "électro", "electro",
+                        "amapiano", "afro-house", "afro house", "électro", "electro",
                         "electronic", "house", "techno", "dance", "club", "dubstep",
-                        "drum & bass", "dnb", "hearthis"
+                        "drum & bass", "dnb", "remix"
                     )
                 ) {
                     categories.add(MissaCategory.MUSIC_DJ_MIXES)

@@ -212,6 +212,17 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         didRestoreUniverseFocus = false
         viewModel.ensureCatalogLoaded(forceReload = false)
         viewModel.refreshResumeWatching()
+        if (universeId == "music" && !DirectMusicPlayerManager.hasSelectedMusicStyles()) {
+            view?.post {
+                val ctx = context ?: return@post
+                MissaUniverseDialogs.showMusicStyleOnboardingDialog(
+                    context = ctx,
+                    isInitialOnboarding = true
+                ) {
+                    renderScreen()
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {
@@ -1155,7 +1166,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     override fun onMusicOpenServerDialog() {
-        MissaUniverseDialogs.showMusicServerDialog(requireContext()) {
+        MissaUniverseDialogs.showMusicStyleOnboardingDialog(
+            context = requireContext(),
+            isInitialOnboarding = false
+        ) {
             renderScreen()
         }
     }

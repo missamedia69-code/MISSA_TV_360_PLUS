@@ -248,23 +248,9 @@ class SearchViewModel : ViewModel() {
                         async {
                             val tracks = DirectMusicPlayerManager.searchTracksOnline(effectiveQuery)
                             if (currentSearchIndex == currentIndex && tracks.isNotEmpty()) {
-                                val ytTracks = tracks.filter {
-                                    it.providerName == MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC ||
-                                        it.providerName == MissaMusicProviders.PROVIDER_PIPED_MUSIC
-                                }.map { it.toSearchResponse() }
-                                val otherMusicTracks = tracks.filter {
-                                    it.providerName != MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC &&
-                                        it.providerName != MissaMusicProviders.PROVIDER_PIPED_MUSIC
-                                }.map { it.toSearchResponse() }
-
-                                if (ytTracks.isNotEmpty()) {
-                                    expandableSearches[MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC] =
-                                        ExpandableSearchList(ytTracks, 1, false)
-                                }
-                                if (otherMusicTracks.isNotEmpty()) {
-                                    expandableSearches[DIRECT_MUSIC_API_NAME] =
-                                        ExpandableSearchList(otherMusicTracks, 1, false)
-                                }
+                                val ytTracks = tracks.map { it.toSearchResponse() }
+                                expandableSearches[MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC] =
+                                    ExpandableSearchList(ytTracks, 1, false)
                                 _currentSearch.postValue(expandableSearches.toMap())
                             }
                         }

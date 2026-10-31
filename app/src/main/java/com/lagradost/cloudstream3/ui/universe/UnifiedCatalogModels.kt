@@ -12,7 +12,14 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvType
 
 const val DIRECT_RADIO_API_NAME = "MISSA Radio Direct"
-const val DIRECT_MUSIC_API_NAME = "MISSA Musique Direct"
+const val DIRECT_MUSIC_API_NAME = "YouTube"
+
+enum class MusicItemKind {
+    CLIP,
+    SONG,
+    ALBUM,
+    PLAYLIST
+}
 
 data class DirectRadioSearchResponse(
     override val name: String,
@@ -47,17 +54,25 @@ data class DirectMusicSearchResponse(
     val durationSeconds: Int = 0,
     val artworkUrl: String? = null,
     val fallbackUrls: List<String> = emptyList(),
-    val isPipedLazy: Boolean = false
+    val isPipedLazy: Boolean = true,
+    val itemKind: MusicItemKind = MusicItemKind.CLIP,
+    val trackCount: Int = 0
 ) : SearchResponse {
     fun formattedDuration(): String? {
-        if (durationSeconds <= 0) return null
-        val hours = durationSeconds / 3600
-        val mins = (durationSeconds % 3600) / 60
-        val secs = durationSeconds % 60
-        return if (hours > 0) {
-            "%d:%02d:%02d".format(hours, mins, secs)
-        } else {
-            "%02d:%02d".format(mins, secs)
+        return when (itemKind) {
+            MusicItemKind.ALBUM -> if (trackCount > 0) "ALBUM • $trackCount" else "ALBUM"
+            MusicItemKind.PLAYLIST -> if (trackCount > 0) "PLAYLIST • $trackCount" else "PLAYLIST"
+            MusicItemKind.CLIP, MusicItemKind.SONG -> {
+                if (durationSeconds <= 0) return if (itemKind == MusicItemKind.CLIP) "CLIP" else null
+                val hours = durationSeconds / 3600
+                val mins = (durationSeconds % 3600) / 60
+                val secs = durationSeconds % 3600 % 60
+                if (hours > 0) {
+                    "%d:%02d:%02d".format(hours, mins, secs)
+                } else {
+                    "%02d:%02d".format(mins, secs)
+                }
+            }
         }
     }
 }
@@ -365,9 +380,17 @@ data class MusicTrackPreset(
     val providerName: String = DIRECT_MUSIC_API_NAME,
     val fallbackUrls: List<String> = emptyList(),
     val isCustom: Boolean = false,
-    val isPipedLazy: Boolean = false,
-    val isTrending: Boolean = false
+    val isPipedLazy: Boolean = true,
+    val isTrending: Boolean = false,
+    val itemKind: MusicItemKind = MusicItemKind.CLIP,
+    val trackCount: Int = 0,
+    val recencyScore: Int = 0
 ) {
+    fun isAlbumOrPlaylist(): Boolean =
+        itemKind == MusicItemKind.ALBUM ||
+            itemKind == MusicItemKind.PLAYLIST ||
+            streamUrl.startsWith("ytplaylist://", ignoreCase = true)
+
     fun displayLabel(): String {
         val cleanArtist = artist.trim()
         val cleanTitle = title.trim()
@@ -392,14 +415,8 @@ data class MusicTrackPreset(
             durationSeconds = durationSeconds,
             artworkUrl = artworkUrl,
             fallbackUrls = fallbackUrls,
-            isPipedLazy = isPipedLazy
+            isPipedLazy = isPipedLazy,
+            itemKind = itemKind,
+            trackCount = trackCount
         )
-}
-
-data class OpenSubsonicServerConfig(
-    val baseUrl: String = "",
-    val username: String = "",
-    val password: String = ""
-) {
-    fun isConfigured(): Boolean = baseUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()
 }
