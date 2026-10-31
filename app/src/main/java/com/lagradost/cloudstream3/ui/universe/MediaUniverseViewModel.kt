@@ -954,6 +954,20 @@ class MediaUniverseViewModel : ViewModel() {
                     items = favTracks.toMutableList()
                 )
             }
+            val rowCap = if (searchQuery.isNotBlank()) 220 else 80
+            // `Nouveautés` (`MUSIC_TRENDING`) strictly contains ONLY fresh individual clips — NEVER playlists or albums
+            val nouveautesClips = MissaMusicProviders.selectNouveautesClips(musicTracks, maxItems = rowCap)
+            if (nouveautesClips.isNotEmpty()) {
+                val trendingCat = MissaCategory.MUSIC_TRENDING
+                buckets[trendingCat.id] = BucketData(
+                    key = trendingCat.id,
+                    rowTitle = resolveStr(ctx, trendingCat.rowTitleRes, trendingCat.id),
+                    chipLabel = resolveStr(ctx, trendingCat.chipLabelRes, trendingCat.id),
+                    rank = trendingCat.editorialRank,
+                    isHorizontal = false,
+                    items = nouveautesClips.map { it.toSearchResponse() }.toMutableList()
+                )
+            }
             for (track in musicTracks) {
                 val resp = track.toSearchResponse()
                 val thematicCats = MediaUniverseClassifier.categorizeForUniverse(
@@ -961,9 +975,9 @@ class MediaUniverseViewModel : ViewModel() {
                     title = "${track.artist} ${track.title} ${track.album}",
                     sectionName = track.genre,
                     tags = listOf(track.genre, track.album).filter { it.isNotBlank() },
-                    isTrending = track.isTrending,
+                    isTrending = false,
                     effectiveType = TvType.Music
-                )
+                ).filter { it != MissaCategory.MUSIC_TRENDING }
                 val formatCat = if (track.isAlbumOrPlaylist()) {
                     MissaCategory.MUSIC_STREAMS
                 } else {
@@ -980,7 +994,6 @@ class MediaUniverseViewModel : ViewModel() {
                             isHorizontal = false
                         )
                     }
-                    val rowCap = if (searchQuery.isNotBlank()) 220 else 80
                     if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
                         bucket.items.add(resp)
                     }

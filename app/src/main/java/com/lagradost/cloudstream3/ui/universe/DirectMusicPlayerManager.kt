@@ -69,14 +69,14 @@ data class MusicPlaybackState(
 object DirectMusicPlayerManager {
     private const val SELECTED_MUSIC_STYLES_KEY = "missa_selected_music_styles_v1"
     private const val HAS_SELECTED_MUSIC_STYLES_KEY = "missa_has_selected_music_styles_v1"
-    private const val REMOTE_TRACKS_CACHE_KEY = "missa_yt_music_catalog_v4"
-    private const val REMOTE_TRACKS_STYLES_SIG_KEY = "missa_yt_music_styles_sig_v4"
-    private const val REMOTE_TRACKS_UPDATED_AT_KEY = "missa_yt_music_updated_at_v4"
+    private const val REMOTE_TRACKS_CACHE_KEY = "missa_yt_music_catalog_v5"
+    private const val REMOTE_TRACKS_STYLES_SIG_KEY = "missa_yt_music_styles_sig_v5"
+    private const val REMOTE_TRACKS_UPDATED_AT_KEY = "missa_yt_music_updated_at_v5"
     private const val FAVORITE_TRACKS_KEY = "missa_favorite_music_track_ids_v1"
     private const val SHUFFLE_ENABLED_KEY = "missa_music_shuffle_enabled_v1"
     private const val REPEAT_MODE_KEY = "missa_music_repeat_mode_v1"
     private const val VIDEO_CLIP_MODE_KEY = "missa_music_video_clip_mode_v1"
-    private const val REMOTE_CACHE_TTL_MS = 2 * 60 * 60_000L // Refresh newest releases every 2 hours
+    private const val REMOTE_CACHE_TTL_MS = 20 * 60_000L // Refresh newest moment releases every 20 minutes
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -347,6 +347,14 @@ object DirectMusicPlayerManager {
             }
         } finally {
             remoteRefreshInFlight = false
+        }
+    }
+
+    fun forceRefreshCatalog() {
+        MissaMusicProviders.clearTransientSearchCaches()
+        refreshJob?.cancel()
+        refreshJob = ioScope.launch {
+            refreshRemoteTracksIfNeeded(force = true)
         }
     }
 
@@ -1059,6 +1067,24 @@ object DirectMusicPlayerManager {
         val exo = DirectRadioPlayerManager.getOrCreatePlayer(appContext)
         ensurePlayerListenerAttached(exo)
         activeTrackUsingVideoSource = true
+        val isAdaptiveHls = candidate.kind == MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE
+        runCatching {
+            val builder = exo.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, false)
+            if (isAdaptiveHls) {
+                builder
+                    .setMaxVideoSize(640, 360)
+                    .setMaxVideoBitrate(750_000)
+                    .setMaxAudioBitrate(128_000)
+            } else {
+                builder
+                    .clearVideoSizeConstraints()
+                    .setMaxVideoBitrate(Int.MAX_VALUE)
+                    .setMaxAudioBitrate(Int.MAX_VALUE)
+            }
+            exo.trackSelectionParameters = builder.build()
+        }
 
         when (candidate.kind) {
             MissaMusicProviders.VideoClipSourceKind.MUXED_PROGRESSIVE,
@@ -1103,6 +1129,13 @@ object DirectMusicPlayerManager {
 
         val mediaItem = buildTrackMediaItem(track, uri)
         val isHlsManifest = uri.contains(".m3u8", ignoreCase = true) || uri.contains("manifest/hls", ignoreCase = true)
+        runCatching {
+            exo.trackSelectionParameters = exo.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true)
+                .setMaxAudioBitrate(if (isHlsManifest) 96_000 else Int.MAX_VALUE)
+                .build()
+        }
         if (isHlsManifest) {
             exo.setMediaItem(mediaItem)
         } else {

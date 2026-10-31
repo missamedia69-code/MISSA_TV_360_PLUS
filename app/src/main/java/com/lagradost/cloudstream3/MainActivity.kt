@@ -538,18 +538,13 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         navigateTopLevelDestination(navHost.navController, definition.destinationId)
     }
 
-    /** Collapses or restores the mobile brand header row smoothly on vertical scroll (NAV-05). */
+    /** Keeps mobile brand header height stable during vertical scroll so Hero banner never jumps or stalls (NAV-05). */
     fun onMissaContentScrolled(dy: Int, atTop: Boolean) {
         if (isLayout(TV or EMULATOR)) return
         val brandRow = binding?.missaMobileBrandRow ?: return
-        if (atTop || dy < -14) {
-            if (mobileBrandCollapsed) {
-                mobileBrandCollapsed = false
-                brandRow.isVisible = true
-            }
-        } else if (dy > 18 && !mobileBrandCollapsed) {
-            mobileBrandCollapsed = true
-            brandRow.isVisible = false
+        if (mobileBrandCollapsed) {
+            mobileBrandCollapsed = false
+            brandRow.isVisible = true
         }
     }
 

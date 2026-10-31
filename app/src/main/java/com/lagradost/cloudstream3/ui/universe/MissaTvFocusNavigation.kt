@@ -47,6 +47,40 @@ internal object MissaTvFocusHelper {
     }
 
     /**
+     * Computes the vertical snap delta (`dy`) when scrolling comes to rest (`SCROLL_STATE_IDLE`)
+     * while the top Hero banner (`position == 0`) is partially clipped (`heroTop < viewportTop && heroBottom > viewportTop`):
+     * - Scrolling UP (`lastScrollDy < 0`) ALWAYS restores the full Hero banner cleanly to `viewportTop` (`heroTop - viewportTop < 0`).
+     * - Scrolling DOWN (`lastScrollDy > 0`) on a page that can scroll further down (`canScrollFurtherDown == true`)
+     *   cleanly tucks the banner out of the way (`heroBottom - viewportTop > 0`) once more than 35% has been scrolled past,
+     *   or restores it to `viewportTop` on tiny accidental nudges (`>= 65%` still visible).
+     * - On short pages (`canScrollFurtherDown == false`) after scrolling down, returns `0` so bottom content remains reachable,
+     *   and restores the banner to `viewportTop` as soon as the user scrolls back up (`lastScrollDy < 0`).
+     */
+    fun computeHeroBannerSnapDy(
+        heroTop: Int,
+        heroBottom: Int,
+        viewportTop: Int,
+        lastScrollDy: Int,
+        canScrollFurtherDown: Boolean = true
+    ): Int {
+        if (heroTop >= viewportTop || heroBottom <= viewportTop) return 0
+        val heroHeight = (heroBottom - heroTop).coerceAtLeast(1)
+        val visibleHeight = (heroBottom - viewportTop).coerceAtLeast(0)
+
+        if (lastScrollDy < 0) {
+            return heroTop - viewportTop
+        }
+        if (!canScrollFurtherDown) {
+            return 0
+        }
+        return if (visibleHeight * 100 >= heroHeight * 65) {
+            heroTop - viewportTop
+        } else {
+            heroBottom - viewportTop
+        }
+    }
+
+    /**
      * Computes the next adapter position inside a uniform `spanCount` grid without ever
      * wrapping horizontally from the end of one row to the start of another, and while
      * keeping the exact same column index (`col = fromPos % spanCount`) during vertical moves.
@@ -698,6 +732,17 @@ class MissaVerticalUniverseLayoutManager(
 
         // 3. Top/bottom boundary handling
         return if (direction == View.FOCUS_UP) {
+            // If Row 0 (Hero banner / top console) is still partially clipped above the viewport,
+            // reveal it completely to `top = 0` before leaving `masterRecycler`!
+            if (currentRowPos == 0) {
+                val topHiddenDelta = getDecoratedTop(rowView) - rv.paddingTop
+                if (topHiddenDelta < -4 && rv.canScrollVertically(-1)) {
+                    rv.scrollBy(0, topHiddenDelta)
+                    return focused
+                }
+            } else if (rv.canScrollVertically(-1)) {
+                rv.scrollToPosition(0)
+            }
             // Escape cleanly upward to the adjacent cell in sticky filter bar or top navigation bar
             val root = rv.rootView as? ViewGroup
             val stickyBar = root?.findViewById<View>(R.id.universe_sticky_filter_bar)
@@ -734,6 +779,59 @@ class MissaVerticalUniverseLayoutManager(
             return onInterceptFocusSearch(focused, focusDirection)
         }
         return super.onFocusSearchFailed(focused, focusDirection, recycler, state)
+    }
+
+    override fun requestChildRectangleOnScreen(
+        parent: RecyclerView,
+        child: View,
+        rect: Rect,
+        immediate: Boolean,
+        focusedChildVisible: Boolean
+    ): Boolean {
+        val pos = getPosition(child)
+        val topLimit = parent.paddingTop
+        val bottomLimit = parent.height - parent.paddingBottom
+
+        // Whenever focus lands on Row 0 (HeroCarousel / MusicDeck / CompactBanner),
+        // ALWAYS restore Row 0 completely to `top = paddingTop` so the banner is never half-hidden!
+        if (pos == 0) {
+            val dy = getDecoratedTop(child) - topLimit
+            if (dy < 0 && parent.canScrollVertically(-1)) {
+                if (immediate) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
+                return true
+            }
+        } else if (pos > 0) {
+            // Ensure the entire focused row (including its section title header) is cleanly framed,
+            // and avoid leaving Row 0 awkwardly cut in half when scrolling down if vertical range permits.
+            val rowTop = getDecoratedTop(child)
+            val rowBottom = getDecoratedBottom(child)
+            val rowHeight = rowBottom - rowTop
+            val viewportHeight = (bottomLimit - topLimit).coerceAtLeast(1)
+
+            var dy = when {
+                rowHeight <= viewportHeight - 16 && rowTop < topLimit + 8 -> rowTop - (topLimit + 8)
+                rowHeight <= viewportHeight - 16 && rowBottom > bottomLimit - 8 -> rowBottom - (bottomLimit - 8)
+                else -> 0
+            }
+
+            val heroView = findViewByPosition(0)
+            if (heroView != null && heroView.findViewById<View>(R.id.hero_viewpager) != null) {
+                val hTop = getDecoratedTop(heroView)
+                val hBottom = getDecoratedBottom(heroView)
+                if (hTop < topLimit && hBottom > topLimit && parent.canScrollVertically(1)) {
+                    val tuckHeroDy = hBottom - topLimit
+                    if (rowTop - tuckHeroDy >= topLimit) {
+                        dy = maxOf(dy, tuckHeroDy)
+                    }
+                }
+            }
+
+            if (dy != 0 && parent.canScrollVertically(if (dy > 0) 1 else -1)) {
+                if (immediate) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
+                return true
+            }
+        }
+        return super.requestChildRectangleOnScreen(parent, child, rect, immediate, focusedChildVisible)
     }
 
     private fun findIntraRowVerticalTarget(
@@ -894,6 +992,7 @@ class MissaVerticalUniverseLayoutManager(
         // Reveal just enough of `targetPos` during focusSearch so its child cards are laid out,
         // without unnecessarily pushing `focused` out of the RecyclerView before focus handoff.
         val dy = when {
+            targetPos == 0 && step < 0 && rowTop < topLimit -> rowTop - topLimit
             step > 0 && rowTop > bottomLimit - minRevealPx -> rowTop - (bottomLimit - minRevealPx)
             step < 0 && rowBottom < topLimit + minRevealPx -> rowBottom - (topLimit + minRevealPx)
             else -> 0

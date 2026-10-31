@@ -489,10 +489,10 @@ object DirectRadioPlayerManager {
         val dataSourceFactory = DefaultDataSource.Factory(appContext, createUpstreamHttpDataSourceFactory())
         val fastAudioLoadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                /* minBufferMs = */ 15_000,
-                /* maxBufferMs = */ 60_000,
-                /* bufferForPlaybackMs = */ 600,
-                /* bufferForPlaybackAfterRebufferMs = */ 1_500
+                /* minBufferMs = */ 10_000,
+                /* maxBufferMs = */ 36_000,
+                /* bufferForPlaybackMs = */ 300,
+                /* bufferForPlaybackAfterRebufferMs = */ 800
             )
             .build()
         return ExoPlayer.Builder(appContext)

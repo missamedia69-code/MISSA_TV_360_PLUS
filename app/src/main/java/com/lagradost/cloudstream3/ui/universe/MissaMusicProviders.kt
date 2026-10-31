@@ -408,6 +408,29 @@ object MissaMusicProviders {
     // Recency Scoring ("les musiques les plus récentes")
     // -------------------------------------------------------------------------
 
+    fun buildRecentAfterDate(
+        nowMillis: Long = System.currentTimeMillis(),
+        lookbackDays: Int = 60
+    ): String {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = nowMillis
+            add(Calendar.DAY_OF_YEAR, -lookbackDays.coerceIn(7, 180))
+        }
+        val year = cal.get(Calendar.YEAR)
+        val month = cal.get(Calendar.MONTH) + 1
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        return String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
+    }
+
+    fun buildFreshMomentClipQuery(
+        style: MusicStyleOption,
+        nowMillis: Long = System.currentTimeMillis(),
+        lookbackDays: Int = 60
+    ): Pair<String, String> {
+        val afterDate = buildRecentAfterDate(nowMillis = nowMillis, lookbackDays = lookbackDays)
+        return YoutubeSearchQueryHandlerFactory.VIDEOS to "${style.clipsKeywords} after:$afterDate"
+    }
+
     fun buildStyleQueriesForYear(style: MusicStyleOption, currentYear: Int): List<Pair<String, String>> {
         return listOf(
             YoutubeSearchQueryHandlerFactory.MUSIC_SONGS to "${style.songsKeywords} $currentYear",
@@ -420,28 +443,53 @@ object MissaMusicProviders {
     fun computeRecencyScore(
         textualUploadDate: String?,
         title: String,
-        currentYear: Int = Calendar.getInstance().get(Calendar.YEAR)
+        currentYear: Int = Calendar.getInstance().get(Calendar.YEAR),
+        fromRecentWindowQuery: Boolean = false
     ): Int {
-        var score = 0
         val dateText = textualUploadDate?.lowercase(Locale.ROOT)?.trim().orEmpty()
+        val numberInDate = Regex("(\\d+)").find(dateText)?.groupValues?.getOrNull(1)?.toIntOrNull()
+
+        // Strictly block multi-year-old uploads from ever being scored as recent/trending
+        if (dateText.contains("year") || dateText.contains(" an") || dateText.startsWith("an") || dateText.contains("ans")) {
+            val years = numberInDate ?: 1
+            return if (years >= 2) 0 else 18
+        }
+
+        var score = 0
         if (dateText.isNotEmpty()) {
             score += when {
-                dateText.contains("min") || dateText.contains("sec") -> 100
-                dateText.contains("hour") || dateText.contains("heure") -> 96
-                dateText.contains("day") || dateText.contains("jour") || dateText.contains("hier") || dateText.contains("yesterday") -> 90
-                dateText.contains("week") || dateText.contains("semaine") -> 82
-                dateText.contains("month") || dateText.contains("mois") -> {
-                    val months = Regex("(\\d+)").find(dateText)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 1
-                    (78 - months.coerceIn(1, 11) * 3).coerceAtLeast(45)
+                dateText.contains("min") || dateText.contains("sec") -> 115
+                dateText.contains("hour") || dateText.contains("heure") -> 108
+                dateText.contains("day") || dateText.contains("jour") || dateText.contains("hier") || dateText.contains("yesterday") -> {
+                    val days = (numberInDate ?: 1).coerceIn(1, 14)
+                    (102 - days).coerceAtLeast(88)
                 }
-                dateText.contains("1 year") || dateText.contains("1 an") -> 35
+                dateText.contains("week") || dateText.contains("semaine") -> {
+                    val weeks = (numberInDate ?: 1).coerceIn(1, 5)
+                    (88 - weeks * 3).coerceAtLeast(72)
+                }
+                dateText.contains("month") || dateText.contains("mois") -> {
+                    val months = (numberInDate ?: 1).coerceIn(1, 11)
+                    if (months <= 2) {
+                        74 - months * 4
+                    } else {
+                        (50 - months * 3).coerceAtLeast(16)
+                    }
+                }
                 else -> 12
             }
+        } else if (fromRecentWindowQuery) {
+            score += 78
         }
+
         if (title.contains(currentYear.toString())) {
-            score += 30
-        } else if (title.contains((currentYear - 1).toString())) {
-            score += 15
+            score += if (dateText.isEmpty()) 25 else 14
+        } else if (title.contains((currentYear - 1).toString()) && dateText.isEmpty()) {
+            score += 8
+        }
+
+        if (fromRecentWindowQuery && score in 1..74 && !dateText.contains("month") && !dateText.contains("mois")) {
+            score = 76
         }
         return score
     }
@@ -587,15 +635,15 @@ object MissaMusicProviders {
                     compareByDescending<Image> { img ->
                         val u = img.url.lowercase(Locale.ROOT)
                         when {
-                            u.contains("maxresdefault") || u.contains("hq720") -> 3
-                            u.contains("mqdefault") -> 2
-                            u.contains("hqdefault") || u.contains("sddefault") -> 0
+                            u.contains("mqdefault") -> 3
+                            u.contains("hqdefault") || u.contains("sddefault") -> 2
+                            u.contains("hq720") || u.contains("maxresdefault") -> 1
                             else -> 1
                         }
-                    }.thenByDescending {
+                    }.thenBy {
                         val w = it.width.coerceAtLeast(1)
                         val h = it.height.coerceAtLeast(1)
-                        w * h
+                        kotlin.math.abs(w * h - 320 * 180)
                     }
                 )
                 .firstOrNull()
@@ -860,10 +908,12 @@ object MissaMusicProviders {
                                 runCatching { item.thumbnails }.getOrNull(),
                                 fallbackVideoId = videoId
                             )
+                            val fromRecentWindowQuery = cleanQuery.contains("after:", ignoreCase = true)
                             val recency = computeRecencyScore(
                                 textualUploadDate = runCatching { item.textualUploadDate }.getOrNull(),
                                 title = rawTitle,
-                                currentYear = currentYear
+                                currentYear = currentYear,
+                                fromRecentWindowQuery = fromRecentWindowQuery
                             )
                             val kind = if (isClipQuery) MusicItemKind.CLIP else MusicItemKind.SONG
 
@@ -879,7 +929,7 @@ object MissaMusicProviders {
                                     durationSeconds = durationSec.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                                     providerName = PROVIDER_YOUTUBE_MUSIC,
                                     isPipedLazy = true,
-                                    isTrending = recency >= 50,
+                                    isTrending = recency >= 60,
                                     itemKind = kind,
                                     recencyScore = recency
                                 )
@@ -943,8 +993,9 @@ object MissaMusicProviders {
                             val recency = computeRecencyScore(
                                 textualUploadDate = null,
                                 title = rawTitle,
-                                currentYear = currentYear
-                            ) + 55 // Official YouTube Music albums/playlists for currentYear query
+                                currentYear = currentYear,
+                                fromRecentWindowQuery = false
+                            )
                             val itemKind = if (isAlbumFilter) MusicItemKind.ALBUM else MusicItemKind.PLAYLIST
                             val safeCount = streamCount.coerceIn(0L, 200L).toInt()
 
@@ -960,7 +1011,7 @@ object MissaMusicProviders {
                                     durationSeconds = 0,
                                     providerName = PROVIDER_YOUTUBE_MUSIC,
                                     isPipedLazy = true,
-                                    isTrending = true,
+                                    isTrending = false,
                                     itemKind = itemKind,
                                     trackCount = safeCount,
                                     recencyScore = recency
@@ -1079,7 +1130,20 @@ object MissaMusicProviders {
     // Audio Stream Resolution + 2h30 Coalesced LRU Cache
     // -------------------------------------------------------------------------
 
+    /**
+     * Prioritizes lightweight, low-latency progressive HTTP audio streams (`45..96 kbps` Opus /
+     * HE-AAC sweet spot around `64 kbps`) so tracks start almost instantaneously with minimal
+     * bandwidth and zero initial buffering lag.
+     */
     fun sortNewPipeAudioStreams(streams: List<AudioStream>): List<String> {
+        fun lightnessBitrateBand(bitrate: Int): Int = when {
+            bitrate in 45..96 -> 4   // Ultra-fast low-latency sweet spot (e.g. itag 250 ~64k Opus, itag 139 48k M4A)
+            bitrate in 97..135 -> 3  // Standard 128k M4A/Opus
+            bitrate in 24..44 -> 2   // Ultra-light fallback
+            bitrate <= 0 -> 2        // Unknown bitrate
+            else -> 1                // Heavy 160k+ stream (last resort to minimize latency)
+        }
+
         return streams
             .filter { stream ->
                 stream.isUrl &&
@@ -1088,16 +1152,17 @@ object MissaMusicProviders {
             }
             .sortedWith(
                 compareByDescending<AudioStream> { it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
-                    .thenByDescending { it.format == MediaFormat.M4A }
-                    .thenByDescending { it.averageBitrate }
+                    .thenByDescending { lightnessBitrateBand(it.averageBitrate) }
+                    .thenByDescending { it.format == MediaFormat.M4A || it.format == MediaFormat.WEBMA }
+                    .thenBy { kotlin.math.abs(it.averageBitrate.coerceAtLeast(64) - 64) }
             )
             .map { it.content }
             .distinct()
     }
 
     /**
-     * Selects crisp, fast-starting YouTube video streams (`360p..720p`) for the top MP3/Clip
-     * player monitor without pulling heavy `1080p`/`4K` streams:
+     * Selects lightweight, fast-starting YouTube video streams (`240p..360p` preferred, `480p`
+     * secondary) for the top MP3/Clip player monitor to minimize buffering latency:
      * 1. [Pair.first] = progressive muxed MP4 (`video + audio` in a single HTTP stream),
      * 2. [Pair.second] = progressive H.264/MP4 video-only stream (merged with cached audio in ExoPlayer).
      */
@@ -1116,10 +1181,10 @@ object MissaMusicProviders {
         }
 
         fun heightScore(height: Int): Int = when {
-            height in 480..720 -> 4
-            height in 360..479 -> 3
-            height in 240..359 -> 2
-            height in 721..1080 -> 1
+            height in 240..360 -> 5 // Lightweight 240p/360p fast-start target
+            height in 361..480 -> 4 // 480p secondary
+            height in 144..239 -> 3 // Ultra-light fallback
+            height in 481..720 -> 2 // 720p only when no lighter stream exists
             else -> 0
         }
 
@@ -1132,7 +1197,7 @@ object MissaMusicProviders {
             }
             .sortedWith(
                 compareByDescending<VideoStream> { heightScore(effectiveHeight(it)) }
-                    .thenByDescending { effectiveHeight(it) }
+                    .thenBy { kotlin.math.abs(effectiveHeight(it).coerceAtLeast(360) - 360) }
             )
             .firstOrNull()
             ?.content
@@ -1145,12 +1210,12 @@ object MissaMusicProviders {
                     !stream.content.isNullOrBlank() &&
                     stream.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
                     (stream.format == MediaFormat.MPEG_4 || codecLower.startsWith("avc")) &&
-                    h in 240..720
+                    h in 144..720
             }
             .sortedWith(
                 compareByDescending<VideoStream> { heightScore(effectiveHeight(it)) }
                     .thenByDescending { it.codec?.lowercase(Locale.ROOT)?.startsWith("avc") == true }
-                    .thenByDescending { effectiveHeight(it) }
+                    .thenBy { kotlin.math.abs(effectiveHeight(it).coerceAtLeast(360) - 360) }
             )
             .firstOrNull()
             ?.content
@@ -1159,9 +1224,9 @@ object MissaMusicProviders {
     }
 
     /**
-     * Builds an ordered failover chain of video clip candidates (`360p..720p` progressive muxed,
-     * adaptive HLS `.m3u8`, and H.264/VP9 video-only streams) so switching to Video Mode reliably
-     * renders moving video even when a particular YouTube CDN format is unavailable.
+     * Builds an ordered failover chain of lightweight video clip candidates (`240p..360p`
+     * progressive muxed first, lightweight H.264/VP9 video-only merged with cached audio, and
+     * 360p-capped adaptive HLS `.m3u8`) for ultra-low startup latency.
      */
     fun buildVideoClipCandidates(
         muxedStreams: List<VideoStream>,
@@ -1180,18 +1245,17 @@ object MissaMusicProviders {
         }
 
         fun heightScore(height: Int): Int = when {
-            height in 480..720 -> 5
-            height in 360..479 -> 4
-            height in 240..359 -> 3
-            height in 721..1080 -> 2
-            height > 0 -> 1
+            height in 240..360 -> 5
+            height in 361..480 -> 4
+            height in 144..239 -> 3
+            height in 481..720 -> 2
             else -> 1 // Unknown height when itagItem == null
         }
 
         val candidates = ArrayList<VideoClipCandidate>(6)
         val seenUrls = HashSet<String>()
 
-        // 1. Progressive muxed MP4/WebM streams (single HTTP stream with video + audio)
+        // 1. Progressive muxed MP4/WebM streams (360p preferred: single HTTP stream with video + audio)
         muxedStreams
             .filter { s ->
                 s.isUrl &&
@@ -1201,7 +1265,7 @@ object MissaMusicProviders {
             .sortedWith(
                 compareByDescending<VideoStream> { s -> s.format == MediaFormat.MPEG_4 }
                     .thenByDescending { s -> heightScore(effectiveHeight(s)) }
-                    .thenByDescending { s -> effectiveHeight(s) }
+                    .thenBy { s -> kotlin.math.abs(effectiveHeight(s).coerceAtLeast(360) - 360) }
             )
             .take(2)
             .forEach { s ->
@@ -1210,7 +1274,7 @@ object MissaMusicProviders {
                 }
             }
 
-        // 2. Adaptive video-only streams merged with cached M4A/Opus audio (H.264 first, then VP9)
+        // 2. Adaptive lightweight video-only streams (240p..480p) merged with cached audio
         if (hasAudioStreams) {
             videoOnlyStreams
                 .filter { s ->
@@ -1218,7 +1282,7 @@ object MissaMusicProviders {
                     s.isUrl &&
                         !s.content.isNullOrBlank() &&
                         s.deliveryMethod != DeliveryMethod.TORRENT &&
-                        (h == 0 || h in 144..1080)
+                        (h == 0 || h in 144..720)
                 }
                 .sortedWith(
                     compareByDescending<VideoStream> { s ->
@@ -1230,7 +1294,7 @@ object MissaMusicProviders {
                         }
                     }
                         .thenByDescending { s -> heightScore(effectiveHeight(s)) }
-                        .thenByDescending { s -> effectiveHeight(s) }
+                        .thenBy { s -> kotlin.math.abs(effectiveHeight(s).coerceAtLeast(360) - 360) }
                 )
                 .take(3)
                 .forEach { s ->
@@ -1420,6 +1484,56 @@ object MissaMusicProviders {
     // Progressive Style-Driven YouTube Catalog & On-Demand Search
     // -------------------------------------------------------------------------
 
+    fun clearTransientSearchCaches() {
+        synchronized(searchCacheLock) {
+            searchResultsCache.clear()
+        }
+    }
+
+    /**
+     * Selects **strictly individual clips** (never Playlists or Albums) for the
+     * `Nouveautés & Sorties Récentes` (`MissaCategory.MUSIC_TRENDING`) shelf, ordered by
+     * real upload freshness (`recencyScore` DESC) with `MusicItemKind.CLIP` prioritized first.
+     */
+    fun selectNouveautesClips(
+        tracks: List<MusicTrackPreset>,
+        maxItems: Int = 80
+    ): List<MusicTrackPreset> {
+        val individualOnly = tracks.filter { track ->
+            !track.isAlbumOrPlaylist() &&
+                track.itemKind != MusicItemKind.PLAYLIST &&
+                track.itemKind != MusicItemKind.ALBUM &&
+                !isYouTubePlaylistOrAlbumScheme(track.streamUrl)
+        }
+        if (individualOnly.isEmpty()) return emptyList()
+
+        val freshMomentClips = individualOnly
+            .filter { it.isTrending || it.recencyScore >= 55 }
+            .sortedWith(
+                compareByDescending<MusicTrackPreset> { it.itemKind == MusicItemKind.CLIP }
+                    .thenByDescending { it.recencyScore }
+            )
+
+        if (freshMomentClips.size >= 8) {
+            return freshMomentClips.take(maxItems)
+        }
+
+        // Supplement only with non-stale individual clips (never playlists/albums, never multi-year score 0 if recent exist)
+        val seenIds = freshMomentClips.mapTo(HashSet()) { it.id }
+        val nonStaleRemainder = individualOnly
+            .filter { it.id !in seenIds && it.recencyScore > 0 }
+            .sortedWith(
+                compareByDescending<MusicTrackPreset> { it.itemKind == MusicItemKind.CLIP }
+                    .thenByDescending { it.recencyScore }
+            )
+        val combined = (freshMomentClips + nonStaleRemainder).take(maxItems)
+        if (combined.isNotEmpty()) return combined
+
+        return individualOnly
+            .sortedByDescending { it.itemKind == MusicItemKind.CLIP }
+            .take(maxItems)
+    }
+
     private fun deduplicateAndOrderCatalog(batches: List<MusicTrackPreset>): List<MusicTrackPreset> {
         val crossMatched = crossMatchStudioCovers(batches)
         val merged = ArrayList<MusicTrackPreset>(crossMatched.size)
@@ -1427,7 +1541,9 @@ object MissaMusicProviders {
         val seenNormalizedTitleArtist = HashSet<String>()
 
         val sorted = crossMatched.sortedWith(
-            compareByDescending<MusicTrackPreset> { it.recencyScore }
+            compareByDescending<MusicTrackPreset> { !it.isAlbumOrPlaylist() }
+                .thenByDescending { it.recencyScore }
+                .thenByDescending { it.itemKind == MusicItemKind.CLIP }
                 .thenByDescending { isStudioSquareArtworkUrl(it.artworkUrl) }
                 .thenByDescending { !it.artworkUrl.isNullOrBlank() }
         )
@@ -1446,29 +1562,32 @@ object MissaMusicProviders {
      * Loads the newest YouTube Clips, Studio Singles, Official Albums, and Playlists matching
      * the user's chosen [styleIds].
      *
-     * Emits **Wave 1** (newest Singles & Official Clips) immediately via [onFirstWaveReady] so
-     * shelves render rapidly, then completes **Wave 2** (Official Albums, Playlists & verified
-     * studio cover enrichment).
+     * Emits **Wave 1** (genuinely fresh sliding-window individual Clips + Studio Singles)
+     * immediately via [onFirstWaveReady] so `Nouveautés` renders fresh individual clips right
+     * away, then completes **Wave 2** (Official Albums, Playlists & studio cover enrichment).
      */
     suspend fun fetchStyleCatalogProgressive(
         styleIds: Collection<String>?,
         onFirstWaveReady: ((List<MusicTrackPreset>) -> Unit)? = null
     ): List<MusicTrackPreset> = coroutineScope {
         val selectedStyles = resolveSelectedStyles(styleIds)
+        val nowMillis = System.currentTimeMillis()
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-        val perStyleSongs = if (selectedStyles.size <= 2) 12 else 8
-        val perStyleClips = if (selectedStyles.size <= 2) 12 else 8
-        val perStyleCollections = if (selectedStyles.size <= 2) 5 else 3
+        val perStyleFreshClips = if (selectedStyles.size <= 2) 12 else 8
+        val perStyleSongs = if (selectedStyles.size <= 2) 8 else 6
+        val perStyleCollections = if (selectedStyles.size <= 2) 4 else 3
 
-        // Wave 1: Newest studio songs (1:1 covers) + newest official clips in parallel
+        // Wave 1: Live sliding-window individual video clips (`after:YYYY-MM-DD` on `VIDEOS`) +
+        // YouTube Music clips & studio singles in parallel so `Nouveautés` is never frozen
         val wave1Jobs = selectedStyles.flatMap { style ->
+            val (freshFilter, freshQuery) = buildFreshMomentClipQuery(style, nowMillis = nowMillis, lookbackDays = 60)
             listOf(
                 async {
                     searchYouTubeTracksByFilter(
-                        query = "${style.songsKeywords} $currentYear",
-                        contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_SONGS,
+                        query = freshQuery,
+                        contentFilter = freshFilter,
                         genreHint = style.genreTag,
-                        maxResults = perStyleSongs
+                        maxResults = perStyleFreshClips
                     )
                 },
                 async {
@@ -1476,7 +1595,15 @@ object MissaMusicProviders {
                         query = "${style.clipsKeywords} $currentYear",
                         contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_VIDEOS,
                         genreHint = style.genreTag,
-                        maxResults = perStyleClips
+                        maxResults = perStyleSongs
+                    )
+                },
+                async {
+                    searchYouTubeTracksByFilter(
+                        query = "${style.songsKeywords} $currentYear",
+                        contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_SONGS,
+                        genreHint = style.genreTag,
+                        maxResults = perStyleSongs
                     )
                 }
             )
@@ -1512,7 +1639,7 @@ object MissaMusicProviders {
 
         val wave2Collections = wave2CollectionJobs.awaitAll().flatten()
         val combined = deduplicateAndOrderCatalog(wave1Ordered + wave2Collections)
-        enrichAuthenticCoverArtworks(combined, maxLookups = 12)
+        enrichAuthenticCoverArtworks(combined, maxLookups = 4)
     }
 
     /**

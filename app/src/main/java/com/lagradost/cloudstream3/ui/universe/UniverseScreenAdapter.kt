@@ -497,6 +497,9 @@ internal class UniverseScreenAdapter(
         init {
             viewPager.adapter = slideAdapter
             viewPager.offscreenPageLimit = 1
+            // Prevent ViewPager2's internal horizontal RecyclerView from blocking vertical
+            // touch/nested scrolling of `masterRecycler` when the Hero banner is partially scrolled.
+            (viewPager.getChildAt(0) as? RecyclerView)?.isNestedScrollingEnabled = false
             viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                 override fun onPageSelected(position: Int) {
                     renderDots(currentItem?.slides?.size ?: 0, position)

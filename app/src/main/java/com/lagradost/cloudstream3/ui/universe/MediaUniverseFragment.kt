@@ -502,6 +502,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             isEnabled = !isTv
             setColorSchemeColors(ctx.colorFromAttribute(R.attr.missaAccentPrimary))
             setProgressBackgroundColorSchemeColor(ctx.colorFromAttribute(R.attr.missaSurfaceElevated))
+            setOnChildScrollUpCallback { _, _ ->
+                val rv = masterRecycler ?: return@setOnChildScrollUpCallback false
+                if (rv.canScrollVertically(-1)) return@setOnChildScrollUpCallback true
+                val firstChild = rv.getChildAt(0) ?: return@setOnChildScrollUpCallback false
+                rv.getChildAdapterPosition(firstChild) > 0 || firstChild.top < rv.paddingTop
+            }
             setOnRefreshListener {
                 onRefreshCatalog()
             }
@@ -525,14 +531,48 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             }
             this.adapter = adapter
 
-            // Notify MainActivity for quick-return collapsing mobile top shell (NAV-05)
+            // Smooth Hero banner restoration + top shell sync
             addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                private var lastVerticalScrollDy: Int = 0
+                private var isHeroSnapping: Boolean = false
+
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    if (dy != 0 && !isHeroSnapping) {
+                        lastVerticalScrollDy = dy
+                    }
                     if (!isTv && dy != 0) {
                         (activity as? MainActivity)?.onMissaContentScrolled(
                             dy = dy,
                             atTop = !recyclerView.canScrollVertically(-1)
                         )
+                    }
+                }
+
+                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    if (newState != RecyclerView.SCROLL_STATE_IDLE) {
+                        if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                            isHeroSnapping = false
+                        }
+                        return
+                    }
+                    if (isHeroSnapping) {
+                        isHeroSnapping = false
+                        return
+                    }
+                    val heroHolder = recyclerView.findViewHolderForAdapterPosition(0)
+                        as? UniverseScreenAdapter.HeroCarouselHolder ?: return
+                    val heroView = heroHolder.itemView
+                    val snapDy = MissaTvFocusHelper.computeHeroBannerSnapDy(
+                        heroTop = heroView.top,
+                        heroBottom = heroView.bottom,
+                        viewportTop = recyclerView.paddingTop,
+                        lastScrollDy = lastVerticalScrollDy,
+                        canScrollFurtherDown = recyclerView.canScrollVertically(1)
+                    )
+                    if (snapDy != 0 && recyclerView.canScrollVertically(if (snapDy > 0) 1 else -1)) {
+                        isHeroSnapping = true
+                        lastVerticalScrollDy = 0
+                        recyclerView.smoothScrollBy(0, snapDy)
                     }
                 }
             })
@@ -1023,7 +1063,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             submitInUniverseSearch(currentSearchQuery)
             swipeRefresh?.isRefreshing = false
         } else {
+            if (universeId == "music" || universeId == "home") {
+                DirectMusicPlayerManager.forceRefreshCatalog()
+            }
             viewModel.ensureCatalogLoaded(forceReload = true)
+            if (universeId == "music") {
+                swipeRefresh?.postDelayed({ swipeRefresh?.isRefreshing = false }, 900L)
+            }
         }
     }
 

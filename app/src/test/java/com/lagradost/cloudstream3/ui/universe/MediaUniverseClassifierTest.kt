@@ -1094,7 +1094,7 @@ class MediaUniverseClassifierTest {
         )
         assertEquals("ytm_lp_confession", ranked.first().id)
 
-        // 6. NewPipe AudioStream sorter prioritizes progressive HTTP M4A (AAC) at highest bitrate for ExoPlayer
+        // 6. NewPipe AudioStream sorter prioritizes progressive HTTP lightweight low-latency (48..96 kbps) ahead of heavy bitrates
         val dashWebm = AudioStream.Builder()
             .setId("251")
             .setContent("https://rr1---sn.googlevideo.com/videoplayback?itag=251", true)
@@ -1118,11 +1118,11 @@ class MediaUniverseClassifierTest {
             .build()
 
         val sortedUrls = MissaMusicProviders.sortNewPipeAudioStreams(
-            listOf(dashWebm, progressiveM4aLow, progressiveM4aHigh)
+            listOf(dashWebm, progressiveM4aHigh, progressiveM4aLow)
         )
         assertEquals(3, sortedUrls.size)
-        assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=140", sortedUrls[0])
-        assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=139", sortedUrls[1])
+        assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=139", sortedUrls[0])
+        assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=140", sortedUrls[1])
         assertEquals("https://rr1---sn.googlevideo.com/videoplayback?itag=251", sortedUrls[2])
     }
 
@@ -1273,10 +1273,10 @@ class MediaUniverseClassifierTest {
             .build()
 
         val (bestMuxed, bestVideoOnly) = MissaMusicProviders.selectBestVideoStreams(
-            muxedStreams = listOf(muxed360, muxed720),
+            muxedStreams = listOf(muxed720, muxed360),
             videoOnlyStreams = listOf(videoOnly1440, videoOnly480)
         )
-        assertEquals("https://rr1.googlevideo.com/muxed_720.mp4", bestMuxed)
+        assertEquals("https://rr1.googlevideo.com/muxed_360.mp4", bestMuxed)
         assertEquals("https://rr1.googlevideo.com/video_only_480.mp4", bestVideoOnly)
 
         val sampleClips = listOf(
@@ -1461,6 +1461,172 @@ class MediaUniverseClassifierTest {
         assertTrue(
             "CommonActivity.continueGetNextFocus must prevent cross-window ViewRootImpl returns",
             commonActivityText.contains("next.rootView !== viewWindowRoot")
+        )
+    }
+
+    @Test
+    fun `nouveautes loads only fresh individual clips, uses lightweight formats and restores home hero banner on scroll`() {
+        // 1. Nouveautés (`selectNouveautesClips`) strictly excludes ALL Playlists & Albums even with "Nouveautés 2026" titles
+        val playlistMasqueradingAsNew = MusicTrackPreset(
+            id = "ytpl_999",
+            title = "Top Nouveautés Afrobeats 2026",
+            artist = "YouTube Music",
+            album = "Playlist Officielle",
+            streamUrl = "ytplaylist://https://www.youtube.com/playlist?list=PL999",
+            isTrending = true,
+            itemKind = MusicItemKind.PLAYLIST,
+            trackCount = 30,
+            recencyScore = 95
+        )
+        val albumMasqueradingAsNew = MusicTrackPreset(
+            id = "ytpl_888",
+            title = "Nouvel Album Officiel 2026",
+            artist = "Fally Ipupa",
+            album = "Album Officiel",
+            streamUrl = "ytplaylist://https://www.youtube.com/playlist?list=OLAK5uy_888",
+            isTrending = true,
+            itemKind = MusicItemKind.ALBUM,
+            trackCount = 14,
+            recencyScore = 90
+        )
+        val freshClipHoursAgo = MusicTrackPreset(
+            id = "ytm_fresh_hours",
+            title = "Bikutsi du Moment",
+            artist = "Lady Ponce",
+            album = "Clip Officiel",
+            streamUrl = "ytmusic://freshHours01",
+            isTrending = true,
+            itemKind = MusicItemKind.CLIP,
+            durationSeconds = 210,
+            recencyScore = MissaMusicProviders.computeRecencyScore("il y a 3 heures", "Bikutsi du Moment", 2026, fromRecentWindowQuery = true)
+        )
+        val freshClipDaysAgo = MusicTrackPreset(
+            id = "ytm_fresh_days",
+            title = "Douala Sunset",
+            artist = "Locko",
+            album = "Clip Officiel",
+            streamUrl = "ytmusic://freshDays02",
+            isTrending = true,
+            itemKind = MusicItemKind.CLIP,
+            durationSeconds = 198,
+            recencyScore = MissaMusicProviders.computeRecencyScore("2 days ago", "Douala Sunset", 2026, fromRecentWindowQuery = true)
+        )
+        val multiYearOldTrack = MusicTrackPreset(
+            id = "ytm_old_2021",
+            title = "Ancien Titre",
+            artist = "Artiste",
+            album = "Clip Officiel",
+            streamUrl = "ytmusic://old2021",
+            isTrending = false,
+            itemKind = MusicItemKind.CLIP,
+            durationSeconds = 230,
+            recencyScore = MissaMusicProviders.computeRecencyScore("3 years ago", "Ancien Titre 2026", 2026)
+        )
+
+        assertEquals(0, multiYearOldTrack.recencyScore)
+        assertTrue(freshClipHoursAgo.recencyScore > freshClipDaysAgo.recencyScore)
+        assertTrue(freshClipDaysAgo.recencyScore >= 80)
+
+        val nouveautes = MissaMusicProviders.selectNouveautesClips(
+            listOf(
+                playlistMasqueradingAsNew,
+                albumMasqueradingAsNew,
+                multiYearOldTrack,
+                freshClipDaysAgo,
+                freshClipHoursAgo
+            )
+        )
+        assertTrue("Nouveautés must never be empty when clips exist", nouveautes.isNotEmpty())
+        assertTrue(
+            "Nouveautés must strictly exclude all playlists and albums",
+            nouveautes.none { it.isAlbumOrPlaylist() || it.itemKind == MusicItemKind.PLAYLIST || it.itemKind == MusicItemKind.ALBUM }
+        )
+        assertFalse(
+            "Multi-year-old uploads must not pollute Nouveautés when fresh clips exist",
+            nouveautes.any { it.id == "ytm_old_2021" }
+        )
+        assertEquals("ytm_fresh_hours", nouveautes[0].id)
+        assertEquals("ytm_fresh_days", nouveautes[1].id)
+
+        // 2. Live sliding-window query uses `VIDEOS` + `after:YYYY-MM-DD` so releases never freeze
+        val style = MissaMusicProviders.MUSIC_STYLE_OPTIONS.first()
+        val (filter, freshQuery) = MissaMusicProviders.buildFreshMomentClipQuery(
+            style = style,
+            nowMillis = 1_793_404_800_000L, // Late Oct 2026
+            lookbackDays = 60
+        )
+        assertEquals(org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory.VIDEOS, filter)
+        assertTrue("Expected sliding `after:YYYY-MM-DD` operator in $freshQuery", freshQuery.contains(Regex("after:2026-\\d{2}-\\d{2}")))
+
+        // 3. Lightweight video clip candidate chain prefers 360p over heavy 720p/1080p to cut latency
+        val muxed720 = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("22")
+            .setContent("https://rr1.googlevideo.com/clip_720.mp4", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.MPEG_4)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(false)
+            .setResolution("720p")
+            .build()
+        val muxed360 = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("18")
+            .setContent("https://rr1.googlevideo.com/clip_360.mp4", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.MPEG_4)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(false)
+            .setResolution("360p")
+            .build()
+        val candidates = MissaMusicProviders.buildVideoClipCandidates(
+            muxedStreams = listOf(muxed720, muxed360),
+            videoOnlyStreams = emptyList(),
+            hlsUrl = "https://manifest.googlevideo.com/api/manifest/hls_variant/clip.m3u8",
+            hasAudioStreams = true
+        )
+        assertEquals("https://rr1.googlevideo.com/clip_360.mp4", candidates.first().url)
+
+        // 4. Accueil Hero banner scroll snap: never stays half-hidden or stuck when scrolling back up
+        // Banner [top = -160, bottom = 160] (half-hidden, viewportTop = 0):
+        // Scrolling UP (`lastScrollDy < 0`) restores full banner cleanly (`dy = -160`), even on short pages!
+        assertEquals(
+            -160,
+            MissaTvFocusHelper.computeHeroBannerSnapDy(
+                heroTop = -160,
+                heroBottom = 160,
+                viewportTop = 0,
+                lastScrollDy = -12,
+                canScrollFurtherDown = true
+            )
+        )
+        assertEquals(
+            -160,
+            MissaTvFocusHelper.computeHeroBannerSnapDy(
+                heroTop = -160,
+                heroBottom = 160,
+                viewportTop = 0,
+                lastScrollDy = -8,
+                canScrollFurtherDown = false
+            )
+        )
+        // Scrolling DOWN past 35% on a long page cleanly tucks the banner (`dy = +160`) instead of leaving it cut in half
+        assertEquals(
+            160,
+            MissaTvFocusHelper.computeHeroBannerSnapDy(
+                heroTop = -160,
+                heroBottom = 160,
+                viewportTop = 0,
+                lastScrollDy = 24,
+                canScrollFurtherDown = true
+            )
+        )
+        // Already fully at top (`heroTop == 0`) -> no snap needed (`dy = 0`)
+        assertEquals(
+            0,
+            MissaTvFocusHelper.computeHeroBannerSnapDy(
+                heroTop = 0,
+                heroBottom = 320,
+                viewportTop = 0,
+                lastScrollDy = -10,
+                canScrollFurtherDown = true
+            )
         )
     }
 }
