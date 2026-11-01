@@ -1377,10 +1377,10 @@ class MediaUniverseClassifierTest {
         )
         assertEquals(4, candidates.size)
         assertEquals(MissaMusicProviders.VideoClipSourceKind.MUXED_PROGRESSIVE, candidates[0].kind)
-        assertEquals(MissaMusicProviders.VideoClipSourceKind.VIDEO_ONLY_MERGED, candidates[1].kind)
-        assertEquals("https://rr1.googlevideo.com/videoplayback?itag=135", candidates[1].url)
-        assertEquals("https://rr1.googlevideo.com/videoplayback?itag=244", candidates[2].url)
-        assertEquals(MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE, candidates[3].kind)
+        assertEquals(MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE, candidates[1].kind)
+        assertEquals(MissaMusicProviders.VideoClipSourceKind.VIDEO_ONLY_MERGED, candidates[2].kind)
+        assertEquals("https://rr1.googlevideo.com/videoplayback?itag=135", candidates[2].url)
+        assertEquals("https://rr1.googlevideo.com/videoplayback?itag=244", candidates[3].url)
 
         val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
             ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
