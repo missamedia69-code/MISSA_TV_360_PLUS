@@ -46,14 +46,15 @@
                     android:src="@drawable/ic_missa_music"
                     app:tint="?attr/missaAccentPrimary" />
 
-                <!-- Live Playing Clip Video Monitor (TextureView clips smoothly inside RecyclerView) -->
+                <!-- Live Playing Clip Video Monitor (TextureView must stay visible so SurfaceTexture binds immediately) -->
                 <androidx.media3.ui.PlayerView
                     android:id="@+id/music_deck_video_surface"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
+                    android:alpha="0.01"
                     android:clickable="false"
                     android:focusable="false"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     app:resize_mode="zoom"
                     app:shutter_background_color="@android:color/transparent"
                     app:surface_type="texture_view"

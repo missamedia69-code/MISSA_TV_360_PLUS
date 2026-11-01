@@ -1274,7 +1274,13 @@ object MissaMusicProviders {
                 }
             }
 
-        // 2. Adaptive lightweight video-only streams (240p..480p) merged with cached audio
+        // 2. Apple iOS / visionOS HLS `.m3u8` master playlist (video + audio, instant mid-track seek)
+        val cleanHls = hlsUrl?.trim().orEmpty()
+        if (cleanHls.startsWith("http", ignoreCase = true) && seenUrls.add(cleanHls)) {
+            candidates.add(VideoClipCandidate(VideoClipSourceKind.HLS_ADAPTIVE, cleanHls))
+        }
+
+        // 3. Adaptive lightweight video-only streams (240p..480p) merged with cached audio
         if (hasAudioStreams) {
             videoOnlyStreams
                 .filter { s ->
@@ -1302,12 +1308,6 @@ object MissaMusicProviders {
                         candidates.add(VideoClipCandidate(VideoClipSourceKind.VIDEO_ONLY_MERGED, s.content))
                     }
                 }
-        }
-
-        // 3. Apple iOS HLS `.m3u8` master playlist (video + audio)
-        val cleanHls = hlsUrl?.trim().orEmpty()
-        if (cleanHls.startsWith("http", ignoreCase = true) && seenUrls.add(cleanHls)) {
-            candidates.add(VideoClipCandidate(VideoClipSourceKind.HLS_ADAPTIVE, cleanHls))
         }
 
         return candidates
@@ -1414,7 +1414,6 @@ object MissaMusicProviders {
      * the top monitor displays the actual moving video clip rather than a static cover frame.
      */
     suspend fun resolveOfficialVideoClipMediaIfAvailable(track: MusicTrackPreset): ResolvedYouTubeMedia? {
-        if (track.itemKind != MusicItemKind.SONG) return null
         val songVideoId = extractYouTubeVideoId(track.streamUrl).orEmpty()
         val query = listOf(track.artist.trim(), track.title.trim())
             .filter { it.isNotBlank() }

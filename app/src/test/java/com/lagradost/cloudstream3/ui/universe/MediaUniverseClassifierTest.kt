@@ -1575,13 +1575,47 @@ class MediaUniverseClassifierTest {
             .setIsVideoOnly(false)
             .setResolution("360p")
             .build()
+        val videoOnly360 = org.schabi.newpipe.extractor.stream.VideoStream.Builder()
+            .setId("134")
+            .setContent("https://rr1.googlevideo.com/clip_vo_360.mp4", true)
+            .setMediaFormat(org.schabi.newpipe.extractor.MediaFormat.MPEG_4)
+            .setDeliveryMethod(org.schabi.newpipe.extractor.stream.DeliveryMethod.PROGRESSIVE_HTTP)
+            .setIsVideoOnly(true)
+            .setResolution("360p")
+            .build()
         val candidates = MissaMusicProviders.buildVideoClipCandidates(
             muxedStreams = listOf(muxed720, muxed360),
-            videoOnlyStreams = emptyList(),
+            videoOnlyStreams = listOf(videoOnly360),
             hlsUrl = "https://manifest.googlevideo.com/api/manifest/hls_variant/clip.m3u8",
             hasAudioStreams = true
         )
         assertEquals("https://rr1.googlevideo.com/clip_360.mp4", candidates.first().url)
+        assertEquals(
+            MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE,
+            candidates.first { it.url.endsWith(".m3u8") }.kind
+        )
+        // HLS comes right after muxed progressive so mid-track switching (e.g. at 03:53) seeks instantaneously
+        val hlsIdx = candidates.indexOfFirst { it.kind == MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE }
+        val voIdx = candidates.indexOfFirst { it.kind == MissaMusicProviders.VideoClipSourceKind.VIDEO_ONLY_MERGED }
+        assertTrue("Expected HLS_ADAPTIVE ($hlsIdx) ahead of VIDEO_ONLY_MERGED ($voIdx)", hlsIdx in 0 until voIdx)
+
+        // Inline small-screen TextureView must NEVER start View.GONE (`visibility="visible"` + `wantsInlineSurface`)
+        // so Android allocates its SurfaceTexture BEFORE ExoPlayer decodes frame 0, with Fullscreen button ready!
+        val resRoot = java.io.File("src/main/res").takeIf { it.isDirectory } ?: java.io.File("app/src/main/res")
+        val deckXml = java.io.File(resRoot, "layout/item_universe_music_deck.xml").readText()
+        assertTrue(
+            "music_deck_video_surface must be visible in layout so TextureView allocates SurfaceTexture immediately",
+            deckXml.contains("android:id=\"@+id/music_deck_video_surface\"") &&
+                !deckXml.substringAfter("music_deck_video_surface").substringBefore("/>").contains("android:visibility=\"gone\"")
+        )
+        val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
+        val adapterText = java.io.File(javaRoot, "ui/universe/UniverseScreenAdapter.kt").readText()
+        assertTrue(
+            "MusicDeckHolder must keep inline videoSurface visible whenever wantsInlineSurface is true",
+            adapterText.contains("if (wantsInlineSurface)") &&
+                adapterText.contains("fullscreenBtn.isVisible = tr != null && state.videoClipModeEnabled")
+        )
 
         // 4. Accueil Hero banner scroll snap: never stays half-hidden or stuck when scrolling back up
         // Banner [top = -160, bottom = 160] (half-hidden, viewportTop = 0):

@@ -875,7 +875,12 @@ internal object MissaUniverseDialogs {
         deckPlayerView: PlayerView,
         onDismissed: () -> Unit
     ) {
-        val exo = DirectMusicPlayerManager.peekActiveExoPlayer() ?: return
+        if (isMusicFullscreenClipDialogOpen) return
+        if (!DirectMusicPlayerManager.currentState().videoClipModeEnabled) {
+            DirectMusicPlayerManager.setVideoClipMode(activity, true)
+        }
+        val exo = DirectMusicPlayerManager.peekActiveExoPlayer()
+            ?: DirectRadioPlayerManager.getOrCreatePlayer(activity)
         val dialog = AppCompatDialog(activity).apply {
             supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
         }

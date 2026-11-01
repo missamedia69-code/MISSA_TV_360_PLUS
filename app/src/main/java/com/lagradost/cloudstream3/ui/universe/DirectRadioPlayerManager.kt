@@ -353,11 +353,11 @@ object DirectRadioPlayerManager {
 
         val matchedUa = runCatching {
             when {
-                YoutubeParsingHelper.isVisionOsStreamingUrl(rawUrl) ->
+                YoutubeParsingHelper.isVisionOsStreamingUrl(rawUrl) || rawUrl.contains("/c/VISIONOS/", ignoreCase = true) ->
                     YoutubeParsingHelper.getVisionOsUserAgent(null)
-                YoutubeParsingHelper.isIosStreamingUrl(rawUrl) ->
+                YoutubeParsingHelper.isIosStreamingUrl(rawUrl) || rawUrl.contains("/c/IOS/", ignoreCase = true) ->
                     YoutubeParsingHelper.getIosUserAgent(null)
-                YoutubeParsingHelper.isAndroidStreamingUrl(rawUrl) ->
+                YoutubeParsingHelper.isAndroidStreamingUrl(rawUrl) || rawUrl.contains("/c/ANDROID", ignoreCase = true) ->
                     YoutubeParsingHelper.getAndroidUserAgent(null)
                 else -> STREAM_USER_AGENT
             }

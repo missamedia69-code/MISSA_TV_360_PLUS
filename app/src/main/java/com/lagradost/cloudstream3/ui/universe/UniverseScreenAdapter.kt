@@ -905,6 +905,14 @@ internal class UniverseScreenAdapter(
             queueBtn.setOnClickListener { callbacks.onMusicTogglePlaylistDrawer() }
             addServerBtn.setOnClickListener { callbacks.onMusicOpenServerDialog() }
             fullscreenBtn.setOnClickListener { callbacks.onMusicOpenFullscreenClip(videoSurface) }
+            // Tapping the small video monitor on touch screens opens Fullscreen directly when Video Mode is active
+            monitorCard.isFocusable = false
+            monitorCard.setOnClickListener {
+                val cur = DirectMusicPlayerManager.currentState()
+                if (cur.track != null && cur.videoClipModeEnabled) {
+                    callbacks.onMusicOpenFullscreenClip(videoSurface)
+                }
+            }
             shuffleBtn.setOnClickListener { callbacks.onMusicToggleShuffle() }
             prevBtn.setOnClickListener { callbacks.onMusicPrevTrack() }
             playBtn.setOnClickListener { callbacks.onMusicTogglePlayPause() }
@@ -1089,30 +1097,38 @@ internal class UniverseScreenAdapter(
                 }
             }
 
-            // Live Playing Video Clip Surface Attachment
+            // Live Playing Video Clip Surface Attachment:
+            // CRITICAL: `videoSurface` (`TextureView`) MUST stay `View.VISIBLE` (never `View.GONE`)
+            // whenever Video Mode is active so Android allocates its `SurfaceTexture` and attaches
+            // the hardware output `Surface` to `ExoPlayer` BEFORE frame 0 is decoded!
             val activeExo = DirectMusicPlayerManager.peekActiveExoPlayer()
-            val showLiveVideo = tr != null &&
+                ?: if (tr != null && state.videoClipModeEnabled) DirectRadioPlayerManager.peekPlayer() else null
+            val wantsInlineSurface = tr != null &&
                 state.videoClipModeEnabled &&
-                state.hasRenderedVideo &&
-                activeExo != null &&
                 !MissaUniverseDialogs.isMusicFullscreenClipDialogOpen
-            val isVideoLoading = tr != null &&
-                state.videoClipModeEnabled &&
+            val exoHasVideoSize = activeExo?.videoSize?.let { it.width > 0 && it.height > 0 } == true
+            val showLiveVideo = wantsInlineSurface &&
+                activeExo != null &&
+                (state.hasRenderedVideo || exoHasVideoSize)
+            val isVideoLoading = wantsInlineSurface &&
                 !showLiveVideo &&
                 (state.isBuffering || DirectMusicPlayerManager.isUsingVideoSource())
 
-            if (tr != null && state.videoClipModeEnabled && activeExo != null &&
-                !MissaUniverseDialogs.isMusicFullscreenClipDialogOpen
-            ) {
-                if (videoSurface.player !== activeExo) {
+            if (wantsInlineSurface) {
+                videoSurface.isVisible = true
+                if (activeExo != null && videoSurface.player !== activeExo) {
                     videoSurface.player = activeExo
                 }
-            } else if (!MissaUniverseDialogs.isMusicFullscreenClipDialogOpen && videoSurface.player != null) {
-                videoSurface.player = null
+                videoSurface.alpha = if (showLiveVideo) 1f else 0.01f
+            } else {
+                if (!MissaUniverseDialogs.isMusicFullscreenClipDialogOpen && videoSurface.player != null) {
+                    videoSurface.player = null
+                }
+                videoSurface.alpha = 0.01f
+                videoSurface.isVisible = false
             }
-            videoSurface.isVisible = showLiveVideo
             videoLoadingSpinner.isVisible = isVideoLoading
-            fullscreenBtn.isVisible = showLiveVideo
+            fullscreenBtn.isVisible = tr != null && state.videoClipModeEnabled
 
             liveBadge.setText(
                 when {
@@ -1172,17 +1188,25 @@ internal class UniverseScreenAdapter(
                 upNextView.text = ctx.getString(R.string.universe_music_up_next, nextInQueue.displayLabel())
             }
 
-            val topToolbarControls = listOf(
-                modeMp3Btn,
-                modeVideoBtn,
-                queueBtn,
-                addServerBtn
-            ).filter { it.isVisible }
+            val topToolbarControls = buildList {
+                if (isLandscape && fullscreenBtn.isVisible) {
+                    add(fullscreenBtn)
+                }
+                add(modeMp3Btn)
+                add(modeVideoBtn)
+                add(queueBtn)
+                add(addServerBtn)
+            }.filter { it.isVisible }
             MissaTvFocusHelper.chainHorizontalFocusRing(
                 controls = topToolbarControls,
                 clampStart = true,
                 clampEnd = true
             )
+            if (!isLandscape && fullscreenBtn.isVisible) {
+                fullscreenBtn.nextFocusLeftId = fullscreenBtn.id
+                fullscreenBtn.nextFocusRightId = fullscreenBtn.id
+                fullscreenBtn.nextFocusDownId = modeMp3Btn.id
+            }
 
             val transportControls = listOf(
                 shuffleBtn,
@@ -1199,6 +1223,9 @@ internal class UniverseScreenAdapter(
                 clampStart = true,
                 clampEnd = true
             )
+            if (isLandscape && fullscreenBtn.isVisible && shuffleBtn.isVisible) {
+                shuffleBtn.nextFocusLeftId = fullscreenBtn.id
+            }
         }
 
         companion object {

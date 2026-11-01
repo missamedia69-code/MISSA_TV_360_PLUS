@@ -119,6 +119,8 @@ object DirectMusicPlayerManager {
     private var activeVideoCandidateIndex: Int = 0
     private var activeVideoAudioUrls: List<String> = emptyList()
     private var retriedFreshExtractionForTrackId: String? = null
+    private var triedOfficialClipUpgradeForTrackId: String? = null
+    private var videoWatchdogRunnable: Runnable? = null
 
     private val discoveredSearchTracks = ConcurrentHashMap<String, MusicTrackPreset>()
     private val stateLock = Any()
@@ -161,13 +163,21 @@ object DirectMusicPlayerManager {
             val dur = exo.duration.takeIf { it != C.TIME_UNSET && it > 0L }
                 ?: ((current.track?.durationSeconds ?: 0) * 1000L)
             val pos = exo.currentPosition.coerceAtLeast(0L)
-            if (current.positionMs != pos || current.durationMs != dur) {
+            val liveHasVideo = current.videoClipModeEnabled &&
+                activeTrackUsingVideoSource &&
+                exo.videoSize.width > 0 &&
+                exo.videoSize.height > 0
+            if (current.positionMs != pos ||
+                current.durationMs != dur ||
+                (liveHasVideo && !current.hasRenderedVideo)
+            ) {
                 updateState { cur ->
                     cur.copy(
                         positionMs = pos,
                         durationMs = dur,
                         isPlaying = exo.isPlaying,
-                        isBuffering = exo.playbackState == Player.STATE_BUFFERING
+                        isBuffering = exo.playbackState == Player.STATE_BUFFERING,
+                        hasRenderedVideo = cur.hasRenderedVideo || liveHasVideo
                     )
                 }
             }
@@ -871,6 +881,8 @@ object DirectMusicPlayerManager {
                 startCurrentQueueTrack(appCtx, resumePositionMs = resumePos, autoPlay = true)
             }
         } else {
+            videoWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
+            videoWatchdogRunnable = null
             activeVideoCandidates = emptyList()
             activeVideoCandidateIndex = 0
             updateState { it.copy(hasRenderedVideo = false) }
@@ -903,7 +915,14 @@ object DirectMusicPlayerManager {
             return
         }
 
+        // Pre-create and attach ExoPlayer BEFORE emitting state so MusicDeckHolder immediately
+        // binds `videoSurface.player = exo` and allocates its TextureView SurfaceTexture!
+        val prewarmedExo = DirectRadioPlayerManager.getOrCreatePlayer(appContext)
+        ensurePlayerListenerAttached(prewarmedExo)
+
         resolveJob?.cancel()
+        videoWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
+        videoWatchdogRunnable = null
         updateState { prev ->
             prev.copy(
                 track = track,
@@ -1112,8 +1131,82 @@ object DirectMusicPlayerManager {
         if (resumePositionMs > 0L) exo.seekTo(resumePositionMs)
         exo.prepare()
         exo.playWhenReady = playWhenReady
+        scheduleVideoRenderWatchdog(appContext, track, bufferedRetryAllowed = true)
         mainHandler.removeCallbacks(progressTicker)
         mainHandler.post(progressTicker)
+    }
+
+    private fun scheduleVideoRenderWatchdog(
+        appContext: Context,
+        expectedTrack: MusicTrackPreset,
+        bufferedRetryAllowed: Boolean
+    ) {
+        videoWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
+        val runnable = Runnable {
+            if (!isOwningPlayback || !activeTrackUsingVideoSource || !latestState.videoClipModeEnabled) {
+                return@Runnable
+            }
+            val curTrack = latestState.track ?: return@Runnable
+            if (curTrack.id != expectedTrack.id) return@Runnable
+            val exo = DirectRadioPlayerManager.peekPlayer() ?: return@Runnable
+            val vSize = exo.videoSize
+            if (vSize.width > 0 && vSize.height > 0) {
+                if (!latestState.hasRenderedVideo) {
+                    updateState { it.copy(hasRenderedVideo = true, isBuffering = false, hasError = false) }
+                }
+                return@Runnable
+            }
+            if (exo.playbackState == Player.STATE_BUFFERING && bufferedRetryAllowed) {
+                scheduleVideoRenderWatchdog(appContext, expectedTrack, bufferedRetryAllowed = false)
+                return@Runnable
+            }
+            // Current video candidate produced 0x0 video frames -> advance to next video candidate automatically!
+            val resumePos = exo.currentPosition.coerceAtLeast(0L)
+            val nextVideoIdx = activeVideoCandidateIndex + 1
+            if (nextVideoIdx < activeVideoCandidates.size) {
+                activeVideoCandidateIndex = nextVideoIdx
+                startExoVideoCandidate(
+                    context = appContext,
+                    track = curTrack,
+                    candidate = activeVideoCandidates[nextVideoIdx],
+                    audioUrls = activeVideoAudioUrls.ifEmpty { activeCandidateUrls },
+                    resumePositionMs = resumePos,
+                    playWhenReady = exo.playWhenReady
+                )
+                return@Runnable
+            }
+            // All candidates on primary videoId produced 0x0 video -> search official music video clip once
+            if (triedOfficialClipUpgradeForTrackId != curTrack.id) {
+                triedOfficialClipUpgradeForTrackId = curTrack.id
+                ioScope.launch {
+                    val upgraded = MissaMusicProviders.resolveOfficialVideoClipMediaIfAvailable(curTrack)
+                    withContext(Dispatchers.Main) {
+                        if (!isOwningPlayback || latestState.track?.id != curTrack.id || !latestState.videoClipModeEnabled) {
+                            return@withContext
+                        }
+                        if (upgraded != null && upgraded.hasPlayableVideo) {
+                            startExoResolvedMedia(
+                                context = appContext,
+                                track = curTrack,
+                                media = upgraded,
+                                fallbackAudioUrls = activeCandidateUrls,
+                                preferVideoClip = true,
+                                resumePositionMs = 0L,
+                                playWhenReady = true
+                            )
+                        } else {
+                            activeTrackUsingVideoSource = false
+                            updateState { it.copy(hasRenderedVideo = false, isBuffering = false) }
+                        }
+                    }
+                }
+            } else {
+                activeTrackUsingVideoSource = false
+                updateState { it.copy(hasRenderedVideo = false, isBuffering = false) }
+            }
+        }
+        videoWatchdogRunnable = runnable
+        mainHandler.postDelayed(runnable, 3_000L)
     }
 
     private fun startExoPureAudioUri(
@@ -1279,6 +1372,8 @@ object DirectMusicPlayerManager {
     fun stop() {
         resolveJob?.cancel()
         prefetchJob?.cancel()
+        videoWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
+        videoWatchdogRunnable = null
         mainHandler.removeCallbacks(progressTicker)
         sleepRunnable?.let { mainHandler.removeCallbacks(it) }
         sleepRunnable = null
