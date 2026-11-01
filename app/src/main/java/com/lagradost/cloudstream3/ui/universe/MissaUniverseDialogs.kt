@@ -17,6 +17,8 @@ import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.GridLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -870,17 +872,24 @@ internal object MissaUniverseDialogs {
     var isMusicFullscreenClipDialogOpen: Boolean = false
         private set
 
+    private fun formatMusicClock(ms: Long): String {
+        val totalSeconds = (ms.coerceAtLeast(0L)) / 1000L
+        val mins = totalSeconds / 60L
+        val secs = totalSeconds % 60L
+        return String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
+    }
+
     fun showFullscreenMusicClipDialog(
         activity: Activity,
-        deckPlayerView: PlayerView,
-        onDismissed: () -> Unit
+        onDismissed: (() -> Unit)? = null
     ) {
         if (isMusicFullscreenClipDialogOpen) return
         if (!DirectMusicPlayerManager.currentState().videoClipModeEnabled) {
             DirectMusicPlayerManager.setVideoClipMode(activity, true)
         }
-        val exo = DirectMusicPlayerManager.peekActiveExoPlayer()
+        DirectMusicPlayerManager.peekActiveExoPlayer()
             ?: DirectRadioPlayerManager.getOrCreatePlayer(activity)
+
         val dialog = AppCompatDialog(activity).apply {
             supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
         }
@@ -888,6 +897,10 @@ internal object MissaUniverseDialogs {
             .inflate(R.layout.dialog_missa_music_fullscreen_clip, null, false)
 
         val fullscreenPlayerView: PlayerView = view.findViewById(R.id.fullscreen_clip_player_view)
+        val bufferingSpinner: ProgressBar = view.findViewById(R.id.fullscreen_clip_buffering_spinner)
+        val positionView: TextView = view.findViewById(R.id.fullscreen_clip_position)
+        val durationView: TextView = view.findViewById(R.id.fullscreen_clip_duration)
+        val seekBar: SeekBar = view.findViewById(R.id.fullscreen_clip_seekbar)
         val titleView: TextView = view.findViewById(R.id.fullscreen_clip_title)
         val subtitleView: TextView = view.findViewById(R.id.fullscreen_clip_subtitle)
         val prevBtn: MaterialButton = view.findViewById(R.id.fullscreen_clip_prev_btn)
@@ -901,6 +914,47 @@ internal object MissaUniverseDialogs {
             clampEnd = true
         )
 
+        var isDraggingSeek = false
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val dur = DirectMusicPlayerManager.currentState().durationMs
+                    if (dur > 0L) {
+                        positionView.text = formatMusicClock((dur * progress) / 1000L)
+                    }
+                }
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) {
+                isDraggingSeek = true
+            }
+
+            override fun onStopTrackingTouch(bar: SeekBar?) {
+                val dur = DirectMusicPlayerManager.currentState().durationMs
+                if (dur > 0L && bar != null) {
+                    DirectMusicPlayerManager.seekTo((dur * bar.progress) / 1000L)
+                }
+                isDraggingSeek = false
+            }
+        })
+
+        seekBar.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            val st = DirectMusicPlayerManager.currentState()
+            if (st.durationMs <= 0L) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    DirectMusicPlayerManager.seekTo((st.positionMs - 10_000L).coerceAtLeast(0L))
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    DirectMusicPlayerManager.seekTo((st.positionMs + 10_000L).coerceAtMost(st.durationMs))
+                    true
+                }
+                else -> false
+            }
+        }
+
         val stateObserver = Observer<MusicPlaybackState> { st ->
             val tr = st.track
             if (tr == null) {
@@ -908,18 +962,30 @@ internal object MissaUniverseDialogs {
                 return@Observer
             }
             titleView.text = tr.title
-            subtitleView.text = listOf(tr.artist, tr.album, tr.genre)
+            val queueSuffix = if (st.queueSize > 1) "${st.queueIndex + 1}/${st.queueSize}" else ""
+            subtitleView.text = listOf(tr.artist, tr.album, tr.genre, queueSuffix)
                 .filter { it.isNotBlank() }
                 .distinct()
                 .joinToString(" • ")
+            bufferingSpinner.isVisible = st.isBuffering
+            playBtn.setText(if (st.isPlaying) R.string.universe_radio_pause else R.string.universe_hero_listen)
             playBtn.setIconResource(
                 if (st.isPlaying) R.drawable.ic_baseline_pause_24
                 else R.drawable.ic_baseline_play_arrow_24
             )
-            val currentExo = DirectMusicPlayerManager.peekActiveExoPlayer()
-            if (currentExo != null && fullscreenPlayerView.player !== currentExo) {
-                fullscreenPlayerView.player = currentExo
+            val fallbackDurMs = tr.durationSeconds.toLong() * 1000L
+            val effectiveDurMs = if (st.durationMs > 0L) st.durationMs else fallbackDurMs
+            durationView.text = if (effectiveDurMs > 0L) formatMusicClock(effectiveDurMs) else activity.getString(R.string.universe_music_zero_time)
+            if (!isDraggingSeek) {
+                positionView.text = formatMusicClock(st.positionMs)
+                seekBar.isEnabled = st.durationMs > 0L
+                seekBar.progress = if (st.durationMs > 0L) {
+                    ((st.positionMs * 1000L) / st.durationMs).toInt().coerceIn(0, 1000)
+                } else {
+                    0
+                }
             }
+            DirectMusicPlayerManager.reconcileVideoSurfaceBinding()
         }
 
         prevBtn.setOnClickListener { DirectMusicPlayerManager.previousTrack(activity) }
@@ -927,20 +993,34 @@ internal object MissaUniverseDialogs {
         nextBtn.setOnClickListener { DirectMusicPlayerManager.nextTrack(activity) }
         closeBtn.setOnClickListener { dialog.dismiss() }
 
+        dialog.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                    DirectMusicPlayerManager.togglePlayPause(activity)
+                    true
+                }
+                KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                    DirectMusicPlayerManager.nextTrack(activity)
+                    true
+                }
+                KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                    DirectMusicPlayerManager.previousTrack(activity)
+                    true
+                }
+                else -> false
+            }
+        }
+
         isMusicFullscreenClipDialogOpen = true
-        deckPlayerView.player = null
-        fullscreenPlayerView.player = exo
+        DirectMusicPlayerManager.acquireFullscreenVideoSurface(fullscreenPlayerView)
         DirectMusicPlayerManager.state.observeForever(stateObserver)
 
         dialog.setOnDismissListener {
             DirectMusicPlayerManager.state.removeObserver(stateObserver)
-            fullscreenPlayerView.player = null
             isMusicFullscreenClipDialogOpen = false
-            val currentExo = DirectMusicPlayerManager.peekActiveExoPlayer()
-            if (currentExo != null && DirectMusicPlayerManager.currentState().videoClipModeEnabled) {
-                deckPlayerView.player = currentExo
-            }
-            onDismissed()
+            DirectMusicPlayerManager.releaseFullscreenVideoSurface(fullscreenPlayerView)
+            onDismissed?.invoke()
         }
 
         dialog.setContentView(view)
@@ -950,5 +1030,163 @@ internal object MissaUniverseDialogs {
             setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
         playBtn.post { playBtn.requestFocus() }
+    }
+
+    // --- 8. Playback Queue & Music Catalog Contextual Menus (TV D-Pad + Touch) ---
+
+    private data class MusicContextAction(
+        val label: String,
+        val onInvoke: () -> Unit
+    )
+
+    fun showMusicQueueTrackContextMenu(
+        activity: Activity,
+        index: Int,
+        track: MusicTrackPreset,
+        activeIndex: Int,
+        queueSize: Int,
+        isFavorite: Boolean,
+        onPlayNow: (Int) -> Unit,
+        onPlayNext: (MusicTrackPreset) -> Unit,
+        onMoveTrack: (fromIndex: Int, toIndex: Int) -> Unit,
+        onToggleFavorite: (String) -> Unit,
+        onSearchArtist: (String) -> Unit,
+        onRemoveFromQueue: (Int) -> Unit
+    ) {
+        val isActive = index == activeIndex
+        val actions = mutableListOf<MusicContextAction>()
+
+        if (!isActive) {
+            actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_play_now)) {
+                onPlayNow(index)
+            }
+        }
+        if (!isActive && index != activeIndex + 1) {
+            actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_play_next)) {
+                onPlayNext(track)
+                Toast.makeText(
+                    activity,
+                    activity.getString(R.string.universe_music_toast_play_next, track.title),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        if (index > 0) {
+            actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_move_up)) {
+                onMoveTrack(index, index - 1)
+            }
+        }
+        if (index < queueSize - 1) {
+            actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_move_down)) {
+                onMoveTrack(index, index + 1)
+            }
+        }
+        if (!isActive && queueSize > 2 && (index > activeIndex + 2 || index < activeIndex)) {
+            val targetIdx = if (index < activeIndex) activeIndex else (activeIndex + 1).coerceAtMost(queueSize - 1)
+            if (targetIdx != index) {
+                actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_move_after_current)) {
+                    onMoveTrack(index, targetIdx)
+                }
+            }
+        }
+
+        val favLabelRes = if (isFavorite) R.string.universe_music_ctx_fav_remove else R.string.universe_music_ctx_fav_add
+        actions += MusicContextAction(activity.getString(favLabelRes)) {
+            onToggleFavorite(track.id)
+        }
+
+        val cleanArtist = track.artist.trim()
+        if (cleanArtist.isNotBlank()) {
+            actions += MusicContextAction(
+                activity.getString(R.string.universe_music_ctx_search_artist, cleanArtist)
+            ) {
+                onSearchArtist(cleanArtist)
+            }
+        }
+
+        actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_remove_from_queue)) {
+            onRemoveFromQueue(index)
+            Toast.makeText(
+                activity,
+                activity.getString(R.string.universe_music_toast_removed_from_queue, track.title),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        val headerTitle = if (cleanArtist.isNotBlank()) "${track.title} • $cleanArtist" else track.title
+        val labels = actions.map { it.label }.toTypedArray()
+        val dialog = AlertDialog.Builder(activity)
+            .setTitle(headerTitle)
+            .setItems(labels) { dlg, which ->
+                dlg.dismiss()
+                actions.getOrNull(which)?.onInvoke?.invoke()
+            }
+            .setNegativeButton(R.string.cancel_btn) { dlg, _ -> dlg.dismiss() }
+            .create()
+        dialog.show()
+        dialog.setDefaultFocus()
+    }
+
+    fun showMusicCatalogCardContextMenu(
+        activity: Activity,
+        card: DirectMusicSearchResponse,
+        onPlayNow: () -> Unit,
+        onPlayNext: () -> Unit,
+        onAddToQueue: () -> Unit,
+        onToggleFavorite: () -> Unit,
+        onSearchArtist: (String) -> Unit
+    ) {
+        val preset = DirectMusicPlayerManager.toPresetFromCard(card)
+        val isCollection = preset.isAlbumOrPlaylist()
+        val isFav = DirectMusicPlayerManager.isFavorite(preset.id)
+        val actions = mutableListOf<MusicContextAction>()
+
+        actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_play_now)) {
+            onPlayNow()
+        }
+        if (!isCollection) {
+            actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_play_next)) {
+                onPlayNext()
+                Toast.makeText(
+                    activity,
+                    activity.getString(R.string.universe_music_toast_play_next, preset.title),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            actions += MusicContextAction(activity.getString(R.string.universe_music_ctx_add_to_queue)) {
+                onAddToQueue()
+                Toast.makeText(
+                    activity,
+                    activity.getString(R.string.universe_music_toast_added_to_queue, preset.title),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        val favLabelRes = if (isFav) R.string.universe_music_ctx_fav_remove else R.string.universe_music_ctx_fav_add
+        actions += MusicContextAction(activity.getString(favLabelRes)) {
+            onToggleFavorite()
+        }
+
+        val cleanArtist = preset.artist.trim()
+        if (cleanArtist.isNotBlank()) {
+            actions += MusicContextAction(
+                activity.getString(R.string.universe_music_ctx_search_artist, cleanArtist)
+            ) {
+                onSearchArtist(cleanArtist)
+            }
+        }
+
+        val headerTitle = if (cleanArtist.isNotBlank()) "${preset.title} • $cleanArtist" else preset.title
+        val labels = actions.map { it.label }.toTypedArray()
+        val dialog = AlertDialog.Builder(activity)
+            .setTitle(headerTitle)
+            .setItems(labels) { dlg, which ->
+                dlg.dismiss()
+                actions.getOrNull(which)?.onInvoke?.invoke()
+            }
+            .setNegativeButton(R.string.cancel_btn) { dlg, _ -> dlg.dismiss() }
+            .create()
+        dialog.show()
+        dialog.setDefaultFocus()
     }
 }

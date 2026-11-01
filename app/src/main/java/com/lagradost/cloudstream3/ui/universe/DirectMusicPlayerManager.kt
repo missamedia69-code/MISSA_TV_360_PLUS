@@ -13,6 +13,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
@@ -29,6 +30,114 @@ enum class MusicRepeatMode {
     OFF,
     ALL,
     ONE
+}
+
+enum class VideoSurfaceTarget {
+    NONE,
+    INLINE_DECK,
+    FULLSCREEN_MODAL
+}
+
+/**
+ * Pure, Android-framework-free state & queue algorithms for single-owner video surface arbitration,
+ * drag-and-drop track reordering, and contextual queue mutations.
+ */
+object MusicQueueAlgorithms {
+    fun resolveActiveVideoSurfaceTarget(
+        hasTrack: Boolean,
+        videoClipModeEnabled: Boolean,
+        isFullscreenOpen: Boolean,
+        isInlineAttached: Boolean
+    ): VideoSurfaceTarget {
+        if (!hasTrack || !videoClipModeEnabled) return VideoSurfaceTarget.NONE
+        if (isFullscreenOpen) return VideoSurfaceTarget.FULLSCREEN_MODAL
+        if (isInlineAttached) return VideoSurfaceTarget.INLINE_DECK
+        return VideoSurfaceTarget.NONE
+    }
+
+    fun computeMovedActiveQueueIndex(
+        currentActiveIndex: Int,
+        fromIndex: Int,
+        toIndex: Int,
+        size: Int
+    ): Int {
+        if (size <= 0) return 0
+        val safeActive = currentActiveIndex.coerceIn(0, size - 1)
+        val safeFrom = fromIndex.coerceIn(0, size - 1)
+        val safeTo = toIndex.coerceIn(0, size - 1)
+        if (safeFrom == safeTo) return safeActive
+        return when {
+            safeFrom == safeActive -> safeTo
+            safeFrom < safeActive && safeTo >= safeActive -> safeActive - 1
+            safeFrom > safeActive && safeTo <= safeActive -> safeActive + 1
+            else -> safeActive
+        }
+    }
+
+    fun reorderQueueTracks(
+        tracks: List<MusicTrackPreset>,
+        currentActiveIndex: Int,
+        fromIndex: Int,
+        toIndex: Int
+    ): Pair<List<MusicTrackPreset>, Int> {
+        if (tracks.size <= 1) return tracks to 0
+        val safeFrom = fromIndex.coerceIn(0, tracks.lastIndex)
+        val safeTo = toIndex.coerceIn(0, tracks.lastIndex)
+        if (safeFrom == safeTo) {
+            return tracks to currentActiveIndex.coerceIn(0, tracks.lastIndex)
+        }
+        val mutable = tracks.toMutableList()
+        val moved = mutable.removeAt(safeFrom)
+        mutable.add(safeTo, moved)
+        val nextActive = computeMovedActiveQueueIndex(currentActiveIndex, safeFrom, safeTo, tracks.size)
+        return mutable.toList() to nextActive
+    }
+
+    fun insertPlayNextInQueue(
+        tracks: List<MusicTrackPreset>,
+        currentActiveIndex: Int,
+        candidate: MusicTrackPreset
+    ): Pair<List<MusicTrackPreset>, Int> {
+        if (tracks.isEmpty()) return listOf(candidate) to 0
+        val safeActive = currentActiveIndex.coerceIn(0, tracks.lastIndex)
+        val existingIdx = tracks.indexOfFirst {
+            it.id == candidate.id || it.streamUrl.equals(candidate.streamUrl, ignoreCase = true)
+        }
+        if (existingIdx == safeActive) {
+            return tracks to safeActive
+        }
+        if (existingIdx >= 0) {
+            val targetIdx = if (existingIdx < safeActive) safeActive else (safeActive + 1).coerceAtMost(tracks.lastIndex)
+            return reorderQueueTracks(tracks, safeActive, existingIdx, targetIdx)
+        }
+        val mutable = tracks.toMutableList()
+        val insertAt = (safeActive + 1).coerceAtMost(mutable.size)
+        mutable.add(insertAt, candidate)
+        return mutable.toList() to safeActive
+    }
+
+    fun removeTrackFromQueue(
+        tracks: List<MusicTrackPreset>,
+        currentActiveIndex: Int,
+        removeIndex: Int
+    ): Triple<List<MusicTrackPreset>, Int, Boolean> {
+        if (tracks.isEmpty() || removeIndex !in tracks.indices) {
+            return Triple(tracks, currentActiveIndex.coerceAtLeast(0), false)
+        }
+        val safeActive = currentActiveIndex.coerceIn(0, tracks.lastIndex)
+        val removedWasActive = removeIndex == safeActive
+        val mutable = tracks.toMutableList()
+        mutable.removeAt(removeIndex)
+        if (mutable.isEmpty()) {
+            return Triple(emptyList(), 0, true)
+        }
+        val nextActive = when {
+            removeIndex < safeActive -> safeActive - 1
+            removeIndex > safeActive -> safeActive
+            else -> removeIndex.coerceAtMost(mutable.lastIndex)
+        }
+        return Triple(mutable.toList(), nextActive, removedWasActive)
+    }
 }
 
 data class MusicPlaybackState(
@@ -113,6 +222,8 @@ object DirectMusicPlayerManager {
 
     private var activeQueue: List<MusicTrackPreset> = emptyList()
     private var activeQueueIndex: Int = 0
+    @Volatile
+    private var activeCollectionUrl: String? = null
     private var activeCandidateUrls: List<String> = emptyList()
     private var activeCandidateIndex: Int = 0
     private var activeVideoCandidates: List<MissaMusicProviders.VideoClipCandidate> = emptyList()
@@ -121,6 +232,11 @@ object DirectMusicPlayerManager {
     private var retriedFreshExtractionForTrackId: String? = null
     private var triedOfficialClipUpgradeForTrackId: String? = null
     private var videoWatchdogRunnable: Runnable? = null
+
+    // Single-owner VideoSurfaceCoordinator state (main-thread serialized; eliminates surface contention)
+    private var inlineSurfaceView: PlayerView? = null
+    private var fullscreenSurfaceView: PlayerView? = null
+    private var boundSurfaceView: PlayerView? = null
 
     private val discoveredSearchTracks = ConcurrentHashMap<String, MusicTrackPreset>()
     private val onlineSearchResultsLock = Any()
@@ -403,12 +519,160 @@ object DirectMusicPlayerManager {
     }
 
     // -------------------------------------------------------------------------
+    // Single-Owner Video Surface Coordinator & Now-Playing Synchronization
+    // -------------------------------------------------------------------------
+
+    fun resolveActiveVideoSurfaceTarget(
+        hasTrack: Boolean,
+        videoClipModeEnabled: Boolean,
+        isFullscreenOpen: Boolean,
+        isInlineAttached: Boolean
+    ): VideoSurfaceTarget = MusicQueueAlgorithms.resolveActiveVideoSurfaceTarget(
+        hasTrack = hasTrack,
+        videoClipModeEnabled = videoClipModeEnabled,
+        isFullscreenOpen = isFullscreenOpen,
+        isInlineAttached = isInlineAttached
+    )
+
+    fun isFullscreenSurfaceActive(): Boolean = fullscreenSurfaceView != null
+
+    fun registerInlineVideoSurface(playerView: PlayerView) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { registerInlineVideoSurface(playerView) }
+            return
+        }
+        inlineSurfaceView = playerView
+        reconcileVideoSurfaceBinding()
+    }
+
+    fun unregisterInlineVideoSurface(playerView: PlayerView) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { unregisterInlineVideoSurface(playerView) }
+            return
+        }
+        if (inlineSurfaceView === playerView) {
+            inlineSurfaceView = null
+        }
+        // Only clear `.player` if this exact view currently owns the surface AND fullscreen is closed;
+        // never clobber a newer ViewHolder or an open fullscreen dialog.
+        if (boundSurfaceView === playerView && fullscreenSurfaceView == null) {
+            playerView.player = null
+            boundSurfaceView = null
+        } else if (fullscreenSurfaceView != null && playerView.player != null) {
+            playerView.player = null
+        }
+    }
+
+    fun acquireFullscreenVideoSurface(playerView: PlayerView) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { acquireFullscreenVideoSurface(playerView) }
+            return
+        }
+        fullscreenSurfaceView = playerView
+        reconcileVideoSurfaceBinding()
+    }
+
+    fun releaseFullscreenVideoSurface(playerView: PlayerView) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { releaseFullscreenVideoSurface(playerView) }
+            return
+        }
+        if (fullscreenSurfaceView === playerView) {
+            fullscreenSurfaceView = null
+        }
+        if (playerView.player != null) {
+            playerView.player = null
+        }
+        if (boundSurfaceView === playerView) {
+            boundSurfaceView = null
+        }
+        reconcileVideoSurfaceBinding()
+    }
+
+    fun reconcileVideoSurfaceBinding(explicitPlayer: ExoPlayer? = null) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { reconcileVideoSurfaceBinding(explicitPlayer) }
+            return
+        }
+        val st = latestState
+        val exo = explicitPlayer ?: peekActiveExoPlayer()
+        val inlineView = inlineSurfaceView?.takeIf { it.isAttachedToWindow }
+        val fullscreenView = fullscreenSurfaceView
+
+        val target = resolveActiveVideoSurfaceTarget(
+            hasTrack = st.track != null && isOwningPlayback && exo != null,
+            videoClipModeEnabled = st.videoClipModeEnabled,
+            isFullscreenOpen = fullscreenView != null,
+            isInlineAttached = inlineView != null
+        )
+
+        when (target) {
+            VideoSurfaceTarget.FULLSCREEN_MODAL -> {
+                if (inlineView != null && inlineView.player != null) {
+                    inlineView.player = null
+                }
+                if (boundSurfaceView != null && boundSurfaceView !== fullscreenView) {
+                    boundSurfaceView?.player = null
+                }
+                if (fullscreenView != null && exo != null && fullscreenView.player !== exo) {
+                    fullscreenView.player = exo
+                }
+                boundSurfaceView = fullscreenView
+            }
+            VideoSurfaceTarget.INLINE_DECK -> {
+                if (fullscreenView != null && fullscreenView.player != null) {
+                    fullscreenView.player = null
+                }
+                if (boundSurfaceView != null && boundSurfaceView !== inlineView) {
+                    boundSurfaceView?.player = null
+                }
+                if (inlineView != null && exo != null && inlineView.player !== exo) {
+                    inlineView.player = exo
+                }
+                boundSurfaceView = inlineView
+            }
+            VideoSurfaceTarget.NONE -> {
+                if (fullscreenView != null && fullscreenView.player != null) {
+                    fullscreenView.player = null
+                }
+                if (inlineView != null && inlineView.player != null) {
+                    inlineView.player = null
+                }
+                if (boundSurfaceView != null && boundSurfaceView?.player != null) {
+                    boundSurfaceView?.player = null
+                }
+                boundSurfaceView = null
+            }
+        }
+    }
+
+    fun isTrackOrCollectionActive(trackId: String, streamUrl: String): Boolean {
+        if (!isOwningPlayback) return false
+        val active = latestState.track ?: return false
+        if (trackId.isNotBlank() && active.id == trackId) return true
+        if (streamUrl.isNotBlank() && active.streamUrl.equals(streamUrl, ignoreCase = true)) return true
+        val collUrl = activeCollectionUrl
+        if (!collUrl.isNullOrBlank() && streamUrl.isNotBlank() && collUrl.equals(streamUrl, ignoreCase = true)) {
+            return true
+        }
+        return false
+    }
+
+    fun activePlaybackSyncSignature(): String {
+        if (!isOwningPlayback) return "idle"
+        val st = latestState
+        val tr = st.track ?: return "idle"
+        return "${tr.id}|${tr.streamUrl}|${activeCollectionUrl.orEmpty()}|${st.isPlaying}|${st.isBuffering}"
+    }
+
+    // -------------------------------------------------------------------------
     // Playback Controls, Album/Playlist Queue Expansion & Next-Track Prefetch
     // -------------------------------------------------------------------------
 
     internal fun yieldPlaybackToRadio() {
         if (!isOwningPlayback) return
         isOwningPlayback = false
+        activeCollectionUrl = null
         resolveJob?.cancel()
         prefetchJob?.cancel()
         mainHandler.removeCallbacks(progressTicker)
@@ -417,6 +681,7 @@ object DirectMusicPlayerManager {
         activeSleepMinutes = 0
         activeTrackUsingVideoSource = false
         activeVideoCandidates = emptyList()
+        reconcileVideoSurfaceBinding(null)
         updateState { cur ->
             cur.copy(
                 track = null,
@@ -434,6 +699,7 @@ object DirectMusicPlayerManager {
         listenerAttachedPlayer = null
         activeTrackUsingVideoSource = false
         activeVideoCandidates = emptyList()
+        boundSurfaceView = null
         mainHandler.removeCallbacks(progressTicker)
     }
 
@@ -646,12 +912,8 @@ object DirectMusicPlayerManager {
         }
     }
 
-    fun playDirectResponse(
-        context: Context,
-        card: DirectMusicSearchResponse,
-        visibleQueue: List<DirectMusicSearchResponse>? = null
-    ) {
-        val preset = allPresetTracks().firstOrNull {
+    fun toPresetFromCard(card: DirectMusicSearchResponse): MusicTrackPreset {
+        return allPresetTracks().firstOrNull {
             (card.trackId.isNotBlank() && it.id == card.trackId) || it.streamUrl == card.url
         } ?: MusicTrackPreset(
             id = card.trackId.ifBlank { "music_${card.url.hashCode()}" },
@@ -668,6 +930,14 @@ object DirectMusicPlayerManager {
             itemKind = card.itemKind,
             trackCount = card.trackCount
         )
+    }
+
+    fun playDirectResponse(
+        context: Context,
+        card: DirectMusicSearchResponse,
+        visibleQueue: List<DirectMusicSearchResponse>? = null
+    ) {
+        val preset = toPresetFromCard(card)
 
         if (preset.isAlbumOrPlaylist()) {
             playTrack(context, preset, queue = null)
@@ -676,25 +946,7 @@ object DirectMusicPlayerManager {
 
         val queuePresets = visibleQueue
             ?.filter { !MissaMusicProviders.isYouTubePlaylistOrAlbumScheme(it.url) }
-            ?.map { item ->
-                allPresetTracks().firstOrNull {
-                    (item.trackId.isNotBlank() && it.id == item.trackId) || it.streamUrl == item.url
-                } ?: MusicTrackPreset(
-                    id = item.trackId.ifBlank { "music_${item.url.hashCode()}" },
-                    title = item.title.ifBlank { item.name },
-                    artist = item.artist,
-                    album = item.album,
-                    genre = item.genre,
-                    streamUrl = item.url,
-                    artworkUrl = item.artworkUrl ?: item.posterUrl,
-                    durationSeconds = item.durationSeconds,
-                    providerName = item.apiName,
-                    fallbackUrls = item.fallbackUrls,
-                    isPipedLazy = item.isPipedLazy,
-                    itemKind = item.itemKind,
-                    trackCount = item.trackCount
-                )
-            }
+            ?.map { item -> toPresetFromCard(item) }
             ?.takeIf { it.isNotEmpty() }
 
         playTrack(context, preset, queuePresets)
@@ -722,6 +974,7 @@ object DirectMusicPlayerManager {
         // Album / Playlist expansion (`ytplaylist://`) -> extract full track queue, show ALL clips, and play Clip 1
         if (track.isAlbumOrPlaylist()) {
             resolveJob?.cancel()
+            activeCollectionUrl = track.streamUrl
             val collectionTitle = track.displayLabel()
             updateState { prev ->
                 prev.copy(
@@ -782,6 +1035,7 @@ object DirectMusicPlayerManager {
             return
         }
 
+        activeCollectionUrl = null
         val resolvedQueue = (queue ?: allPresetTracks().filter { !it.isAlbumOrPlaylist() })
             .ifEmpty { listOf(track) }
         val idx = resolvedQueue.indexOfFirst { it.id == track.id || it.streamUrl == track.streamUrl }
@@ -822,6 +1076,183 @@ object DirectMusicPlayerManager {
         startCurrentQueueTrack(appCtx, resumePositionMs = 0L, autoPlay = true)
     }
 
+    // -------------------------------------------------------------------------
+    // Pure & Live Playback Queue Manipulation (Drag-and-Drop + Context Menus)
+    // -------------------------------------------------------------------------
+
+    fun computeMovedActiveQueueIndex(
+        currentActiveIndex: Int,
+        fromIndex: Int,
+        toIndex: Int,
+        size: Int
+    ): Int = MusicQueueAlgorithms.computeMovedActiveQueueIndex(
+        currentActiveIndex = currentActiveIndex,
+        fromIndex = fromIndex,
+        toIndex = toIndex,
+        size = size
+    )
+
+    fun reorderQueueTracks(
+        tracks: List<MusicTrackPreset>,
+        currentActiveIndex: Int,
+        fromIndex: Int,
+        toIndex: Int
+    ): Pair<List<MusicTrackPreset>, Int> = MusicQueueAlgorithms.reorderQueueTracks(
+        tracks = tracks,
+        currentActiveIndex = currentActiveIndex,
+        fromIndex = fromIndex,
+        toIndex = toIndex
+    )
+
+    fun insertPlayNextInQueue(
+        tracks: List<MusicTrackPreset>,
+        currentActiveIndex: Int,
+        candidate: MusicTrackPreset
+    ): Pair<List<MusicTrackPreset>, Int> = MusicQueueAlgorithms.insertPlayNextInQueue(
+        tracks = tracks,
+        currentActiveIndex = currentActiveIndex,
+        candidate = candidate
+    )
+
+    fun removeTrackFromQueue(
+        tracks: List<MusicTrackPreset>,
+        currentActiveIndex: Int,
+        removeIndex: Int
+    ): Triple<List<MusicTrackPreset>, Int, Boolean> = MusicQueueAlgorithms.removeTrackFromQueue(
+        tracks = tracks,
+        currentActiveIndex = currentActiveIndex,
+        removeIndex = removeIndex
+    )
+
+    fun moveQueueTrack(fromIndex: Int, toIndex: Int): Boolean {
+        val snapshot = activeQueue
+        if (snapshot.size <= 1) return false
+        if (fromIndex !in snapshot.indices || toIndex !in snapshot.indices || fromIndex == toIndex) {
+            return false
+        }
+        val (reordered, nextActiveIdx) = reorderQueueTracks(snapshot, activeQueueIndex, fromIndex, toIndex)
+        activeQueue = reordered
+        activeQueueIndex = nextActiveIdx
+        updateState { cur ->
+            cur.copy(
+                queueTracks = reordered,
+                queueSize = reordered.size,
+                queueIndex = nextActiveIdx
+            )
+        }
+        prefetchUpcomingTracksInQueue()
+        return true
+    }
+
+    fun playTrackNext(context: Context, track: MusicTrackPreset) {
+        if (track.isAlbumOrPlaylist()) {
+            playTrack(context, track)
+            return
+        }
+        if (!isOwningPlayback || activeQueue.isEmpty() || latestState.track == null) {
+            playTrack(context, track, listOf(track))
+            return
+        }
+        val (updated, nextActiveIdx) = insertPlayNextInQueue(activeQueue, activeQueueIndex, track)
+        activeQueue = updated
+        activeQueueIndex = nextActiveIdx
+        updateState { cur ->
+            cur.copy(
+                queueTracks = updated,
+                queueSize = updated.size,
+                queueIndex = nextActiveIdx
+            )
+        }
+        prefetchUpcomingTracksInQueue()
+    }
+
+    fun playDirectResponseNext(context: Context, card: DirectMusicSearchResponse) {
+        playTrackNext(context, toPresetFromCard(card))
+    }
+
+    fun appendTrackToQueue(context: Context, track: MusicTrackPreset) {
+        if (track.isAlbumOrPlaylist()) {
+            playTrack(context, track)
+            return
+        }
+        if (!isOwningPlayback || activeQueue.isEmpty() || latestState.track == null) {
+            playTrack(context, track, listOf(track))
+            return
+        }
+        val alreadyPresent = activeQueue.any {
+            it.id == track.id || it.streamUrl.equals(track.streamUrl, ignoreCase = true)
+        }
+        val updated = if (alreadyPresent) activeQueue else (activeQueue + track)
+        activeQueue = updated
+        updateState { cur ->
+            cur.copy(
+                queueTracks = updated,
+                queueSize = updated.size,
+                queueIndex = activeQueueIndex
+            )
+        }
+        prefetchUpcomingTracksInQueue()
+    }
+
+    fun appendDirectResponseToQueue(context: Context, card: DirectMusicSearchResponse) {
+        appendTrackToQueue(context, toPresetFromCard(card))
+    }
+
+    fun removeQueueTrackAt(context: Context, index: Int): MusicTrackPreset? {
+        val snapshot = activeQueue
+        if (index !in snapshot.indices) return null
+        val removed = snapshot[index]
+        val (remaining, nextActiveIdx, removedWasActive) = removeTrackFromQueue(snapshot, activeQueueIndex, index)
+        if (remaining.isEmpty()) {
+            activeQueue = emptyList()
+            activeQueueIndex = 0
+            updateState { cur ->
+                cur.copy(
+                    queueTracks = emptyList(),
+                    queueSize = 0,
+                    queueIndex = 0,
+                    isPlaylistExpanded = false,
+                    activeCollectionTitle = null,
+                    activeCollectionKind = null
+                )
+            }
+            stop()
+            return removed
+        }
+        activeQueue = remaining
+        activeQueueIndex = nextActiveIdx
+        updateState { cur ->
+            cur.copy(
+                queueTracks = remaining,
+                queueSize = remaining.size,
+                queueIndex = nextActiveIdx
+            )
+        }
+        if (removedWasActive) {
+            retriedFreshExtractionForTrackId = null
+            startCurrentQueueTrack(context.applicationContext, resumePositionMs = 0L, autoPlay = true)
+        } else {
+            prefetchUpcomingTracksInQueue()
+        }
+        return removed
+    }
+
+    fun clearUpcomingQueue(): Boolean {
+        val snapshot = activeQueue
+        if (snapshot.size <= 1 || activeQueueIndex !in snapshot.indices) return false
+        val currentOnly = listOf(snapshot[activeQueueIndex])
+        activeQueue = currentOnly
+        activeQueueIndex = 0
+        updateState { cur ->
+            cur.copy(
+                queueTracks = currentOnly,
+                queueSize = 1,
+                queueIndex = 0
+            )
+        }
+        return true
+    }
+
     fun togglePlaylistExpanded(): Boolean {
         val current = latestState
         if (current.queueTracks.isEmpty() && !current.isLoadingCollection) return false
@@ -853,6 +1284,7 @@ object DirectMusicPlayerManager {
                 isBuffering = if (enabled && cur.track != null && !activeTrackUsingVideoSource) true else cur.isBuffering
             )
         }
+        reconcileVideoSurfaceBinding()
 
         val currentTrack = snapshot.track
         // 1. If no track is loaded yet, automatically start the best matching preset in the chosen mode!
@@ -1108,6 +1540,7 @@ object DirectMusicPlayerManager {
         val exo = DirectRadioPlayerManager.getOrCreatePlayer(appContext)
         ensurePlayerListenerAttached(exo)
         activeTrackUsingVideoSource = true
+        reconcileVideoSurfaceBinding(exo)
         val isAdaptiveHls = candidate.kind == MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE
         runCatching {
             val builder = exo.trackSelectionParameters
@@ -1241,6 +1674,7 @@ object DirectMusicPlayerManager {
         val appContext = context.applicationContext
         val exo = DirectRadioPlayerManager.getOrCreatePlayer(appContext)
         ensurePlayerListenerAttached(exo)
+        reconcileVideoSurfaceBinding(exo)
 
         val mediaItem = buildTrackMediaItem(track, uri)
         val isHlsManifest = uri.contains(".m3u8", ignoreCase = true) || uri.contains("manifest/hls", ignoreCase = true)
@@ -1394,6 +1828,7 @@ object DirectMusicPlayerManager {
     fun stop() {
         resolveJob?.cancel()
         prefetchJob?.cancel()
+        activeCollectionUrl = null
         videoWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
         videoWatchdogRunnable = null
         mainHandler.removeCallbacks(progressTicker)
@@ -1408,6 +1843,7 @@ object DirectMusicPlayerManager {
             }
             isOwningPlayback = false
         }
+        reconcileVideoSurfaceBinding(null)
         updateState { cur ->
             cur.copy(
                 track = null,

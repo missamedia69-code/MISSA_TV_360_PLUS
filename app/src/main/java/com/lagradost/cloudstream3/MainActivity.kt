@@ -1078,8 +1078,16 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         CommonActivity.dispatchKeyEvent(this, event) ?: super.dispatchKeyEvent(event)
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean =
-        CommonActivity.onKeyDown(this, keyCode, event) ?: super.onKeyDown(keyCode, event)
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOICE_ASSIST || keyCode == KeyEvent.KEYCODE_SEARCH) {
+            val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+            val currentFragment = navHost?.childFragmentManager?.primaryNavigationFragment
+            if (currentFragment is MediaUniverseFragment && currentFragment.triggerVoiceOrTextSearch()) {
+                return true
+            }
+        }
+        return CommonActivity.onKeyDown(this, keyCode, event) ?: super.onKeyDown(keyCode, event)
+    }
 
 
     override fun onUserLeaveHint() {

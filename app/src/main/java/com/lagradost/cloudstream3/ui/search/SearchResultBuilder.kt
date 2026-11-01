@@ -22,6 +22,7 @@ import com.lagradost.cloudstream3.syncproviders.SyncAPI
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
+import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
 import com.lagradost.cloudstream3.utils.AppContextUtils.getNameFull
@@ -136,6 +137,7 @@ object SearchResultBuilder {
         }
 
         cardText?.text = card.name
+        cardText?.setTextColor(itemView.context.colorFromAttribute(R.attr.textColor))
         cardText?.isVisible = showTitle || isDirectRadio || isDirectMusic
         cardView.isVisible = true
         if (isDirectRadio) {
@@ -271,10 +273,28 @@ object SearchResultBuilder {
             }
 
             is DirectMusicSearchResponse -> {
-                card.formattedDuration()?.let { dur ->
+                val isActiveNow = DirectMusicPlayerManager.isTrackOrCollectionActive(card.trackId, card.url)
+                if (isActiveNow) {
+                    val musicState = DirectMusicPlayerManager.currentState()
+                    val statusRes = if (musicState.isPlaying || musicState.isBuffering) {
+                        R.string.universe_music_card_now_playing
+                    } else {
+                        R.string.universe_music_card_paused
+                    }
                     episodeText?.apply {
                         isVisible = true
-                        text = dur
+                        text = itemView.context.getString(statusRes)
+                        setTextColor(itemView.context.colorFromAttribute(R.attr.missaAccentPrimary))
+                    }
+                    playImg?.isVisible = true
+                    cardText?.setTextColor(itemView.context.colorFromAttribute(R.attr.missaAccentPrimary))
+                } else {
+                    episodeText?.setTextColor(itemView.context.colorFromAttribute(R.attr.white))
+                    card.formattedDuration()?.let { dur ->
+                        episodeText?.apply {
+                            isVisible = true
+                            text = dur
+                        }
                     }
                 }
             }

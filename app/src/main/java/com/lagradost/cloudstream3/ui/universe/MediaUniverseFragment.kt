@@ -80,6 +80,28 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         /** Contextual filter strip is hidden on Home and shown inside dedicated universes (Films, Series, …). */
         fun shouldShowContextualFilterBar(universeId: String): Boolean =
             universeId.lowercase(Locale.ROOT) != "home"
+
+        /**
+         * Builds a localized Android TV & Mobile speech-recognition Intent (`ACTION_RECOGNIZE_SPEECH`)
+         * compatible with Google TV Voice Assistant, Speech Services by Google, and AOSP recognizers.
+         */
+        fun buildVoiceSearchIntent(
+            universeId: String,
+            musicPrompt: String,
+            genericPrompt: String,
+            localeTag: String = Locale.getDefault().toLanguageTag()
+        ): Intent {
+            val prompt = if (universeId.equals("music", ignoreCase = true)) musicPrompt else genericPrompt
+            return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                if (localeTag.isNotBlank()) {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, localeTag)
+                }
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+                putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
+            }
+        }
     }
 
     private val viewModel: MediaUniverseViewModel by activityViewModels()
@@ -99,6 +121,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private var kidsPinBtn: MaterialButton? = null
     private var sourceFilterBtn: MaterialButton? = null
     private var toggleFilterBtn: MaterialButton? = null
+    private var topVoiceSearchBtn: MaterialButton? = null
     private var inlineFilterPanel: View? = null
     private var searchInput: EditText? = null
     private var voiceSearchBtn: ImageButton? = null
@@ -122,6 +145,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private var suppressSearchTextWatcher: Boolean = false
     private var lastProjection: UniverseScreenProjection? = null
     private var didRestoreUniverseFocus = false
+    private var lastObservedMusicSyncSig: String = "idle"
 
     private val voiceRecognizerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -163,6 +187,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         kidsPinBtn = view.findViewById(R.id.universe_kids_pin_btn)
         sourceFilterBtn = view.findViewById(R.id.universe_source_filter_btn)
         toggleFilterBtn = view.findViewById(R.id.universe_toggle_filter_btn)
+        topVoiceSearchBtn = view.findViewById(R.id.universe_top_voice_search_btn)
         inlineFilterPanel = view.findViewById(R.id.universe_inline_filter_panel)
         searchInput = view.findViewById(R.id.universe_search_input)
         voiceSearchBtn = view.findViewById(R.id.universe_voice_search_btn)
@@ -197,9 +222,17 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             }
         }
 
-        DirectMusicPlayerManager.state.observe(viewLifecycleOwner) {
+        DirectMusicPlayerManager.state.observe(viewLifecycleOwner) { nextState ->
             if (universeId == "music") {
-                renderScreen()
+                if (!tryApplyMusicProgressOnlyUpdate(nextState)) {
+                    renderScreen()
+                }
+            } else if (universeId == "home") {
+                val sig = DirectMusicPlayerManager.activePlaybackSyncSignature()
+                if (sig != lastObservedMusicSyncSig) {
+                    lastObservedMusicSyncSig = sig
+                    renderScreen()
+                }
             }
         }
 
@@ -253,6 +286,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         kidsPinBtn = null
         sourceFilterBtn = null
         toggleFilterBtn = null
+        topVoiceSearchBtn = null
         inlineFilterPanel = null
         searchInput = null
         voiceSearchBtn = null
@@ -317,7 +351,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 nextLeft = R.id.nav_rail_view,
                 nextRight = FOCUS_SELF,
                 endEscapeTarget = {
-                    listOfNotNull(kidsPinBtn, sourceFilterBtn, toggleFilterBtn)
+                    listOfNotNull(kidsPinBtn, sourceFilterBtn, toggleFilterBtn, topVoiceSearchBtn)
                         .firstOrNull { it.isShown && it.isFocusable }
                 }
             )
@@ -325,25 +359,31 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             adapter = pillAdapter
         }
 
-        val rightFilterControls = listOfNotNull(kidsPinBtn, sourceFilterBtn, toggleFilterBtn)
+        val rightFilterControls = listOfNotNull(kidsPinBtn, sourceFilterBtn, toggleFilterBtn, topVoiceSearchBtn)
         val filterBarDownHandler = View.OnKeyListener { v, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN) {
                 when (keyCode) {
                     KeyEvent.KEYCODE_DPAD_LEFT -> {
                         val visibleRight = rightFilterControls.filter { it.isShown && it.isFocusable }
-                        if (v === visibleRight.firstOrNull()) {
+                        val idx = visibleRight.indexOf(v)
+                        if (idx == 0) {
                             val lm = categoryPillsRecycler?.layoutManager
                             val rightmostPill = lm?.let {
                                 (it.childCount - 1 downTo 0)
-                                    .mapNotNull { idx -> it.getChildAt(idx) }
+                                    .mapNotNull { i -> it.getChildAt(i) }
                                     .firstOrNull { p -> p.isShown && p.isFocusable }
                             }
                             if (rightmostPill?.requestFocus() == true) return@OnKeyListener true
+                        } else if (idx > 0) {
+                            if (visibleRight[idx - 1].requestFocus()) return@OnKeyListener true
                         }
                     }
                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
                         val visibleRight = rightFilterControls.filter { it.isShown && it.isFocusable }
-                        if (v === visibleRight.lastOrNull()) {
+                        val idx = visibleRight.indexOf(v)
+                        if (idx >= 0 && idx < visibleRight.lastIndex) {
+                            if (visibleRight[idx + 1].requestFocus()) return@OnKeyListener true
+                        } else if (idx == visibleRight.lastIndex) {
                             return@OnKeyListener true
                         }
                     }
@@ -426,14 +466,14 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             }
         }
 
-        // TV Voice Search Intent (HOME-07)
-        val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        // Direct 1-click TV & Mobile Voice Search (HOME-07 + Android 11–15 / Google TV `<queries>` support)
+        topVoiceSearchBtn?.isVisible = true
+        topVoiceSearchBtn?.setOnClickListener {
+            triggerVoiceOrTextSearch()
         }
-        val canHandleVoice = speechIntent.resolveActivity(ctx.packageManager) != null
-        voiceSearchBtn?.isVisible = isTv && canHandleVoice
+        voiceSearchBtn?.isVisible = true
         voiceSearchBtn?.setOnClickListener {
-            runCatching { voiceRecognizerLauncher.launch(speechIntent) }
+            triggerVoiceOrTextSearch()
         }
 
         searchSubmitBtn?.setOnClickListener {
@@ -479,6 +519,71 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         searchClearBtn?.setOnClickListener {
             onResetAllFilters()
         }
+    }
+
+    /**
+     * Triggers Android TV / Google TV / Mobile Voice Recognition directly (`ACTION_RECOGNIZE_SPEECH`),
+     * falling back gracefully to opening & focusing the inline text search box if no speech engine is installed.
+     */
+    fun triggerVoiceOrTextSearch(): Boolean {
+        val ctx = context ?: return false
+        val def = MissaUniverses.byId(universeId)
+        val universeTitle = ctx.getString(def.titleRes)
+        val intent = buildVoiceSearchIntent(
+            universeId = universeId,
+            musicPrompt = ctx.getString(R.string.universe_voice_search_music_prompt),
+            genericPrompt = ctx.getString(R.string.universe_voice_search_prompt, universeTitle)
+        )
+        val launched = runCatching {
+            if (intent.resolveActivity(ctx.packageManager) != null) {
+                voiceRecognizerLauncher.launch(intent)
+                true
+            } else {
+                false
+            }
+        }.getOrDefault(false)
+
+        if (launched) return true
+
+        // Fallback on stripped emulators without Speech Services: open & focus text search immediately
+        if (showContextualFilterBar) {
+            Toast.makeText(ctx, R.string.universe_voice_search_unavailable, Toast.LENGTH_SHORT).show()
+            inlineFilterPanel?.isVisible = true
+            renderRecentSearchChips()
+            searchInput?.let { input ->
+                input.requestFocus()
+                if (!MissaUiFactory.isTvLayoutMode()) {
+                    val imm = ctx.getSystemService(Activity.INPUT_METHOD_SERVICE) as? InputMethodManager
+                    imm?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Fast-path for 500ms progress ticks: updates ONLY `MusicDeck`'s seekbar/clock via `PAYLOAD_MUSIC_PROGRESS`
+     * without rebuilding catalog projections, category pills, or touching `PlayerView` / TV focus.
+     */
+    private fun tryApplyMusicProgressOnlyUpdate(nextState: MusicPlaybackState): Boolean {
+        val adapter = screenAdapter ?: return false
+        val currentItems = adapter.currentList
+        if (currentItems.isEmpty()) return false
+        val oldDeck = currentItems.firstOrNull() as? UniverseListItem.MusicDeck ?: return false
+        val isFav = nextState.track?.id?.let { DirectMusicPlayerManager.isFavorite(it) } == true
+        val newDeck = UniverseListItem.MusicDeck(musicState = nextState, isFavoriteTrack = isFav)
+        if (!UniverseScreenAdapter.isProgressOnlyMusicChange(oldDeck, newDeck)) {
+            return false
+        }
+        if (oldDeck == newDeck) return true
+        val updated = ArrayList<UniverseListItem>(currentItems.size)
+        updated.add(newDeck)
+        for (i in 1 until currentItems.size) {
+            updated.add(currentItems[i])
+        }
+        adapter.submitList(updated)
+        return true
     }
 
     private fun resolveSearchBarToggleLabel(ctx: android.content.Context): String {
@@ -792,17 +897,19 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 )
             }
             projection.rows.isNotEmpty() -> {
+                val activeMusicKey = DirectMusicPlayerManager.activePlaybackSyncSignature()
+                lastObservedMusicSyncSig = activeMusicKey
                 if (currentSearchQuery.isNotBlank()) {
                     for (row in projection.rows) {
                         if (row.renderAsGridInSearch) {
-                            items.add(UniverseListItem.SearchGrid(row))
+                            items.add(UniverseListItem.SearchGrid(row, activePlaybackKey = activeMusicKey))
                         } else {
-                            items.add(UniverseListItem.CategoryRow(row))
+                            items.add(UniverseListItem.CategoryRow(row, activePlaybackKey = activeMusicKey))
                         }
                     }
                 } else {
                     for (row in projection.rows) {
-                        items.add(UniverseListItem.CategoryRow(row))
+                        items.add(UniverseListItem.CategoryRow(row, activePlaybackKey = activeMusicKey))
                     }
                     if (projection.hiddenRowCount > 0) {
                         items.add(UniverseListItem.ShowMoreRows(projection.hiddenRowCount))
@@ -983,14 +1090,46 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         if (card is DirectMusicSearchResponse) {
             if (callback.action == SEARCH_ACTION_SHOW_METADATA) {
-                val trackKey = card.trackId.ifBlank { "music_${card.url.hashCode()}" }
-                val nowFav = DirectMusicPlayerManager.toggleFavorite(trackKey)
-                Toast.makeText(
-                    requireContext(),
-                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
-                    Toast.LENGTH_SHORT
-                ).show()
-                renderScreen()
+                val act = activity ?: return
+                MissaUniverseDialogs.showMusicCatalogCardContextMenu(
+                    activity = act,
+                    card = card,
+                    onPlayNow = {
+                        DirectMusicPlayerManager.playDirectResponse(
+                            requireContext(),
+                            card,
+                            collectVisibleMusicQueue(card)
+                        )
+                        if (universeId == "music") {
+                            masterRecycler?.post { masterRecycler?.smoothScrollToPosition(0) }
+                        }
+                    },
+                    onPlayNext = {
+                        DirectMusicPlayerManager.playDirectResponseNext(requireContext(), card)
+                    },
+                    onAddToQueue = {
+                        DirectMusicPlayerManager.appendDirectResponseToQueue(requireContext(), card)
+                    },
+                    onToggleFavorite = {
+                        val trackKey = card.trackId.ifBlank { "music_${card.url.hashCode()}" }
+                        val nowFav = DirectMusicPlayerManager.toggleFavorite(trackKey)
+                        Toast.makeText(
+                            requireContext(),
+                            if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        renderScreen()
+                    },
+                    onSearchArtist = { artistName ->
+                        if (showContextualFilterBar) {
+                            inlineFilterPanel?.isVisible = true
+                            suppressSearchTextWatcher = true
+                            searchInput?.setText(artistName)
+                            suppressSearchTextWatcher = false
+                            submitInUniverseSearch(artistName)
+                        }
+                    }
+                )
             } else {
                 DirectMusicPlayerManager.playDirectResponse(requireContext(), card, collectVisibleMusicQueue(card))
                 if (universeId == "music") {
@@ -1339,12 +1478,71 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
     }
 
-    override fun onMusicOpenFullscreenClip(deckPlayerView: PlayerView) {
+    override fun onMusicMoveQueueTrack(fromIndex: Int, toIndex: Int) {
+        DirectMusicPlayerManager.moveQueueTrack(fromIndex, toIndex)
+    }
+
+    override fun onMusicOpenQueueTrackMenu(
+        index: Int,
+        track: MusicTrackPreset,
+        activeIndex: Int,
+        queueSize: Int
+    ) {
         val act = activity ?: return
-        MissaUniverseDialogs.showFullscreenMusicClipDialog(
+        val isFav = DirectMusicPlayerManager.isFavorite(track.id)
+        MissaUniverseDialogs.showMusicQueueTrackContextMenu(
             activity = act,
-            deckPlayerView = deckPlayerView
-        ) {
+            index = index,
+            track = track,
+            activeIndex = activeIndex,
+            queueSize = queueSize,
+            isFavorite = isFav,
+            onPlayNow = { idx ->
+                onMusicSelectQueueTrack(idx)
+            },
+            onPlayNext = { preset ->
+                DirectMusicPlayerManager.playTrackNext(requireContext(), preset)
+            },
+            onMoveTrack = { fromIdx, toIdx ->
+                DirectMusicPlayerManager.moveQueueTrack(fromIdx, toIdx)
+            },
+            onToggleFavorite = { trackId ->
+                val nowFav = DirectMusicPlayerManager.toggleFavorite(trackId)
+                Toast.makeText(
+                    requireContext(),
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    Toast.LENGTH_SHORT
+                ).show()
+                renderScreen()
+            },
+            onSearchArtist = { artistName ->
+                if (showContextualFilterBar) {
+                    inlineFilterPanel?.isVisible = true
+                    suppressSearchTextWatcher = true
+                    searchInput?.setText(artistName)
+                    suppressSearchTextWatcher = false
+                    submitInUniverseSearch(artistName)
+                }
+            },
+            onRemoveFromQueue = { removeIdx ->
+                DirectMusicPlayerManager.removeQueueTrackAt(requireContext(), removeIdx)
+            }
+        )
+    }
+
+    override fun onMusicClearUpcomingQueue() {
+        if (DirectMusicPlayerManager.clearUpcomingQueue()) {
+            Toast.makeText(
+                requireContext(),
+                R.string.universe_music_queue_cleared_toast,
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    override fun onMusicOpenFullscreenClip() {
+        val act = activity ?: return
+        MissaUniverseDialogs.showFullscreenMusicClipDialog(activity = act) {
             renderScreen()
         }
     }

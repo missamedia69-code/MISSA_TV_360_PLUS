@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -19,6 +20,7 @@ import androidx.core.widget.ImageViewCompat
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -220,13 +222,15 @@ internal sealed interface UniverseListItem {
     }
 
     data class CategoryRow(
-        val row: UniverseCategoryRow
+        val row: UniverseCategoryRow,
+        val activePlaybackKey: String = ""
     ) : UniverseListItem {
         override val itemId: String = "cat_row_${row.id}"
     }
 
     data class SearchGrid(
-        val row: UniverseCategoryRow
+        val row: UniverseCategoryRow,
+        val activePlaybackKey: String = ""
     ) : UniverseListItem {
         override val itemId: String = "search_grid_${row.id}"
     }
@@ -289,7 +293,15 @@ internal class UniverseScreenAdapter(
         fun onMusicSetVideoClipMode(enabled: Boolean)
         fun onMusicTogglePlaylistDrawer()
         fun onMusicSelectQueueTrack(index: Int)
-        fun onMusicOpenFullscreenClip(deckPlayerView: PlayerView)
+        fun onMusicMoveQueueTrack(fromIndex: Int, toIndex: Int)
+        fun onMusicOpenQueueTrackMenu(
+            index: Int,
+            track: MusicTrackPreset,
+            activeIndex: Int,
+            queueSize: Int
+        )
+        fun onMusicClearUpcomingQueue()
+        fun onMusicOpenFullscreenClip()
         fun onContentItemFocused(rowKey: String)
     }
 
@@ -309,10 +321,22 @@ internal class UniverseScreenAdapter(
 
         private const val PAYLOAD_RADIO_UPDATE = "payload_radio"
         private const val PAYLOAD_MUSIC_UPDATE = "payload_music"
+        private const val PAYLOAD_MUSIC_PROGRESS = "payload_music_progress"
         private const val PAYLOAD_MUSIC_QUEUE_UPDATE = "payload_music_queue"
+        private const val PAYLOAD_ACTIVE_TRACK_SYNC = "payload_active_track_sync"
         private const val PAYLOAD_HERO_UPDATE = "payload_hero"
         private const val PAYLOAD_SHIMMER_PROGRESS = "payload_shimmer"
         private const val HERO_AUTO_ROTATE_MS = 7_500L
+
+        internal fun isProgressOnlyMusicChange(
+            oldDeck: UniverseListItem.MusicDeck,
+            newDeck: UniverseListItem.MusicDeck
+        ): Boolean {
+            if (oldDeck.isFavoriteTrack != newDeck.isFavoriteTrack) return false
+            val a = oldDeck.musicState
+            val b = newDeck.musicState
+            return a.copy(positionMs = 0L, durationMs = 0L) == b.copy(positionMs = 0L, durationMs = 0L)
+        }
     }
 
     init {
@@ -333,9 +357,15 @@ internal class UniverseScreenAdapter(
                 oldItem is UniverseListItem.RadioDeck && newItem is UniverseListItem.RadioDeck ->
                     PAYLOAD_RADIO_UPDATE
                 oldItem is UniverseListItem.MusicDeck && newItem is UniverseListItem.MusicDeck ->
-                    PAYLOAD_MUSIC_UPDATE
+                    if (isProgressOnlyMusicChange(oldItem, newItem)) PAYLOAD_MUSIC_PROGRESS else PAYLOAD_MUSIC_UPDATE
                 oldItem is UniverseListItem.MusicPlaylistQueue && newItem is UniverseListItem.MusicPlaylistQueue ->
                     PAYLOAD_MUSIC_QUEUE_UPDATE
+                oldItem is UniverseListItem.CategoryRow && newItem is UniverseListItem.CategoryRow &&
+                    oldItem.row == newItem.row && oldItem.activePlaybackKey != newItem.activePlaybackKey ->
+                    PAYLOAD_ACTIVE_TRACK_SYNC
+                oldItem is UniverseListItem.SearchGrid && newItem is UniverseListItem.SearchGrid &&
+                    oldItem.row == newItem.row && oldItem.activePlaybackKey != newItem.activePlaybackKey ->
+                    PAYLOAD_ACTIVE_TRACK_SYNC
                 oldItem is UniverseListItem.HeroCarousel && newItem is UniverseListItem.HeroCarousel ->
                     PAYLOAD_HERO_UPDATE
                 oldItem is UniverseListItem.ShimmerLoading && newItem is UniverseListItem.ShimmerLoading ->
@@ -440,8 +470,29 @@ internal class UniverseScreenAdapter(
         }
         when (val item = getItem(position)) {
             is UniverseListItem.RadioDeck -> (holder as RadioDeckHolder).bind(item)
-            is UniverseListItem.MusicDeck -> (holder as MusicDeckHolder).bind(item)
+            is UniverseListItem.MusicDeck -> {
+                val deckHolder = holder as MusicDeckHolder
+                if (payloads.all { it == PAYLOAD_MUSIC_PROGRESS }) {
+                    deckHolder.bindProgressOnly(item.musicState)
+                } else {
+                    deckHolder.bind(item)
+                }
+            }
             is UniverseListItem.MusicPlaylistQueue -> (holder as MusicPlaylistQueueHolder).bind(item)
+            is UniverseListItem.CategoryRow -> {
+                if (payloads.all { it == PAYLOAD_ACTIVE_TRACK_SYNC }) {
+                    (holder as CategoryRowHolder).refreshActivePlaybackState()
+                } else {
+                    super.onBindViewHolder(holder, position, payloads)
+                }
+            }
+            is UniverseListItem.SearchGrid -> {
+                if (payloads.all { it == PAYLOAD_ACTIVE_TRACK_SYNC }) {
+                    (holder as SearchGridHolder).refreshActivePlaybackState()
+                } else {
+                    super.onBindViewHolder(holder, position, payloads)
+                }
+            }
             is UniverseListItem.HeroCarousel -> (holder as HeroCarouselHolder).bind(item)
             is UniverseListItem.ShimmerLoading -> (holder as ShimmerHolder).bind(item)
             else -> super.onBindViewHolder(holder, position, payloads)
@@ -451,6 +502,7 @@ internal class UniverseScreenAdapter(
     override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
         super.onViewAttachedToWindow(holder)
         if (holder is HeroCarouselHolder) holder.onAttached()
+        if (holder is MusicDeckHolder) holder.onAttached()
         if (holder is ShimmerHolder) holder.startShimmer()
     }
 
@@ -904,13 +956,13 @@ internal class UniverseScreenAdapter(
             modeVideoBtn.setOnClickListener { callbacks.onMusicSetVideoClipMode(true) }
             queueBtn.setOnClickListener { callbacks.onMusicTogglePlaylistDrawer() }
             addServerBtn.setOnClickListener { callbacks.onMusicOpenServerDialog() }
-            fullscreenBtn.setOnClickListener { callbacks.onMusicOpenFullscreenClip(videoSurface) }
+            fullscreenBtn.setOnClickListener { callbacks.onMusicOpenFullscreenClip() }
             // Tapping the small video monitor on touch screens opens Fullscreen directly when Video Mode is active
             monitorCard.isFocusable = false
             monitorCard.setOnClickListener {
                 val cur = DirectMusicPlayerManager.currentState()
                 if (cur.track != null && cur.videoClipModeEnabled) {
-                    callbacks.onMusicOpenFullscreenClip(videoSurface)
+                    callbacks.onMusicOpenFullscreenClip()
                 }
             }
             shuffleBtn.setOnClickListener { callbacks.onMusicToggleShuffle() }
@@ -1001,8 +1053,29 @@ internal class UniverseScreenAdapter(
             controlsColumn.layoutParams = controlsLp
         }
 
+        fun onAttached() {
+            DirectMusicPlayerManager.registerInlineVideoSurface(videoSurface)
+        }
+
         fun onDetached() {
-            videoSurface.player = null
+            DirectMusicPlayerManager.unregisterInlineVideoSurface(videoSurface)
+        }
+
+        fun bindProgressOnly(state: MusicPlaybackState) {
+            val tr = state.track
+            boundDurationMs = state.durationMs.coerceAtLeast(0L)
+            seekBar.isEnabled = tr != null && boundDurationMs > 0L
+            if (!isUserScrubbing) {
+                if (tr != null && boundDurationMs > 0L) {
+                    positionView.text = formatTimeMs(state.positionMs)
+                    durationView.text = formatTimeMs(boundDurationMs)
+                    seekBar.progress = ((state.positionMs * 1000L) / boundDurationMs).toInt().coerceIn(0, 1000)
+                } else {
+                    positionView.setText(R.string.universe_music_zero_time)
+                    durationView.setText(R.string.universe_music_zero_time)
+                    seekBar.progress = 0
+                }
+            }
         }
 
         fun bind(item: UniverseListItem.MusicDeck) {
@@ -1097,15 +1170,18 @@ internal class UniverseScreenAdapter(
                 }
             }
 
-            // Live Playing Video Clip Surface Attachment:
+            // Live Playing Video Clip Surface Attachment via Single-Owner VideoSurfaceCoordinator:
             // CRITICAL: `videoSurface` (`TextureView`) MUST stay `View.VISIBLE` (never `View.GONE`)
-            // whenever Video Mode is active so Android allocates its `SurfaceTexture` and attaches
-            // the hardware output `Surface` to `ExoPlayer` BEFORE frame 0 is decoded!
+            // whenever inline Video Mode is active so Android allocates its `SurfaceTexture` BEFORE frame 0!
+            // Meanwhile, `DirectMusicPlayerManager` ensures ONLY ONE `PlayerView` (inline OR fullscreen)
+            // ever owns `ExoPlayer` at a time — eliminating all surface contention!
             val activeExo = DirectMusicPlayerManager.peekActiveExoPlayer()
                 ?: if (tr != null && state.videoClipModeEnabled) DirectRadioPlayerManager.peekPlayer() else null
+            val isFullscreenOpen = MissaUniverseDialogs.isMusicFullscreenClipDialogOpen ||
+                DirectMusicPlayerManager.isFullscreenSurfaceActive()
             val wantsInlineSurface = tr != null &&
                 state.videoClipModeEnabled &&
-                !MissaUniverseDialogs.isMusicFullscreenClipDialogOpen
+                !isFullscreenOpen
             val exoHasVideoSize = activeExo?.videoSize?.let { it.width > 0 && it.height > 0 } == true
             val showLiveVideo = wantsInlineSurface &&
                 activeExo != null &&
@@ -1116,16 +1192,15 @@ internal class UniverseScreenAdapter(
 
             if (wantsInlineSurface) {
                 videoSurface.isVisible = true
-                if (activeExo != null && videoSurface.player !== activeExo) {
-                    videoSurface.player = activeExo
-                }
                 videoSurface.alpha = if (showLiveVideo) 1f else 0.01f
             } else {
-                if (!MissaUniverseDialogs.isMusicFullscreenClipDialogOpen && videoSurface.player != null) {
-                    videoSurface.player = null
-                }
                 videoSurface.alpha = 0.01f
                 videoSurface.isVisible = false
+            }
+            if (itemView.isAttachedToWindow) {
+                DirectMusicPlayerManager.registerInlineVideoSurface(videoSurface)
+            } else {
+                DirectMusicPlayerManager.reconcileVideoSurfaceBinding()
             }
             videoLoadingSpinner.isVisible = isVideoLoading
             fullscreenBtn.isVisible = tr != null && state.videoClipModeEnabled
@@ -1243,27 +1318,80 @@ internal class UniverseScreenAdapter(
         }
     }
 
-    // --- 3c. Interactive Playlist / Album Clips Tracklist Right Below the Top MP3 Console ---
+    // --- 3c. Interactive Playback Queue Drawer with Drag-and-Drop Reordering & Contextual Menus ---
 
     private data class PlaylistTrackRowUi(
         val index: Int,
         val track: MusicTrackPreset,
-        val isActive: Boolean
+        val isActive: Boolean,
+        val isPlaying: Boolean,
+        val isBuffering: Boolean
     )
 
     private class MusicPlaylistTrackAdapter(
-        private val onTrackClicked: (Int) -> Unit
-    ) : ListAdapter<PlaylistTrackRowUi, MusicPlaylistTrackAdapter.TrackRowHolder>(TrackDiff) {
+        private val onTrackClicked: (Int) -> Unit,
+        private val onTrackContextMenu: (Int, MusicTrackPreset) -> Unit,
+        private val onStartDrag: (TrackRowHolder) -> Unit
+    ) : RecyclerView.Adapter<MusicPlaylistTrackAdapter.TrackRowHolder>() {
 
-        object TrackDiff : DiffUtil.ItemCallback<PlaylistTrackRowUi>() {
-            override fun areItemsTheSame(oldItem: PlaylistTrackRowUi, newItem: PlaylistTrackRowUi): Boolean =
-                oldItem.index == newItem.index && oldItem.track.id == newItem.track.id
+        private val items = mutableListOf<PlaylistTrackRowUi>()
 
-            override fun areContentsTheSame(oldItem: PlaylistTrackRowUi, newItem: PlaylistTrackRowUi): Boolean =
-                oldItem == newItem
+        init {
+            setHasStableIds(true)
+        }
 
-            override fun getChangePayload(oldItem: PlaylistTrackRowUi, newItem: PlaylistTrackRowUi): Any? =
-                if (oldItem.isActive != newItem.isActive) "active_state" else null
+        override fun getItemId(position: Int): Long {
+            val row = items.getOrNull(position) ?: return position.toLong()
+            return "${row.track.id}_${row.track.streamUrl}".hashCode().toLong()
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        fun submitRows(newRows: List<PlaylistTrackRowUi>) {
+            val oldSnapshot = items.toList()
+            val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                override fun getOldListSize(): Int = oldSnapshot.size
+                override fun getNewListSize(): Int = newRows.size
+
+                override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
+                    val o = oldSnapshot[oldPos]
+                    val n = newRows[newPos]
+                    return o.track.id == n.track.id && o.track.streamUrl == n.track.streamUrl
+                }
+
+                override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean =
+                    oldSnapshot[oldPos] == newRows[newPos]
+
+                override fun getChangePayload(oldPos: Int, newPos: Int): Any? {
+                    val o = oldSnapshot[oldPos]
+                    val n = newRows[newPos]
+                    return if (o.track == n.track) "row_state" else null
+                }
+            })
+            items.clear()
+            items.addAll(newRows)
+            diff.dispatchUpdatesTo(this)
+        }
+
+        fun moveRowInMemory(fromPos: Int, toPos: Int): Boolean {
+            if (fromPos !in items.indices || toPos !in items.indices || fromPos == toPos) return false
+            val moved = items.removeAt(fromPos)
+            items.add(toPos, moved)
+            // Keep displayed 01, 02... numbering locally consistent during interactive drag
+            val minIdx = minOf(fromPos, toPos)
+            val maxIdx = maxOf(fromPos, toPos)
+            for (i in minIdx..maxIdx) {
+                items[i] = items[i].copy(index = i)
+            }
+            notifyItemMoved(fromPos, toPos)
+            return true
+        }
+
+        fun refreshIndicesAfterDrop(fromPos: Int, toPos: Int) {
+            if (items.isEmpty()) return
+            val start = minOf(fromPos, toPos).coerceIn(0, items.lastIndex)
+            val end = maxOf(fromPos, toPos).coerceIn(0, items.lastIndex)
+            notifyItemRangeChanged(start, (end - start) + 1, "row_state")
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TrackRowHolder {
@@ -1273,19 +1401,24 @@ internal class UniverseScreenAdapter(
         }
 
         override fun onBindViewHolder(holder: TrackRowHolder, position: Int) {
-            holder.bind(getItem(position), onTrackClicked)
+            val row = items.getOrNull(position) ?: return
+            holder.bind(row, onTrackClicked, onTrackContextMenu, onStartDrag)
         }
 
         override fun onBindViewHolder(holder: TrackRowHolder, position: Int, payloads: MutableList<Any>) {
+            val row = items.getOrNull(position) ?: return
             if (payloads.isNotEmpty()) {
-                holder.bindActiveStateOnly(getItem(position), onTrackClicked)
+                holder.bindActiveStateOnly(row, onTrackClicked, onTrackContextMenu, onStartDrag)
             } else {
                 super.onBindViewHolder(holder, position, payloads)
             }
         }
 
         class TrackRowHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            private val cardView: MaterialCardView = itemView.findViewById(R.id.playlist_track_card)
+            val cardView: MaterialCardView = itemView.findViewById(R.id.playlist_track_card)
+            private val dragHandle: ImageView = itemView.findViewById(R.id.playlist_track_drag_handle)
+            private val mainTarget: View = itemView.findViewById(R.id.playlist_track_main_target)
+            private val moreBtn: ImageButton = itemView.findViewById(R.id.playlist_track_more_btn)
             private val indexView: TextView = itemView.findViewById(R.id.playlist_track_index)
             private val thumbView: ImageView = itemView.findViewById(R.id.playlist_track_thumb)
             private val titleView: TextView = itemView.findViewById(R.id.playlist_track_title)
@@ -1294,7 +1427,12 @@ internal class UniverseScreenAdapter(
             private val durationView: TextView = itemView.findViewById(R.id.playlist_track_duration)
             private var lastThumbUrl: String? = "__init__"
 
-            fun bind(item: PlaylistTrackRowUi, onClick: (Int) -> Unit) {
+            fun bind(
+                item: PlaylistTrackRowUi,
+                onClick: (Int) -> Unit,
+                onMenu: (Int, MusicTrackPreset) -> Unit,
+                onStartDrag: (TrackRowHolder) -> Unit
+            ) {
                 val ctx = itemView.context
                 titleView.text = item.track.title
                 artistView.text = listOf(item.track.artist, item.track.album)
@@ -1325,10 +1463,16 @@ internal class UniverseScreenAdapter(
                     }
                 }
 
-                bindActiveStateOnly(item, onClick)
+                bindActiveStateOnly(item, onClick, onMenu, onStartDrag)
             }
 
-            fun bindActiveStateOnly(item: PlaylistTrackRowUi, onClick: (Int) -> Unit) {
+            @android.annotation.SuppressLint("ClickableViewAccessibility")
+            fun bindActiveStateOnly(
+                item: PlaylistTrackRowUi,
+                onClick: (Int) -> Unit,
+                onMenu: (Int, MusicTrackPreset) -> Unit,
+                onStartDrag: (TrackRowHolder) -> Unit
+            ) {
                 val ctx = itemView.context
                 val accentColor = ctx.colorFromAttribute(R.attr.missaAccentPrimary)
                 val primaryText = ctx.colorFromAttribute(R.attr.textColor)
@@ -1336,10 +1480,18 @@ internal class UniverseScreenAdapter(
                 val subtleBorder = ctx.colorFromAttribute(R.attr.missaStrokeSubtle)
 
                 if (item.isActive) {
-                    indexView.text = "▶"
+                    indexView.text = when {
+                        item.isBuffering -> "⋯"
+                        item.isPlaying -> "▶"
+                        else -> "⏸"
+                    }
                     indexView.setTextColor(accentColor)
                     titleView.setTextColor(accentColor)
                     playingBadge.isVisible = true
+                    playingBadge.setText(
+                        if (item.isPlaying || item.isBuffering) R.string.universe_music_track_now_playing
+                        else R.string.universe_music_track_paused
+                    )
                     cardView.strokeColor = accentColor
                     cardView.strokeWidth = 2.toPx
                 } else {
@@ -1351,9 +1503,42 @@ internal class UniverseScreenAdapter(
                     cardView.strokeWidth = 1.toPx
                 }
 
-                cardView.nextFocusLeftId = cardView.id
-                cardView.nextFocusRightId = cardView.id
-                cardView.setOnClickListener { onClick(item.index) }
+                // Sibling TV D-Pad navigation: Track Row <-> ⋮ Context Menu Button
+                mainTarget.nextFocusLeftId = mainTarget.id
+                mainTarget.nextFocusRightId = moreBtn.id
+                moreBtn.nextFocusLeftId = mainTarget.id
+                moreBtn.nextFocusRightId = moreBtn.id
+
+                mainTarget.setOnClickListener {
+                    val pos = bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION } ?: item.index
+                    onClick(pos)
+                }
+                mainTarget.setOnLongClickListener {
+                    val pos = bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION } ?: item.index
+                    onMenu(pos, item.track)
+                    true
+                }
+                mainTarget.setOnKeyListener { _, keyCode, event ->
+                    if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_MENU) {
+                        val pos = bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION } ?: item.index
+                        onMenu(pos, item.track)
+                        true
+                    } else {
+                        false
+                    }
+                }
+                moreBtn.setOnClickListener {
+                    val pos = bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION } ?: item.index
+                    onMenu(pos, item.track)
+                }
+                dragHandle.setOnTouchListener { _, event ->
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                        onStartDrag(this)
+                        true
+                    } else {
+                        false
+                    }
+                }
             }
         }
     }
@@ -1364,22 +1549,105 @@ internal class UniverseScreenAdapter(
     ) : RecyclerView.ViewHolder(itemView) {
         private val titleView: TextView = itemView.findViewById(R.id.music_playlist_title)
         private val subtitleView: TextView = itemView.findViewById(R.id.music_playlist_subtitle)
+        private val clearUpcomingBtn: MaterialButton = itemView.findViewById(R.id.music_playlist_clear_upcoming_btn)
         private val closeBtn: MaterialButton = itemView.findViewById(R.id.music_playlist_close_btn)
         private val loadingContainer: View = itemView.findViewById(R.id.music_playlist_loading_container)
         private val loadingText: TextView = itemView.findViewById(R.id.music_playlist_loading_text)
         private val tracksRecycler: RecyclerView = itemView.findViewById(R.id.music_playlist_tracks_recycler)
 
-        private val trackAdapter = MusicPlaylistTrackAdapter { selectedIndex ->
-            callbacks.onMusicSelectQueueTrack(selectedIndex)
-        }
+        private var latestActiveIndex: Int = 0
+        private var latestQueueSize: Int = 0
+        private var lastAutoScrolledTrackId: String? = null
+        private var dragStartPosition: Int = RecyclerView.NO_POSITION
+        private var dragCurrentPosition: Int = RecyclerView.NO_POSITION
+        private var itemTouchHelper: ItemTouchHelper? = null
+
+        private val trackAdapter = MusicPlaylistTrackAdapter(
+            onTrackClicked = { selectedIndex ->
+                callbacks.onMusicSelectQueueTrack(selectedIndex)
+            },
+            onTrackContextMenu = { selectedIndex, track ->
+                callbacks.onMusicOpenQueueTrackMenu(
+                    selectedIndex,
+                    track,
+                    latestActiveIndex,
+                    latestQueueSize
+                )
+            },
+            onStartDrag = { rowHolder ->
+                if (latestQueueSize > 1) {
+                    itemTouchHelper?.startDrag(rowHolder)
+                }
+            }
+        )
 
         init {
             tracksRecycler.layoutManager = LinearLayoutManager(itemView.context, RecyclerView.VERTICAL, false)
             tracksRecycler.itemAnimator = null
             tracksRecycler.adapter = trackAdapter
 
-            closeBtn.nextFocusLeftId = closeBtn.id
-            closeBtn.nextFocusRightId = closeBtn.id
+            val touchCallback = object : ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+                0
+            ) {
+                override fun isLongPressDragEnabled(): Boolean = false
+
+                override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                    super.onSelectedChanged(viewHolder, actionState)
+                    if (actionState == ItemTouchHelper.ACTION_STATE_DRAG &&
+                        viewHolder is MusicPlaylistTrackAdapter.TrackRowHolder
+                    ) {
+                        val pos = viewHolder.bindingAdapterPosition
+                        if (dragStartPosition == RecyclerView.NO_POSITION && pos != RecyclerView.NO_POSITION) {
+                            dragStartPosition = pos
+                            dragCurrentPosition = pos
+                        }
+                        viewHolder.cardView.cardElevation = 6.toPx.toFloat()
+                        viewHolder.cardView.strokeColor = itemView.context.colorFromAttribute(R.attr.missaAccentPrimary)
+                        viewHolder.cardView.strokeWidth = 2.toPx
+                    }
+                }
+
+                override fun onMove(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    target: RecyclerView.ViewHolder
+                ): Boolean {
+                    val fromPos = viewHolder.bindingAdapterPosition
+                    val toPos = target.bindingAdapterPosition
+                    if (fromPos == RecyclerView.NO_POSITION || toPos == RecyclerView.NO_POSITION) return false
+                    if (dragStartPosition == RecyclerView.NO_POSITION) {
+                        dragStartPosition = fromPos
+                    }
+                    val moved = trackAdapter.moveRowInMemory(fromPos, toPos)
+                    if (moved) {
+                        dragCurrentPosition = toPos
+                    }
+                    return moved
+                }
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
+                override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                    super.clearView(recyclerView, viewHolder)
+                    if (viewHolder is MusicPlaylistTrackAdapter.TrackRowHolder) {
+                        viewHolder.cardView.cardElevation = 0f
+                    }
+                    val from = dragStartPosition
+                    val to = dragCurrentPosition
+                    dragStartPosition = RecyclerView.NO_POSITION
+                    dragCurrentPosition = RecyclerView.NO_POSITION
+                    if (from != RecyclerView.NO_POSITION && to != RecyclerView.NO_POSITION && from != to) {
+                        trackAdapter.refreshIndicesAfterDrop(from, to)
+                        callbacks.onMusicMoveQueueTrack(from, to)
+                    }
+                }
+            }
+            itemTouchHelper = ItemTouchHelper(touchCallback).also {
+                it.attachToRecyclerView(tracksRecycler)
+            }
+
+            clearUpcomingBtn.setOnClickListener { callbacks.onMusicClearUpcomingQueue() }
             closeBtn.setOnClickListener { callbacks.onMusicTogglePlaylistDrawer() }
         }
 
@@ -1402,26 +1670,51 @@ internal class UniverseScreenAdapter(
                     R.string.universe_music_playlist_loading,
                     collectionName ?: state.track?.title.orEmpty()
                 )
+                clearUpcomingBtn.isVisible = false
                 subtitleView.isVisible = false
                 tracksRecycler.isVisible = false
-                trackAdapter.submitList(emptyList())
+                trackAdapter.submitRows(emptyList())
+                MissaTvFocusHelper.chainHorizontalFocusRing(listOf(closeBtn), clampStart = true, clampEnd = true)
                 return
             }
 
             loadingContainer.isVisible = false
             val tracks = state.queueTracks
+            latestActiveIndex = state.queueIndex
+            latestQueueSize = tracks.size
+
+            clearUpcomingBtn.isVisible = tracks.size > 1
+            val headerBtns = listOf(clearUpcomingBtn, closeBtn).filter { it.isVisible }
+            MissaTvFocusHelper.chainHorizontalFocusRing(headerBtns, clampStart = true, clampEnd = true)
+
             subtitleView.isVisible = tracks.isNotEmpty()
-            subtitleView.text = ctx.getString(R.string.universe_music_playlist_subtitle_count, tracks.size)
+            subtitleView.text = ctx.getString(R.string.universe_music_playlist_subtitle_interactive, tracks.size)
             tracksRecycler.isVisible = tracks.isNotEmpty()
 
             val uiRows = tracks.mapIndexed { idx, preset ->
+                val active = state.track != null && idx == state.queueIndex
                 PlaylistTrackRowUi(
                     index = idx,
                     track = preset,
-                    isActive = state.track != null && idx == state.queueIndex
+                    isActive = active,
+                    isPlaying = active && state.isPlaying,
+                    isBuffering = active && state.isBuffering
                 )
             }
-            trackAdapter.submitList(uiRows)
+            trackAdapter.submitRows(uiRows)
+
+            val activeTrackId = state.track?.id
+            if (activeTrackId != null && activeTrackId != lastAutoScrolledTrackId && state.queueIndex in tracks.indices) {
+                lastAutoScrolledTrackId = activeTrackId
+                if (!tracksRecycler.hasFocus()) {
+                    tracksRecycler.post {
+                        if (state.queueIndex in 0 until trackAdapter.itemCount && !tracksRecycler.hasFocus()) {
+                            (tracksRecycler.layoutManager as? LinearLayoutManager)
+                                ?.scrollToPositionWithOffset(state.queueIndex, 0)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1591,6 +1884,14 @@ internal class UniverseScreenAdapter(
                 existing.submitIncomparableList(railItems)
             }
         }
+
+        fun refreshActivePlaybackState() {
+            val existing = childRecycler.adapter as? HomeChildItemAdapter ?: return
+            val count = existing.itemCount
+            if (count > 0) {
+                existing.notifyItemRangeChanged(0, count)
+            }
+        }
     }
 
     // --- 7. Responsive Multi-Column Search / Filter Results Grid (HOME-07) ---
@@ -1649,6 +1950,14 @@ internal class UniverseScreenAdapter(
                 existing.isHorizontal = row.isHorizontalCards
                 existing.clickCallback = handleClick
                 existing.submitIncomparableList(row.items)
+            }
+        }
+
+        fun refreshActivePlaybackState() {
+            val existing = gridRecycler.adapter as? HomeChildItemAdapter ?: return
+            val count = existing.itemCount
+            if (count > 0) {
+                existing.notifyItemRangeChanged(0, count)
             }
         }
     }

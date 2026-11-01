@@ -64,6 +64,13 @@
                 android:layout_marginStart="4dp"
                 android:contentDescription="@string/universe_search_action"
                 app:icon="@drawable/search_icon" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/universe_top_voice_search_btn"
+                style="@style/Widget.Missa.Button.Icon"
+                android:layout_marginStart="4dp"
+                android:contentDescription="@string/universe_voice_search"
+                app:icon="@drawable/ic_mic" />
         </LinearLayout>
 
         <!-- Collapsible scoped in-universe filter & search panel (HOME-01, NAV-04, HOME-07) -->
@@ -115,8 +122,7 @@
                     android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/universe_voice_search"
-                    android:src="@drawable/ic_baseline_volume_up_24"
-                    android:visibility="gone"
+                    android:src="@drawable/ic_mic"
                     app:tint="?attr/textColor" />
 
                 <ImageButton

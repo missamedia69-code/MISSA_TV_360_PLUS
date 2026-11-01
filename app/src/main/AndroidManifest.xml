@@ -49,6 +49,14 @@
             <data android:scheme="magnet" />
         </intent>
 
+        <!-- For TV & Mobile Voice Search (Android 11+ / Google TV package visibility) -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.WEB_SEARCH" />
+        </intent>
+
         <!-- Common players supported in actions/temp -->
         <package android:name="org.videolan.vlc" />
         <package android:name="org.videolan.vlc.debug" />

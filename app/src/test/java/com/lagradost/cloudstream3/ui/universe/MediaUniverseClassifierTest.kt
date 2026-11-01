@@ -1843,4 +1843,243 @@ class MediaUniverseClassifierTest {
                 MissaUiFactory.computeElongatedSearchPillMinWidthDp(960)
         )
     }
+
+    @Test
+    fun `video surface coordinator eliminates inline vs fullscreen surface contention`() {
+        // 1. No track or MP3-only mode -> NONE
+        assertEquals(
+            VideoSurfaceTarget.NONE,
+            MusicQueueAlgorithms.resolveActiveVideoSurfaceTarget(
+                hasTrack = false,
+                videoClipModeEnabled = true,
+                isFullscreenOpen = false,
+                isInlineAttached = true
+            )
+        )
+        assertEquals(
+            VideoSurfaceTarget.NONE,
+            MusicQueueAlgorithms.resolveActiveVideoSurfaceTarget(
+                hasTrack = true,
+                videoClipModeEnabled = false,
+                isFullscreenOpen = true,
+                isInlineAttached = true
+            )
+        )
+
+        // 2. Inline attached & fullscreen closed -> INLINE_DECK owns ExoPlayer surface
+        assertEquals(
+            VideoSurfaceTarget.INLINE_DECK,
+            MusicQueueAlgorithms.resolveActiveVideoSurfaceTarget(
+                hasTrack = true,
+                videoClipModeEnabled = true,
+                isFullscreenOpen = false,
+                isInlineAttached = true
+            )
+        )
+
+        // 3. Fullscreen open while inline is attached -> FULLSCREEN_MODAL exclusively owns ExoPlayer surface
+        assertEquals(
+            VideoSurfaceTarget.FULLSCREEN_MODAL,
+            MusicQueueAlgorithms.resolveActiveVideoSurfaceTarget(
+                hasTrack = true,
+                videoClipModeEnabled = true,
+                isFullscreenOpen = true,
+                isInlineAttached = true
+            )
+        )
+
+        // 4. Inline scrolled off-screen & fullscreen closed -> NONE
+        assertEquals(
+            VideoSurfaceTarget.NONE,
+            MusicQueueAlgorithms.resolveActiveVideoSurfaceTarget(
+                hasTrack = true,
+                videoClipModeEnabled = true,
+                isFullscreenOpen = false,
+                isInlineAttached = false
+            )
+        )
+
+        val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
+        val adapterSrc = java.io.File(javaRoot, "ui/universe/UniverseScreenAdapter.kt").readText()
+        val dialogsSrc = java.io.File(javaRoot, "ui/universe/MissaUniverseDialogs.kt").readText()
+        assertTrue(adapterSrc.contains("if (holder is MusicDeckHolder) holder.onAttached()"))
+        assertTrue(adapterSrc.contains("DirectMusicPlayerManager.registerInlineVideoSurface(videoSurface)"))
+        assertTrue(adapterSrc.contains("DirectMusicPlayerManager.unregisterInlineVideoSurface(videoSurface)"))
+        assertTrue(dialogsSrc.contains("DirectMusicPlayerManager.acquireFullscreenVideoSurface(fullscreenPlayerView)"))
+        assertTrue(dialogsSrc.contains("DirectMusicPlayerManager.releaseFullscreenVideoSurface(fullscreenPlayerView)"))
+    }
+
+    @Test
+    fun `now playing synchronization splits 500ms progress ticks from structural playback updates`() {
+        val sampleTrack = MusicTrackPreset(
+            id = "ytm_sync_1",
+            title = "Locko - Sawa Romance",
+            artist = "Locko",
+            album = "The Bridge",
+            genre = "Afrobeats",
+            streamUrl = "ytaudio://sync1234567",
+            durationSeconds = 215,
+            itemKind = MusicItemKind.CLIP
+        )
+        val baseState = MusicPlaybackState(
+            track = sampleTrack,
+            isPlaying = true,
+            isBuffering = false,
+            positionMs = 12_000L,
+            durationMs = 215_000L,
+            queueSize = 4,
+            queueIndex = 1
+        )
+        val tickState = baseState.copy(positionMs = 12_500L)
+        val pausedState = baseState.copy(isPlaying = false)
+
+        // Pure 500ms clock tick -> progress-only fast-path (avoids catalog rebuilds & TV focus resets)
+        assertTrue(
+            UniverseScreenAdapter.isProgressOnlyMusicChange(
+                UniverseListItem.MusicDeck(baseState, isFavoriteTrack = false),
+                UniverseListItem.MusicDeck(tickState, isFavoriteTrack = false)
+            )
+        )
+        // Play/Pause or Favorite change -> full structural update
+        assertFalse(
+            UniverseScreenAdapter.isProgressOnlyMusicChange(
+                UniverseListItem.MusicDeck(baseState, isFavoriteTrack = false),
+                UniverseListItem.MusicDeck(pausedState, isFavoriteTrack = false)
+            )
+        )
+        assertFalse(
+            UniverseScreenAdapter.isProgressOnlyMusicChange(
+                UniverseListItem.MusicDeck(baseState, isFavoriteTrack = false),
+                UniverseListItem.MusicDeck(tickState, isFavoriteTrack = true)
+            )
+        )
+
+        val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
+        val cardBuilderSrc = java.io.File(javaRoot, "ui/search/SearchResultBuilder.kt").readText()
+        assertTrue(cardBuilderSrc.contains("DirectMusicPlayerManager.isTrackOrCollectionActive"))
+        assertTrue(cardBuilderSrc.contains("universe_music_card_now_playing"))
+    }
+
+    @Test
+    fun `voice search declares Android 11+ recognize speech package visibility and top-bar mic button`() {
+        val manifestFile = java.io.File("src/main/AndroidManifest.xml").takeIf { it.isFile }
+            ?: java.io.File("app/src/main/AndroidManifest.xml")
+        val manifestXml = manifestFile.readText()
+        assertTrue(
+            "AndroidManifest.xml <queries> must declare android.speech.action.RECOGNIZE_SPEECH for Android 11+ & Google TV",
+            manifestXml.contains("android.speech.action.RECOGNIZE_SPEECH")
+        )
+
+        val fragmentLayoutFile = java.io.File("src/main/res/layout/fragment_media_universe.xml").takeIf { it.isFile }
+            ?: java.io.File("app/src/main/res/layout/fragment_media_universe.xml")
+        val layoutXml = fragmentLayoutFile.readText()
+        assertTrue(layoutXml.contains("@+id/universe_top_voice_search_btn"))
+        assertTrue(layoutXml.contains("@drawable/ic_mic"))
+
+        val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
+        val mainActivitySrc = java.io.File(javaRoot, "MainActivity.kt").readText()
+        assertTrue(mainActivitySrc.contains("KEYCODE_VOICE_ASSIST"))
+        assertTrue(mainActivitySrc.contains("triggerVoiceOrTextSearch"))
+    }
+
+    @Test
+    fun `playback queue drawer supports index-safe drag-and-drop reordering and contextual queue mutations`() {
+        fun track(id: String) = MusicTrackPreset(
+            id = id,
+            title = "Track $id",
+            artist = "Artist $id",
+            album = "Single",
+            genre = "Afrobeats",
+            streamUrl = "ytaudio://vid_$id",
+            durationSeconds = 195,
+            itemKind = MusicItemKind.CLIP
+        )
+
+        val initialQueue = listOf(track("A"), track("B"), track("C"), track("D"))
+
+        // 1. Dragging the currently playing track (A at 0 -> index 2) moves activeIndex with it seamlessly
+        val (dragActiveQueue, dragActiveIdx) = MusicQueueAlgorithms.reorderQueueTracks(
+            tracks = initialQueue,
+            currentActiveIndex = 0,
+            fromIndex = 0,
+            toIndex = 2
+        )
+        assertEquals(listOf("B", "C", "A", "D"), dragActiveQueue.map { it.id })
+        assertEquals(2, dragActiveIdx)
+
+        // 2. Dragging an earlier track (A at 0) below the active track (C at 2 -> index 3) decrements activeIndex to 1
+        val (dragAcrossDown, activeAfterDown) = MusicQueueAlgorithms.reorderQueueTracks(
+            tracks = initialQueue,
+            currentActiveIndex = 2,
+            fromIndex = 0,
+            toIndex = 3
+        )
+        assertEquals(listOf("B", "C", "D", "A"), dragAcrossDown.map { it.id })
+        assertEquals(1, activeAfterDown)
+        assertEquals("C", dragAcrossDown[activeAfterDown].id)
+
+        // 3. Dragging a later track (D at 3) above the active track (C at 2 -> index 1) increments activeIndex to 3
+        val (dragAcrossUp, activeAfterUp) = MusicQueueAlgorithms.reorderQueueTracks(
+            tracks = initialQueue,
+            currentActiveIndex = 2,
+            fromIndex = 3,
+            toIndex = 1
+        )
+        assertEquals(listOf("A", "D", "B", "C"), dragAcrossUp.map { it.id })
+        assertEquals(3, activeAfterUp)
+        assertEquals("C", dragAcrossUp[activeAfterUp].id)
+
+        // 4. Contextual "Play Next" inserts a new track immediately after activeIndex
+        val newTrackE = track("E")
+        val (withPlayNext, activeWithPlayNext) = MusicQueueAlgorithms.insertPlayNextInQueue(
+            tracks = initialQueue,
+            currentActiveIndex = 1,
+            candidate = newTrackE
+        )
+        assertEquals(listOf("A", "B", "E", "C", "D"), withPlayNext.map { it.id })
+        assertEquals(1, activeWithPlayNext)
+
+        // 5. Contextual "Play Next" on an existing track (D at 3 when B at 1 is playing) moves D right after B
+        val (existingMovedNext, activeExistingNext) = MusicQueueAlgorithms.insertPlayNextInQueue(
+            tracks = initialQueue,
+            currentActiveIndex = 1,
+            candidate = initialQueue[3]
+        )
+        assertEquals(listOf("A", "B", "D", "C"), existingMovedNext.map { it.id })
+        assertEquals(1, activeExistingNext)
+
+        // 6. Contextual "Remove from Queue" before active decrements activeIndex without flagging removedWasActive
+        val (afterRemoveBefore, activeAfterRemoveBefore, removedActive1) = MusicQueueAlgorithms.removeTrackFromQueue(
+            tracks = initialQueue,
+            currentActiveIndex = 2,
+            removeIndex = 0
+        )
+        assertEquals(listOf("B", "C", "D"), afterRemoveBefore.map { it.id })
+        assertEquals(1, activeAfterRemoveBefore)
+        assertFalse(removedActive1)
+
+        // 7. Contextual "Remove from Queue" on the active track flags removedWasActive = true
+        val (afterRemoveActive, activeAfterRemoveSelf, removedActive2) = MusicQueueAlgorithms.removeTrackFromQueue(
+            tracks = initialQueue,
+            currentActiveIndex = 1,
+            removeIndex = 1
+        )
+        assertEquals(listOf("A", "C", "D"), afterRemoveActive.map { it.id })
+        assertEquals(1, activeAfterRemoveSelf)
+        assertTrue(removedActive2)
+
+        // Verify ItemTouchHelper + drag handle + contextual menu button wiring
+        val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
+        val adapterSrc = java.io.File(javaRoot, "ui/universe/UniverseScreenAdapter.kt").readText()
+        val dialogsSrc = java.io.File(javaRoot, "ui/universe/MissaUniverseDialogs.kt").readText()
+        assertTrue(adapterSrc.contains("ItemTouchHelper"))
+        assertTrue(adapterSrc.contains("playlist_track_drag_handle"))
+        assertTrue(adapterSrc.contains("playlist_track_more_btn"))
+        assertTrue(dialogsSrc.contains("fun showMusicQueueTrackContextMenu("))
+        assertTrue(dialogsSrc.contains("fun showMusicCatalogCardContextMenu("))
+    }
 }
