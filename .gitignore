@@ -220,4 +220,8 @@ fabric.properties
 
 !/gradle/wrapper/gradle-wrapper.jar
 
+# Gradle 8+ Daemon JVM criteria: generated locally by `gradlew updateDaemonJvm`
+# (machine-specific JDK path), so it must never be committed.
+gradle/gradle-daemon-jvm.properties
+
 # End of https://www.toptal.com/developers/gitignore/api/kotlin,java,android,androidstudio,visualstudiocode
