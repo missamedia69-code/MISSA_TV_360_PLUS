@@ -967,6 +967,8 @@
     <string name="universe_catalogue_results">Unified catalog</string>
     <string name="universe_search_results_for">Results for “%1$s”</string>
     <string name="universe_music_search_hint">Search an artist, clip, playlist or album…</string>
+    <string name="universe_music_search_bar_label">Search artist, clip, playlist…</string>
+    <string name="universe_search_bar_label">Search titles…</string>
     <string name="universe_music_search_trending_clips">Trending clips • “%1$s”</string>
     <string name="universe_music_search_recent_clips">Recent clips • “%1$s”</string>
     <string name="universe_music_search_playlists_albums">Playlists &amp; Albums • “%1$s”</string>

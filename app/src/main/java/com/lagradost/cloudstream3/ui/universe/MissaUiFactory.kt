@@ -5,7 +5,9 @@ import android.content.res.ColorStateList
 import android.net.ConnectivityManager
 import android.os.Build
 import android.provider.Settings
+import android.text.TextUtils
 import android.view.ContextThemeWrapper
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -196,6 +198,75 @@ object MissaUiFactory {
             button,
             if (selected) ctx.getString(R.string.missa_a11y_selected) else null
         )
+    }
+
+    /**
+     * Hides the source selector pill whenever a universe uses a single exclusive source
+     * (such as `Musiques` -> YouTube) or when <= 1 source is available.
+     */
+    fun shouldShowSourceFilterPill(universeId: String, availableSourcesCount: Int): Boolean {
+        if (universeId == "music") return false
+        return availableSourcesCount > 1
+    }
+
+    fun computeElongatedSearchPillMinWidthDp(screenWidthDp: Int): Int = when {
+        screenWidthDp >= 600 -> 248
+        screenWidthDp >= 420 -> 178
+        else -> 154
+    }
+
+    fun computeElongatedSearchPillMaxWidthDp(screenWidthDp: Int): Int = when {
+        screenWidthDp >= 600 -> 336
+        screenWidthDp >= 420 -> 232
+        else -> 196
+    }
+
+    /**
+     * Morphs the contextual search toggle between a compact 48dp icon button (when the source
+     * selector pill sits beside it) and an elongated search bar capsule that fills the space
+     * vacated when no source selector pill is shown.
+     */
+    fun configureSearchTogglePill(
+        button: MaterialButton,
+        elongated: Boolean,
+        label: String,
+        selected: Boolean
+    ) {
+        val ctx = button.context
+        val screenWidthDp = ctx.resources.configuration.screenWidthDp
+        val lp = button.layoutParams
+        if (elongated) {
+            val minW = computeElongatedSearchPillMinWidthDp(screenWidthDp).toPx
+            val maxW = computeElongatedSearchPillMaxWidthDp(screenWidthDp).toPx
+            if (lp != null && lp.width != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
+                button.layoutParams = lp
+            }
+            button.minWidth = minW
+            button.maxWidth = maxW
+            button.setPaddingRelative(14.toPx, 0, 16.toPx, 0)
+            button.iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+            button.iconPadding = 8.toPx
+            button.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            button.maxLines = 1
+            button.ellipsize = TextUtils.TruncateAt.END
+            button.isAllCaps = false
+            button.text = label
+        } else {
+            val compactSize = 48.toPx
+            if (lp != null && lp.width != compactSize) {
+                lp.width = compactSize
+                button.layoutParams = lp
+            }
+            button.minWidth = compactSize
+            button.maxWidth = compactSize
+            button.setPaddingRelative(0, 0, 0, 0)
+            button.iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+            button.iconPadding = 0
+            button.gravity = Gravity.CENTER
+            button.text = ""
+        }
+        stylePillSelection(button, selected)
     }
 
     private fun usesGlobalAnimatedFocusOutline(context: Context): Boolean {

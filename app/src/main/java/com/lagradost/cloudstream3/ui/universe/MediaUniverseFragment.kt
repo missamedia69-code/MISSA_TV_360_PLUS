@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.ImageButton
@@ -286,8 +287,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             )
         }
 
-        // On mobile/tablet, expose the search bar immediately in Music & Radio universes
-        if (!isTv && (universeId == "music" || universeId == "radio")) {
+        // On mobile/tablet, expose the search bar immediately in Radio; in Musiques the top strip's
+        // elongated search bar fills the space vacated by the single-source selector and expands on tap.
+        if (!isTv && universeId == "radio") {
             inlineFilterPanel?.isVisible = true
             renderRecentSearchChips()
         }
@@ -358,7 +360,18 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             }
             false
         }
-        rightFilterControls.forEach { it.setOnKeyListener(filterBarDownHandler) }
+        rightFilterControls.forEach { btn ->
+            btn.setOnKeyListener(filterBarDownHandler)
+            btn.setOnFocusChangeListener { _, hasFocus ->
+                val isSelected = when {
+                    btn === toggleFilterBtn -> inlineFilterPanel?.isVisible == true || currentSearchQuery.isNotBlank()
+                    btn === sourceFilterBtn -> selectedSources.isNotEmpty()
+                    btn === kidsPinBtn -> MissaUiFactory.isKidsModeLocked()
+                    else -> false
+                }
+                MissaUiFactory.stylePillSelection(btn, isSelected, isFocusedOverride = hasFocus)
+            }
+        }
 
         // Kids Parental PIN button (TRUST-01)
         kidsPinBtn?.isVisible = universeId == "kids"
@@ -389,10 +402,25 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         toggleFilterBtn?.setOnClickListener {
             val panel = inlineFilterPanel ?: return@setOnClickListener
             panel.isVisible = !panel.isVisible
-            MissaUiFactory.stylePillSelection(toggleFilterBtn!!, panel.isVisible || currentSearchQuery.isNotBlank())
+            val showSourceFilter = MissaUiFactory.shouldShowSourceFilterPill(
+                universeId,
+                lastProjection?.availableSources?.size ?: 0
+            )
+            MissaUiFactory.configureSearchTogglePill(
+                button = toggleFilterBtn!!,
+                elongated = !showSourceFilter,
+                label = resolveSearchBarToggleLabel(requireContext()),
+                selected = panel.isVisible || currentSearchQuery.isNotBlank()
+            )
             if (panel.isVisible) {
                 renderRecentSearchChips()
-                searchInput?.requestFocus()
+                searchInput?.let { input ->
+                    input.requestFocus()
+                    if (!isTv) {
+                        val imm = ctx.getSystemService(Activity.INPUT_METHOD_SERVICE) as? InputMethodManager
+                        imm?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+                    }
+                }
             } else {
                 hideKeyboard()
             }
@@ -450,6 +478,15 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
         searchClearBtn?.setOnClickListener {
             onResetAllFilters()
+        }
+    }
+
+    private fun resolveSearchBarToggleLabel(ctx: android.content.Context): String {
+        if (currentSearchQuery.isNotBlank()) return currentSearchQuery
+        return if (universeId == "music") {
+            ctx.getString(R.string.universe_music_search_bar_label)
+        } else {
+            ctx.getString(R.string.universe_search_bar_label)
         }
     }
 
@@ -664,10 +701,11 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             }
             categoryPillAdapter?.submitList(pillItems)
 
-            // 2. Update multi-source pill button (HOME-08)
+            // 2. Update multi-source pill button (HOME-08): hide when <= 1 source (e.g. Musiques -> YouTube only)
             val sources = projection.availableSources
-            sourceFilterBtn?.isVisible = sources.isNotEmpty()
-            if (sources.isNotEmpty()) {
+            val showSourceFilter = MissaUiFactory.shouldShowSourceFilterPill(universeId, sources.size)
+            sourceFilterBtn?.isVisible = showSourceFilter
+            if (showSourceFilter) {
                 sourceFilterBtn?.text = when {
                     selectedSources.isEmpty() -> ctx.getString(R.string.universe_all_sources, sources.size)
                     selectedSources.size == 1 -> ctx.getString(R.string.universe_single_source, selectedSources.first())
@@ -680,9 +718,11 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 !selectedCategoryKey.isNullOrBlank() ||
                 selectedSources.isNotEmpty()
             toggleFilterBtn?.let {
-                MissaUiFactory.stylePillSelection(
-                    it,
-                    inlineFilterPanel?.isVisible == true || currentSearchQuery.isNotBlank()
+                MissaUiFactory.configureSearchTogglePill(
+                    button = it,
+                    elongated = !showSourceFilter,
+                    label = resolveSearchBarToggleLabel(ctx),
+                    selected = inlineFilterPanel?.isVisible == true || currentSearchQuery.isNotBlank()
                 )
             }
         } else {

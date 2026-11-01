@@ -1824,4 +1824,23 @@ class MediaUniverseClassifierTest {
         assertTrue(viewModelSrc.contains("music_search_playlists_albums"))
         assertTrue(viewModelSrc.contains("getOnlineSearchResults"))
     }
+
+    @Test
+    fun `music universe hides single-source selector pill and elongates adjacent search bar`() {
+        assertFalse(MissaUiFactory.shouldShowSourceFilterPill("music", 0))
+        assertFalse(MissaUiFactory.shouldShowSourceFilterPill("music", 1))
+        assertFalse(MissaUiFactory.shouldShowSourceFilterPill("music", 2))
+        assertFalse(MissaUiFactory.shouldShowSourceFilterPill("films", 1))
+        assertTrue(MissaUiFactory.shouldShowSourceFilterPill("films", 3))
+
+        assertTrue(MissaUiFactory.computeElongatedSearchPillMinWidthDp(360) >= 148)
+        assertTrue(
+            MissaUiFactory.computeElongatedSearchPillMinWidthDp(960) >
+                MissaUiFactory.computeElongatedSearchPillMinWidthDp(360)
+        )
+        assertTrue(
+            MissaUiFactory.computeElongatedSearchPillMaxWidthDp(960) >
+                MissaUiFactory.computeElongatedSearchPillMinWidthDp(960)
+        )
+    }
 }
