@@ -1631,7 +1631,9 @@ class MediaUniverseViewModel : ViewModel() {
         val semaphore = Semaphore(5)
         providers.map { api ->
             async(Dispatchers.IO) {
-                val items = semaphore.withPermit {
+                // The permit block must evaluate to the item list: a trailing statement here
+                // silently turns the whole block into Unit and breaks awaitAll().flatten().
+                val items: List<RawHarvestedItem> = semaphore.withPermit {
                     withTimeoutOrNull(PROVIDER_MAINPAGE_TIMEOUT_MS) {
                         try {
                             val repository = APIRepository(api)
@@ -1651,13 +1653,6 @@ class MediaUniverseViewModel : ViewModel() {
                                             )
                                         }
                                     }
-                                    .also { items ->
-                                        // A provider that resolves but returns an empty homepage is the
-                                        // most common silent failure (site moved, selector broke, geo-block).
-                                        if (items.isEmpty()) {
-                                            Log.w(TAG, "Provider '${api.name}' returned an empty homepage")
-                                        }
-                                    }
                                 else -> {
                                     Log.w(
                                         TAG,
@@ -1673,9 +1668,11 @@ class MediaUniverseViewModel : ViewModel() {
                             emptyList()
                         }
                     }.orEmpty()
-                    if (items.isEmpty()) {
-                        Log.w(TAG, "Provider '${api.name}' yielded no items (timeout or empty response)")
-                    }
+                }
+                // A provider that resolves but returns nothing is the most common silent
+                // failure: site moved, selector broke, geo-block, or the 14s timeout hit.
+                if (items.isEmpty()) {
+                    Log.w(TAG, "Provider '${api.name}' yielded no items (empty response or timeout)")
                 }
                 onProviderFinished()
                 items
