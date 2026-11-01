@@ -555,6 +555,7 @@
     <string name="safe_mode_title">Safe mode on</string>
     <string name="safe_mode_description">All extensions were turned off due to a crash to help you find the one causing trouble.</string>
     <string name="safe_mode_crash_info">View crash info</string>
+    <string name="safe_mode_resume">Turn extensions back on</string>
     <string name="extension_rating" formatted="true">Rating: %s</string>
     <string name="extension_description">Description</string>
     <string name="extension_version">Version</string>

@@ -1877,18 +1877,34 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         ioSafe { SafeFile.check(this@MainActivity) }
 
-        if (PluginManager.checkSafeModeFile()) {
-            safe {
-                showToast(R.string.safe_mode_file, Toast.LENGTH_LONG)
-            }
-        } else if (lastError == null) {
-            ioSafe {
-                DataStoreHelper.currentHomePage?.let { homeApi ->
-                    mainPluginsLoadedEvent.invoke(loadSinglePlugin(this@MainActivity, homeApi))
-                } ?: run {
-                    mainPluginsLoadedEvent.invoke(false)
-                }
+        // Safe mode is a diagnostic aid, not a kill switch. It used to guard the whole
+        // startup loading block, so a single crash - which writes filesDir/last_error and
+        // is only cleared by setLastError() - left every extension installed but dead
+        // until app data was wiped. Local plugins are always loaded now (their failures
+        // are isolated inside loadPlugin), while the online repository sync stays
+        // suppressed so the extension at fault cannot be refreshed back into a crash loop.
+        val safeModeFilePresent = PluginManager.checkSafeModeFile()
+        val crashedLastRun = lastError != null
+        val safeModeActive = safeModeFilePresent || crashedLastRun
 
+        if (safeModeFilePresent) {
+            safe { showToast(R.string.safe_mode_file, Toast.LENGTH_LONG) }
+        }
+
+        ioSafe {
+            DataStoreHelper.currentHomePage?.let { homeApi ->
+                mainPluginsLoadedEvent.invoke(loadSinglePlugin(this@MainActivity, homeApi))
+            } ?: run {
+                mainPluginsLoadedEvent.invoke(false)
+            }
+
+            if (safeModeActive) {
+                Log.i(
+                    "MAINACT",
+                    "Safe mode active (file=$safeModeFilePresent, crash=$crashedLastRun): " +
+                        "skipping online plugin sync, still loading local plugins"
+                )
+            } else {
                 ioSafe {
                     if (settingsManager.getBoolean(
                             getString(R.string.auto_update_plugins_key),
@@ -1916,18 +1932,20 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                         )
                     }*/
                 }
+            }
 
-                ioSafe {
-                    PluginManager.___DO_NOT_CALL_FROM_A_PLUGIN_loadAllLocalPlugins(
-                        this@MainActivity,
-                        false
-                    )
-                }
+            ioSafe {
+                PluginManager.___DO_NOT_CALL_FROM_A_PLUGIN_loadAllLocalPlugins(
+                    this@MainActivity,
+                    false
+                )
+            }
 
 // Add your channel creation here
 
-            }
-        } else {
+        }
+
+        if (safeModeActive) {
             val builder: AlertDialog.Builder = AlertDialog.Builder(this)
             builder.setTitle(R.string.safe_mode_title)
             builder.setMessage(R.string.safe_mode_description)
@@ -1939,7 +1957,22 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     tbBuilder.show()
                 }
 
-                setNegativeButton("Ok") { _, _ -> }
+                // Dismissing used to leave last_error and the "safe" file on disk, so the
+                // prompt came back on every single launch with no way out from the UI.
+                setNegativeButton(R.string.safe_mode_resume) { _, _ ->
+                    runCatching {
+                        File(filesDir, "last_error").delete()
+                        File(PluginManager.CLOUD_STREAM_FOLDER_PATH, "safe").delete()
+                    }.onFailure {
+                        Log.e("MAINACT", "Failed to clear safe mode markers", it)
+                    }
+                    lastError = null
+                    ioSafe {
+                        PluginManager.___DO_NOT_CALL_FROM_A_PLUGIN_updateAllOnlinePluginsAndLoadThem(
+                            this@MainActivity
+                        )
+                    }
+                }
             }
             builder.show().setDefaultFocus()
         }

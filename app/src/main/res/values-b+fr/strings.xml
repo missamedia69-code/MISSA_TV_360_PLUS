@@ -437,6 +437,7 @@
     <string name="tracks">Pistes</string>
     <string name="audio_tracks">Pistes audio</string>
     <string name="safe_mode_crash_info">Afficher les infos du crash</string>
+    <string name="safe_mode_resume">Réactiver les extensions</string>
     <string name="extension_authors">Auteurs</string>
     <string name="extension_types">Supporté</string>
     <string name="player_settings_play_in_app">Lecteur interne</string>
