@@ -35,14 +35,9 @@ object SearchHelper {
                 )
             } else if (ctx != null) {
                 DirectMusicPlayerManager.playDirectResponse(ctx, card)
-                if (card.itemKind == MusicItemKind.PLAYLIST ||
-                    card.itemKind == MusicItemKind.ALBUM ||
-                    MissaMusicProviders.isYouTubePlaylistOrAlbumScheme(card.url)
-                ) {
-                    (activity as? MainActivity)?.navigateToUniverseWithParentalGuard(
-                        MissaUniverses.byId("music")
-                    )
-                }
+                (activity as? MainActivity)?.navigateToUniverseWithParentalGuard(
+                    MissaUniverses.byId("music")
+                )
             }
             return
         }

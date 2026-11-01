@@ -290,7 +290,8 @@ data class UniverseCategoryRow(
     val title: String,
     val items: List<SearchResponse>,
     val isHorizontalCards: Boolean = false,
-    val editorialRank: Int = 500
+    val editorialRank: Int = 500,
+    val renderAsGridInSearch: Boolean = true
 )
 
 data class UniverseHubCardItem(
@@ -384,7 +385,8 @@ data class MusicTrackPreset(
     val isTrending: Boolean = false,
     val itemKind: MusicItemKind = MusicItemKind.CLIP,
     val trackCount: Int = 0,
-    val recencyScore: Int = 0
+    val recencyScore: Int = 0,
+    val viewCount: Long = 0L
 ) {
     fun isAlbumOrPlaylist(): Boolean =
         itemKind == MusicItemKind.ALBUM ||

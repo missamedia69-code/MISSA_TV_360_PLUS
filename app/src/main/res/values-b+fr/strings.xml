@@ -922,6 +922,15 @@
     <string name="universe_clear_recent_searches">Effacer</string>
     <string name="universe_catalogue_results">Catalogue unifié</string>
     <string name="universe_search_results_for">Résultats pour « %1$s »</string>
+    <string name="universe_music_search_hint">Rechercher un artiste, clip, playlist ou album…</string>
+    <string name="universe_music_search_trending_clips">Clips en vogue • « %1$s »</string>
+    <string name="universe_music_search_recent_clips">Clips récents • « %1$s »</string>
+    <string name="universe_music_search_playlists_albums">Playlists &amp; Albums • « %1$s »</string>
+    <string name="universe_music_search_singles">Titres &amp; Singles • « %1$s »</string>
+    <string name="universe_music_search_all_results">Tous les résultats pour « %1$s »</string>
+    <string name="global_search_music_trending_clips">Clips en vogue • YouTube</string>
+    <string name="global_search_music_recent_clips">Clips récents • YouTube</string>
+    <string name="global_search_music_playlists">Playlists &amp; Albums • YouTube</string>
     <string name="universe_empty_home">Aucun contenu disponible dans cet univers pour le moment.</string>
     <string name="universe_empty_search">Aucun résultat classé dans cet univers. Essayez un autre terme ou réinitialisez les filtres.</string>
     <string name="universe_catalogue_error">Impossible de charger le catalogue pour le moment. Vérifiez votre connexion et réessayez.</string>

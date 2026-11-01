@@ -117,6 +117,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private var showAllRows: Boolean = false
     private var searchJob: Job? = null
     private var typingDebounceJob: Job? = null
+    private var isOnlineSearchInFlight: Boolean = false
     private var suppressSearchTextWatcher: Boolean = false
     private var lastProjection: UniverseScreenProjection? = null
     private var didRestoreUniverseFocus = false
@@ -276,10 +277,14 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         val isTv = MissaUiFactory.isTvLayoutMode()
 
         // Scoped hint explicitly labels this as in-universe filtering (NAV-04)
-        searchInput?.hint = ctx.getString(
-            R.string.universe_filter_in_universe_hint,
-            ctx.getString(def.titleRes)
-        )
+        searchInput?.hint = if (universeId == "music") {
+            ctx.getString(R.string.universe_music_search_hint)
+        } else {
+            ctx.getString(
+                R.string.universe_filter_in_universe_hint,
+                ctx.getString(def.titleRes)
+            )
+        }
 
         // On mobile/tablet, expose the search bar immediately in Music & Radio universes
         if (!isTv && (universeId == "music" || universeId == "radio")) {
@@ -427,6 +432,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             if (raw.isBlank()) {
                 if (currentSearchQuery.isNotBlank()) {
                     searchJob?.cancel()
+                    isOnlineSearchInFlight = false
                     currentSearchQuery = ""
                     searchOverrideEntries = null
                     searchProgressText?.isVisible = false
@@ -737,7 +743,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
 
         when {
-            projection.isLoading && projection.rows.isEmpty() -> {
+            (projection.isLoading || isOnlineSearchInFlight) && projection.rows.isEmpty() -> {
                 items.add(
                     UniverseListItem.ShimmerLoading(
                         loadedProviders = projection.loadedProvidersCount,
@@ -748,7 +754,11 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             projection.rows.isNotEmpty() -> {
                 if (currentSearchQuery.isNotBlank()) {
                     for (row in projection.rows) {
-                        items.add(UniverseListItem.SearchGrid(row))
+                        if (row.renderAsGridInSearch) {
+                            items.add(UniverseListItem.SearchGrid(row))
+                        } else {
+                            items.add(UniverseListItem.CategoryRow(row))
+                        }
                     }
                 } else {
                     for (row in projection.rows) {
@@ -806,13 +816,15 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             renderRecentSearchChips()
         }
 
-        // First render immediate local matches across already-loaded catalog
+        // First render immediate local matches across already-loaded catalog (or shimmer while YouTube search runs)
         searchOverrideEntries = null
+        isOnlineSearchInFlight = true
         renderScreen()
 
         // Also query YouTube Audio / music servers, online radio directories & active background extensions progressively
         searchJob?.cancel()
         searchJob = viewLifecycleOwner.lifecycleScope.launch {
+            isOnlineSearchInFlight = true
             loadingBar?.isVisible = true
             searchProgressText?.isVisible = true
             if (universeId == "music") {
@@ -850,6 +862,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     musicJob?.await()
                     pluginResults
                 }
+                isOnlineSearchInFlight = false
                 if (isAdded) {
                     if (results.isNotEmpty()) {
                         searchOverrideEntries = results
@@ -859,8 +872,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
+                isOnlineSearchInFlight = false
                 if (isAdded) renderScreen()
             } finally {
+                isOnlineSearchInFlight = false
                 if (isAdded) {
                     loadingBar?.isVisible = viewModel.catalogSnapshot.value?.isLoading == true
                     searchProgressText?.isVisible = false
@@ -1076,6 +1091,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     override fun onResetAllFilters() {
         searchJob?.cancel()
         typingDebounceJob?.cancel()
+        isOnlineSearchInFlight = false
         currentSearchQuery = ""
         searchOverrideEntries = null
         selectedCategoryKey = null
@@ -1144,6 +1160,17 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     private fun collectVisibleMusicQueue(selected: DirectMusicSearchResponse): List<DirectMusicSearchResponse> {
+        val selectedIsCollection = selected.itemKind == MusicItemKind.PLAYLIST ||
+            selected.itemKind == MusicItemKind.ALBUM ||
+            MissaMusicProviders.isYouTubePlaylistOrAlbumScheme(selected.url)
+        if (selectedIsCollection) return listOf(selected)
+
+        fun isPlayableSingle(card: DirectMusicSearchResponse): Boolean {
+            return card.itemKind != MusicItemKind.PLAYLIST &&
+                card.itemKind != MusicItemKind.ALBUM &&
+                !MissaMusicProviders.isYouTubePlaylistOrAlbumScheme(card.url)
+        }
+
         val adapterItems = screenAdapter?.currentList.orEmpty()
         for (item in adapterItems) {
             val rowItems = when (item) {
@@ -1151,7 +1178,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 is UniverseListItem.SearchGrid -> item.row.items
                 else -> emptyList()
             }
-            val musicRow = rowItems.filterIsInstance<DirectMusicSearchResponse>()
+            val musicRow = rowItems.filterIsInstance<DirectMusicSearchResponse>().filter(::isPlayableSingle)
             if (musicRow.any { it.url == selected.url }) {
                 return musicRow
             }
@@ -1162,7 +1189,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 is UniverseListItem.SearchGrid -> item.row.items.filterIsInstance<DirectMusicSearchResponse>()
                 else -> emptyList()
             }
-        }.distinctBy { it.url }
+        }.filter(::isPlayableSingle).distinctBy { it.url }
     }
 
     override fun onMusicTogglePlayPause() {

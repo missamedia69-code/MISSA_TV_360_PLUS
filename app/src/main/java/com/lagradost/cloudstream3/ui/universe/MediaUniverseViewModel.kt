@@ -928,18 +928,27 @@ class MediaUniverseViewModel : ViewModel() {
         }
 
         // Dedicated 100%-YouTube Music universe: newest clips, singles, official albums & playlists (zero long mixes)
+        var musicSearchSections: MissaMusicProviders.MusicSearchSections? = null
         val rankedMusicSearchResponses: List<DirectMusicSearchResponse> = if (universeId == "music") {
-            val matchedMusicTracks = DirectMusicPlayerManager.allPresetTracks()
-                .filter { track ->
-                    val providerOk = normalizedSelectedSources.isEmpty() ||
-                        track.providerName.ifBlank { DIRECT_MUSIC_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
-                    val queryOk = MissaMusicProviders.matchesTrackQuery(track, searchQuery)
-                    providerOk && queryOk
-                }
             val musicTracks = if (searchQuery.isNotBlank()) {
-                MissaMusicProviders.rankTracksForQuery(matchedMusicTracks, searchQuery)
+                val directOnline = DirectMusicPlayerManager.getOnlineSearchResults(searchQuery)
+                val localMatches = DirectMusicPlayerManager.allPresetTracks()
+                    .filter { MissaMusicProviders.matchesTrackQuery(it, searchQuery) }
+                val combinedForQuery = (directOnline + localMatches)
+                    .distinctBy { it.id }
+                    .filter { track ->
+                        normalizedSelectedSources.isEmpty() ||
+                            track.providerName.ifBlank { DIRECT_MUSIC_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                    }
+                val sections = MissaMusicProviders.partitionMusicSearchResults(combinedForQuery, searchQuery)
+                musicSearchSections = sections
+                sections.allRanked
             } else {
-                matchedMusicTracks
+                DirectMusicPlayerManager.allPresetTracks()
+                    .filter { track ->
+                        normalizedSelectedSources.isEmpty() ||
+                            track.providerName.ifBlank { DIRECT_MUSIC_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                    }
             }
             val favMusicIds = DirectMusicPlayerManager.favoriteIds()
             val favTracks = musicTracks.filter { favMusicIds.contains(it.id) }.map { it.toSearchResponse() }
@@ -954,7 +963,7 @@ class MediaUniverseViewModel : ViewModel() {
                     items = favTracks.toMutableList()
                 )
             }
-            val rowCap = if (searchQuery.isNotBlank()) 220 else 80
+            val rowCap = if (searchQuery.isNotBlank()) 240 else 80
             // `Nouveautés` (`MUSIC_TRENDING`) strictly contains ONLY fresh individual clips — NEVER playlists or albums
             val nouveautesClips = MissaMusicProviders.selectNouveautesClips(musicTracks, maxItems = rowCap)
             if (nouveautesClips.isNotEmpty()) {
@@ -1007,11 +1016,13 @@ class MediaUniverseViewModel : ViewModel() {
         // Home universe live radio showcase + music audio search hits alongside podcasts/audio entries
         if (universeId == "home" && normalizedSelectedSources.isEmpty()) {
             val homeMusicHits = if (searchQuery.isNotBlank()) {
-                MissaMusicProviders.rankTracksForQuery(
-                    DirectMusicPlayerManager.allPresetTracks()
-                        .filter { MissaMusicProviders.matchesTrackQuery(it, searchQuery) },
+                val directOnline = DirectMusicPlayerManager.getOnlineSearchResults(searchQuery)
+                val localMatches = DirectMusicPlayerManager.allPresetTracks()
+                    .filter { MissaMusicProviders.matchesTrackQuery(it, searchQuery) }
+                MissaMusicProviders.partitionMusicSearchResults(
+                    (directOnline + localMatches).distinctBy { it.id },
                     searchQuery
-                ).take(40)
+                ).allRanked.take(60)
             } else {
                 emptyList()
             }
@@ -1031,13 +1042,13 @@ class MediaUniverseViewModel : ViewModel() {
                 }
                 for (track in homeMusicHits) {
                     val resp = track.toSearchResponse()
-                    if (audioBucket.items.size < 48 && audioBucket.items.none { it.url == resp.url }) {
+                    if (audioBucket.items.size < 64 && audioBucket.items.none { it.url == resp.url }) {
                         audioBucket.items.add(resp)
                     }
                 }
                 for (station in homeStations) {
                     val resp = station.toSearchResponse()
-                    if (audioBucket.items.size < 56 && audioBucket.items.none { it.url == resp.url }) {
+                    if (audioBucket.items.size < 72 && audioBucket.items.none { it.url == resp.url }) {
                         audioBucket.items.add(resp)
                     }
                 }
@@ -1106,30 +1117,124 @@ class MediaUniverseViewModel : ViewModel() {
         }
 
         val allMatchingRows = if (searchQuery.isNotBlank()) {
-            // Group search results cleanly by relevance; if a category pill yields 0 hits for the query, fall back to all universe hits
-            val categoryScoped = if (!selectedCategoryKey.isNullOrBlank()) {
-                sortedBuckets.filter { it.key == selectedCategoryKey }.ifEmpty { sortedBuckets }
+            val cleanDisplayQuery = MissaMusicProviders.sanitizeMusicQuery(searchQuery).ifBlank { searchQuery.trim() }
+            if (universeId == "music" && musicSearchSections != null) {
+                val sections = musicSearchSections!!
+                if (!selectedCategoryKey.isNullOrBlank()) {
+                    val scopedBucket = sortedBuckets.firstOrNull { it.key == selectedCategoryKey }
+                    val scopedItems = (scopedBucket?.items ?: sections.allRanked.map { it.toSearchResponse() })
+                        .distinctBy { "${it.apiName}|${it.url}" }
+                    if (scopedItems.isEmpty()) {
+                        emptyList()
+                    } else {
+                        val scopedTitle = scopedBucket?.rowTitle
+                            ?: ctx?.getString(R.string.universe_search_results_for, cleanDisplayQuery)
+                            ?: cleanDisplayQuery
+                        listOf(
+                            UniverseCategoryRow(
+                                id = "search_results_grid",
+                                title = scopedTitle,
+                                items = scopedItems,
+                                isHorizontalCards = false,
+                                editorialRank = 1,
+                                renderAsGridInSearch = true
+                            )
+                        )
+                    }
+                } else if (sections.allRanked.isEmpty()) {
+                    emptyList()
+                } else {
+                    buildList {
+                        if (sections.trendingClips.isNotEmpty()) {
+                            add(
+                                UniverseCategoryRow(
+                                    id = "music_search_trending_clips",
+                                    title = ctx?.getString(R.string.universe_music_search_trending_clips, cleanDisplayQuery)
+                                        ?: cleanDisplayQuery,
+                                    items = sections.trendingClips.map { it.toSearchResponse() },
+                                    isHorizontalCards = false,
+                                    editorialRank = 1,
+                                    renderAsGridInSearch = false
+                                )
+                            )
+                        }
+                        if (sections.recentClips.isNotEmpty()) {
+                            add(
+                                UniverseCategoryRow(
+                                    id = "music_search_recent_clips",
+                                    title = ctx?.getString(R.string.universe_music_search_recent_clips, cleanDisplayQuery)
+                                        ?: cleanDisplayQuery,
+                                    items = sections.recentClips.map { it.toSearchResponse() },
+                                    isHorizontalCards = false,
+                                    editorialRank = 2,
+                                    renderAsGridInSearch = false
+                                )
+                            )
+                        }
+                        if (sections.playlistsAndAlbums.isNotEmpty()) {
+                            add(
+                                UniverseCategoryRow(
+                                    id = "music_search_playlists_albums",
+                                    title = ctx?.getString(R.string.universe_music_search_playlists_albums, cleanDisplayQuery)
+                                        ?: cleanDisplayQuery,
+                                    items = sections.playlistsAndAlbums.map { it.toSearchResponse() },
+                                    isHorizontalCards = false,
+                                    editorialRank = 3,
+                                    renderAsGridInSearch = false
+                                )
+                            )
+                        }
+                        if (sections.songsAndSingles.isNotEmpty()) {
+                            add(
+                                UniverseCategoryRow(
+                                    id = "music_search_singles",
+                                    title = ctx?.getString(R.string.universe_music_search_singles, cleanDisplayQuery)
+                                        ?: cleanDisplayQuery,
+                                    items = sections.songsAndSingles.map { it.toSearchResponse() },
+                                    isHorizontalCards = false,
+                                    editorialRank = 4,
+                                    renderAsGridInSearch = false
+                                )
+                            )
+                        }
+                        add(
+                            UniverseCategoryRow(
+                                id = "search_results_grid",
+                                title = ctx?.getString(R.string.universe_music_search_all_results, cleanDisplayQuery)
+                                    ?: cleanDisplayQuery,
+                                items = sections.allRanked.map { it.toSearchResponse() },
+                                isHorizontalCards = false,
+                                editorialRank = 5,
+                                renderAsGridInSearch = true
+                            )
+                        )
+                    }
+                }
             } else {
-                sortedBuckets
-            }
-            val bucketFlat = categoryScoped.flatMap { it.items }
-            val flatUnique = (rankedMusicSearchResponses + bucketFlat)
-                .distinctBy { "${it.apiName}|${it.url}" }
-            if (flatUnique.isEmpty()) {
-                emptyList()
-            } else {
-                val cleanDisplayQuery = MissaMusicProviders.sanitizeMusicQuery(searchQuery).ifBlank { searchQuery.trim() }
-                val title = ctx?.getString(R.string.universe_search_results_for, cleanDisplayQuery)
-                    ?: cleanDisplayQuery
-                listOf(
-                    UniverseCategoryRow(
-                        id = "search_results_grid",
-                        title = title,
-                        items = flatUnique,
-                        isHorizontalCards = definition.isHorizontalCards,
-                        editorialRank = 1
+                // Group search results cleanly by relevance; if a category pill yields 0 hits for the query, fall back to all universe hits
+                val categoryScoped = if (!selectedCategoryKey.isNullOrBlank()) {
+                    sortedBuckets.filter { it.key == selectedCategoryKey }.ifEmpty { sortedBuckets }
+                } else {
+                    sortedBuckets
+                }
+                val bucketFlat = categoryScoped.flatMap { it.items }
+                val flatUnique = (if (selectedCategoryKey.isNullOrBlank()) rankedMusicSearchResponses + bucketFlat else bucketFlat)
+                    .distinctBy { "${it.apiName}|${it.url}" }
+                if (flatUnique.isEmpty()) {
+                    emptyList()
+                } else {
+                    val title = ctx?.getString(R.string.universe_search_results_for, cleanDisplayQuery)
+                        ?: cleanDisplayQuery
+                    listOf(
+                        UniverseCategoryRow(
+                            id = "search_results_grid",
+                            title = title,
+                            items = flatUnique,
+                            isHorizontalCards = definition.isHorizontalCards,
+                            editorialRank = 1
+                        )
                     )
-                )
+                }
             }
         } else {
             sortedBuckets

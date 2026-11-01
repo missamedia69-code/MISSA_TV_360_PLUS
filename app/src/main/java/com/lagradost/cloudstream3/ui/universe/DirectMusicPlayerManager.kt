@@ -123,6 +123,8 @@ object DirectMusicPlayerManager {
     private var videoWatchdogRunnable: Runnable? = null
 
     private val discoveredSearchTracks = ConcurrentHashMap<String, MusicTrackPreset>()
+    private val onlineSearchResultsLock = Any()
+    private val onlineSearchResultsByQuery = LinkedHashMap<String, List<MusicTrackPreset>>(24, 0.75f, true)
     private val stateLock = Any()
 
     @Volatile
@@ -362,9 +364,20 @@ object DirectMusicPlayerManager {
 
     fun forceRefreshCatalog() {
         MissaMusicProviders.clearTransientSearchCaches()
+        synchronized(onlineSearchResultsLock) {
+            onlineSearchResultsByQuery.clear()
+        }
         refreshJob?.cancel()
         refreshJob = ioScope.launch {
             refreshRemoteTracksIfNeeded(force = true)
+        }
+    }
+
+    fun getOnlineSearchResults(query: String): List<MusicTrackPreset> {
+        val normKey = MissaMusicProviders.normalizeForMatch(MissaMusicProviders.sanitizeMusicQuery(query))
+        if (normKey.isEmpty()) return emptyList()
+        return synchronized(onlineSearchResultsLock) {
+            onlineSearchResultsByQuery[normKey].orEmpty()
         }
     }
 
@@ -373,9 +386,18 @@ object DirectMusicPlayerManager {
         if (cleanQuery.length < 2) return emptyList()
         val found = MissaMusicProviders.searchAllMusicServers(cleanQuery)
         if (found.isNotEmpty()) {
+            val normKey = MissaMusicProviders.normalizeForMatch(cleanQuery)
+            synchronized(onlineSearchResultsLock) {
+                if (onlineSearchResultsByQuery.size >= 24) {
+                    onlineSearchResultsByQuery.entries.firstOrNull()?.key?.let {
+                        onlineSearchResultsByQuery.remove(it)
+                    }
+                }
+                onlineSearchResultsByQuery[normKey] = found
+            }
             found.forEach { track -> discoveredSearchTracks[track.id] = track }
             _tracksUpdated.postValue(System.currentTimeMillis())
-            prefetchTopPlayableTracks(found, count = 2)
+            prefetchTopPlayableTracks(found, count = 3)
         }
         return found
     }

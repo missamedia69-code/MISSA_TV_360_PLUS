@@ -223,8 +223,18 @@ class QuickSearchFragment : BaseFragment<QuickSearchBinding>(
                         val dataListFiltered =
                             context?.filterSearchResultByFilmQuality(dataList) ?: dataList
 
+                        val displayKey = when (ongoing.key) {
+                            com.lagradost.cloudstream3.ui.universe.MissaMusicProviders.GLOBAL_SEARCH_TRENDING_CLIPS_KEY ->
+                                context?.getString(R.string.global_search_music_trending_clips) ?: ongoing.key
+                            com.lagradost.cloudstream3.ui.universe.MissaMusicProviders.GLOBAL_SEARCH_RECENT_CLIPS_KEY ->
+                                context?.getString(R.string.global_search_music_recent_clips) ?: ongoing.key
+                            com.lagradost.cloudstream3.ui.universe.MissaMusicProviders.GLOBAL_SEARCH_PLAYLISTS_KEY ->
+                                context?.getString(R.string.global_search_music_playlists) ?: ongoing.key
+                            else -> ongoing.key
+                        }
+
                         val homePageList = HomePageList(
-                            ongoing.key,
+                            displayKey,
                             dataListFiltered
                         )
 

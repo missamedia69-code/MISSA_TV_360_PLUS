@@ -1663,4 +1663,165 @@ class MediaUniverseClassifierTest {
             )
         )
     }
+
+    @Test
+    fun `music search partitions abundant trending clips recent clips and playlists without mixes`() {
+        // 1. Rich YouTube playlists up to 300 clips are accepted; DJ mixes & RD mixes remain blocked
+        assertTrue(
+            MissaMusicProviders.isValidYouTubePlaylistOrAlbum(
+                name = "Hits Cameroun & Afrobeats",
+                uploader = "Missa Curated",
+                url = "https://www.youtube.com/playlist?list=PL_CAMEROUN_150",
+                streamCount = 150L,
+                playlistType = PlaylistInfo.PlaylistType.NORMAL
+            )
+        )
+        assertFalse(
+            MissaMusicProviders.isValidYouTubePlaylistOrAlbum(
+                name = "DJ Mix Non Stop 2 Hours",
+                uploader = "DJ Party",
+                url = "https://www.youtube.com/playlist?list=PL_DJ_MIX",
+                streamCount = 40L,
+                playlistType = PlaylistInfo.PlaylistType.NORMAL
+            )
+        )
+
+        // 2. Duplicate video IDs across MUSIC_VIDEOS + VIDEOS merge viewCount, recencyScore & studio artwork
+        val rawBatches = listOf(
+            // Same video returned first from MUSIC_VIDEOS (0 views, 0 recency) and from VIDEOS (48M views)
+            MusicTrackPreset(
+                id = "ytm_viral1",
+                title = "DIE",
+                artist = "Gazo",
+                streamUrl = "ytmusic://viral1",
+                artworkUrl = "https://i.ytimg.com/vi/viral1/mqdefault.jpg",
+                durationSeconds = 235,
+                itemKind = MusicItemKind.CLIP,
+                recencyScore = 10,
+                viewCount = 0L
+            ),
+            MusicTrackPreset(
+                id = "ytm_viral1",
+                title = "DIE",
+                artist = "Gazo",
+                streamUrl = "ytmusic://viral1",
+                artworkUrl = "https://lh3.googleusercontent.com/studio_die=w544-h544-l90-rj",
+                durationSeconds = 235,
+                itemKind = MusicItemKind.CLIP,
+                recencyScore = 30,
+                viewCount = 48_000_000L
+            ),
+            // Brand-new recent clip from sliding `after:YYYY-MM-DD` window
+            MusicTrackPreset(
+                id = "ytm_fresh1",
+                title = "Probation",
+                artist = "Gazo",
+                streamUrl = "ytmusic://fresh1",
+                artworkUrl = "https://i.ytimg.com/vi/fresh1/mqdefault.jpg",
+                durationSeconds = 198,
+                isTrending = true,
+                itemKind = MusicItemKind.CLIP,
+                recencyScore = 96,
+                viewCount = 620_000L
+            ),
+            // Second recent clip
+            MusicTrackPreset(
+                id = "ytm_fresh2",
+                title = "Nanani Nanana",
+                artist = "Gazo",
+                streamUrl = "ytmusic://fresh2",
+                artworkUrl = "https://i.ytimg.com/vi/fresh2/mqdefault.jpg",
+                durationSeconds = 210,
+                isTrending = true,
+                itemKind = MusicItemKind.CLIP,
+                recencyScore = 88,
+                viewCount = 1_900_000L
+            ),
+            // Curated YouTube playlist whose title doesn't literally repeat "gazo clip"
+            MusicTrackPreset(
+                id = "ytpl_rapfr1",
+                title = "Top Drill & Rap FR",
+                artist = "Rap Selects",
+                streamUrl = "ytplaylist://https://www.youtube.com/playlist?list=PL_RAP_FR_1",
+                artworkUrl = "https://i.ytimg.com/vi/p1/mqdefault.jpg",
+                itemKind = MusicItemKind.PLAYLIST,
+                trackCount = 45,
+                recencyScore = 60
+            ),
+            // Official Album
+            MusicTrackPreset(
+                id = "ytpl_kmt",
+                title = "KMT",
+                artist = "Gazo",
+                streamUrl = "ytplaylist://https://www.youtube.com/playlist?list=OLAK5uy_KMT",
+                artworkUrl = "https://lh3.googleusercontent.com/kmt=w544-h544-l90-rj",
+                itemKind = MusicItemKind.ALBUM,
+                trackCount = 15,
+                recencyScore = 40
+            ),
+            // Studio Single
+            MusicTrackPreset(
+                id = "ytm_song1",
+                title = "Céline 3X",
+                artist = "Gazo",
+                streamUrl = "ytmusic://song1",
+                artworkUrl = "https://lh3.googleusercontent.com/celine=w544-h544-l90-rj",
+                durationSeconds = 184,
+                itemKind = MusicItemKind.SONG,
+                recencyScore = 45,
+                viewCount = 8_500_000L
+            ),
+            // Long DJ mix must be stripped automatically
+            MusicTrackPreset(
+                id = "ytm_badmix",
+                title = "Gazo Non Stop DJ Mix 1 Hour",
+                artist = "DJ Mix",
+                streamUrl = "ytmusic://badmix",
+                durationSeconds = 3600,
+                itemKind = MusicItemKind.CLIP,
+                viewCount = 9_000_000L
+            )
+        )
+
+        val sections = MissaMusicProviders.partitionMusicSearchResults(rawBatches, "Gazo")
+
+        // DJ mix excluded everywhere
+        assertTrue(sections.allRanked.none { it.id == "ytm_badmix" })
+
+        // Merged viral clip keeps 48M viewCount + studio artwork and ranks #1 in Trending Clips ("clips en vogue")
+        assertTrue(sections.trendingClips.isNotEmpty())
+        assertEquals("ytm_viral1", sections.trendingClips.first().id)
+        assertEquals(48_000_000L, sections.trendingClips.first().viewCount)
+        assertTrue(MissaMusicProviders.isStudioSquareArtworkUrl(sections.trendingClips.first().artworkUrl))
+        assertTrue(sections.trendingClips.none { it.isAlbumOrPlaylist() })
+
+        // Recent Clips ("les récents") ranks the freshest release (`recencyScore = 96`) #1 and excludes playlists/albums
+        assertTrue(sections.recentClips.isNotEmpty())
+        assertEquals("ytm_fresh1", sections.recentClips.first().id)
+        assertTrue(sections.recentClips.none { it.isAlbumOrPlaylist() })
+
+        // Playlists & Albums preserves both the YouTube Playlist and Official Album
+        assertEquals(2, sections.playlistsAndAlbums.size)
+        assertTrue(sections.playlistsAndAlbums.any { it.id == "ytpl_rapfr1" && it.itemKind == MusicItemKind.PLAYLIST })
+        assertTrue(sections.playlistsAndAlbums.any { it.id == "ytpl_kmt" && it.itemKind == MusicItemKind.ALBUM })
+
+        // Songs & Singles preserves studio single
+        assertEquals(1, sections.songsAndSingles.size)
+        assertEquals("ytm_song1", sections.songsAndSingles.first().id)
+
+        // All 6 unique valid items are retained in `allRanked`
+        assertEquals(6, sections.allRanked.size)
+
+        // Verify source wiring for parallel playlists + trending + recent search & ViewModel shelves
+        val javaRoot = java.io.File("src/main/java/com/lagradost/cloudstream3").takeIf { it.isDirectory }
+            ?: java.io.File("app/src/main/java/com/lagradost/cloudstream3")
+        val providersSrc = java.io.File(javaRoot, "ui/universe/MissaMusicProviders.kt").readText()
+        val viewModelSrc = java.io.File(javaRoot, "ui/universe/MediaUniverseViewModel.kt").readText()
+        assertTrue(providersSrc.contains("YoutubeSearchQueryHandlerFactory.PLAYLISTS"))
+        assertTrue(providersSrc.contains("after:${'$'}recentAfterDate"))
+        assertTrue(viewModelSrc.contains("music_search_trending_clips"))
+        assertTrue(viewModelSrc.contains("music_search_recent_clips"))
+        assertTrue(viewModelSrc.contains("music_search_playlists_albums"))
+        assertTrue(viewModelSrc.contains("getOnlineSearchResults"))
+    }
 }

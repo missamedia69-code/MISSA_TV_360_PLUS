@@ -56,6 +56,9 @@ import java.util.concurrent.TimeUnit
 object MissaMusicProviders {
 
     const val PROVIDER_YOUTUBE_MUSIC = "YouTube"
+    const val GLOBAL_SEARCH_TRENDING_CLIPS_KEY = "missa_yt_trending_clips"
+    const val GLOBAL_SEARCH_RECENT_CLIPS_KEY = "missa_yt_recent_clips"
+    const val GLOBAL_SEARCH_PLAYLISTS_KEY = "missa_yt_playlists_albums"
     const val YT_MUSIC_LAZY_SCHEME = "ytmusic://"
     const val YT_PLAYLIST_LAZY_SCHEME = "ytplaylist://"
 
@@ -264,15 +267,15 @@ object MissaMusicProviders {
     private val inFlightAudioResolutions = HashMap<String, CompletableDeferred<ResolvedYouTubeMedia>>()
 
     private val searchCacheLock = Any()
-    private val searchResultsCache = LinkedHashMap<String, CachedSearchBatch>(24, 0.75f, true)
-    private val playlistTracksCache = LinkedHashMap<String, CachedSearchBatch>(24, 0.75f, true)
+    private val searchResultsCache = LinkedHashMap<String, CachedSearchBatch>(36, 0.75f, true)
+    private val playlistTracksCache = LinkedHashMap<String, CachedSearchBatch>(32, 0.75f, true)
 
     private val artworkCacheLock = Any()
     private val studioArtworkCache = LinkedHashMap<String, String>(128, 0.75f, true)
     private val officialClipVideoIdCache = LinkedHashMap<String, String>(64, 0.75f, true)
 
     private val coverLookupSemaphore = Semaphore(4)
-    private val youTubeQuerySemaphore = Semaphore(6)
+    private val youTubeQuerySemaphore = Semaphore(9)
 
     // -------------------------------------------------------------------------
     // Pre-warming & NewPipe lifecycle
@@ -399,7 +402,7 @@ object MissaMusicProviders {
         if (url.contains("list=RD", ignoreCase = true) || url.contains("list=UL", ignoreCase = true)) {
             return false
         }
-        if (streamCount == 1L || streamCount > 80L) return false
+        if (streamCount == 1L || streamCount > 300L) return false
         if (isLongMixOrCompilation(name, uploader)) return false
         return true
     }
@@ -915,6 +918,7 @@ object MissaMusicProviders {
                                 currentYear = currentYear,
                                 fromRecentWindowQuery = fromRecentWindowQuery
                             )
+                            val rawViewCount = runCatching { item.viewCount }.getOrDefault(-1L).coerceAtLeast(0L)
                             val kind = if (isClipQuery) MusicItemKind.CLIP else MusicItemKind.SONG
 
                             results.add(
@@ -931,7 +935,8 @@ object MissaMusicProviders {
                                     isPipedLazy = true,
                                     isTrending = recency >= 60,
                                     itemKind = kind,
-                                    recencyScore = recency
+                                    recencyScore = recency,
+                                    viewCount = rawViewCount
                                 )
                             )
                         }
@@ -997,7 +1002,7 @@ object MissaMusicProviders {
                                 fromRecentWindowQuery = false
                             )
                             val itemKind = if (isAlbumFilter) MusicItemKind.ALBUM else MusicItemKind.PLAYLIST
-                            val safeCount = streamCount.coerceIn(0L, 200L).toInt()
+                            val safeCount = streamCount.coerceIn(0L, 300L).toInt()
 
                             results.add(
                                 MusicTrackPreset(
@@ -1641,9 +1646,213 @@ object MissaMusicProviders {
         enrichAuthenticCoverArtworks(combined, maxLookups = 4)
     }
 
+    data class MusicSearchSections(
+        val trendingClips: List<MusicTrackPreset>,
+        val recentClips: List<MusicTrackPreset>,
+        val playlistsAndAlbums: List<MusicTrackPreset>,
+        val songsAndSingles: List<MusicTrackPreset>,
+        val allRanked: List<MusicTrackPreset>
+    )
+
+    fun computePopularityScore(track: MusicTrackPreset, rawQuery: String = ""): Int {
+        val normQuery = normalizeForMatch(sanitizeMusicQuery(rawQuery))
+        val tokens = normQuery.split(' ').filter { it.isNotEmpty() }
+        val normArtist = normalizeForMatch(track.artist)
+        val normTitle = normalizeForMatch(track.title)
+        val normCombined = "$normArtist $normTitle".trim()
+
+        var score = 0
+        if (track.viewCount > 0L) {
+            score += (kotlin.math.log10(track.viewCount.toDouble() + 1.0) * 18.0).toInt()
+        }
+        if (track.itemKind == MusicItemKind.CLIP) score += 28
+        if (normQuery.isNotEmpty()) {
+            if (normArtist == normQuery) score += 75
+            if (normTitle == normQuery) score += 70
+            if (normCombined.contains(normQuery)) score += 50
+            val matchedTokens = tokens.count { tok -> normCombined.contains(tok) }
+            score += matchedTokens * 18
+        }
+        score += (track.recencyScore / 6)
+        return score
+    }
+
+    fun mergeSearchBatchesForQuery(batches: List<MusicTrackPreset>): List<MusicTrackPreset> {
+        val byId = LinkedHashMap<String, MusicTrackPreset>(batches.size)
+        for (candidate in batches) {
+            if (candidate.title.isBlank() || candidate.streamUrl.isBlank()) continue
+            if (isLongMixOrCompilation(candidate.title, candidate.artist)) continue
+            val existing = byId[candidate.id]
+            if (existing == null) {
+                byId[candidate.id] = candidate
+            } else {
+                val mergedKind = when {
+                    existing.isAlbumOrPlaylist() -> existing.itemKind
+                    candidate.isAlbumOrPlaylist() -> candidate.itemKind
+                    existing.itemKind == MusicItemKind.CLIP || candidate.itemKind == MusicItemKind.CLIP -> MusicItemKind.CLIP
+                    else -> existing.itemKind
+                }
+                val bestArt = when {
+                    isStudioSquareArtworkUrl(existing.artworkUrl) -> existing.artworkUrl
+                    isStudioSquareArtworkUrl(candidate.artworkUrl) -> candidate.artworkUrl
+                    !existing.artworkUrl.isNullOrBlank() -> existing.artworkUrl
+                    else -> candidate.artworkUrl
+                }
+                val bestRecency = maxOf(existing.recencyScore, candidate.recencyScore)
+                val bestViews = maxOf(existing.viewCount, candidate.viewCount)
+                val bestAlbumLabel = when {
+                    existing.album.isNotBlank() && existing.album != "Single" -> existing.album
+                    candidate.album.isNotBlank() -> candidate.album
+                    else -> existing.album
+                }
+                byId[candidate.id] = existing.copy(
+                    artist = existing.artist.ifBlank { candidate.artist },
+                    album = bestAlbumLabel,
+                    artworkUrl = bestArt,
+                    durationSeconds = maxOf(existing.durationSeconds, candidate.durationSeconds),
+                    isTrending = existing.isTrending || candidate.isTrending || bestRecency >= 60,
+                    itemKind = mergedKind,
+                    trackCount = maxOf(existing.trackCount, candidate.trackCount),
+                    recencyScore = bestRecency,
+                    viewCount = bestViews
+                )
+            }
+        }
+
+        val crossMatched = crossMatchStudioCovers(byId.values.toList())
+        val deduped = ArrayList<MusicTrackPreset>(crossMatched.size)
+        val seenSignatures = HashSet<String>()
+
+        val ordered = crossMatched.sortedWith(
+            compareByDescending<MusicTrackPreset> { it.viewCount > 0L }
+                .thenByDescending { it.recencyScore }
+                .thenByDescending { isStudioSquareArtworkUrl(it.artworkUrl) }
+                .thenByDescending { !it.artworkUrl.isNullOrBlank() }
+        )
+
+        for (track in ordered) {
+            val sig = if (track.isAlbumOrPlaylist()) {
+                "${track.itemKind.name}|${track.id}"
+            } else {
+                "${track.itemKind.name}|${normalizeForMatch(track.artist)}|${normalizeForMatch(track.title)}"
+            }
+            if (!seenSignatures.add(sig)) continue
+            deduped.add(track)
+        }
+        return deduped
+    }
+
+    fun partitionMusicSearchResults(
+        tracks: List<MusicTrackPreset>,
+        rawQuery: String
+    ): MusicSearchSections {
+        val merged = mergeSearchBatchesForQuery(tracks)
+        if (merged.isEmpty()) {
+            return MusicSearchSections(
+                trendingClips = emptyList(),
+                recentClips = emptyList(),
+                playlistsAndAlbums = emptyList(),
+                songsAndSingles = emptyList(),
+                allRanked = emptyList()
+            )
+        }
+
+        val normQuery = normalizeForMatch(sanitizeMusicQuery(rawQuery))
+        val tokens = normQuery.split(' ').filter { it.isNotEmpty() }
+
+        val playlistsAndAlbums = merged
+            .filter { it.isAlbumOrPlaylist() }
+            .sortedByDescending { item ->
+                val haystack = normalizeForMatch("${item.artist} ${item.title}")
+                var score = 0
+                if (item.itemKind == MusicItemKind.PLAYLIST) score += 24
+                if (normQuery.isNotEmpty() && haystack.contains(normQuery)) score += 65
+                score += tokens.count { tok -> haystack.contains(tok) } * 20
+                score += item.trackCount.coerceIn(0, 60) / 3
+                score += item.recencyScore / 4
+                score
+            }
+            .take(36)
+
+        val individualOnly = merged.filter { track ->
+            !track.isAlbumOrPlaylist() &&
+                track.itemKind != MusicItemKind.PLAYLIST &&
+                track.itemKind != MusicItemKind.ALBUM &&
+                !isYouTubePlaylistOrAlbumScheme(track.streamUrl)
+        }
+
+        val clipCandidates = individualOnly.filter { it.itemKind == MusicItemKind.CLIP }
+        val songCandidates = individualOnly.filter { it.itemKind != MusicItemKind.CLIP }
+
+        val trendingPrimary = clipCandidates.sortedByDescending { computePopularityScore(it, rawQuery) }
+        val trendingClips = if (trendingPrimary.size >= 12) {
+            trendingPrimary.take(32)
+        } else {
+            val supplement = songCandidates.sortedByDescending { computePopularityScore(it, rawQuery) }
+            (trendingPrimary + supplement).distinctBy { it.id }.take(32)
+        }
+
+        val freshIndividual = individualOnly
+            .filter { it.isTrending || it.recencyScore >= 55 }
+            .sortedWith(
+                compareByDescending<MusicTrackPreset> { it.recencyScore }
+                    .thenByDescending { it.itemKind == MusicItemKind.CLIP }
+                    .thenByDescending { computePopularityScore(it, rawQuery) }
+            )
+        val recentClips = if (freshIndividual.size >= 10) {
+            freshIndividual.take(32)
+        } else {
+            val freshIds = freshIndividual.mapTo(HashSet()) { it.id }
+            val remainderRecent = individualOnly
+                .filter { it.id !in freshIds }
+                .sortedWith(
+                    compareByDescending<MusicTrackPreset> { it.recencyScore }
+                        .thenByDescending { it.itemKind == MusicItemKind.CLIP }
+                        .thenByDescending { computePopularityScore(it, rawQuery) }
+                )
+            (freshIndividual + remainderRecent).take(32)
+        }
+
+        val songsAndSingles = rankTracksForQuery(songCandidates, rawQuery).take(30)
+
+        // Interleave top Trending Clips, Recent Clips, Playlists & Albums, and Singles at the head
+        // of `allRanked` while preserving 100% of unique search hits for full-grid browsing.
+        val allRanked = ArrayList<MusicTrackPreset>(merged.size)
+        val seenIds = HashSet<String>(merged.size)
+        val buckets = listOf(trendingClips, recentClips, playlistsAndAlbums, songsAndSingles)
+        val maxLen = buckets.maxOfOrNull { it.size } ?: 0
+        for (idx in 0 until maxLen) {
+            for (bucket in buckets) {
+                if (idx < bucket.size) {
+                    val item = bucket[idx]
+                    if (seenIds.add(item.id)) {
+                        allRanked.add(item)
+                    }
+                }
+            }
+        }
+        for (extra in rankTracksForQuery(merged, rawQuery)) {
+            if (seenIds.add(extra.id)) {
+                allRanked.add(extra)
+            }
+        }
+
+        return MusicSearchSections(
+            trendingClips = trendingClips,
+            recentClips = recentClips,
+            playlistsAndAlbums = playlistsAndAlbums,
+            songsAndSingles = songsAndSingles,
+            allRanked = allRanked
+        )
+    }
+
     /**
-     * Live on-demand YouTube search returning matching Singles, Official Clips, Albums, and
-     * Playlists while strictly excluding long DJ mixes.
+     * Live multi-faceted YouTube search returning abundant content:
+     * - **Clips en vogue** (popular & viral video clips with real YouTube `viewCount`),
+     * - **Clips récents** (sliding `after:YYYY-MM-DD` window + current-year releases),
+     * - **Playlists & Albums** (YouTube `PLAYLISTS` + YouTube Music `MUSIC_PLAYLISTS` & `MUSIC_ALBUMS`),
+     * - **Titres & Singles** (`MUSIC_SONGS` with 1:1 studio artwork),
+     * while strictly excluding long DJ mixes and compilations.
      */
     suspend fun searchAllMusicServers(query: String): List<MusicTrackPreset> = coroutineScope {
         val cleanQuery = sanitizeMusicQuery(query)
@@ -1658,60 +1867,98 @@ object MissaMusicProviders {
             }
         }
 
+        val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        val recentAfterDate = buildRecentAfterDate(nowMillis = now, lookbackDays = 75)
+
         val jobs = listOf(
+            // 1. Clips en vogue (popular official clips with viewCount & upload date)
+            async {
+                searchYouTubeTracksByFilter(
+                    query = "$cleanQuery clip officiel",
+                    contentFilter = YoutubeSearchQueryHandlerFactory.VIDEOS,
+                    maxResults = 24
+                )
+            },
             async {
                 searchYouTubeTracksByFilter(
                     query = cleanQuery,
-                    contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_SONGS,
-                    maxResults = 16
+                    contentFilter = YoutubeSearchQueryHandlerFactory.VIDEOS,
+                    maxResults = 20
                 )
             },
             async {
                 searchYouTubeTracksByFilter(
                     query = cleanQuery,
                     contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_VIDEOS,
+                    maxResults = 20
+                )
+            },
+            // 2. Clips récents ("les récents" via sliding after:YYYY-MM-DD + current year)
+            async {
+                searchYouTubeTracksByFilter(
+                    query = "$cleanQuery after:$recentAfterDate",
+                    contentFilter = YoutubeSearchQueryHandlerFactory.VIDEOS,
+                    maxResults = 18
+                )
+            },
+            async {
+                searchYouTubeTracksByFilter(
+                    query = "$cleanQuery $currentYear",
+                    contentFilter = YoutubeSearchQueryHandlerFactory.VIDEOS,
+                    maxResults = 16
+                )
+            },
+            // 3. Playlists & Albums (main YouTube playlists + YouTube Music playlists & albums)
+            async {
+                searchYouTubeCollectionsByFilter(
+                    query = cleanQuery,
+                    contentFilter = YoutubeSearchQueryHandlerFactory.PLAYLISTS,
                     maxResults = 14
                 )
             },
             async {
                 searchYouTubeCollectionsByFilter(
-                    query = cleanQuery,
-                    contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_ALBUMS,
-                    maxResults = 5
+                    query = "$cleanQuery playlist",
+                    contentFilter = YoutubeSearchQueryHandlerFactory.PLAYLISTS,
+                    maxResults = 12
                 )
             },
             async {
                 searchYouTubeCollectionsByFilter(
                     query = cleanQuery,
                     contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_PLAYLISTS,
-                    maxResults = 4
+                    maxResults = 10
+                )
+            },
+            async {
+                searchYouTubeCollectionsByFilter(
+                    query = cleanQuery,
+                    contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_ALBUMS,
+                    maxResults = 10
+                )
+            },
+            // 4. Studio Singles (also cross-matches 1:1 studio cover art onto clips)
+            async {
+                searchYouTubeTracksByFilter(
+                    query = cleanQuery,
+                    contentFilter = YoutubeSearchQueryHandlerFactory.MUSIC_SONGS,
+                    maxResults = 20
                 )
             }
         )
 
-        var merged = deduplicateAndOrderCatalog(jobs.awaitAll().flatten())
-        if (merged.isEmpty()) {
-            val videoFallback = searchYouTubeTracksByFilter(
-                query = "$cleanQuery clip officiel",
-                contentFilter = YoutubeSearchQueryHandlerFactory.VIDEOS,
-                maxResults = 14
-            )
-            merged = deduplicateAndOrderCatalog(videoFallback)
-        }
+        val merged = mergeSearchBatchesForQuery(jobs.awaitAll().flatten())
+        val enriched = enrichAuthenticCoverArtworks(merged, maxLookups = 4)
+        val allResults = partitionMusicSearchResults(enriched, cleanQuery).allRanked
 
-        val ranked = rankTracksForQuery(
-            enrichAuthenticCoverArtworks(merged, maxLookups = 8),
-            cleanQuery
-        )
-
-        if (ranked.isNotEmpty()) {
+        if (allResults.isNotEmpty()) {
             synchronized(searchCacheLock) {
-                if (searchResultsCache.size >= 24) {
+                if (searchResultsCache.size >= 36) {
                     searchResultsCache.entries.firstOrNull()?.key?.let { searchResultsCache.remove(it) }
                 }
-                searchResultsCache[cacheKey] = CachedSearchBatch(ranked, now + SEARCH_CACHE_TTL_MS)
+                searchResultsCache[cacheKey] = CachedSearchBatch(allResults, now + SEARCH_CACHE_TTL_MS)
             }
         }
-        ranked
+        allResults
     }
 }

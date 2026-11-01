@@ -184,6 +184,7 @@ class SearchViewModel : ViewModel() {
         }
 
         val list = ArrayList<SearchResponse>()
+        val seenKeys = HashSet<String>()
         val nestedList =
             lists.map { it.value.list }
 
@@ -193,7 +194,10 @@ class SearchViewModel : ViewModel() {
             var added = 0
             for (sublist in nestedList) {
                 if (sublist.size > index) {
-                    list.add(sublist[index])
+                    val candidate = sublist[index]
+                    if (seenKeys.add("${candidate.apiName}|${candidate.url}")) {
+                        list.add(candidate)
+                    }
                     added++
                 }
             }
@@ -248,9 +252,24 @@ class SearchViewModel : ViewModel() {
                         async {
                             val tracks = DirectMusicPlayerManager.searchTracksOnline(effectiveQuery)
                             if (currentSearchIndex == currentIndex && tracks.isNotEmpty()) {
-                                val ytTracks = tracks.map { it.toSearchResponse() }
-                                expandableSearches[MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC] =
-                                    ExpandableSearchList(ytTracks, 1, false)
+                                val sections = MissaMusicProviders.partitionMusicSearchResults(tracks, effectiveQuery)
+                                if (sections.trendingClips.isNotEmpty()) {
+                                    expandableSearches[MissaMusicProviders.GLOBAL_SEARCH_TRENDING_CLIPS_KEY] =
+                                        ExpandableSearchList(sections.trendingClips.map { it.toSearchResponse() }, 1, false)
+                                }
+                                if (sections.recentClips.isNotEmpty()) {
+                                    expandableSearches[MissaMusicProviders.GLOBAL_SEARCH_RECENT_CLIPS_KEY] =
+                                        ExpandableSearchList(sections.recentClips.map { it.toSearchResponse() }, 1, false)
+                                }
+                                if (sections.playlistsAndAlbums.isNotEmpty()) {
+                                    expandableSearches[MissaMusicProviders.GLOBAL_SEARCH_PLAYLISTS_KEY] =
+                                        ExpandableSearchList(sections.playlistsAndAlbums.map { it.toSearchResponse() }, 1, false)
+                                }
+                                val singlesOrAll = sections.songsAndSingles.ifEmpty { sections.allRanked }
+                                if (singlesOrAll.isNotEmpty()) {
+                                    expandableSearches[MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC] =
+                                        ExpandableSearchList(singlesOrAll.map { it.toSearchResponse() }, 1, false)
+                                }
                                 _currentSearch.postValue(expandableSearches.toMap())
                             }
                         }

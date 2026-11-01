@@ -527,9 +527,12 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
                     val index = pinnedOrder.indexOf(providerName)
                     when {
                         index != -1 -> index
-                        providerName == MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC -> pinnedOrder.size
-                        providerName == DIRECT_MUSIC_API_NAME -> pinnedOrder.size + 1
-                        providerName == DIRECT_RADIO_API_NAME -> pinnedOrder.size + 2
+                        providerName == MissaMusicProviders.GLOBAL_SEARCH_TRENDING_CLIPS_KEY -> pinnedOrder.size
+                        providerName == MissaMusicProviders.GLOBAL_SEARCH_RECENT_CLIPS_KEY -> pinnedOrder.size + 1
+                        providerName == MissaMusicProviders.GLOBAL_SEARCH_PLAYLISTS_KEY -> pinnedOrder.size + 2
+                        providerName == MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC -> pinnedOrder.size + 3
+                        providerName == DIRECT_MUSIC_API_NAME -> pinnedOrder.size + 4
+                        providerName == DIRECT_RADIO_API_NAME -> pinnedOrder.size + 5
                         else -> Int.MAX_VALUE
                     }
                 })
@@ -540,8 +543,18 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
                         val dataListFiltered =
                             context?.filterSearchResultByFilmQuality(dataList) ?: dataList
 
+                        val displayProviderName = when (providerName) {
+                            MissaMusicProviders.GLOBAL_SEARCH_TRENDING_CLIPS_KEY ->
+                                context?.getString(R.string.global_search_music_trending_clips) ?: providerName
+                            MissaMusicProviders.GLOBAL_SEARCH_RECENT_CLIPS_KEY ->
+                                context?.getString(R.string.global_search_music_recent_clips) ?: providerName
+                            MissaMusicProviders.GLOBAL_SEARCH_PLAYLISTS_KEY ->
+                                context?.getString(R.string.global_search_music_playlists) ?: providerName
+                            else -> providerName
+                        }
+
                         val homePageList = HomePageList(
-                            providerName,
+                            displayProviderName,
                             dataListFiltered
                         )
 
