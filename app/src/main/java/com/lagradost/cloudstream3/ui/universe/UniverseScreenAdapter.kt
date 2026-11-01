@@ -44,6 +44,7 @@ import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UIHelper.toPx
 import com.lagradost.cloudstream3.utils.getImageFromDrawable
+import java.util.Locale
 
 /**
  * UI model for the sticky category filter strip (HOME-02, HOME-08, I18N-01).
@@ -735,23 +736,32 @@ internal class UniverseScreenAdapter(
 
                 title.text = slide.card.name
 
+                val isAudio = slide.card is DirectRadioSearchResponse
+                val isListenItem = slide.card.type == TvType.Music ||
+                    slide.card.type == TvType.Podcast ||
+                    slide.card.type == TvType.Audio ||
+                    slide.card.type == TvType.AudioBook
+
+                // Compact hero: collapse the metadata into ONE line and drop exact
+                // duplicates. Radio slides used to print the country code three times
+                // ("AF • EN DIRECT • MISSA Radio Direct · AF") which read as noise.
                 val metaParts = listOfNotNull(
                     slide.yearText?.takeIf { it.isNotBlank() },
                     slide.durationText?.takeIf { it.isNotBlank() },
                     slide.scoreText?.takeIf { it.isNotBlank() },
                     slide.tags.take(2).joinToString(" · ").takeIf { it.isNotBlank() }
                 )
+                    .flatMap { it.split("·") }
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .distinctBy { it.lowercase(Locale.ROOT) }
                 metaLine.isVisible = metaParts.isNotEmpty()
                 metaLine.text = metaParts.joinToString("  •  ")
 
-                plot.isVisible = !slide.plot.isNullOrBlank()
+                // Audio slides already carry provider/genre/country in the meta line,
+                // so the plot would only repeat itself. Keep it for video.
+                plot.isVisible = !isAudio && !slide.plot.isNullOrBlank()
                 plot.text = slide.plot.orEmpty()
-
-                val isAudio = slide.card is DirectRadioSearchResponse
-                val isListenItem = slide.card.type == TvType.Music ||
-                    slide.card.type == TvType.Podcast ||
-                    slide.card.type == TvType.Audio ||
-                    slide.card.type == TvType.AudioBook
                 primaryCta.setText(
                     when {
                         isAudio -> R.string.universe_hero_listen_live

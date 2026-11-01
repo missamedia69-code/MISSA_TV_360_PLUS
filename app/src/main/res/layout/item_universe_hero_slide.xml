@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Compact hero slide (artwork-led).
+
+  Layout contract: the root is always match_parent on BOTH axes. ViewPager2
+  measures pages with exactlySpecified dimensions, so a wrap_content child
+  collapses to 0dp and renders nothing. The single source of truth for the
+  hero height is therefore @dimen/missa_hero_height, applied on
+  item_universe_hero_carousel.xml. Do not put it here.
+
+  Design: fixed square artwork on the start edge + a vertical text spine.
+  This replaces the old full-bleed centerCrop backdrop, which stretched a
+  square radio cover into an unreadable flat colour block and ate 42% of the
+  viewport.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -6,14 +20,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ImageView
-        android:id="@+id/hero_backdrop_image"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/missaHeroBackdropFallback"
-        android:contentDescription="@string/universe_featured_content"
-        android:scaleType="centerCrop" />
-
+    <!-- Themed backdrop. No image is stretched here any more. -->
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -21,114 +28,125 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:orientation="vertical"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingStart="@dimen/missa_hero_padding"
-        android:paddingTop="12dp"
+        android:paddingTop="10dp"
         android:paddingEnd="@dimen/missa_hero_padding"
-        android:paddingBottom="14dp">
+        android:paddingBottom="10dp">
 
+        <!-- Square artwork with rounded corners (outline comes from the bg drawable) -->
+        <ImageView
+            android:id="@+id/hero_backdrop_image"
+            android:layout_width="@dimen/missa_hero_artwork_size"
+            android:layout_height="@dimen/missa_hero_artwork_size"
+            android:background="@drawable/missa_hero_artwork_bg"
+            android:clipToOutline="true"
+            android:contentDescription="@string/universe_featured_content"
+            android:scaleType="centerCrop" />
+
+        <!-- Text spine -->
         <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- Badge row: eyebrow • sources • freshness, all on one line -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/hero_eyebrow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/missa_eyebrow_pill_bg"
+                    android:paddingStart="9dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="9dp"
+                    android:paddingBottom="2dp"
+                    android:textAppearance="@style/TextAppearance.Missa.Badge"
+                    android:textColor="@color/missaGreenSuccessDark"
+                    tools:text="⚽ LIVE SPORTS" />
+
+                <TextView
+                    android:id="@+id/hero_sources_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/missa_eyebrow_pill_bg"
+                    android:paddingStart="7dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="7dp"
+                    android:paddingBottom="2dp"
+                    android:textAppearance="@style/TextAppearance.Missa.Badge"
+                    android:textColor="@color/missaYellowPrimary"
+                    android:visibility="gone"
+                    tools:text="3 sources"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/hero_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.ScreenTitle"
+                android:textColor="@color/missaHeroText"
+                tools:text="Africa Radio" />
+
+            <TextView
+                android:id="@+id/hero_meta_line"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Caption"
+                android:textColor="@color/missaYellowPrimary"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="AF • EN DIRECT"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/hero_plot"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Missa.Caption"
+                android:textColor="@color/missaHeroSubtext"
+                tools:text="Panafricaine · Info, Culture, Makossa" />
+        </LinearLayout>
+
+        <!-- Actions: stay horizontally aligned with the text spine so the hero
+             never grows past missa_hero_height, even with font scaling at 130%. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/hero_primary_cta"
+            style="@style/Widget.Missa.Button.Primary"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/hero_eyebrow"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/missa_eyebrow_pill_bg"
-                android:paddingStart="10dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="3dp"
-                android:textAppearance="@style/TextAppearance.Missa.Badge"
-                android:textColor="@color/missaGreenSuccessDark"
-                tools:text="★ À L’AFFICHE" />
-
-            <TextView
-                android:id="@+id/hero_sources_badge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/missa_eyebrow_pill_bg"
-                android:paddingStart="8dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="8dp"
-                android:paddingBottom="3dp"
-                android:textAppearance="@style/TextAppearance.Missa.Badge"
-                android:textColor="@color/missaYellowPrimary"
-                android:visibility="gone"
-                tools:text="3 sources"
-                tools:visibility="visible" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/hero_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:shadowColor="@color/missaOnAccentDark"
-            android:shadowDx="0"
-            android:shadowDy="2"
-            android:shadowRadius="8"
-            android:textAppearance="@style/TextAppearance.Missa.ScreenTitle"
-            android:textColor="@color/missaHeroText"
-            tools:text="Le Comte de Monte-Cristo" />
-
-        <TextView
-            android:id="@+id/hero_meta_line"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:ellipsize="end"
+            android:layout_marginStart="10dp"
             android:maxLines="1"
-            android:textAppearance="@style/TextAppearance.Missa.Caption"
-            android:textColor="@color/missaYellowPrimary"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:text="2024  •  2h 58m  •  ★ 8.4"
-            tools:visibility="visible" />
+            app:icon="@drawable/ic_baseline_play_arrow_24" />
 
-        <TextView
-            android:id="@+id/hero_plot"
-            android:layout_width="match_parent"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/hero_details_cta"
+            style="@style/Widget.Missa.Button.Secondary"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:textAppearance="@style/TextAppearance.Missa.Body"
-            android:textColor="@color/missaHeroSubtext"
-            tools:text="Victime d’un complot, le jeune Edmond Dantès est arrêté le jour de son mariage." />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/hero_primary_cta"
-                style="@style/Widget.Missa.Button.Primary"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/universe_hero_watch"
-                app:icon="@drawable/ic_baseline_play_arrow_24" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/hero_details_cta"
-                style="@style/Widget.Missa.Button.Secondary"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="@string/universe_hero_more_info"
-                app:icon="@drawable/ic_outline_info_24" />
-        </LinearLayout>
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            app:icon="@drawable/ic_outline_info_24" />
     </LinearLayout>
 
 </FrameLayout>

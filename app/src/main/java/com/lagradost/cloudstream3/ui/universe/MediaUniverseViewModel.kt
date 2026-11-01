@@ -1397,11 +1397,13 @@ class MediaUniverseViewModel : ViewModel() {
                     details = null,
                     allSources = listOf(station.toSearchResponse()),
                     eyebrow = eyebrowText,
-                    plot = "${station.providerName} • ${station.genre} • ${station.country}",
-                    yearText = station.country,
+                    // Country and provider already feed the (deduplicated) meta line, so
+                    // the plot only carries the genre — printed exactly once.
+                    plot = station.genre.takeIf { it.isNotBlank() },
+                    yearText = null,
                     durationText = liveBadge,
                     scoreText = null,
-                    tags = listOf(station.providerName, station.country, station.genre),
+                    tags = listOf(station.country).filter { it.isNotBlank() },
                     isDirectStream = true
                 )
             }
