@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -121,6 +122,8 @@ data class UniverseScreenProjection(
  */
 class MediaUniverseViewModel : ViewModel() {
     companion object {
+        private const val TAG = "MissaCatalog"
+
         private const val PROVIDER_MAINPAGE_TIMEOUT_MS = 14_000L
         private const val SEARCH_PROVIDER_TIMEOUT_MS = 15_000L
         private const val DETAIL_TIMEOUT_MS = 3_200L
@@ -598,6 +601,11 @@ class MediaUniverseViewModel : ViewModel() {
                 val selectedProviders = selectProvidersForCatalog(requireMainPage = true)
                 val activeCount = countActiveProviders()
                 val totalSelected = selectedProviders.size
+                Log.i(
+                    TAG,
+                    "Catalog load start: activeApis=$activeCount selected=$totalSelected " +
+                        "(${selectedProviders.joinToString { it.first.name }}) online=$online"
+                )
 
                 _catalogSnapshot.value = UnifiedCatalogSnapshot(
                     isLoading = true,
@@ -690,6 +698,25 @@ class MediaUniverseViewModel : ViewModel() {
                 }
 
                 val baseEntries = normalizeAndDeduplicate(harvested)
+                if (harvested.isEmpty() || baseEntries.isEmpty()) {
+                    // Every provider is harvested inside per-provider try/catch + withTimeoutOrNull,
+                    // so a total miss is silent. Surface it: zero here means getMainPage() failed,
+                    // returned no sections, or exceeded PROVIDER_MAINPAGE_TIMEOUT_MS for all providers.
+                    Log.w(
+                        TAG,
+                        "Catalog harvest produced nothing: rawItems=${harvested.size} entries=${baseEntries.size} " +
+                            "selected=$totalSelected activeApis=$activeCount"
+                    )
+                } else {
+                    val perUniverse = MissaUniverses.HUB_SHORTCUTS
+                        .associate { it.id to baseEntries.count { entry -> entry.universes.contains(it.id) } }
+                        .filterValues { count -> count > 0 }
+                    Log.i(
+                        TAG,
+                        "Catalog harvest ok: rawItems=${harvested.size} entries=${baseEntries.size} " +
+                            "perUniverse=$perUniverse"
+                    )
+                }
                 val finalEntriesIfEmpty = if (baseEntries.isEmpty() && existingEntries.isNotEmpty()) {
                     existingEntries
                 } else {
@@ -735,7 +762,9 @@ class MediaUniverseViewModel : ViewModel() {
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                // Was a bare catch(_) - a crashing catalog load looked exactly like an empty one.
+                Log.e(TAG, "Catalog load failed, keeping ${_catalogSnapshot.value?.entries?.size ?: 0} cached entries", e)
                 val fallback = _catalogSnapshot.value?.entries.orEmpty()
                 _catalogSnapshot.value = UnifiedCatalogSnapshot(
                     isLoading = false,
@@ -1622,14 +1651,31 @@ class MediaUniverseViewModel : ViewModel() {
                                             )
                                         }
                                     }
-                                else -> emptyList()
+                                    .also { items ->
+                                        // A provider that resolves but returns an empty homepage is the
+                                        // most common silent failure (site moved, selector broke, geo-block).
+                                        if (items.isEmpty()) {
+                                            Log.w(TAG, "Provider '${api.name}' returned an empty homepage")
+                                        }
+                                    }
+                                else -> {
+                                    Log.w(
+                                        TAG,
+                                        "Provider '${api.name}' main page failed: ${response::class.simpleName}"
+                                    )
+                                    emptyList()
+                                }
                             }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Provider '${api.name}' main page threw: ${e::class.simpleName}: ${e.message}")
                             emptyList()
                         }
                     }.orEmpty()
+                    if (items.isEmpty()) {
+                        Log.w(TAG, "Provider '${api.name}' yielded no items (timeout or empty response)")
+                    }
                 }
                 onProviderFinished()
                 items
@@ -1685,7 +1731,12 @@ class MediaUniverseViewModel : ViewModel() {
             .take(maxClassifier)
 
         val toFetch = (heroTargets + classifierTargets).distinctBy { it.dedupKey }
-        if (toFetch.isEmpty()) return@coroutineScope entries
+        if (toFetch.isEmpty()) {
+            Log.d(TAG, "Enrichment skipped: nothing needs details (${entries.size} entries)")
+            return@coroutineScope entries
+        }
+        val enrichOk = AtomicInteger(0)
+        val enrichFail = AtomicInteger(0)
 
         val semaphore = Semaphore(6)
         toFetch.map { entry ->
@@ -1698,18 +1749,33 @@ class MediaUniverseViewModel : ViewModel() {
                             when (val loaded = APIRepository(api).load(entry.primary.url)) {
                                 is Resource.Success -> {
                                     detailsCache[id] = loaded.value
+                                    enrichOk.incrementAndGet()
                                 }
-                                else -> Unit
+                                else -> {
+                                    enrichFail.incrementAndGet()
+                                    Log.w(
+                                        TAG,
+                                        "Details failed for '${entry.primary.name}' via ${api.name}: ${loaded::class.simpleName}"
+                                    )
+                                }
                             }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
-                        } catch (_: Exception) {
-                            Unit
+                        } catch (e: Exception) {
+                            enrichFail.incrementAndGet()
+                            Log.w(TAG, "Details threw for '${entry.primary.name}' via ${api.name}: ${e.message}")
                         }
                     }
                 }
             }
         }.awaitAll()
+
+        Log.i(
+            TAG,
+            "Enrichment done: ok=${enrichOk.get()} failed=${enrichFail.get()} " +
+                "skipped=${toFetch.size - enrichOk.get() - enrichFail.get()} " +
+                "(per-call timeout ${DETAIL_TIMEOUT_MS}ms)"
+        )
 
         val refreshed = entries.map { entry ->
             val details = entry.details ?: entry.sources.firstNotNullOfOrNull { src -> detailsCache[itemIdentity(src)] }
