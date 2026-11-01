@@ -968,7 +968,7 @@ internal object MissaUniverseDialogs {
                 .distinct()
                 .joinToString(" • ")
             bufferingSpinner.isVisible = st.isBuffering
-            playBtn.setText(if (st.isPlaying) R.string.universe_radio_pause else R.string.universe_hero_listen)
+            playBtn.setText(if (st.isPlaying) R.string.pause else R.string.universe_hero_listen)
             playBtn.setIconResource(
                 if (st.isPlaying) R.drawable.ic_baseline_pause_24
                 else R.drawable.ic_baseline_play_arrow_24
@@ -1121,7 +1121,7 @@ internal object MissaUniverseDialogs {
                 dlg.dismiss()
                 actions.getOrNull(which)?.onInvoke?.invoke()
             }
-            .setNegativeButton(R.string.cancel_btn) { dlg, _ -> dlg.dismiss() }
+            .setNegativeButton(R.string.cancel) { dlg, _ -> dlg.dismiss() }
             .create()
         dialog.show()
         dialog.setDefaultFocus()
@@ -1184,7 +1184,7 @@ internal object MissaUniverseDialogs {
                 dlg.dismiss()
                 actions.getOrNull(which)?.onInvoke?.invoke()
             }
-            .setNegativeButton(R.string.cancel_btn) { dlg, _ -> dlg.dismiss() }
+            .setNegativeButton(R.string.cancel) { dlg, _ -> dlg.dismiss() }
             .create()
         dialog.show()
         dialog.setDefaultFocus()
