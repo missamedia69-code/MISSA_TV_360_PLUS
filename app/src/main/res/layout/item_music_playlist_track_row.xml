@@ -142,8 +142,8 @@
         <!-- Focusable Contextual Actions Menu Button (⋮) -->
         <ImageButton
             android:id="@+id/playlist_track_more_btn"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:layout_marginStart="4dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
