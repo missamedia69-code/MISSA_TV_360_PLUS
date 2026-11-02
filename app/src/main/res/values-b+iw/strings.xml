@@ -720,11 +720,13 @@
     <plurals name="downloads_active">
         <item quantity="one">%d הורדה פעילה</item>
         <item quantity="two">%d הורדות פעילות</item>
+        <item quantity="many">%d הורדות פעילות</item>
         <item quantity="other">%d הורדות פעילות</item>
     </plurals>
     <plurals name="downloads_queued">
         <item quantity="one">%d הורדה בתור</item>
         <item quantity="two">%d הורדות בתור</item>
+        <item quantity="many">%d הורדות בתור</item>
         <item quantity="other">%d הורדות בתור</item>
     </plurals>
     <string name="source_priority">עדיפות המקורות</string>
@@ -743,6 +745,7 @@
     <plurals name="links_hidden">
         <item quantity="one">%d קישור מוסתר</item>
         <item quantity="two">%d קישורים מוסתרים</item>
+        <item quantity="many">%d קישורים מוסתרים</item>
         <item quantity="other">%d קישורים מוסתרים</item>
     </plurals>
     <string name="tv_layout_clock_settings">הצג שעון בזמן אמת</string>

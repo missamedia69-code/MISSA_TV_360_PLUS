@@ -422,8 +422,8 @@ class RetroGamePlayerActivity : AppCompatActivity() {
             ) {
                 "Core download redirected to an untrusted host"
             }
-            val declaredLength = connection.contentLengthLong
-            require(declaredLength <= MAX_CORE_ARCHIVE_BYTES) {
+            val declaredLength = connection.contentLength.toLong()
+            require(declaredLength <= 0L || declaredLength <= MAX_CORE_ARCHIVE_BYTES) {
                 "Core archive exceeded the permitted size"
             }
             var extracted = false

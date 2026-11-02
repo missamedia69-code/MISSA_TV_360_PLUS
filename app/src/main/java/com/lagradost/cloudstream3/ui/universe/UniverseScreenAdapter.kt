@@ -44,6 +44,7 @@ import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UIHelper.toPx
 import com.lagradost.cloudstream3.utils.getImageFromDrawable
+import java.util.Locale
 
 /**
  * UI model for the sticky category filter strip (HOME-02, HOME-08, I18N-01).
@@ -601,8 +602,14 @@ internal class UniverseScreenAdapter(
             dotsContainer.isVisible = total > 1
             if (total <= 1) {
                 dotsContainer.removeAllViews()
+                dotsContainer.contentDescription = null
                 return
             }
+            dotsContainer.contentDescription = itemView.context.getString(
+                R.string.missa_hero_page_indicator,
+                activeIndex.coerceIn(0, total - 1) + 1,
+                total
+            )
             val activeWidthPx = 18.toPx
             val inactiveWidthPx = 6.toPx
             val dotHeightPx = 6.toPx
@@ -691,6 +698,7 @@ internal class UniverseScreenAdapter(
             itemView: View,
             private val callbacks: Callbacks
         ) : RecyclerView.ViewHolder(itemView) {
+            private val backdropArt: ImageView = itemView.findViewById(R.id.hero_backdrop_art)
             private val backdrop: ImageView = itemView.findViewById(R.id.hero_backdrop_image)
             private val eyebrow: TextView = itemView.findViewById(R.id.hero_eyebrow)
             private val sourcesBadge: TextView = itemView.findViewById(R.id.hero_sources_badge)
@@ -720,6 +728,20 @@ internal class UniverseScreenAdapter(
                         ?: slide.details?.posterUrl
                         ?: slide.card.posterUrl
                 }
+                // Full-bleed backdrop behind the type: real wide artwork when the
+                // provider has one, otherwise the cover (radio presets only ever expose
+                // a square cover). Under data saver we stay on the small cover so the
+                // decorative layer never triggers a fresh wide download.
+                val backdropArtUrl = if (dataSaverActive) {
+                    slide.card.posterUrl ?: slide.details?.posterUrl
+                } else {
+                    slide.details?.backgroundPosterUrl
+                        ?: slide.details?.posterUrl
+                        ?: slide.card.posterUrl
+                }
+                backdropArt.loadImage(backdropArtUrl, slide.card.posterHeaders)
+                backdropArt.contentDescription = slide.card.name
+
                 backdrop.loadImage(imageUrl, slide.card.posterHeaders)
                 backdrop.contentDescription = slide.card.name
 
@@ -735,23 +757,32 @@ internal class UniverseScreenAdapter(
 
                 title.text = slide.card.name
 
+                val isAudio = slide.card is DirectRadioSearchResponse
+                val isListenItem = slide.card.type == TvType.Music ||
+                    slide.card.type == TvType.Podcast ||
+                    slide.card.type == TvType.Audio ||
+                    slide.card.type == TvType.AudioBook
+
+                // Compact hero: collapse the metadata into ONE line and drop exact
+                // duplicates. Radio slides used to print the country code three times
+                // ("AF • EN DIRECT • MISSA Radio Direct · AF") which read as noise.
                 val metaParts = listOfNotNull(
                     slide.yearText?.takeIf { it.isNotBlank() },
                     slide.durationText?.takeIf { it.isNotBlank() },
                     slide.scoreText?.takeIf { it.isNotBlank() },
                     slide.tags.take(2).joinToString(" · ").takeIf { it.isNotBlank() }
                 )
+                    .flatMap { it.split("·") }
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .distinctBy { it.lowercase(Locale.ROOT) }
                 metaLine.isVisible = metaParts.isNotEmpty()
                 metaLine.text = metaParts.joinToString("  •  ")
 
-                plot.isVisible = !slide.plot.isNullOrBlank()
+                // Audio slides already carry provider/genre/country in the meta line,
+                // so the plot would only repeat itself. Keep it for video.
+                plot.isVisible = !isAudio && !slide.plot.isNullOrBlank()
                 plot.text = slide.plot.orEmpty()
-
-                val isAudio = slide.card is DirectRadioSearchResponse
-                val isListenItem = slide.card.type == TvType.Music ||
-                    slide.card.type == TvType.Podcast ||
-                    slide.card.type == TvType.Audio ||
-                    slide.card.type == TvType.AudioBook
                 primaryCta.setText(
                     when {
                         isAudio -> R.string.universe_hero_listen_live
@@ -761,6 +792,7 @@ internal class UniverseScreenAdapter(
                     }
                 )
                 detailsCta.isVisible = !isAudio && slide.card !is DirectMusicSearchResponse
+                detailsCta.setText(R.string.universe_hero_more_info)
 
                 primaryCta.setOnClickListener { callbacks.onHeroPrimaryAction(slide) }
                 detailsCta.setOnClickListener { callbacks.onHeroDetailsAction(slide) }
@@ -818,11 +850,6 @@ internal class UniverseScreenAdapter(
                         if (item.isKidsLocked) R.string.universe_kids_pin_locked_badge
                         else R.string.universe_kids_safe_badge
                     )
-                }
-                "live_tv", "sports" -> {
-                    badge.isVisible = true
-                    badge.setBackgroundResource(R.drawable.missa_live_pill_bg)
-                    badge.setText(R.string.universe_live_badge)
                 }
                 else -> badge.isVisible = false
             }
@@ -2024,6 +2051,9 @@ internal class UniverseScreenAdapter(
         fun bind(item: UniverseListItem.EmptyOrError) {
             val ctx = itemView.context
             val uniTitle = ctx.getString(item.definition.titleRes)
+            // A recycled holder must never retain an action from a previous state.
+            secondaryBtn.isVisible = false
+            secondaryBtn.setOnClickListener(null)
 
             when (item.reason) {
                 UniverseEmptyReason.OFFLINE_OR_ERROR -> {
@@ -2032,9 +2062,6 @@ internal class UniverseScreenAdapter(
                     messageView.setText(R.string.missa_state_offline_desc)
                     primaryBtn.setText(R.string.missa_state_offline_cta)
                     primaryBtn.setOnClickListener { callbacks.onRefreshCatalog() }
-                    secondaryBtn.isVisible = true
-                    secondaryBtn.setText(R.string.universe_games_title)
-                    secondaryBtn.setOnClickListener { callbacks.onNavigateUniverse(MissaUniverses.RETRO_GAMES) }
                 }
 
                 UniverseEmptyReason.EMPTY_SEARCH_OR_FILTER -> {

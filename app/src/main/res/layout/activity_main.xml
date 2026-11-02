@@ -131,6 +131,18 @@
                         android:clickable="false"
                         android:focusable="false"
                         android:importantForAccessibility="no" />
+
+                    <!-- Left-edge cue appears only after the user scrolls the universe strip. -->
+                    <View
+                        android:id="@+id/missa_top_strip_fade_start"
+                        android:layout_width="@dimen/missa_top_strip_fade_width"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="start"
+                        android:background="@drawable/missa_strip_fade_start"
+                        android:clickable="false"
+                        android:focusable="false"
+                        android:importantForAccessibility="no"
+                        android:visibility="gone" />
                 </FrameLayout>
 
                 <LinearLayout
@@ -227,11 +239,14 @@
                 android:paddingBottom="4dp">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:id="@+id/missa_mini_radio_art"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="@drawable/missa_hero_artwork_bg"
+                    android:clipToOutline="true"
                     android:importantForAccessibility="no"
-                    android:src="@drawable/ic_missa_radio"
-                    app:tint="?attr/missaAccentSuccess" />
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_missa_radio" />
 
                 <LinearLayout
                     android:layout_width="0dp"

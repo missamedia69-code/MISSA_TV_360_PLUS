@@ -585,7 +585,7 @@ class RetroGamesFragment : Fragment() {
             val isPartial = code == HttpURLConnection.HTTP_PARTIAL && existingBytes > 0L
             require(code in 200..299) { "HTTP $code" }
 
-            val contentLen = conn.contentLengthLong
+            val contentLen = conn.contentLength.toLong()
             val totalExpected = when {
                 isPartial && contentLen > 0L -> existingBytes + contentLen
                 contentLen > 0L -> contentLen

@@ -199,7 +199,7 @@
                     android:layout_marginStart="6dp"
                     android:layout_marginBottom="2.5dp"
                     android:textColor="@color/white"
-                    android:textSize="10sp"
+                    android:textSize="12sp"
                     android:visibility="gone"
                     tools:text="HDR10 • HEVC" />
                 <ImageView

@@ -441,6 +441,16 @@ class MediaUniverseClassifierTest {
             activeProviderCount = 3
         )
         assertEquals(UniverseEmptyReason.EMPTY_UNIVERSE, whenProvidersInstalledEmpty)
+
+        val whenOffline = MediaUniverseViewModel.resolveEmptyReason(
+            effectiveLoading = false,
+            hasVisibleRows = false,
+            hasActiveFilter = false,
+            isOffline = true,
+            hasError = true,
+            activeProviderCount = 3
+        )
+        assertEquals(UniverseEmptyReason.OFFLINE_OR_ERROR, whenOffline)
     }
 
     @Test

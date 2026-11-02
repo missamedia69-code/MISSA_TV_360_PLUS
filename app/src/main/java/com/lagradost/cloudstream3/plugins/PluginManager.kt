@@ -186,6 +186,9 @@ object PluginManager {
     private val CLOUD_STREAM_FOLDER =
         Environment.getExternalStorageDirectory().absolutePath + "/Cloudstream3/"
 
+    /** Absolute path of the app's external folder, exposed so safe mode can be cleared from the UI. */
+    val CLOUD_STREAM_FOLDER_PATH: String get() = CLOUD_STREAM_FOLDER
+
     private val LOCAL_PLUGINS_PATH = CLOUD_STREAM_FOLDER + "plugins"
 
     var currentlyLoading: String? = null

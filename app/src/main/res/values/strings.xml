@@ -555,6 +555,7 @@
     <string name="safe_mode_title">Safe mode on</string>
     <string name="safe_mode_description">All extensions were turned off due to a crash to help you find the one causing trouble.</string>
     <string name="safe_mode_crash_info">View crash info</string>
+    <string name="safe_mode_resume">Turn extensions back on</string>
     <string name="extension_rating" formatted="true">Rating: %s</string>
     <string name="extension_description">Description</string>
     <string name="extension_version">Version</string>
@@ -840,18 +841,18 @@
     <string name="universe_games_description">Standalone retro gaming hub with free homebrew downloads and built-in emulation.</string>
 
     <!-- Eyebrow badges -->
-    <string name="universe_eyebrow_home">★ FEATURED · CINEMA &amp; SERIES</string>
-    <string name="universe_eyebrow_films">🎬 MOVIES &amp; MANGAS</string>
-    <string name="universe_eyebrow_series">📺 SERIES UNIVERSE</string>
-    <string name="universe_eyebrow_documentaries">🌍 DOCUMENTARIES &amp; DISCOVERY</string>
-    <string name="universe_eyebrow_shorts">🎞️ SHORT FILMS</string>
-    <string name="universe_eyebrow_kids">🌟 KIDS &amp; FAMILY SELECTION</string>
-    <string name="universe_eyebrow_live_tv">🔴 LIVE TELEVISION</string>
-    <string name="universe_eyebrow_sports">⚽ LIVE SPORTS</string>
-    <string name="universe_eyebrow_music">🎵 ON-DEMAND MUSIC</string>
-    <string name="universe_eyebrow_podcasts">🎙️ PODCASTS &amp; SHOWS</string>
-    <string name="universe_eyebrow_radio">📻 DIRECT LIVE RADIO</string>
-    <string name="universe_eyebrow_games">🕹️ RETRO GAMES</string>
+    <string name="universe_eyebrow_home">FEATURED</string>
+    <string name="universe_eyebrow_films">MOVIES &amp; MANGAS</string>
+    <string name="universe_eyebrow_series">SERIES</string>
+    <string name="universe_eyebrow_documentaries">DISCOVERY</string>
+    <string name="universe_eyebrow_shorts">SHORT FILMS</string>
+    <string name="universe_eyebrow_kids">KIDS &amp; FAMILY</string>
+    <string name="universe_eyebrow_live_tv">TV CHANNELS</string>
+    <string name="universe_eyebrow_sports">SPORTS</string>
+    <string name="universe_eyebrow_music">ON-DEMAND MUSIC</string>
+    <string name="universe_eyebrow_podcasts">PODCASTS</string>
+    <string name="universe_eyebrow_radio">RADIO</string>
+    <string name="universe_eyebrow_games">RETRO GAMES</string>
 
     <string name="universe_card_films_sub">Cinema, mangas &amp; anime</string>
     <string name="universe_card_series_sub">Seasons &amp; episodes</string>
@@ -870,6 +871,7 @@
     <string name="universe_hero_listen_live">Listen live</string>
     <string name="universe_hero_listen">Listen</string>
     <string name="universe_hero_more_info">More info</string>
+    <string name="missa_hero_page_indicator">Slide %1$d of %2$d</string>
     <string name="universe_hero_next">Next</string>
     <string name="universe_hero_manage_plugins">Set up sources</string>
     <string name="universe_hero_onboarding_badge">WELCOME TO MISSA TV 360</string>
@@ -1345,6 +1347,14 @@
     <string name="universe_retro_auto_resumed">Resumed from last session</string>
     <string name="universe_retro_quit_confirm">Save session and quit to the Retro Games hub?</string>
     <string name="universe_retro_dpad_desc">8-way directional pad</string>
+    <string name="universe_retro_button_l">Left shoulder button L</string>
+    <string name="universe_retro_button_r">Right shoulder button R</string>
+    <string name="universe_retro_button_select">Select button</string>
+    <string name="universe_retro_button_start">Start button</string>
+    <string name="universe_retro_button_x">X action button</string>
+    <string name="universe_retro_button_y">Y action button</string>
+    <string name="universe_retro_button_a">A action button</string>
+    <string name="universe_retro_button_b">B action button</string>
     <string name="missa_a11y_selected">Selected</string>
     <string name="universe_retro_game_ucity_genre">City-Building &amp; Strategy</string>
     <string name="universe_retro_game_ucity_desc">Full-featured open-source city-building and urban simulation crafted specifically for Game Boy Color.</string>

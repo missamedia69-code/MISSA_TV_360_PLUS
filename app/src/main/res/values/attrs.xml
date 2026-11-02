@@ -78,6 +78,10 @@
         <attr name="missaAccentPrimary" format="color" />
         <attr name="missaOnAccentPrimary" format="color" />
         <attr name="missaAccentSuccess" format="color" />
+        <!-- Active state of the navigation selector. Dedicated so the rest of the
+             accent palette (hero CTAs, chips, badges) keeps using missaAccentPrimary. -->
+        <attr name="missaAccentNavigation" format="color" />
+        <attr name="missaOnAccentNavigation" format="color" />
         <attr name="missaAccentLive" format="color" />
         <attr name="missaOnAccentLive" format="color" />
         <attr name="missaRippleColor" format="color" />

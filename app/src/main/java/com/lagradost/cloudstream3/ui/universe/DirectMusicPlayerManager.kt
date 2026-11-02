@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.OptIn
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.media3.common.C
@@ -12,6 +13,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
@@ -175,6 +177,7 @@ data class MusicPlaybackState(
  * - Pre-resolves upcoming queue tracks (`idx + 1`, `idx + 2`) and top catalog hits in the
  *   background so track transitions and first clicks start without extraction latency.
  */
+@OptIn(markerClass = [UnstableApi::class])
 object DirectMusicPlayerManager {
     private const val SELECTED_MUSIC_STYLES_KEY = "missa_selected_music_styles_v1"
     private const val HAS_SELECTED_MUSIC_STYLES_KEY = "missa_has_selected_music_styles_v1"

@@ -8,8 +8,9 @@
     <dimen name="missa_text_button">14sp</dimen>
     <dimen name="missa_text_badge">12sp</dimen>
 
-    <dimen name="missa_hero_height">310dp</dimen>
-    <dimen name="missa_hero_padding">22dp</dimen>
+    <dimen name="missa_hero_height">168dp</dimen>
+    <dimen name="missa_hero_artwork_size">84dp</dimen>
+    <dimen name="missa_hero_padding">18dp</dimen>
     <dimen name="missa_section_horizontal_padding">20dp</dimen>
     <dimen name="missa_hub_card_width">168dp</dimen>
     <dimen name="missa_hub_card_height">108dp</dimen>

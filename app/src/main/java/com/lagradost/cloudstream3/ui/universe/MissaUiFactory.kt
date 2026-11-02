@@ -172,6 +172,9 @@ object MissaUiFactory {
         val primaryText = ctx.colorFromAttribute(R.attr.textColor)
         val ripple = ctx.colorFromAttribute(R.attr.missaRippleColor)
         val standaloneTvFocus = isFocusedOverride && !usesGlobalAnimatedFocusOutline(ctx)
+        // Whenever a pill has to draw its own cursor, that cursor is the navigation accent
+        // (green). The pill fill keeps the brand accent, so selection colour is unchanged.
+        val cursorAccent = ctx.colorFromAttribute(R.attr.missaAccentNavigation)
 
         button.isSelected = selected
         button.rippleColor = ColorStateList.valueOf(ripple)
@@ -190,7 +193,7 @@ object MissaUiFactory {
             button.iconTint = ColorStateList.valueOf(primaryText)
             button.strokeWidth = if (standaloneTvFocus) 3.toPx else 1.toPx
             button.strokeColor = ColorStateList.valueOf(
-                if (standaloneTvFocus) accentPrimary else strokeSubtle
+                if (standaloneTvFocus) cursorAccent else strokeSubtle
             )
         }
 

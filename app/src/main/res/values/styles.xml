@@ -81,6 +81,8 @@
         <item name="missaStrokeSubtle">@color/missaDarkStrokeSubtle</item>
         <item name="missaAccentPrimary">@color/missaYellowPrimary</item>
         <item name="missaOnAccentPrimary">@color/missaOnAccentDark</item>
+        <item name="missaAccentNavigation">@color/missaGreenNavigation</item>
+        <item name="missaOnAccentNavigation">@color/missaOnAccentDark</item>
         <item name="missaAccentSuccess">@color/missaGreenSuccessDark</item>
         <item name="missaAccentLive">@color/missaRedLive</item>
         <item name="missaOnAccentLive">@color/missaOnRedLive</item>
@@ -206,6 +208,8 @@
         <item name="missaSurfaceFocused">@color/missaLightSurfaceFocused</item>
         <item name="missaStrokeSubtle">@color/missaLightStrokeSubtle</item>
         <item name="missaAccentPrimary">@color/missaYellowPrimaryLight</item>
+        <item name="missaAccentNavigation">@color/missaGreenNavigationLight</item>
+        <item name="missaOnAccentNavigation">@color/missaOnAccentNavigationLight</item>
         <item name="missaAccentSuccess">@color/missaGreenSuccessLight</item>
         <item name="missaRippleColor">@color/missaLightRipple</item>
         <item name="missaScrimPageFadeCenter">@color/missaLightScrimFadeCenter</item>
@@ -263,6 +267,8 @@
         <item name="missaSurfaceFocused">@color/missaLavenderSurfaceFocused</item>
         <item name="missaStrokeSubtle">@color/missaLavenderStrokeSubtle</item>
         <item name="missaAccentPrimary">@color/missaYellowPrimaryLight</item>
+        <item name="missaAccentNavigation">@color/missaGreenNavigationLight</item>
+        <item name="missaOnAccentNavigation">@color/missaOnAccentNavigationLight</item>
         <item name="missaAccentSuccess">@color/missaGreenSuccessLight</item>
         <item name="missaRippleColor">@color/missaLightRipple</item>
         <item name="missaScrimPageFadeCenter">@color/missaLavenderScrimFadeCenter</item>

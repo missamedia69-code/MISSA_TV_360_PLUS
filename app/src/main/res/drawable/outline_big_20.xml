@@ -2,6 +2,6 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <stroke
         android:width="@dimen/missa_focus_stroke_width"
-        android:color="?attr/missaAccentPrimary" />
+        android:color="?attr/missaAccentNavigation" />
     <corners android:radius="20dp" />
 </shape>

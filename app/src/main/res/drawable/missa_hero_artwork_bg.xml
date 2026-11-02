@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded backdrop behind the hero artwork card. Also provides the outline
+     used by android:clipToOutline so the loaded image gets rounded corners. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/missaHeroBackdropFallback" />
+    <corners android:radius="10dp" />
+</shape>

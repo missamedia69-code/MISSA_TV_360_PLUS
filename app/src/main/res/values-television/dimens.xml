@@ -8,12 +8,13 @@
     <dimen name="missa_text_button">14sp</dimen>
     <dimen name="missa_text_badge">12sp</dimen>
 
-    <!-- Capped at ~45% of 720p/1080p viewport so row 1 title always peeks -->
-    <dimen name="missa_hero_height">324dp</dimen>
-    <dimen name="missa_hero_padding">24dp</dimen>
+    <!-- Compact hero keeps row 1 of the catalog visible above the fold on TV -->
+    <dimen name="missa_hero_height">196dp</dimen>
+    <dimen name="missa_hero_artwork_size">96dp</dimen>
+    <dimen name="missa_hero_padding">20dp</dimen>
     <dimen name="missa_section_horizontal_padding">24dp</dimen>
     <dimen name="missa_hub_card_width">196dp</dimen>
-    <dimen name="missa_hub_card_height">118dp</dimen>
+    <dimen name="missa_hub_card_height">132dp</dimen>
     <dimen name="missa_pill_horizontal_padding">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">154dp</dimen>
 </resources>
