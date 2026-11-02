@@ -9,9 +9,11 @@
   item_universe_hero_carousel.xml. Do not put it here.
 
   Design: fixed square artwork on the start edge + a vertical text spine.
-  This replaces the old full-bleed centerCrop backdrop, which stretched a
-  square radio cover into an unreadable flat colour block and ate 42% of the
-  viewport.
+  The old full-bleed centerCrop backdrop was dropped in 2111dae because it
+  stretched a square radio cover into a flat colour block and ate 42% of the
+  viewport. Dropping it entirely also removed the background image, so it is
+  back as a full-bleed layer that the scrim fades into the page background:
+  real artwork behind the type, at the accepted compact height.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -20,7 +22,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Themed backdrop. No image is stretched here any more. -->
+    <!-- Backdrop artwork: full-bleed, faded into the page background by the scrim below -->
+    <ImageView
+        android:id="@+id/hero_backdrop_art"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0.85"
+        android:background="@color/missaHeroBackdropFallback"
+        android:contentDescription="@string/universe_featured_content"
+        android:scaleType="centerCrop" />
+
+    <!-- Readability scrim: keeps the type legible over the artwork -->
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -98,6 +110,10 @@
                 android:layout_marginTop="6dp"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:shadowColor="@color/missaOnAccentDark"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="8"
                 android:textAppearance="@style/TextAppearance.Missa.ScreenTitle"
                 android:textColor="@color/missaHeroText"
                 tools:text="Africa Radio" />
@@ -123,6 +139,10 @@
                 android:layout_marginTop="3dp"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:shadowColor="@color/missaOnAccentDark"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="6"
                 android:textAppearance="@style/TextAppearance.Missa.Caption"
                 android:textColor="@color/missaHeroSubtext"
                 tools:text="Panafricaine · Info, Culture, Makossa" />

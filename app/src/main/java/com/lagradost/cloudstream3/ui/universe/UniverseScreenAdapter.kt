@@ -692,6 +692,7 @@ internal class UniverseScreenAdapter(
             itemView: View,
             private val callbacks: Callbacks
         ) : RecyclerView.ViewHolder(itemView) {
+            private val backdropArt: ImageView = itemView.findViewById(R.id.hero_backdrop_art)
             private val backdrop: ImageView = itemView.findViewById(R.id.hero_backdrop_image)
             private val eyebrow: TextView = itemView.findViewById(R.id.hero_eyebrow)
             private val sourcesBadge: TextView = itemView.findViewById(R.id.hero_sources_badge)
@@ -721,6 +722,20 @@ internal class UniverseScreenAdapter(
                         ?: slide.details?.posterUrl
                         ?: slide.card.posterUrl
                 }
+                // Full-bleed backdrop behind the type: real wide artwork when the
+                // provider has one, otherwise the cover (radio presets only ever expose
+                // a square cover). Under data saver we stay on the small cover so the
+                // decorative layer never triggers a fresh wide download.
+                val backdropArtUrl = if (dataSaverActive) {
+                    slide.card.posterUrl ?: slide.details?.posterUrl
+                } else {
+                    slide.details?.backgroundPosterUrl
+                        ?: slide.details?.posterUrl
+                        ?: slide.card.posterUrl
+                }
+                backdropArt.loadImage(backdropArtUrl, slide.card.posterHeaders)
+                backdropArt.contentDescription = slide.card.name
+
                 backdrop.loadImage(imageUrl, slide.card.posterHeaders)
                 backdrop.contentDescription = slide.card.name
 

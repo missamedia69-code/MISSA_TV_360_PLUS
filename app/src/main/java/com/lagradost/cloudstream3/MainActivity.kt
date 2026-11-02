@@ -898,7 +898,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         universeButtonByDestId.forEach { (destId, button) ->
             val selected = destId == selectedId
-            MissaUiFactory.stylePillSelection(button, selected)
+            MissaUiFactory.stylePillSelection(button, selected, navigationAccent = true)
             if (selected) {
                 activeTopUniverseButton = button
                 if (isLayout(TV or EMULATOR)) {
@@ -917,7 +917,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             utilityContainer.children.filterIsInstance<MaterialButton>().forEach { utilBtn ->
                 val destId = utilBtn.tag as? Int ?: return@forEach
                 val selected = destId == selectedId
-                MissaUiFactory.stylePillSelection(utilBtn, selected)
+                MissaUiFactory.stylePillSelection(utilBtn, selected, navigationAccent = true)
                 if (selected) {
                     activeTopUniverseButton = utilBtn
                     binding?.navHostFragment?.nextFocusUpId = utilBtn.id

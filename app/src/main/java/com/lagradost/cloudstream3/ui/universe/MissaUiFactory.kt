@@ -162,10 +162,27 @@ object MissaUiFactory {
      * Note: Focus ring rendering on TV is handled centrally by MainActivity.TvFocus so pills
      * never display a duplicate yellow cursor.
      */
-    fun stylePillSelection(button: MaterialButton, selected: Boolean, isFocusedOverride: Boolean = button.isFocused) {
+    /**
+     * Styles a pill/segment button for its selected state.
+     *
+     * @param navigationAccent when true the selected state uses [R.attr.missaAccentNavigation]
+     * (green) instead of the brand accent. Only the main navigation selector sets this, so
+     * catalog filters, dialogs, retro game system chips and player mode switches keep the
+     * brand colour.
+     */
+    fun stylePillSelection(
+        button: MaterialButton,
+        selected: Boolean,
+        isFocusedOverride: Boolean = button.isFocused,
+        navigationAccent: Boolean = false
+    ) {
         val ctx = button.context
-        val accentPrimary = ctx.colorFromAttribute(R.attr.missaAccentPrimary)
-        val onAccentPrimary = ctx.colorFromAttribute(R.attr.missaOnAccentPrimary)
+        val accentPrimary = ctx.colorFromAttribute(
+            if (navigationAccent) R.attr.missaAccentNavigation else R.attr.missaAccentPrimary
+        )
+        val onAccentPrimary = ctx.colorFromAttribute(
+            if (navigationAccent) R.attr.missaOnAccentNavigation else R.attr.missaOnAccentPrimary
+        )
         val surfaceElevated = ctx.colorFromAttribute(R.attr.missaSurfaceElevated)
         val surfaceFocused = ctx.colorFromAttribute(R.attr.missaSurfaceFocused)
         val strokeSubtle = ctx.colorFromAttribute(R.attr.missaStrokeSubtle)

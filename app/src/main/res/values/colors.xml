@@ -129,6 +129,10 @@
     <color name="missaOnAccentDark">#141414</color>
     <color name="missaGreenSuccessDark">#48E484</color>
     <color name="missaGreenSuccessLight">#0A8744</color>
+    <!-- Navigation selector accent (dark themes / light themes) -->
+    <color name="missaGreenNavigation">#2FD37A</color>
+    <color name="missaGreenNavigationLight">#0A8744</color>
+    <color name="missaOnAccentNavigationLight">#FFFFFF</color>
     <color name="missaBadge360Bg">#009E49</color>
     <color name="missaRedLive">#E53935</color>
     <color name="missaOnRedLive">#FFFFFF</color>
