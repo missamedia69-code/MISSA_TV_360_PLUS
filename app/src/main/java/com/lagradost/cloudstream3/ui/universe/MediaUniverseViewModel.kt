@@ -1329,7 +1329,7 @@ class MediaUniverseViewModel : ViewModel() {
                             definition = uni,
                             itemCount = total,
                             countBadge = badge,
-                            hasLiveNow = true
+                            hasLiveNow = false
                         )
                     }
                     else -> {
@@ -1339,12 +1339,11 @@ class MediaUniverseViewModel : ViewModel() {
                         } else {
                             null
                         }
-                        val isLiveUni = (uni.id == "live_tv" || uni.id == "sports") && count > 0
                         UniverseHubCardItem(
                             definition = uni,
                             itemCount = count,
                             countBadge = badge,
-                            hasLiveNow = isLiveUni
+                            hasLiveNow = false
                         )
                     }
                 }

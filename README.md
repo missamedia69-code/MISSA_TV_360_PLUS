@@ -31,7 +31,7 @@ MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agr�
 - **Système de Design Sémantique (`THEME-01..08`)** :
   - Tokens d'attributs sémantiques `missa*` supportés sur les **8 modes de thème** (`AppTheme`, `AmoledMode`, `LightMode`, `AmoledModeLight`, `DraculaMode`, `SilentBlueMode`, `LavenderMode`, `MonetMode`).
   - Échelle typographique `TextAppearance.Missa.*` (`@font/google_sans`, `>= 12sp` mobile, variantes `values-sw600dp/` et `values-television/`).
-  - Composants unifiés `Widget.Missa.{Pill,Button.Primary,Button.Secondary,Button.Icon}` et anneau de focus TV unique `3dp` jaune MISSA.
+  - Composants unifiés `Widget.Missa.{Pill,Button.Primary,Button.Secondary,Button.Icon}` et anneau de focus TV unique `3dp` vert de navigation (`missaAccentNavigation`); le jaune reste réservé à l’accent de sélection.
 - **Performance & Mode Économie de Données (`HOME-02`, `HOME-13`, `FLOW-03`)** :
   - `RecyclerView` modulaire (`ListAdapter` + `DiffUtil` avec payloads sans perte de focus), carrousel `ViewPager2`, squelette `Shimmer` progressif et cache catalogue sur disque (`< 1s` au démarrage à froid).
   - Mode **Data Saver** réduisant la concurrence réseau et gelant l'auto-rotation du carrousel sur connexions mobiles limitées.

@@ -602,8 +602,14 @@ internal class UniverseScreenAdapter(
             dotsContainer.isVisible = total > 1
             if (total <= 1) {
                 dotsContainer.removeAllViews()
+                dotsContainer.contentDescription = null
                 return
             }
+            dotsContainer.contentDescription = itemView.context.getString(
+                R.string.missa_hero_page_indicator,
+                activeIndex.coerceIn(0, total - 1) + 1,
+                total
+            )
             val activeWidthPx = 18.toPx
             val inactiveWidthPx = 6.toPx
             val dotHeightPx = 6.toPx
@@ -786,6 +792,7 @@ internal class UniverseScreenAdapter(
                     }
                 )
                 detailsCta.isVisible = !isAudio && slide.card !is DirectMusicSearchResponse
+                detailsCta.setText(R.string.universe_hero_more_info)
 
                 primaryCta.setOnClickListener { callbacks.onHeroPrimaryAction(slide) }
                 detailsCta.setOnClickListener { callbacks.onHeroDetailsAction(slide) }
@@ -843,11 +850,6 @@ internal class UniverseScreenAdapter(
                         if (item.isKidsLocked) R.string.universe_kids_pin_locked_badge
                         else R.string.universe_kids_safe_badge
                     )
-                }
-                "live_tv", "sports" -> {
-                    badge.isVisible = true
-                    badge.setBackgroundResource(R.drawable.missa_live_pill_bg)
-                    badge.setText(R.string.universe_live_badge)
                 }
                 else -> badge.isVisible = false
             }
@@ -2049,6 +2051,9 @@ internal class UniverseScreenAdapter(
         fun bind(item: UniverseListItem.EmptyOrError) {
             val ctx = itemView.context
             val uniTitle = ctx.getString(item.definition.titleRes)
+            // A recycled holder must never retain an action from a previous state.
+            secondaryBtn.isVisible = false
+            secondaryBtn.setOnClickListener(null)
 
             when (item.reason) {
                 UniverseEmptyReason.OFFLINE_OR_ERROR -> {
@@ -2057,9 +2062,6 @@ internal class UniverseScreenAdapter(
                     messageView.setText(R.string.missa_state_offline_desc)
                     primaryBtn.setText(R.string.missa_state_offline_cta)
                     primaryBtn.setOnClickListener { callbacks.onRefreshCatalog() }
-                    secondaryBtn.isVisible = true
-                    secondaryBtn.setText(R.string.universe_games_title)
-                    secondaryBtn.setOnClickListener { callbacks.onNavigateUniverse(MissaUniverses.RETRO_GAMES) }
                 }
 
                 UniverseEmptyReason.EMPTY_SEARCH_OR_FILTER -> {

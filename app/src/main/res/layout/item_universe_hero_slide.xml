@@ -166,6 +166,8 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
             android:maxLines="1"
+            android:text="@string/universe_hero_more_info"
+            android:contentDescription="@string/universe_hero_more_info"
             app:icon="@drawable/ic_outline_info_24" />
     </LinearLayout>
 

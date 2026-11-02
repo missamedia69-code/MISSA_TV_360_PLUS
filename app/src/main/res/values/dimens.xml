@@ -47,7 +47,7 @@
     <dimen name="missa_hero_padding">14dp</dimen>
     <dimen name="missa_section_horizontal_padding">16dp</dimen>
     <dimen name="missa_hub_card_width">144dp</dimen>
-    <dimen name="missa_hub_card_height">96dp</dimen>
+    <dimen name="missa_hub_card_height">110dp</dimen>
     <dimen name="missa_pill_touch_height">48dp</dimen>
     <dimen name="missa_pill_inset_vertical">6dp</dimen>
     <dimen name="missa_pill_horizontal_padding">14dp</dimen>

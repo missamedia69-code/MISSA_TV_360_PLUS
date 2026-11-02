@@ -841,18 +841,18 @@
     <string name="universe_games_description">Standalone retro gaming hub with free homebrew downloads and built-in emulation.</string>
 
     <!-- Eyebrow badges -->
-    <string name="universe_eyebrow_home">★ FEATURED · CINEMA &amp; SERIES</string>
-    <string name="universe_eyebrow_films">🎬 MOVIES &amp; MANGAS</string>
-    <string name="universe_eyebrow_series">📺 SERIES UNIVERSE</string>
-    <string name="universe_eyebrow_documentaries">🌍 DOCUMENTARIES &amp; DISCOVERY</string>
-    <string name="universe_eyebrow_shorts">🎞️ SHORT FILMS</string>
-    <string name="universe_eyebrow_kids">🌟 KIDS &amp; FAMILY SELECTION</string>
-    <string name="universe_eyebrow_live_tv">🔴 LIVE TELEVISION</string>
-    <string name="universe_eyebrow_sports">⚽ LIVE SPORTS</string>
-    <string name="universe_eyebrow_music">🎵 ON-DEMAND MUSIC</string>
-    <string name="universe_eyebrow_podcasts">🎙️ PODCASTS &amp; SHOWS</string>
-    <string name="universe_eyebrow_radio">📻 DIRECT LIVE RADIO</string>
-    <string name="universe_eyebrow_games">🕹️ RETRO GAMES</string>
+    <string name="universe_eyebrow_home">FEATURED</string>
+    <string name="universe_eyebrow_films">MOVIES &amp; MANGAS</string>
+    <string name="universe_eyebrow_series">SERIES</string>
+    <string name="universe_eyebrow_documentaries">DISCOVERY</string>
+    <string name="universe_eyebrow_shorts">SHORT FILMS</string>
+    <string name="universe_eyebrow_kids">KIDS &amp; FAMILY</string>
+    <string name="universe_eyebrow_live_tv">TV CHANNELS</string>
+    <string name="universe_eyebrow_sports">SPORTS</string>
+    <string name="universe_eyebrow_music">ON-DEMAND MUSIC</string>
+    <string name="universe_eyebrow_podcasts">PODCASTS</string>
+    <string name="universe_eyebrow_radio">RADIO</string>
+    <string name="universe_eyebrow_games">RETRO GAMES</string>
 
     <string name="universe_card_films_sub">Cinema, mangas &amp; anime</string>
     <string name="universe_card_series_sub">Seasons &amp; episodes</string>
@@ -871,6 +871,7 @@
     <string name="universe_hero_listen_live">Listen live</string>
     <string name="universe_hero_listen">Listen</string>
     <string name="universe_hero_more_info">More info</string>
+    <string name="missa_hero_page_indicator">Slide %1$d of %2$d</string>
     <string name="universe_hero_next">Next</string>
     <string name="universe_hero_manage_plugins">Set up sources</string>
     <string name="universe_hero_onboarding_badge">WELCOME TO MISSA TV 360</string>

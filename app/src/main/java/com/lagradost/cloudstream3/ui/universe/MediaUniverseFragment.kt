@@ -442,6 +442,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         toggleFilterBtn?.setOnClickListener {
             val panel = inlineFilterPanel ?: return@setOnClickListener
             panel.isVisible = !panel.isVisible
+            syncVoiceSearchButtons()
             val showSourceFilter = MissaUiFactory.shouldShowSourceFilterPill(
                 universeId,
                 lastProjection?.availableSources?.size ?: 0
@@ -467,14 +468,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
 
         // Direct 1-click TV & Mobile Voice Search (HOME-07 + Android 11–15 / Google TV `<queries>` support)
-        topVoiceSearchBtn?.isVisible = true
         topVoiceSearchBtn?.setOnClickListener {
             triggerVoiceOrTextSearch()
         }
-        voiceSearchBtn?.isVisible = true
         voiceSearchBtn?.setOnClickListener {
             triggerVoiceOrTextSearch()
         }
+        syncVoiceSearchButtons()
 
         searchSubmitBtn?.setOnClickListener {
             typingDebounceJob?.cancel()
@@ -549,6 +549,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         if (showContextualFilterBar) {
             Toast.makeText(ctx, R.string.universe_voice_search_unavailable, Toast.LENGTH_SHORT).show()
             inlineFilterPanel?.isVisible = true
+            syncVoiceSearchButtons()
             renderRecentSearchChips()
             searchInput?.let { input ->
                 input.requestFocus()
@@ -584,6 +585,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
         adapter.submitList(updated)
         return true
+    }
+
+    private fun syncVoiceSearchButtons() {
+        val panelVisible = inlineFilterPanel?.isVisible == true
+        val available = showContextualFilterBar
+        topVoiceSearchBtn?.isVisible = available && !panelVisible
+        voiceSearchBtn?.isVisible = available && panelVisible
     }
 
     private fun resolveSearchBarToggleLabel(ctx: android.content.Context): String {
@@ -805,6 +813,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 }
             }
             categoryPillAdapter?.submitList(pillItems)
+            categoryPillsRecycler?.isVisible = pillItems.isNotEmpty()
 
             // 2. Update multi-source pill button (HOME-08): hide when <= 1 source (e.g. Musiques -> YouTube only)
             val sources = projection.availableSources
@@ -833,6 +842,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         } else {
             inlineFilterPanel?.isVisible = false
         }
+
+        syncVoiceSearchButtons()
 
         // 3. Build modular RecyclerView list items (HOME-01, HOME-02, HOME-05, HOME-06, HOME-07)
         val items = ArrayList<UniverseListItem>()

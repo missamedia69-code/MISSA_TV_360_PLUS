@@ -14,7 +14,7 @@
     <dimen name="missa_hero_padding">20dp</dimen>
     <dimen name="missa_section_horizontal_padding">24dp</dimen>
     <dimen name="missa_hub_card_width">196dp</dimen>
-    <dimen name="missa_hub_card_height">118dp</dimen>
+    <dimen name="missa_hub_card_height">132dp</dimen>
     <dimen name="missa_pill_horizontal_padding">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">154dp</dimen>
 </resources>

@@ -837,6 +837,11 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             bar.isVisible = !hideOnScreen
             if (hideOnScreen) return
 
+            val musicArtwork = tr.artworkUrl?.takeIf { it.isNotBlank() }
+            val miniArtwork = binding?.missaMiniRadioArt
+            if (musicArtwork == null) miniArtwork?.setImageResource(R.drawable.ic_missa_music)
+            else miniArtwork?.loadImage(musicArtwork)
+
             binding?.missaMiniRadioTitle?.text = tr.displayLabel()
             binding?.missaMiniRadioStatus?.text = when {
                 musicState.hasError -> getString(R.string.universe_music_error, tr.title)
@@ -856,6 +861,11 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             currentDestId == R.id.navigation_universe_radio
         bar.isVisible = st != null && !hideOnScreen
         if (st == null || hideOnScreen) return
+
+        val radioArtwork = st.logoUrl?.takeIf { it.isNotBlank() }
+        val miniArtwork = binding?.missaMiniRadioArt
+        if (radioArtwork == null) miniArtwork?.setImageResource(R.drawable.ic_missa_radio)
+        else miniArtwork?.loadImage(radioArtwork)
 
         binding?.missaMiniRadioTitle?.text = st.name
         binding?.missaMiniRadioStatus?.text = when {

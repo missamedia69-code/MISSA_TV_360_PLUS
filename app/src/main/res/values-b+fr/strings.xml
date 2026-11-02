@@ -797,18 +797,18 @@
     <string name="universe_games_description">Catalogue indépendant de jeux rétro libres, téléchargement dédié et émulation intégrée.</string>
 
     <!-- Eyebrow badges -->
-    <string name="universe_eyebrow_home">★ À L’AFFICHE · CINÉMA &amp; SÉRIES</string>
-    <string name="universe_eyebrow_films">🎬 FILMS &amp; MANGAS</string>
-    <string name="universe_eyebrow_series">📺 UNIVERS SÉRIES</string>
-    <string name="universe_eyebrow_documentaries">🌍 DOCUMENTAIRES &amp; DÉCOUVERTE</string>
-    <string name="universe_eyebrow_shorts">🎞️ COURTS-MÉTRAGES</string>
-    <string name="universe_eyebrow_kids">🌟 SÉLECTION JEUNESSE &amp; FAMILLE</string>
-    <string name="universe_eyebrow_live_tv">🔴 TV EN DIRECT</string>
-    <string name="universe_eyebrow_sports">⚽ SPORTS EN DIRECT</string>
-    <string name="universe_eyebrow_music">🎵 MUSIQUES À LA DEMANDE</string>
-    <string name="universe_eyebrow_podcasts">🎙️ PODCASTS &amp; ÉMISSIONS</string>
-    <string name="universe_eyebrow_radio">📻 RADIO EN ÉCOUTE DIRECTE</string>
-    <string name="universe_eyebrow_games">🕹️ JEUX RÉTRO</string>
+    <string name="universe_eyebrow_home">À LA UNE</string>
+    <string name="universe_eyebrow_films">FILMS &amp; MANGAS</string>
+    <string name="universe_eyebrow_series">SÉRIES</string>
+    <string name="universe_eyebrow_documentaries">DÉCOUVERTE</string>
+    <string name="universe_eyebrow_shorts">COURTS-MÉTRAGES</string>
+    <string name="universe_eyebrow_kids">JEUNESSE &amp; FAMILLE</string>
+    <string name="universe_eyebrow_live_tv">CHAÎNES TV</string>
+    <string name="universe_eyebrow_sports">SPORTS</string>
+    <string name="universe_eyebrow_music">MUSIQUES À LA DEMANDE</string>
+    <string name="universe_eyebrow_podcasts">PODCASTS</string>
+    <string name="universe_eyebrow_radio">RADIO</string>
+    <string name="universe_eyebrow_games">JEUX RÉTRO</string>
 
     <string name="universe_card_films_sub">Cinéma, mangas &amp; animes</string>
     <string name="universe_card_series_sub">Saisons &amp; épisodes</string>
@@ -827,6 +827,7 @@
     <string name="universe_hero_listen_live">Écouter en direct</string>
     <string name="universe_hero_listen">Écouter</string>
     <string name="universe_hero_more_info">Plus d’infos</string>
+    <string name="missa_hero_page_indicator">Diapositive %1$d sur %2$d</string>
     <string name="universe_hero_next">Suivant</string>
     <string name="universe_hero_manage_plugins">Configurer mes sources</string>
     <string name="universe_hero_onboarding_badge">BIENVENUE SUR MISSA TV 360</string>
