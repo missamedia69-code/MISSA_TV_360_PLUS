@@ -129,9 +129,11 @@
     <color name="missaOnAccentDark">#141414</color>
     <color name="missaGreenSuccessDark">#48E484</color>
     <color name="missaGreenSuccessLight">#0A8744</color>
-    <!-- Navigation selector accent (dark themes / light themes) -->
+    <!-- Focus cursor / navigation selection accent (dark themes / light themes).
+         Dark: #2FD37A reads 10.7:1 on black. Light: #067034 reads 5.7:1 on #F2F4F7
+         and 6.2:1 on white, so the 3dp cursor stays crisp on light pages. -->
     <color name="missaGreenNavigation">#2FD37A</color>
-    <color name="missaGreenNavigationLight">#0A8744</color>
+    <color name="missaGreenNavigationLight">#067034</color>
     <color name="missaOnAccentNavigationLight">#FFFFFF</color>
     <color name="missaBadge360Bg">#009E49</color>
     <color name="missaRedLive">#E53935</color>

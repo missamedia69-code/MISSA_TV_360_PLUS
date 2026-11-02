@@ -5,6 +5,6 @@
     <solid android:color="@android:color/transparent" />
     <stroke
         android:width="@dimen/missa_focus_stroke_width"
-        android:color="?attr/missaAccentPrimary" />
+        android:color="?attr/missaAccentNavigation" />
     <corners android:radius="@dimen/rounded_image_radius" />
 </shape>

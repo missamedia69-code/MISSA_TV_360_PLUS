@@ -898,7 +898,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         universeButtonByDestId.forEach { (destId, button) ->
             val selected = destId == selectedId
-            MissaUiFactory.stylePillSelection(button, selected, navigationAccent = true)
+            MissaUiFactory.stylePillSelection(button, selected)
             if (selected) {
                 activeTopUniverseButton = button
                 if (isLayout(TV or EMULATOR)) {
@@ -917,7 +917,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             utilityContainer.children.filterIsInstance<MaterialButton>().forEach { utilBtn ->
                 val destId = utilBtn.tag as? Int ?: return@forEach
                 val selected = destId == selectedId
-                MissaUiFactory.stylePillSelection(utilBtn, selected, navigationAccent = true)
+                MissaUiFactory.stylePillSelection(utilBtn, selected)
                 if (selected) {
                     activeTopUniverseButton = utilBtn
                     binding?.navHostFragment?.nextFocusUpId = utilBtn.id
@@ -1472,7 +1472,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             }
             val ctx = targetView.context
             val strokePx = ctx.resources.getDimensionPixelSize(R.dimen.missa_focus_stroke_width)
-            val strokeColor = ctx.colorFromAttribute(R.attr.missaAccentPrimary)
+            // The navigation cursor is green; the brand accent stays on buttons/chips.
+            val strokeColor = ctx.colorFromAttribute(R.attr.missaAccentNavigation)
             val radiusPx = when {
                 targetView is MaterialButton -> targetView.cornerRadius.toFloat()
                 targetView is CardView -> targetView.radius

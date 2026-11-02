@@ -3,5 +3,5 @@
     android:shape="oval">
     <stroke
         android:width="@dimen/missa_focus_stroke_width"
-        android:color="?attr/missaAccentPrimary" />
+        android:color="?attr/missaAccentNavigation" />
 </shape>
