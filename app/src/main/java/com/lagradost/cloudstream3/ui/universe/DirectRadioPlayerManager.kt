@@ -323,7 +323,7 @@ object DirectRadioPlayerManager {
     private const val MUSIC_AUDIO_DISK_CACHE_BYTES = 128L * 1024L * 1024L // 128 MB LRU cache for on-demand music
     private val musicCacheLock = Any()
 
-    @OptIn(UnstableApi::class)
+    @field:OptIn(markerClass = [UnstableApi::class])
     @Volatile
     private var musicSimpleCache: SimpleCache? = null
 
