@@ -40,14 +40,12 @@ jobs:
       run: |
         REPORT="app/build/intermediates/lint_intermediate_text_report/prereleaseDebug/lintReportPrereleaseDebug/lint-results-prereleaseDebug.txt"
         if [[ -f "$REPORT" ]]; then
-          {
-            echo "### Android Lint diagnostics"
-            echo '```text'
-            grep -n -B 3 -A 6 "Error:" "$REPORT" | head -n 240 || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### Android Lint diagnostics" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```text' | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -n -B 3 -A 6 "Error:" "$REPORT" | head -n 240 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          echo '```' | tee -a "$GITHUB_STEP_SUMMARY"
         else
-          echo "Android Lint report was not generated." >> "$GITHUB_STEP_SUMMARY"
+          echo "Android Lint report was not generated." | tee -a "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Upload Artifact
