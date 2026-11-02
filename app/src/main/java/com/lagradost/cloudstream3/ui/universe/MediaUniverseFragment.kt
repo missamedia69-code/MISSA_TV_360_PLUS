@@ -210,7 +210,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
 
         DirectRadioPlayerManager.state.observe(viewLifecycleOwner) {
-            if (universeId == "radio") {
+            if (universeId == "radio" || universeId == "home") {
                 renderScreen()
             }
         }

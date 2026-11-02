@@ -1329,7 +1329,7 @@ class MediaUniverseViewModel : ViewModel() {
                             definition = uni,
                             itemCount = total,
                             countBadge = badge,
-                            hasLiveNow = false
+                            hasLiveNow = DirectRadioPlayerManager.state.value?.isPlaying == true
                         )
                     }
                     else -> {
