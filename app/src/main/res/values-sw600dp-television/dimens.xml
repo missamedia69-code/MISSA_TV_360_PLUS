@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Android TV 10-foot overrides that actually WIN on real TV hardware (THEME-01, FLOW-02).
+
+        Resource qualifier precedence (Android "Providing Alternative Resources", table 2)
+        ranks `smallestWidth` ABOVE `UI mode`. Every 720p / 1080p / 4K television reports
+        `sw >= 600dp`, so `values-sw600dp/dimens.xml` used to outrank `values-television/dimens.xml`
+        and the TV scale silently fell back to the TABLET scale: smaller hero, tighter section
+        padding, smaller hub cards and the mobile-sized retro gamepad.
+
+        Declaring the union of both qualifiers (`sw600dp` + `television`) is strictly more
+        specific than `values-sw600dp`, so the 10-foot scale wins again on TV while tablets and
+        phones keep their own values untouched.
+    -->
+    <dimen name="missa_text_screen_title">28sp</dimen>
+    <dimen name="missa_text_row_title">19sp</dimen>
+    <dimen name="missa_text_body">15sp</dimen>
+    <dimen name="missa_text_caption">13sp</dimen>
+    <dimen name="missa_text_button">14sp</dimen>
+    <dimen name="missa_text_badge">12sp</dimen>
+
+    <!-- Compact hero keeps row 1 of the catalog visible above the fold on TV -->
+    <dimen name="missa_hero_height">196dp</dimen>
+    <dimen name="missa_hero_artwork_size">96dp</dimen>
+    <dimen name="missa_hero_padding">20dp</dimen>
+    <dimen name="missa_section_horizontal_padding">24dp</dimen>
+    <dimen name="missa_hub_card_width">196dp</dimen>
+    <dimen name="missa_hub_card_height">132dp</dimen>
+
+    <dimen name="missa_pill_touch_height">52dp</dimen>
+    <dimen name="missa_pill_inset_vertical">6dp</dimen>
+    <dimen name="missa_pill_horizontal_padding">14dp</dimen>
+    <dimen name="missa_top_strip_fade_width">48dp</dimen>
+
+    <!-- Unique 3dp navigation focus ring: green = navigation, yellow stays the selection accent -->
+    <dimen name="missa_focus_stroke_width">3dp</dimen>
+    <dimen name="missa_card_radius">14dp</dimen>
+    <dimen name="missa_search_grid_card_min_width">154dp</dimen>
+
+    <!--
+        Retro gamepad overlay (GAME-03, GAME-05) at 3 m viewing distance.
+        These were only declared for phones and tablets: a TV fell back to the mobile
+        156dp D-Pad / 54dp action buttons, far too small to be operated from a couch.
+    -->
+    <dimen name="missa_retro_dpad_size">216dp</dimen>
+    <dimen name="missa_retro_action_btn_size">68dp</dimen>
+    <dimen name="missa_retro_shoulder_btn_width">96dp</dimen>
+    <dimen name="missa_retro_shoulder_btn_height">56dp</dimen>
+</resources>
