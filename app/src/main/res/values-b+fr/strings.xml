@@ -1303,6 +1303,14 @@
     <string name="universe_retro_auto_resumed">Reprise automatique de la session précédente</string>
     <string name="universe_retro_quit_confirm">Sauvegarder la session et retourner aux Jeux Rétro ?</string>
     <string name="universe_retro_dpad_desc">Croix directionnelle 8 directions</string>
+    <string name="universe_retro_button_l">Bouton d’épaule gauche L</string>
+    <string name="universe_retro_button_r">Bouton d’épaule droit R</string>
+    <string name="universe_retro_button_select">Bouton SELECT</string>
+    <string name="universe_retro_button_start">Bouton START</string>
+    <string name="universe_retro_button_x">Bouton d’action X</string>
+    <string name="universe_retro_button_y">Bouton d’action Y</string>
+    <string name="universe_retro_button_a">Bouton d’action A</string>
+    <string name="universe_retro_button_b">Bouton d’action B</string>
     <string name="missa_a11y_selected">Sélectionné</string>
     <string name="universe_retro_game_ucity_genre">Gestion &amp; Construction</string>
     <string name="universe_retro_game_ucity_desc">Jeu open-source complet de construction et de gestion urbaine conçu pour la Game Boy Color.</string>

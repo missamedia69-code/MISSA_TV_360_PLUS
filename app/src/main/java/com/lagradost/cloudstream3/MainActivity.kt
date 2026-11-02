@@ -904,6 +904,12 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
     private fun updateTopNavigation(destinationId: Int) {
         val utilityContainer = binding?.root?.findViewById<LinearLayout>(R.id.missa_utility_actions)
+        val topScroll = binding?.root?.findViewById<android.widget.HorizontalScrollView>(R.id.tv_top_navigation)
+        val leadingFade = binding?.root?.findViewById<View>(R.id.missa_top_strip_fade_start)
+        topScroll?.setOnScrollChangeListener { _, scrollX, _, _, _ ->
+            leadingFade?.isVisible = scrollX > 0
+        }
+        leadingFade?.isVisible = (topScroll?.scrollX ?: 0) > 0
         val selectedId = selectedTopNavigationId(destinationId)
 
         universeButtonByDestId.forEach { (destId, button) ->

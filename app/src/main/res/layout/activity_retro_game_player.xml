@@ -130,6 +130,7 @@
         <!-- Shoulder Buttons L & R (>=48dp height) -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/retro_pad_l"
+            android:contentDescription="@string/universe_retro_button_l"
             style="@style/Widget.Missa.Button.Secondary"
             android:layout_width="@dimen/missa_retro_shoulder_btn_width"
             android:layout_height="@dimen/missa_retro_shoulder_btn_height"
@@ -142,6 +143,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/retro_pad_r"
+            android:contentDescription="@string/universe_retro_button_r"
             style="@style/Widget.Missa.Button.Secondary"
             android:layout_width="@dimen/missa_retro_shoulder_btn_width"
             android:layout_height="@dimen/missa_retro_shoulder_btn_height"
@@ -173,6 +175,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/retro_pad_select"
+            android:contentDescription="@string/universe_retro_button_select"
                 style="@style/Widget.Missa.Button.Secondary"
                 android:layout_width="wrap_content"
                 android:layout_height="@dimen/missa_pill_touch_height"
@@ -183,6 +186,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/retro_pad_start"
+            android:contentDescription="@string/universe_retro_button_start"
                 style="@style/Widget.Missa.Button.Secondary"
                 android:layout_width="wrap_content"
                 android:layout_height="@dimen/missa_pill_touch_height"
@@ -201,6 +205,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/retro_pad_x"
+            android:contentDescription="@string/universe_retro_button_x"
                 style="@style/Widget.Missa.Button.Secondary"
                 android:layout_width="@dimen/missa_retro_action_btn_size"
                 android:layout_height="@dimen/missa_retro_action_btn_size"
@@ -217,6 +222,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/retro_pad_y"
+            android:contentDescription="@string/universe_retro_button_y"
                 style="@style/Widget.Missa.Button.Secondary"
                 android:layout_width="@dimen/missa_retro_action_btn_size"
                 android:layout_height="@dimen/missa_retro_action_btn_size"
@@ -233,6 +239,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/retro_pad_a"
+            android:contentDescription="@string/universe_retro_button_a"
                 style="@style/Widget.Missa.Button.Primary"
                 android:layout_width="@dimen/missa_retro_action_btn_size"
                 android:layout_height="@dimen/missa_retro_action_btn_size"
@@ -249,6 +256,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/retro_pad_b"
+            android:contentDescription="@string/universe_retro_button_b"
                 style="@style/Widget.Missa.Button.Secondary"
                 android:layout_width="@dimen/missa_retro_action_btn_size"
                 android:layout_height="@dimen/missa_retro_action_btn_size"
