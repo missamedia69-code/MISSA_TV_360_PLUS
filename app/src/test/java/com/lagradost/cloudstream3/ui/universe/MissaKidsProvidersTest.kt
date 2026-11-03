@@ -60,6 +60,42 @@ class MissaKidsProvidersTest {
         assertFalse(MissaKidsProviders.isKidsSafe("   ", null))
     }
 
+    @Test
+    fun `blocklist and audience helpers split the strict and relaxed gates`() {
+        assertTrue(MissaKidsProviders.isBlockedForKids("Horror movie", "Scary Channel"))
+        assertFalse(MissaKidsProviders.isBlockedForKids("Comptines pour enfants", "Comptines TV"))
+        assertTrue(MissaKidsProviders.matchesKidsAudience("Comptines pour enfants", "Comptines TV"))
+        assertFalse(MissaKidsProviders.matchesKidsAudience("Vlog de voyage", "Travel"))
+        // isKidsSafe == "not blocked" AND "aimed at kids"
+        assertEquals(
+            MissaKidsProviders.isKidsSafe("Comptines pour enfants", "Comptines TV"),
+            !MissaKidsProviders.isBlockedForKids("Comptines pour enfants", "Comptines TV") &&
+                MissaKidsProviders.matchesKidsAudience("Comptines pour enfants", "Comptines TV")
+        )
+        assertEquals(
+            MissaKidsProviders.isKidsSafe("Horror movie", "Scary Channel"),
+            !MissaKidsProviders.isBlockedForKids("Horror movie", "Scary Channel") &&
+                MissaKidsProviders.matchesKidsAudience("Horror movie", "Scary Channel")
+        )
+        // A blank title is treated as blocked so it can never reach a Kids row.
+        assertTrue(MissaKidsProviders.isBlockedForKids("", null))
+    }
+
+    @Test
+    fun `planned queries keep their undecorated base query for the retry path`() {
+        val plan = MissaKidsProviders.buildKidsQueryPlan(Random(2024), fixedNow, 2)
+        assertTrue(plan.isNotEmpty())
+        for (query in plan) {
+            assertTrue(query.baseQuery.isNotBlank())
+            assertTrue(
+                "the decorated query must start with its base query: ${query.query}",
+                query.query.startsWith(query.baseQuery)
+            )
+        }
+        val plain = KidsQuery(KidsCategory.SONGS, "comptines pour enfants", "fr")
+        assertEquals("comptines pour enfants", plain.baseQuery)
+    }
+
     // endregion
 
     // region Duration windows

@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.util.Log
 import androidx.annotation.StringRes
 import com.lagradost.cloudstream3.R
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +28,8 @@ const val DIRECT_KIDS_API_NAME = "YouTube Kids"
 data class KidsQuery(
     val category: KidsCategory,
     val query: String,
-    val language: String
+    val language: String,
+    val baseQuery: String = query
 )
 
 /**
@@ -172,6 +174,15 @@ object MissaKidsProviders {
 
     const val PROVIDER_YOUTUBE_KIDS = DIRECT_KIDS_API_NAME
 
+    /** Logcat tag used to diagnose an empty Kids catalogue (`adb logcat -s MissaKids:*`). */
+    private const val TAG = "MissaKids"
+
+    /**
+     * Minimum number of videos a single query must keep after the strict child-safety gate.
+     * Below that, the blocklist-only results are appended instead of dropping the row.
+     */
+    private const val MIN_STRICT_RESULTS = 3
+
     /** Default number of YouTube discovery queries issued per category on a given launch. */
     const val QUERIES_PER_CATEGORY = 2
 
@@ -222,6 +233,20 @@ object MissaKidsProviders {
         return kidsPositiveRegex.containsMatchIn(context)
     }
 
+    /** Hard blocklist only (horror, weapons, news, betting, adult content). */
+    fun isBlockedForKids(rawTitle: String, rawChannel: String? = null): Boolean {
+        val context = "${rawTitle.trim()} ${rawChannel?.trim().orEmpty()}"
+        if (context.isBlank()) return true
+        return blockedKidsRegex.containsMatchIn(context)
+    }
+
+    /** Soft signal: does the video explicitly target a young audience? */
+    fun matchesKidsAudience(rawTitle: String, rawChannel: String? = null): Boolean {
+        val context = "${rawTitle.trim()} ${rawChannel?.trim().orEmpty()}"
+        if (context.isBlank()) return false
+        return kidsPositiveRegex.containsMatchIn(context)
+    }
+
     /** Duration window per category: songs stay short, full movies must be long-form. */
     fun isValidKidsDuration(durationSeconds: Long, category: KidsCategory): Boolean {
         if (durationSeconds <= 0L) return false
@@ -267,7 +292,8 @@ object MissaKidsProviders {
                     KidsQuery(
                         category = category,
                         query = decorateKidsQuery(baseQuery, language, random, nowMillis),
-                        language = language
+                        language = language,
+                        baseQuery = baseQuery
                     )
                 )
             }
@@ -328,6 +354,26 @@ object MissaKidsProviders {
     fun matchesKidsQuery(track: MusicTrackPreset, rawQuery: String): Boolean =
         MissaMusicProviders.matchesTrackQuery(track, rawQuery)
 
+    /**
+     * Runs one planned query. When the rotation variants (theme token / sliding window) return
+     * nothing on the current YouTube front-end, the plain base query is retried once so a row is
+     * never left empty just because of the freshness operator.
+     */
+    private suspend fun runKidsQuery(kidsQuery: KidsQuery): List<MusicTrackPreset> {
+        val decorated = searchYouTubeKidsVideos(
+            query = kidsQuery.query,
+            category = kidsQuery.category
+        )
+        if (decorated.isNotEmpty()) return decorated
+        val base = kidsQuery.baseQuery.trim()
+        if (base.isBlank() || base == kidsQuery.query.trim()) return emptyList()
+        Log.d(TAG, "no result with rotation variants, retrying plain query: '$base'")
+        return searchYouTubeKidsVideos(
+            query = base,
+            category = kidsQuery.category
+        )
+    }
+
     /** Groups a catalogue by row, preserving the editorial order of [KidsCategory]. */
     fun groupByCategory(videos: List<MusicTrackPreset>): LinkedHashMap<KidsCategory, List<MusicTrackPreset>> {
         val grouped = LinkedHashMap<KidsCategory, List<MusicTrackPreset>>()
@@ -371,11 +417,12 @@ object MissaKidsProviders {
                         )
                         extractor.fetchPage()
                         val items = extractor.initialPage.items
-                        val results = ArrayList<MusicTrackPreset>(maxResults)
+                        val strict = ArrayList<MusicTrackPreset>(maxResults)
+                        val relaxed = ArrayList<MusicTrackPreset>(maxResults)
                         val seenVideoIds = HashSet<String>()
 
                         for (infoItem in items) {
-                            if (results.size >= maxResults) break
+                            if (strict.size >= maxResults) break
                             val item = infoItem as? StreamInfoItem ?: continue
                             val streamType = item.streamType
                             if (streamType == StreamType.LIVE_STREAM ||
@@ -393,7 +440,7 @@ object MissaKidsProviders {
                             val rawTitle = item.name?.trim().orEmpty()
                             if (rawTitle.isEmpty()) continue
                             val rawChannel = runCatching { item.uploaderName }.getOrNull()
-                            if (!isKidsSafe(rawTitle, rawChannel)) continue
+                            if (isBlockedForKids(rawTitle, rawChannel)) continue
 
                             val videoId = MissaMusicProviders.extractYouTubeVideoId(item.url) ?: continue
                             if (!seenVideoIds.add(videoId)) continue
@@ -417,29 +464,53 @@ object MissaKidsProviders {
                                 .getOrDefault(-1L)
                                 .coerceAtLeast(0L)
 
-                            results.add(
-                                MusicTrackPreset(
-                                    id = "ytk_$videoId",
-                                    title = cleanTitle,
-                                    artist = cleanChannel,
-                                    album = "",
-                                    genre = category.id,
-                                    streamUrl = "${MissaMusicProviders.YT_MUSIC_LAZY_SCHEME}$videoId",
-                                    artworkUrl = thumb,
-                                    durationSeconds = durationSec.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-                                    providerName = PROVIDER_YOUTUBE_KIDS,
-                                    isPipedLazy = true,
-                                    isTrending = recency >= 60,
-                                    itemKind = MusicItemKind.CLIP,
-                                    recencyScore = recency,
-                                    viewCount = rawViewCount
-                                )
+                            val preset = MusicTrackPreset(
+                                id = "ytk_$videoId",
+                                title = cleanTitle,
+                                artist = cleanChannel,
+                                album = "",
+                                genre = category.id,
+                                streamUrl = "${MissaMusicProviders.YT_MUSIC_LAZY_SCHEME}$videoId",
+                                artworkUrl = thumb,
+                                durationSeconds = durationSec.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                                providerName = PROVIDER_YOUTUBE_KIDS,
+                                isPipedLazy = true,
+                                isTrending = recency >= 60,
+                                itemKind = MusicItemKind.CLIP,
+                                recencyScore = recency,
+                                viewCount = rawViewCount
                             )
+                            // Strict gate: blocked AND explicitly aimed at a young audience.
+                            // Relaxed gate: only the hard blocklist, used as a fallback when the
+                            // strict filter would otherwise empty the row.
+                            if (matchesKidsAudience(rawTitle, rawChannel)) {
+                                strict.add(preset)
+                            } else {
+                                relaxed.add(preset)
+                            }
                         }
-                        results
-                    }.getOrDefault(emptyList())
+
+                        val kept = if (strict.size >= MIN_STRICT_RESULTS) {
+                            strict
+                        } else {
+                            val alreadyKept = strict.mapTo(HashSet()) { it.id }
+                            (strict + relaxed.filter { it.id !in alreadyKept }).take(maxResults)
+                        }
+                        Log.d(
+                            TAG,
+                            "query='$cleanQuery' category=${category.id} scanned=${items.size} " +
+                                "strict=${strict.size} relaxed=${relaxed.size} kept=${kept.size}"
+                        )
+                        kept
+                    }.getOrElse { error ->
+                        Log.w(TAG, "query='$cleanQuery' failed: ${error.message}")
+                        emptyList()
+                    }
                 }
-            } ?: emptyList()
+            } ?: run {
+                Log.w(TAG, "query='$cleanQuery' timed out")
+                emptyList()
+            }
         }
     }
 
@@ -455,12 +526,7 @@ object MissaKidsProviders {
     ): List<MusicTrackPreset> = coroutineScope {
         if (plan.isEmpty()) return@coroutineScope emptyList()
         val jobs = plan.map { kidsQuery ->
-            async {
-                searchYouTubeKidsVideos(
-                    query = kidsQuery.query,
-                    category = kidsQuery.category
-                )
-            }
+            async { runKidsQuery(kidsQuery) }
         }
         val half = (jobs.size + 1) / 2
         val firstWave = ArrayList<MusicTrackPreset>()

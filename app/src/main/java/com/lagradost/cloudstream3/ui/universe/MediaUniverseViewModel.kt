@@ -380,9 +380,10 @@ class MediaUniverseViewModel : ViewModel() {
             hasActiveFilter: Boolean,
             isOffline: Boolean,
             hasError: Boolean,
-            activeProviderCount: Int
+            activeProviderCount: Int,
+            isDirectProviderLoading: Boolean = false
         ): UniverseEmptyReason? = when {
-            effectiveLoading || hasVisibleRows -> null
+            effectiveLoading || isDirectProviderLoading || hasVisibleRows -> null
             hasActiveFilter -> UniverseEmptyReason.EMPTY_SEARCH_OR_FILTER
             activeProviderCount == 0 -> null
             isOffline || hasError -> UniverseEmptyReason.OFFLINE_OR_ERROR
@@ -1457,7 +1458,12 @@ class MediaUniverseViewModel : ViewModel() {
         }
 
         val totalUniqueCount = allMatchingRows.flatMap { it.items }.distinctBy { it.url }.size
-        val effectiveLoading = snapshot.isLoading && visibleRows.isEmpty()
+        // A YouTube-only universe (Enfants) must not flash an "empty universe" card while its
+        // first catalogue is still downloading (KIDS-01).
+        val directProviderLoading = universeId == "kids" &&
+            visibleRows.isEmpty() &&
+            DirectKidsPlayerManager.isAwaitingFirstCatalogue()
+        val effectiveLoading = (snapshot.isLoading || directProviderLoading) && visibleRows.isEmpty()
 
         // Compute explicit empty/error reason without ever showing a plugin-missing card when no plugin is installed
         val hasActiveFilter = searchQuery.isNotBlank() ||
@@ -1469,7 +1475,8 @@ class MediaUniverseViewModel : ViewModel() {
             hasActiveFilter = hasActiveFilter,
             isOffline = snapshot.isOffline,
             hasError = snapshot.hasError,
-            activeProviderCount = snapshot.activeProviderCount
+            activeProviderCount = snapshot.activeProviderCount,
+            isDirectProviderLoading = directProviderLoading
         )
 
         val lastLiveUrl = if (universeId == "live_tv" || universeId == "sports") getLastLiveChannelUrl() else null

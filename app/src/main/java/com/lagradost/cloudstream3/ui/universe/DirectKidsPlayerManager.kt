@@ -125,6 +125,13 @@ object DirectKidsPlayerManager {
         return built
     }
 
+    /**
+     * `true` while the very first Kids catalogue of the process is still being fetched, so the
+     * universe can show the shimmer instead of an "empty universe" card (KIDS-01).
+     */
+    fun isAwaitingFirstCatalogue(): Boolean =
+        allPresetVideos().isEmpty() && (refreshInFlight || refreshJob?.isActive == true)
+
     /** Drops the cached rotation (called after a refresh so the new catalogue is re-rolled). */
     fun invalidateSelection() {
         selection = null
