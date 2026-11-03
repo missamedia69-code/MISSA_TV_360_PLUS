@@ -35,6 +35,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
 import com.lagradost.cloudstream3.ui.result.FOCUS_SELF
@@ -757,9 +758,33 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
     }
 
+    /** DOC-LIVE-01: a card that is a live stream (type, live platform url or live wording). */
+    private fun isLiveCard(card: SearchResponse): Boolean =
+        MediaUniverseClassifier.isDocumentaryLiveCandidate(
+            effectiveOrRawType = card.type,
+            title = card.name,
+            url = card.url
+        ) || MediaUniverseClassifier.isLiveStreamSignal(
+            effectiveOrRawType = card.type,
+            title = card.name,
+            url = card.url
+        )
+
+    /**
+     * Channel zapping targets: every channel of Live TV / Sports, and — DOC-LIVE-01 — the live
+     * row of the Documentaires & Live tab so the remote control behaves the same everywhere.
+     */
+    private fun liveZapTargets(): List<SearchResponse> {
+        val rows = lastProjection?.rows ?: return emptyList()
+        return when (universeId) {
+            "live_tv", "sports" -> rows.flatMap { it.items }
+            "documentaries" -> rows.filter { it.id == MissaCategory.DOCS_LIVE.id }.flatMap { it.items }
+            else -> emptyList()
+        }.distinctBy { it.url }
+    }
+
     private fun zapLiveChannel(delta: Int): Boolean {
-        if (universeId != "live_tv" && universeId != "sports") return false
-        val allChannels = lastProjection?.rows?.flatMap { it.items }?.distinctBy { it.url }.orEmpty()
+        val allChannels = liveZapTargets()
         if (allChannels.isEmpty()) return false
         val lastUrl = viewModel.getLastLiveChannelUrl()
         val currentIdx = allChannels.indexOfFirst { it.url == lastUrl }.let { if (it < 0) 0 else it }
@@ -1075,7 +1100,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             return
         }
         val preferred = viewModel.resolvePreferredCard(item, slide.allSources)
-        if (universeId == "live_tv" || universeId == "sports") {
+        if (universeId == "live_tv" || universeId == "sports" || isLiveCard(preferred)) {
             viewModel.recordLastLiveChannel(preferred)
         }
         activity?.loadSearchResult(preferred, START_ACTION_RESUME_LATEST)
@@ -1182,8 +1207,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
 
         if (callback.action == SEARCH_ACTION_SHOW_METADATA) {
-            // Long-press on Live TV / Sports toggles Favorite channel (FLOW-02)
-            if (universeId == "live_tv" || universeId == "sports") {
+            // Long-press on Live TV / Sports / Documentaires & Live toggles Favorite channel (FLOW-02)
+            if (universeId == "live_tv" || universeId == "sports" || isLiveCard(card)) {
                 val nowFav = viewModel.toggleFavoriteLiveChannel(card.url)
                 Toast.makeText(
                     requireContext(),
@@ -1218,10 +1243,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         val def = MissaUniverses.byId(universeId)
         val preferred = viewModel.resolvePreferredCard(card)
         if (callback.action == SEARCH_ACTION_LOAD &&
-            def.directPlayOnClick &&
+            (def.directPlayOnClick || isLiveCard(card)) &&
             card !is DataStoreHelper.ResumeWatchingResult
         ) {
-            if (universeId == "live_tv" || universeId == "sports") {
+            if (universeId == "live_tv" || universeId == "sports" || isLiveCard(card)) {
                 viewModel.recordLastLiveChannel(preferred)
             }
             activity?.loadSearchResult(preferred, START_ACTION_RESUME_LATEST)

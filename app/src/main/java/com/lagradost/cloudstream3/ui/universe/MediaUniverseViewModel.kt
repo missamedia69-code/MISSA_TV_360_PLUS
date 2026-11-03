@@ -1211,13 +1211,24 @@ class MediaUniverseViewModel : ViewModel() {
         }
 
         for (entry in sourceFilteredEntries) {
+            val entryUrl = entry.primary.url
+            // DOC-LIVE-01: live channels & streams detected in plugin feeds (url, section, tags)
+            // even when the plugin never stamped TvType.Live on the item.
+            val entryIsLive = MediaUniverseClassifier.isLiveStreamSignal(
+                effectiveOrRawType = entry.effectiveType ?: entry.primary.type,
+                title = entry.primary.name,
+                sectionName = entry.sectionHints.joinToString(" "),
+                tags = entry.details?.tags ?: entry.cachedTags,
+                url = entryUrl
+            )
             val categories = MediaUniverseClassifier.categorizeForUniverse(
                 universeId = universeId,
                 title = entry.primary.name,
                 sectionName = entry.sectionHints.joinToString(" "),
                 tags = entry.details?.tags ?: entry.cachedTags,
                 effectiveType = entry.effectiveType,
-                durationMinutes = entry.details?.duration ?: entry.cachedDuration
+                durationMinutes = entry.details?.duration ?: entry.cachedDuration,
+                url = entryUrl
             )
             for (cat in categories) {
                 val bucket = buckets.getOrPut(cat.id) {
@@ -1233,6 +1244,8 @@ class MediaUniverseViewModel : ViewModel() {
                 }
                 if (definition.isHorizontalCards ||
                     cat == MissaCategory.HOME_LIVE ||
+                    cat == MissaCategory.DOCS_LIVE ||
+                    entryIsLive ||
                     entry.effectiveType == TvType.Live
                 ) {
                     bucket.isHorizontal = true
