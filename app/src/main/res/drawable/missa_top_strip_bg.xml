@@ -2,72 +2,101 @@
 <!--
     Background of the MISSA TV 360 PLUS top navigation strip (NAV-01, THEME-01, A11Y-01).
 
-    Replaces the flat `?attr/primaryBlackBackground` behind the universe pill bar with the
-    "amber / emerald horizon" design: a warm brand glow on the left, a cool navigation glow on
-    the right, a soft bottom scrim and a 2dp emerald hairline that separates the bar from the
-    content below.
+    "Horizon ambre / émeraude": a warm brand glow on the left, a cool navigation glow on the
+    right, a soft top sheen, a bottom scrim and a hairline that separates the bar from the page.
 
-    Everything is drawn with gradients so the strip stays crisp on any TV resolution, and the
-    base layer follows the active theme (`?attr/primaryBlackBackground`) so the light themes are
-    still supported. All glows are low-opacity: white pill labels keep a contrast ratio well
-    above 4.5:1.
+    Anti-banding (THEME-06): on 8-bit TV panels a long alpha ramp shows visible steps
+    ("coupures"). Three measures keep the ramp smooth:
+      1. every glow is a 3-stop ramp with a low peak alpha, so the number of levels to spread is
+         small in the first place;
+      2. the vertical sheen lifts the surface so the AMOLED/black theme is no longer a pure
+         #000000 void where steps are the most visible;
+      3. a zero-mean dither tile (missa_dither_noise, 128x128, ~5 KB, tiled) is drawn on top: it
+         breaks the 8-bit steps without changing the average luminance of the surface.
+
+    Everything else is pure vector/gradient so the strip stays crisp at any resolution, and the
+    base layer follows the active theme (?attr/primaryBlackBackground) so every theme (dark,
+    AMOLED, light, dynamic) keeps working. Glows stay low-opacity: white pill labels keep a
+    contrast ratio far above the 4.5:1 AA threshold.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 1. Theme-aware base (dark graphite in dark themes, light grey in light themes) -->
+    <!-- 1. Theme-aware base (black on AMOLED, #111111 on dark, light grey on light themes) -->
     <item>
         <shape android:shape="rectangle">
             <solid android:color="?attr/primaryBlackBackground" />
         </shape>
     </item>
 
-    <!-- 2. Warm MISSA amber glow, fading in from the left edge -->
-    <item android:alpha="0.20">
+    <!-- 2. Vertical sheen: lifts the bar off the void and shades it towards the content -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:centerColor="#08FFFFFF"
+                android:centerY="0.55"
+                android:endColor="#00FFFFFF"
+                android:startColor="#17FFFFFF"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 3. Warm MISSA amber glow fading in from the left edge (3-stop ramp) -->
+    <item android:alpha="0.18">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="0"
-                android:centerColor="@android:color/transparent"
-                android:centerX="0.34"
+                android:centerColor="#40FFC12E"
+                android:centerX="0.26"
                 android:endColor="@android:color/transparent"
                 android:startColor="@color/missaTopStripAmber"
                 android:type="linear" />
         </shape>
     </item>
 
-    <!-- 3. Cool navigation emerald glow, fading in from the right edge -->
-    <item android:alpha="0.18">
+    <!-- 4. Cool navigation emerald glow fading in from the right edge (3-stop ramp) -->
+    <item android:alpha="0.17">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="180"
-                android:centerColor="@android:color/transparent"
-                android:centerX="0.34"
+                android:centerColor="#332FD37A"
+                android:centerX="0.26"
                 android:endColor="@android:color/transparent"
                 android:startColor="@color/missaTopStripEmerald"
                 android:type="linear" />
         </shape>
     </item>
 
-    <!-- 4. Bottom scrim: anchors the bar and shades the content scrolling underneath -->
+    <!-- 5. Bottom scrim: anchors the bar over the content scrolling underneath -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
                 android:centerColor="#0F000000"
-                android:endColor="#3D000000"
+                android:endColor="#42000000"
                 android:startColor="@android:color/transparent"
                 android:type="linear" />
         </shape>
     </item>
 
-    <!-- 5. Emerald hairline: subliminal separation between the bar and the page -->
+    <!-- 6. Zero-mean dither tile: removes the 8-bit steps of the ramps above -->
+    <item>
+        <bitmap
+            android:src="@drawable/missa_dither_noise"
+            android:tileMode="repeat" />
+    </item>
+
+    <!-- 7. Emerald hairline, faded at both ends so it never reads as a hard cut -->
     <item
         android:gravity="bottom"
         android:height="2dp">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="0"
-                android:endColor="#732FD37A"
-                android:startColor="#0A2FD37A"
+                android:centerColor="#592FD37A"
+                android:centerX="0.6"
+                android:endColor="#002FD37A"
+                android:startColor="#052FD37A"
                 android:type="linear" />
         </shape>
     </item>

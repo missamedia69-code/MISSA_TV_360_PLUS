@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Bundle
 import android.util.AttributeSet
@@ -1724,6 +1725,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             logError(t)
         }
 
+        // THEME-06: keep a 32-bit window surface. Some TV boxes still hand out an RGB_565
+        // surface, which quantises the top-strip gradients into visible steps ("coupures").
+        window.setFormat(PixelFormat.RGBA_8888)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         updateTv()
 
