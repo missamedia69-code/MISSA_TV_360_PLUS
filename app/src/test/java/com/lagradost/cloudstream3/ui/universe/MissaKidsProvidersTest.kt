@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.ui.universe
 import com.lagradost.cloudstream3.TvType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.random.Random
@@ -269,7 +270,8 @@ class MissaKidsProvidersTest {
         assertEquals(video.artworkUrl, card.posterUrl)
         assertEquals(video.streamUrl, card.url)
         // KIDS-02: a Kids card must never be a music card, otherwise the audio player opens.
-        assertFalse(card is DirectMusicSearchResponse)
+        assertNotEquals(DirectMusicSearchResponse::class.java, card.javaClass)
+        assertEquals(DirectKidsSearchResponse::class.java, card.javaClass)
     }
 
     @Test
