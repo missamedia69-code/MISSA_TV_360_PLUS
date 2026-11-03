@@ -1069,6 +1069,11 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
             return
         }
+        // KIDS-02: Kids hero titles play as videos in the standard player.
+        if (item is DirectKidsSearchResponse) {
+            activity?.let { DirectKidsPlayerManager.playDirectResponse(it, item) }
+            return
+        }
         val preferred = viewModel.resolvePreferredCard(item, slide.allSources)
         if (universeId == "live_tv" || universeId == "sports") {
             viewModel.recordLastLiveChannel(preferred)
@@ -1085,6 +1090,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
         if (item is DirectMusicSearchResponse) {
             DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
+            return
+        }
+        if (item is DirectKidsSearchResponse) {
+            activity?.let { DirectKidsPlayerManager.playDirectResponse(it, item) }
             return
         }
         val preferred = viewModel.resolvePreferredCard(item, slide.allSources)
@@ -1111,6 +1120,11 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         if (card is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), card)
+            return
+        }
+
+        if (card is DirectKidsSearchResponse) {
+            activity?.let { DirectKidsPlayerManager.playDirectResponse(it, card) }
             return
         }
 

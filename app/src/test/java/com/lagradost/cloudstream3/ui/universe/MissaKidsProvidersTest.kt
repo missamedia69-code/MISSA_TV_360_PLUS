@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import com.lagradost.cloudstream3.TvType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -247,6 +248,81 @@ class MissaKidsProvidersTest {
         assertEquals(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS, track.providerName)
         assertTrue(MissaMusicProviders.isLazyYouTubeAudioScheme(track.streamUrl))
         assertEquals("Comptine test", track.title)
+    }
+
+    @Test
+    fun `kids cards are video first and never music cards`() {
+        val video = preset(
+            id = "ytk_abcdefghijk",
+            title = "Comptine test",
+            artist = "Comptines TV",
+            genre = KidsCategory.SONGS.id,
+            recency = 80
+        )
+        val card = MissaKidsProviders.toKidsSearchResponse(video)
+        assertEquals("Comptines TV — Comptine test", card.name)
+        assertEquals(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS, card.apiName)
+        assertEquals(TvType.Cartoon, card.type)
+        assertEquals(KidsCategory.SONGS.id, card.categoryId)
+        assertEquals("abcdefghijk", card.videoId)
+        assertEquals("Comptines TV", card.channel)
+        assertEquals(video.artworkUrl, card.posterUrl)
+        assertEquals(video.streamUrl, card.url)
+        // KIDS-02: a Kids card must never be a music card, otherwise the audio player opens.
+        assertFalse(card is DirectMusicSearchResponse)
+    }
+
+    @Test
+    fun `kids card duration is formatted for the hero banner`() {
+        val short = MissaKidsProviders.toKidsSearchResponse(preset("ytk_1", "Court"))
+        assertEquals("02:00", short.formattedDuration())
+        val long = MissaKidsProviders.toKidsSearchResponse(
+            preset("ytk_2", "Long").copy(durationSeconds = 5_430)
+        )
+        assertEquals("1:30:30", long.formattedDuration())
+        val unknown = MissaKidsProviders.toKidsSearchResponse(
+            preset("ytk_3", "Inconnu").copy(durationSeconds = 0)
+        )
+        assertEquals(null, unknown.formattedDuration())
+    }
+
+    @Test
+    fun `playback url prefers progressive muxed video over hls and audio`() {
+        val full = MissaMusicProviders.ResolvedYouTubeMedia(
+            audioUrls = listOf("audio"),
+            muxedVideoUrl = "muxed",
+            hlsVideoUrl = "hls",
+            videoOnlyUrl = "videoOnly"
+        )
+        assertEquals("muxed", DirectKidsPlayerManager.pickBestVideoUrl(full))
+        assertEquals("hls", DirectKidsPlayerManager.pickBestVideoUrl(full.copy(muxedVideoUrl = null)))
+        assertEquals(
+            "videoOnly",
+            DirectKidsPlayerManager.pickBestVideoUrl(
+                full.copy(muxedVideoUrl = null, hlsVideoUrl = null)
+            )
+        )
+        // Last resort: audio only, so the Kids card still plays something.
+        assertEquals(
+            "audio",
+            DirectKidsPlayerManager.pickBestVideoUrl(
+                full.copy(muxedVideoUrl = null, hlsVideoUrl = null, videoOnlyUrl = null)
+            )
+        )
+        val candidatesOnly = MissaMusicProviders.ResolvedYouTubeMedia(
+            audioUrls = emptyList(),
+            videoCandidates = listOf(
+                MissaMusicProviders.VideoClipCandidate(
+                    MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE,
+                    "hlsCandidate"
+                ),
+                MissaMusicProviders.VideoClipCandidate(
+                    MissaMusicProviders.VideoClipSourceKind.MUXED_PROGRESSIVE,
+                    "muxedCandidate"
+                )
+            )
+        )
+        assertEquals("muxedCandidate", DirectKidsPlayerManager.pickBestVideoUrl(candidatesOnly))
     }
 
     // endregion

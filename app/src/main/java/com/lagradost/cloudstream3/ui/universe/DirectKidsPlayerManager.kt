@@ -1,7 +1,11 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.app.Activity
+import android.widget.Toast
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.ui.player.OfflinePlaybackHelper
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import kotlinx.coroutines.CoroutineScope
@@ -9,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -205,6 +210,8 @@ object DirectKidsPlayerManager {
                     setKey(REMOTE_UPDATED_AT_KEY, System.currentTimeMillis())
                 }
                 _videosUpdated.postValue(System.currentTimeMillis())
+                // Warm up the first streams so the very first tap plays instantly (KIDS-03).
+                prefetchTopVideos(count = 2)
             }
         } finally {
             refreshInFlight = false
@@ -217,6 +224,103 @@ object DirectKidsPlayerManager {
         refreshJob = ioScope.launch {
             refreshRemoteVideosIfNeeded(force = true)
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Playback (KIDS-02): Kids content is video-first, never routed to the audio player
+    // -------------------------------------------------------------------------
+
+    /**
+     * Resolves the best playable YouTube url for a Kids card: progressive muxed (audio+video)
+     * first, then HLS, then video-only, and finally audio-only as a last resort.
+     */
+    suspend fun resolvePlayableVideoUrl(card: DirectKidsSearchResponse): String? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val media = MissaMusicProviders.resolvePlayableYouTubeMedia(card.url, emptyList())
+                pickBestVideoUrl(media)
+            }.getOrNull()
+        }
+
+    internal fun pickBestVideoUrl(media: MissaMusicProviders.ResolvedYouTubeMedia): String? {
+        val muxed = media.videoCandidates
+            .firstOrNull { it.kind == MissaMusicProviders.VideoClipSourceKind.MUXED_PROGRESSIVE }
+            ?.url
+        val hls = media.videoCandidates
+            .firstOrNull { it.kind == MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE }
+            ?.url
+        return media.muxedVideoUrl
+            ?: muxed
+            ?: media.hlsVideoUrl
+            ?: hls
+            ?: media.videoOnlyUrl
+            ?: media.audioUrls.firstOrNull()
+    }
+
+    /**
+     * Opens a Kids video in the full video player. Resolution happens on IO; a short toast is
+     * shown while YouTube streams are extracted, then the player is pushed on the nav stack.
+     */
+    fun playDirectResponse(activity: Activity, card: DirectKidsSearchResponse) {
+        Toast.makeText(
+            activity,
+            activity.getString(R.string.missa_kids_opening_video),
+            Toast.LENGTH_SHORT
+        ).show()
+        ioScope.launch {
+            val url = resolvePlayableVideoUrl(card)
+            withContext(Dispatchers.Main) {
+                if (url.isNullOrBlank()) {
+                    Toast.makeText(
+                        activity,
+                        activity.getString(R.string.missa_kids_playback_error),
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    OfflinePlaybackHelper.playMedia(activity, url, card.name)
+                }
+            }
+        }
+    }
+
+    /** Resolves the first [count] streams in the background so playback starts instantly. */
+    fun prefetchTopVideos(count: Int = 2) {
+        val top = currentSelection().all.take(count)
+        if (top.isEmpty()) return
+        ioScope.launch {
+            for (video in top) {
+                runCatching {
+                    resolvePlayableVideoUrl(MissaKidsProviders.toKidsSearchResponse(video))
+                }
+            }
+        }
+    }
+
+    /**
+     * Highlights a few titles the way Films & Mangas does: one per row first (so the banner
+     * mixes a nursery rhyme, a cartoon, a family movie…), then completed from the whole
+     * selection. The order follows the per-launch rotation (FRESH-01).
+     */
+    fun heroVideos(max: Int = 5): List<MusicTrackPreset> {
+        val selection = currentSelection()
+        if (selection.all.isEmpty()) return emptyList()
+        val picked = ArrayList<MusicTrackPreset>(max)
+        val seenIds = HashSet<String>()
+        for (items in selection.rows.values) {
+            val first = items.firstOrNull { it.id !in seenIds } ?: continue
+            picked.add(first)
+            seenIds.add(first.id)
+            if (picked.size >= max) break
+        }
+        if (picked.size < max) {
+            for (video in selection.all) {
+                if (video.id in seenIds) continue
+                picked.add(video)
+                seenIds.add(video.id)
+                if (picked.size >= max) break
+            }
+        }
+        return picked.sortedByDescending { !it.artworkUrl.isNullOrBlank() }.take(max)
     }
 
     // -------------------------------------------------------------------------

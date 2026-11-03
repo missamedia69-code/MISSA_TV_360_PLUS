@@ -1007,7 +1007,8 @@ class MediaUniverseViewModel : ViewModel() {
                         rowTitle = resultsTitle,
                         chipLabel = resultsTitle,
                         rank = 1,
-                        items = kidsSearchResults.map { it.toSearchResponse() }.toMutableList(),
+                        items = kidsSearchResults.map { MissaKidsProviders.toKidsSearchResponse(it) }
+                            .toMutableList(),
                         isHorizontal = false
                     )
                 }
@@ -1020,7 +1021,7 @@ class MediaUniverseViewModel : ViewModel() {
                         rowTitle = resolveStr(ctx, category.rowTitleRes, category.id),
                         chipLabel = resolveStr(ctx, category.chipLabelRes, category.id),
                         rank = category.editorialRank,
-                        items = items.map { it.toSearchResponse() }.toMutableList(),
+                        items = items.map { MissaKidsProviders.toKidsSearchResponse(it) }.toMutableList(),
                         isHorizontal = false
                     )
                 }
@@ -1030,7 +1031,8 @@ class MediaUniverseViewModel : ViewModel() {
                         rowTitle = resolveStr(ctx, R.string.missa_cat_kids_all, "kids_all"),
                         chipLabel = resolveStr(ctx, R.string.missa_chip_kids_all, "kids_all"),
                         rank = 900,
-                        items = selection.all.map { it.toSearchResponse() }.toMutableList(),
+                        items = selection.all.map { MissaKidsProviders.toKidsSearchResponse(it) }
+                            .toMutableList(),
                         isHorizontal = false
                     )
                 }
@@ -1545,6 +1547,32 @@ class MediaUniverseViewModel : ViewModel() {
                     tags = listOf(station.country).filter { it.isNotBlank() },
                     isDirectStream = true
                 )
+            }
+        }
+
+        // KIDS-02: the Enfants universe highlights a few rotated titles in a hero banner, the
+        // same way Films & Mangas does, instead of opening on a flat list of rows.
+        if (universeId == "kids") {
+            val heroKids = DirectKidsPlayerManager.heroVideos(max = 5)
+            if (heroKids.isNotEmpty()) {
+                return heroKids.map { video ->
+                    val resp = MissaKidsProviders.toKidsSearchResponse(video)
+                    val categoryLabel = KidsCategory.byId(video.genre)?.let {
+                        resolveStr(ctx, it.chipLabelRes, it.id)
+                    }
+                    HeroBannerSlide(
+                        card = resp,
+                        details = null,
+                        allSources = listOf(resp),
+                        eyebrow = eyebrowText,
+                        plot = video.artist.takeIf { it.isNotBlank() },
+                        yearText = resp.apiName,
+                        durationText = resp.formattedDuration(),
+                        scoreText = null,
+                        tags = listOfNotNull(categoryLabel),
+                        isDirectStream = true
+                    )
+                }
             }
         }
 

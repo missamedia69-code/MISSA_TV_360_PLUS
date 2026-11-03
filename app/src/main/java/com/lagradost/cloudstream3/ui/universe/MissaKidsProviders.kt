@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.ui.universe
 import android.util.Log
 import androidx.annotation.StringRes
 import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.TvType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -349,6 +350,30 @@ object MissaKidsProviders {
         }
         return merged
     }
+
+    /**
+     * Maps a YouTube Kids preset to the video-first card used by the Enfants universe.
+     *
+     * KIDS-02: the card is a [DirectKidsSearchResponse] so a tap opens the standard video
+     * player instead of the Musiques audio player.
+     */
+    fun toKidsSearchResponse(video: MusicTrackPreset): DirectKidsSearchResponse =
+        DirectKidsSearchResponse(
+            name = video.displayLabel(),
+            url = video.streamUrl,
+            apiName = video.providerName.ifBlank { PROVIDER_YOUTUBE_KIDS },
+            type = TvType.Cartoon,
+            posterUrl = video.artworkUrl,
+            videoId = extractVideoId(video.streamUrl),
+            channel = video.artist,
+            categoryId = video.genre,
+            durationSeconds = video.durationSeconds,
+            artworkUrl = video.artworkUrl
+        )
+
+    /** Video id carried by a lazy (`ytmusic://<id>`) or plain YouTube url. */
+    internal fun extractVideoId(rawUrl: String): String =
+        MissaMusicProviders.extractYouTubeVideoId(rawUrl).orEmpty()
 
     /** Local (offline) match used by the in-universe kids search field. */
     fun matchesKidsQuery(track: MusicTrackPreset, rawQuery: String): Boolean =

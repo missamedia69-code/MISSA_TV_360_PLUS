@@ -896,6 +896,8 @@
     <string name="missa_searching_sources_progress">%1$d/%2$d sources interrogées</string>
     <string name="missa_searching_music_youtube">Recherche audio YouTube &amp; serveurs musicaux pour « %1$s »…</string>
     <string name="missa_searching_kids_youtube">Recherche YouTube Kids pour « %1$s »…</string>
+    <string name="missa_kids_opening_video">Ouverture de la vidéo…</string>
+    <string name="missa_kids_playback_error">Lecture impossible. Vérifiez votre connexion puis réessayez.</string>
     <string name="missa_updated_just_now">Mis à jour à l’instant</string>
     <string name="missa_updated_minutes_ago">Mis à jour il y a %1$d min</string>
     <string name="missa_data_saver_badge">Éco données</string>

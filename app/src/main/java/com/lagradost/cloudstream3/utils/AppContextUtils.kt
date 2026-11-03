@@ -47,6 +47,8 @@ import androidx.tvprovider.media.tv.TvContractCompat
 import androidx.tvprovider.media.tv.WatchNextProgram
 import androidx.tvprovider.media.tv.WatchNextProgram.fromCursor
 import androidx.viewpager2.widget.ViewPager2
+import com.lagradost.cloudstream3.ui.universe.DirectKidsPlayerManager
+import com.lagradost.cloudstream3.ui.universe.DirectKidsSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
@@ -766,6 +768,11 @@ object AppContextUtils {
         }
         if (card is DirectRadioSearchResponse) {
             this?.let { DirectRadioPlayerManager.playDirectResponse(it, card) }
+            return
+        }
+        // KIDS-02: Kids content is video — open the standard video player, never the audio one.
+        if (card is DirectKidsSearchResponse) {
+            this?.let { DirectKidsPlayerManager.playDirectResponse(it, card) }
             return
         }
         this?.runOnUiThread {

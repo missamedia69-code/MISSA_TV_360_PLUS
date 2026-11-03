@@ -940,6 +940,8 @@
     <string name="missa_searching_sources_progress">%1$d/%2$d sources queried</string>
     <string name="missa_searching_music_youtube">Searching YouTube Audio &amp; music servers for "%1$s"…</string>
     <string name="missa_searching_kids_youtube">Searching YouTube Kids for "%1$s"…</string>
+    <string name="missa_kids_opening_video">Opening the video…</string>
+    <string name="missa_kids_playback_error">Unable to play this video. Check your connection and try again.</string>
     <string name="missa_updated_just_now">Updated just now</string>
     <string name="missa_updated_minutes_ago">Updated %1$d min ago</string>
     <string name="missa_data_saver_badge">Data Saver</string>
