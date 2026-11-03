@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Background of the MISSA TV 360 PLUS top navigation strip (NAV-01, THEME-01, A11Y-01).
+
+    Replaces the flat `?attr/primaryBlackBackground` behind the universe pill bar with the
+    "amber / emerald horizon" design: a warm brand glow on the left, a cool navigation glow on
+    the right, a soft bottom scrim and a 2dp emerald hairline that separates the bar from the
+    content below.
+
+    Everything is drawn with gradients so the strip stays crisp on any TV resolution, and the
+    base layer follows the active theme (`?attr/primaryBlackBackground`) so the light themes are
+    still supported. All glows are low-opacity: white pill labels keep a contrast ratio well
+    above 4.5:1.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 1. Theme-aware base (dark graphite in dark themes, light grey in light themes) -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/primaryBlackBackground" />
+        </shape>
+    </item>
+
+    <!-- 2. Warm MISSA amber glow, fading in from the left edge -->
+    <item android:alpha="0.20">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:centerColor="@android:color/transparent"
+                android:centerX="0.34"
+                android:endColor="@android:color/transparent"
+                android:startColor="@color/missaTopStripAmber"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 3. Cool navigation emerald glow, fading in from the right edge -->
+    <item android:alpha="0.18">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="180"
+                android:centerColor="@android:color/transparent"
+                android:centerX="0.34"
+                android:endColor="@android:color/transparent"
+                android:startColor="@color/missaTopStripEmerald"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 4. Bottom scrim: anchors the bar and shades the content scrolling underneath -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:centerColor="#0F000000"
+                android:endColor="#3D000000"
+                android:startColor="@android:color/transparent"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 5. Emerald hairline: subliminal separation between the bar and the page -->
+    <item
+        android:gravity="bottom"
+        android:height="2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:endColor="#732FD37A"
+                android:startColor="#0A2FD37A"
+                android:type="linear" />
+        </shape>
+    </item>
+
+</layer-list>

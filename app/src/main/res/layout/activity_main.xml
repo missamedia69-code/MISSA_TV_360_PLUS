@@ -17,7 +17,7 @@
             android:id="@+id/missa_top_shell"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:background="?attr/primaryBlackBackground"
+            android:background="@drawable/missa_top_strip_bg"
             android:orientation="vertical"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

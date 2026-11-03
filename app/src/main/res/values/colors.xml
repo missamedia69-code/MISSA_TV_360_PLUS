@@ -133,6 +133,9 @@
          Dark: #2FD37A reads 10.7:1 on black. Light: #067034 reads 5.7:1 on #F2F4F7
          and 6.2:1 on white, so the 3dp cursor stays crisp on light pages. -->
     <color name="missaGreenNavigation">#2FD37A</color>
+    <!-- MISSA top navigation strip background (NAV-01 / THEME-01) -->
+    <color name="missaTopStripAmber">#FFC12E</color>
+    <color name="missaTopStripEmerald">#2FD37A</color>
     <color name="missaGreenNavigationLight">#067034</color>
     <color name="missaOnAccentNavigationLight">#FFFFFF</color>
     <color name="missaBadge360Bg">#009E49</color>
