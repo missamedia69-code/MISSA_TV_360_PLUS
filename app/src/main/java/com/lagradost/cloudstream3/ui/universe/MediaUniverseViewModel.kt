@@ -400,6 +400,10 @@ class MediaUniverseViewModel : ViewModel() {
     private var catalogJob: Job? = null
     private var lastLoadedProviderSignature: String = ""
 
+    /** Launch seed already used to re-roll the Musiques rows (FRESH-01). */
+    @Volatile
+    private var musicRotationLaunchSeed: Long = Long.MIN_VALUE
+
     private val onPluginsLoadedListener: (Boolean) -> Unit = { force ->
         ensureCatalogLoaded(forceReload = force)
     }
@@ -418,11 +422,17 @@ class MediaUniverseViewModel : ViewModel() {
         MainActivity.mainPluginsLoadedEvent += onMainPluginsLoadedListener
         MainActivity.reloadHomeEvent += onReloadHomeListener
         MainActivity.bookmarksUpdatedEvent += onBookmarksUpdatedListener
+        // FRESH-01: the very first refresh of a process bypasses the disk cache so every
+        // YouTube-powered surface (Enfants + Musiques) renews itself at each app launch.
+        val forceYouTubeRefresh = MissaCatalogRotation.consumeLaunchRefreshTicket()
         viewModelScope.launch {
             DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
         }
         viewModelScope.launch {
-            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
+            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded(force = forceYouTubeRefresh)
+        }
+        viewModelScope.launch {
+            DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = forceYouTubeRefresh)
         }
         hydrateDiskCacheAndLoad()
     }
@@ -562,11 +572,16 @@ class MediaUniverseViewModel : ViewModel() {
     fun ensureCatalogLoaded(forceReload: Boolean = false) {
         if (forceReload) {
             frozenHeroKeysByUniverse.clear()
+            // Force the next projection to re-roll the promoted YouTube cards (FRESH-01).
+            musicRotationLaunchSeed = Long.MIN_VALUE
             viewModelScope.launch {
                 DirectRadioPlayerManager.refreshRemotePresetsIfNeeded(force = true)
             }
             viewModelScope.launch {
                 DirectMusicPlayerManager.refreshRemoteTracksIfNeeded(force = true)
+            }
+            viewModelScope.launch {
+                DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
             }
         }
         val current = _catalogSnapshot.value ?: UnifiedCatalogSnapshot()
@@ -847,8 +862,9 @@ class MediaUniverseViewModel : ViewModel() {
         val baseSourceEntries = overrideEntries ?: snapshot.entries
 
         // Match entries belonging to this universe + filter local query if overrideEntries not provided.
-        // "music" is 100% exclusively powered by YouTube (DirectMusicPlayerManager) — zero plugin entries.
-        val universeEntries = if (universeId == "music") {
+        // "music" is 100% exclusively powered by YouTube (DirectMusicPlayerManager) and "kids" is
+        // 100% exclusively powered by YouTube Kids (DirectKidsPlayerManager) — zero plugin entries.
+        val universeEntries = if (universeId == "music" || universeId == "kids") {
             emptyList()
         } else {
             baseSourceEntries.filter { entry ->
@@ -866,13 +882,14 @@ class MediaUniverseViewModel : ViewModel() {
             "radio" -> DirectRadioPlayerManager.allPresetStations()
                 .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
             "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
+            "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
             else -> emptyList()
         }
 
-        val availableSources = if (universeId == "music") {
-            listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
-        } else {
-            (
+        val availableSources = when (universeId) {
+            "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
+            "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
+            else -> (
                 (overrideEntries ?: snapshot.entries)
                     .filter { universeId == "home" || it.universes.contains(universeId) }
                     .flatMap { entry -> entry.sources.map { it.apiName } } +
@@ -952,6 +969,69 @@ class MediaUniverseViewModel : ViewModel() {
                     if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
                         bucket.items.add(resp)
                     }
+                }
+            }
+        }
+
+        // Dedicated 100%-YouTube Kids universe (KIDS-01): YouTube is the single source of the
+        // Enfants universe, and the selection is re-rolled on every launch (FRESH-01).
+        if (universeId == "kids") {
+            val kidsSearchHits = if (searchQuery.isNotBlank()) {
+                DirectKidsPlayerManager.getOnlineSearchResults(searchQuery)
+            } else {
+                emptyList()
+            }
+            val localKidsMatches = if (searchQuery.isNotBlank()) {
+                DirectKidsPlayerManager.allPresetVideos()
+                    .filter { MissaKidsProviders.matchesKidsQuery(it, searchQuery) }
+            } else {
+                emptyList()
+            }
+            val kidsSearchResults = (kidsSearchHits + localKidsMatches)
+                .distinctBy { it.id }
+                .filter { video ->
+                    normalizedSelectedSources.isEmpty() ||
+                        video.providerName.ifBlank { DIRECT_KIDS_API_NAME }
+                            .lowercase(Locale.ROOT) in normalizedSelectedSources
+                }
+
+            if (searchQuery.isNotBlank()) {
+                if (kidsSearchResults.isNotEmpty()) {
+                    val resultsTitle = ctx?.getString(
+                        R.string.universe_search_results_for,
+                        searchQuery.trim()
+                    ) ?: searchQuery.trim()
+                    buckets["kids_search_results"] = BucketData(
+                        key = "kids_search_results",
+                        rowTitle = resultsTitle,
+                        chipLabel = resultsTitle,
+                        rank = 1,
+                        items = kidsSearchResults.map { it.toSearchResponse() }.toMutableList(),
+                        isHorizontal = false
+                    )
+                }
+            } else {
+                val selection = DirectKidsPlayerManager.currentSelection()
+                for ((category, items) in selection.rows) {
+                    if (items.isEmpty()) continue
+                    buckets[category.id] = BucketData(
+                        key = category.id,
+                        rowTitle = resolveStr(ctx, category.rowTitleRes, category.id),
+                        chipLabel = resolveStr(ctx, category.chipLabelRes, category.id),
+                        rank = category.editorialRank,
+                        items = items.map { it.toSearchResponse() }.toMutableList(),
+                        isHorizontal = false
+                    )
+                }
+                if (selection.all.isNotEmpty()) {
+                    buckets["kids_all"] = BucketData(
+                        key = "kids_all",
+                        rowTitle = resolveStr(ctx, R.string.missa_cat_kids_all, "kids_all"),
+                        chipLabel = resolveStr(ctx, R.string.missa_chip_kids_all, "kids_all"),
+                        rank = 900,
+                        items = selection.all.map { it.toSearchResponse() }.toMutableList(),
+                        isHorizontal = false
+                    )
                 }
             }
         }
@@ -1037,6 +1117,30 @@ class MediaUniverseViewModel : ViewModel() {
                     }
                 }
             }
+            // FRESH-01: re-roll the promoted YouTube cards once per app launch so the Musiques
+            // rows never open twice in a row on the very same clips.
+            val musicLaunchSeed = MissaCatalogRotation.currentLaunchSeed()
+            if (musicRotationLaunchSeed != musicLaunchSeed) {
+                musicRotationLaunchSeed = musicLaunchSeed
+                val rotationRandom = MissaCatalogRotation.currentRandom()
+                val recentMusicIds = DirectMusicPlayerManager.promotedIds()
+                val promotedNow = ArrayList<String>()
+                for (bucket in buckets.values) {
+                    if (bucket.key == MissaCategory.FAVORITES.id) continue
+                    if (bucket.items.size < 2) continue
+                    val rotated = MissaCatalogRotation.rotateAvoidingRecent(
+                        items = bucket.items.toList(),
+                        recentIds = recentMusicIds,
+                        random = rotationRandom,
+                        keySelector = { it.url }
+                    )
+                    bucket.items.clear()
+                    bucket.items.addAll(rotated)
+                    promotedNow.addAll(rotated.take(3).map { it.url })
+                }
+                DirectMusicPlayerManager.notePromotedIds(promotedNow)
+            }
+
             if (searchQuery.isNotBlank()) musicTracks.map { it.toSearchResponse() } else emptyList()
         } else {
             emptyList()

@@ -241,6 +241,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 renderScreen()
             }
         }
+
+        // Re-render when the per-launch rotated Kids catalogue arrives from YouTube (KIDS-01).
+        DirectKidsPlayerManager.videosUpdated.observe(viewLifecycleOwner) {
+            if (universeId == "kids" || universeId == "home") {
+                renderScreen()
+            }
+        }
     }
 
     override fun onStart() {
@@ -987,6 +994,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             searchProgressText?.isVisible = true
             if (universeId == "music") {
                 searchProgressText?.text = getString(R.string.missa_searching_music_youtube, trimmed)
+            } else if (universeId == "kids") {
+                searchProgressText?.text = getString(R.string.missa_searching_kids_youtube, trimmed)
             }
             try {
                 val results = coroutineScope {
@@ -1000,7 +1009,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     } else {
                         null
                     }
-                    val pluginResults = if (universeId == "music" || universeId == "radio") {
+                    val kidsJob = if (universeId == "kids") {
+                        async { DirectKidsPlayerManager.searchVideosOnline(trimmed) }
+                    } else {
+                        null
+                    }
+                    val pluginResults = if (universeId == "music" || universeId == "radio" || universeId == "kids") {
                         emptyList()
                     } else {
                         viewModel.searchUnified(trimmed) { done, total ->
@@ -1018,6 +1032,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     }
                     radioJob?.await()
                     musicJob?.await()
+                    kidsJob?.await()
                     pluginResults
                 }
                 isOnlineSearchInFlight = false
@@ -1270,6 +1285,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         } else {
             if (universeId == "music" || universeId == "home") {
                 DirectMusicPlayerManager.forceRefreshCatalog()
+            }
+            if (universeId == "kids") {
+                DirectKidsPlayerManager.forceRefreshCatalog()
             }
             viewModel.ensureCatalogLoaded(forceReload = true)
             if (universeId == "music") {

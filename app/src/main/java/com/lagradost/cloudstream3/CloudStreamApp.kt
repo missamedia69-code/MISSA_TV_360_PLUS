@@ -17,6 +17,7 @@ import com.lagradost.cloudstream3.BuildConfig
 import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.mvvm.safeAsync
 import com.lagradost.cloudstream3.plugins.PluginManager
+import com.lagradost.cloudstream3.ui.universe.MissaCatalogRotation
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
@@ -84,6 +85,10 @@ class CloudStreamApp : Application(), SingletonImageLoader.Factory {
         }
 
         AppDebug.isDebug = BuildConfig.DEBUG
+
+        // KIDS-01 / FRESH-01: roll a brand-new rotation seed for this process so every
+        // YouTube-powered surface (Enfants, Musiques) promotes a different selection on launch.
+        MissaCatalogRotation.startNewLaunch()
     }
 
     override fun attachBaseContext(base: Context?) {

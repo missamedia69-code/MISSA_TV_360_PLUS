@@ -184,6 +184,7 @@ object DirectMusicPlayerManager {
     private const val REMOTE_TRACKS_CACHE_KEY = "missa_yt_music_catalog_v5"
     private const val REMOTE_TRACKS_STYLES_SIG_KEY = "missa_yt_music_styles_sig_v5"
     private const val REMOTE_TRACKS_UPDATED_AT_KEY = "missa_yt_music_updated_at_v5"
+    private const val PROMOTED_TRACK_IDS_KEY = "missa_yt_music_promoted_ids_v1"
     private const val FAVORITE_TRACKS_KEY = "missa_favorite_music_track_ids_v1"
     private const val SHUFFLE_ENABLED_KEY = "missa_music_shuffle_enabled_v1"
     private const val REPEAT_MODE_KEY = "missa_music_repeat_mode_v1"
@@ -213,6 +214,10 @@ object DirectMusicPlayerManager {
 
     @Volatile
     private var inMemoryStyleTracks: List<MusicTrackPreset> = emptyList()
+
+    /** Launch seed already recorded by [notePromotedIds] (FRESH-01). */
+    @Volatile
+    private var promotedNotedSeed: Long = Long.MIN_VALUE
 
     @Volatile
     var hasPromptedOnboardingThisSession: Boolean = false
@@ -420,6 +425,32 @@ object DirectMusicPlayerManager {
             }
         }
         return merged
+    }
+
+    /**
+     * Ids (stream urls) of the YouTube cards promoted during the previous launches.
+     *
+     * FRESH-01: the next rotation demotes them so the Musiques rows never open twice in a row on
+     * the very same clips.
+     */
+    fun promotedIds(): Set<String> = runCatching {
+        getKey<Array<String>>(PROMOTED_TRACK_IDS_KEY)?.toSet().orEmpty()
+    }.getOrDefault(emptySet())
+
+    /**
+     * Records the cards promoted by the current launch rotation. Guarded per launch seed so a
+     * screen re-render cannot gradually mark the whole catalogue as "already promoted".
+     */
+    fun notePromotedIds(ids: Collection<String>) {
+        val seed = MissaCatalogRotation.currentLaunchSeed()
+        if (ids.isEmpty() || promotedNotedSeed == seed) return
+        promotedNotedSeed = seed
+        val merged = MissaCatalogRotation.mergeRecentIds(
+            previous = promotedIds(),
+            newlyPromoted = ids,
+            keep = 160
+        )
+        runCatching { setKey(PROMOTED_TRACK_IDS_KEY, merged.toTypedArray()) }
     }
 
     private fun prefetchTopPlayableTracks(tracks: List<MusicTrackPreset>, count: Int = 2) {
