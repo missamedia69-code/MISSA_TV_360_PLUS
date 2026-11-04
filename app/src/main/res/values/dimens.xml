@@ -56,6 +56,12 @@
          Kept to ~13% of the bar so the MISSA TV wordmark (brand yellow) never sits on
          a large yellow field, and so the strip reads as an accent, not as a band. -->
     <dimen name="missa_top_strip_glow_width">48dp</dimen>
+
+    <!-- HEADER-01 (2026-11-04): the ribbon hugs its content instead of padding it.
+         Values are the normal touch height of the pills they host (48dp) and the
+         line box of the 16sp wordmark (26dp); nothing inside is scaled down. -->
+    <dimen name="missa_top_strip_height">48dp</dimen>
+    <dimen name="missa_top_strip_brand_row_height">26dp</dimen>
     <dimen name="missa_focus_stroke_width">3dp</dimen>
     <dimen name="missa_card_radius">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">116dp</dimen>

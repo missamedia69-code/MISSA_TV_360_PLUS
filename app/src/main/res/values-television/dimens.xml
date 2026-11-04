@@ -28,6 +28,10 @@
     <dimen name="missa_top_strip_fade_width">48dp</dimen>
     <!-- BRAND-01: see values/dimens.xml; a 960dp TV bar keeps the glow at ~13%. -->
     <dimen name="missa_top_strip_glow_width">128dp</dimen>
+
+    <!-- HEADER-01: 10-foot ribbon hugging its content (52dp pill touch height). -->
+    <dimen name="missa_top_strip_height">52dp</dimen>
+    <dimen name="missa_top_strip_brand_row_height">52dp</dimen>
     <dimen name="missa_focus_stroke_width">3dp</dimen>
     <dimen name="missa_card_radius">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">154dp</dimen>
