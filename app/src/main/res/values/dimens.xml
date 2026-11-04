@@ -56,17 +56,6 @@
          Kept to ~13% of the bar so the MISSA TV wordmark (brand yellow) never sits on
          a large yellow field, and so the strip reads as an accent, not as a band. -->
     <dimen name="missa_top_strip_glow_width">48dp</dimen>
-
-    <!-- HEADER-01 (2026-11-04): the ribbon (application header) is a third of its
-         previous height: brand row 40dp -> 14dp, navigation row 50dp -> 17dp. -->
-    <dimen name="missa_top_strip_height">17dp</dimen>
-    <dimen name="missa_top_strip_brand_row_height">14dp</dimen>
-    <dimen name="missa_top_strip_pill_height">15dp</dimen>
-    <dimen name="missa_top_strip_pill_inset_vertical">0dp</dimen>
-    <dimen name="missa_top_strip_pill_horizontal_padding">10dp</dimen>
-    <dimen name="missa_top_strip_text_size">10sp</dimen>
-    <dimen name="missa_top_strip_brand_text_size">10sp</dimen>
-    <dimen name="missa_top_strip_badge_text_size">9sp</dimen>
     <dimen name="missa_focus_stroke_width">3dp</dimen>
     <dimen name="missa_card_radius">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">116dp</dimen>

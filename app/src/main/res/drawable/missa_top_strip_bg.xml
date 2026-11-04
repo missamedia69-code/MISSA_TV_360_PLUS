@@ -92,12 +92,10 @@
             android:tileMode="repeat" />
     </item>
 
-    <!-- 7. Emerald hairline, faded at both ends so it never reads as a hard cut.
-            HEADER-01: 1dp, because the ribbon is now a third of its former height and a
-            2dp line would eat 10% of it. -->
+    <!-- 7. Emerald hairline, faded at both ends so it never reads as a hard cut -->
     <item
         android:gravity="bottom"
-        android:height="1dp">
+        android:height="2dp">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="0"
