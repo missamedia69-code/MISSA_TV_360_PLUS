@@ -52,6 +52,10 @@
     <dimen name="missa_pill_inset_vertical">6dp</dimen>
     <dimen name="missa_pill_horizontal_padding">14dp</dimen>
     <dimen name="missa_top_strip_fade_width">36dp</dimen>
+    <!-- BRAND-01: width of the amber/emerald horizon glow inside the top strip.
+         Kept to ~13% of the bar so the MISSA TV wordmark (brand yellow) never sits on
+         a large yellow field, and so the strip reads as an accent, not as a band. -->
+    <dimen name="missa_top_strip_glow_width">48dp</dimen>
     <dimen name="missa_focus_stroke_width">3dp</dimen>
     <dimen name="missa_card_radius">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">116dp</dimen>

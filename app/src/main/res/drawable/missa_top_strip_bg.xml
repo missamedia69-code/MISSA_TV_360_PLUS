@@ -41,26 +41,32 @@
         </shape>
     </item>
 
-    <!-- 3. Warm MISSA amber glow fading in from the left edge (3-stop ramp) -->
-    <item android:alpha="0.18">
+    <!-- 3. Warm MISSA amber glow, confined to the left third of the strip (BRAND-01) -->
+    <item
+        android:alpha="0.14"
+        android:gravity="start"
+        android:width="@dimen/missa_top_strip_glow_width">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="0"
                 android:centerColor="#40FFC12E"
-                android:centerX="0.26"
+                android:centerX="0.20"
                 android:endColor="@android:color/transparent"
                 android:startColor="@color/missaTopStripAmber"
                 android:type="linear" />
         </shape>
     </item>
 
-    <!-- 4. Cool navigation emerald glow fading in from the right edge (3-stop ramp) -->
-    <item android:alpha="0.17">
+    <!-- 4. Cool navigation emerald glow, confined to the right third of the strip (BRAND-01) -->
+    <item
+        android:alpha="0.14"
+        android:gravity="end"
+        android:width="@dimen/missa_top_strip_glow_width">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="180"
                 android:centerColor="#332FD37A"
-                android:centerX="0.26"
+                android:centerX="0.20"
                 android:endColor="@android:color/transparent"
                 android:startColor="@color/missaTopStripEmerald"
                 android:type="linear" />

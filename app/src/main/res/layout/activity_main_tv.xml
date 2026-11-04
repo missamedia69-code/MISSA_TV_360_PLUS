@@ -54,6 +54,10 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.03"
+                        android:shadowColor="#B3000000"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        android:shadowRadius="4"
                         android:text="MISSA TV"
                         android:textAppearance="@style/TextAppearance.Missa.RowTitle"
                         android:textColor="?attr/missaAccentPrimary" />

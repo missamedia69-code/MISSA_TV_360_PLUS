@@ -27,6 +27,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.ui.APIRepository
 import com.lagradost.cloudstream3.ui.home.HomeViewModel
@@ -128,8 +129,17 @@ class MediaUniverseViewModel : ViewModel() {
         private const val SEARCH_PROVIDER_TIMEOUT_MS = 15_000L
         private const val DETAIL_TIMEOUT_MS = 3_200L
         private const val MAX_PROVIDERS_TO_HARVEST = 28
-        private const val MAX_HERO_ENRICH = 8
-        private const val MAX_CLASSIFIER_ENRICH = 48
+        // PERF-OOM (2026-11-04): the first catalogue load used to walk the heap from 54 MB to
+        // 174/198 MB (12% free) in under two seconds and the app was killed while "loading".
+        // The bulk of that was full LoadResponse objects (a single series carries thousands of
+        // Episode objects, roughly 2 MB each) retained by detailsCache. Fewer, lighter and
+        // less parallel detail loads keeps the heap far away from the OOM threshold.
+        private const val MAX_HERO_ENRICH = 6
+        private const val MAX_CLASSIFIER_ENRICH = 24
+        /** Hard upper bound for [detailsCache]; unreferenced snapshots are dropped past it. */
+        private const val MAX_DETAILS_CACHE = 96
+        /** Concurrent details loads. 6 of them made the GC thrash every second. */
+        private const val MAX_PARALLEL_DETAILS = 3
         private const val SNAPSHOT_TTL_MS = 5 * 60_000L
         private const val LEGACY_DISK_CACHE_FILE = "missa_catalog_cache_v1.json"
         private const val DISK_CACHE_FILE = "missa_catalog_cache_v2.json"
@@ -393,6 +403,42 @@ class MediaUniverseViewModel : ViewModel() {
 
     private val detailsCache = ConcurrentHashMap<String, LoadResponse>()
     private val sourcesByItemUrl = ConcurrentHashMap<String, List<SearchResponse>>()
+    /**
+     * PERF-OOM: per (universe, entry) memo of [MediaUniverseClassifier.categorizeForUniverse].
+     * projectUniverse() re-runs a dozen regexes per entry on every recompute and it is called
+     * for ~2000 entries several times per screen — that showed up as "Skipped 140 frames".
+     */
+    private val categoryMemo = ConcurrentHashMap<String, List<MissaCategory>>()
+
+    /**
+     * Strips the heavy payloads a catalogue row never reads (episodes, recommendations,
+     * actors, trailers) from a freshly loaded [LoadResponse] before it is cached.
+     * The universe screens only need metadata: tags, duration, rating, year, score, poster.
+     */
+    private fun trimLoadedDetails(response: LoadResponse): LoadResponse = response.apply {
+        when (this) {
+            is TvSeriesLoadResponse -> episodes = emptyList()
+            is AnimeLoadResponse -> episodes.clear()
+        }
+        recommendations = null
+        actors = null
+        if (trailers.isNotEmpty()) trailers = mutableListOf()
+    }
+
+    /** Drops cached snapshots nobody points at any more, then hard-caps the map. */
+    private fun trimDetailsCache(retain: Set<String> = emptySet()) {
+        if (detailsCache.size <= MAX_DETAILS_CACHE) return
+        detailsCache.keys.removeIf { key -> key !in retain }
+        val overflow = detailsCache.size - MAX_DETAILS_CACHE
+        if (overflow > 0) {
+            detailsCache.keys.take(overflow).forEach { detailsCache.remove(it) }
+        }
+    }
+
+    private fun clearCachesForReload() {
+        categoryMemo.clear()
+        trimDetailsCache()
+    }
     private val frozenHeroKeysByUniverse = ConcurrentHashMap<String, List<String>>()
 
     private val _catalogSnapshot = MutableLiveData(UnifiedCatalogSnapshot())
@@ -614,6 +660,7 @@ class MediaUniverseViewModel : ViewModel() {
             val online = isNetworkConnected()
 
             try {
+                clearCachesForReload()
                 val selectedProviders = selectProvidersForCatalog(requireMainPage = true)
                 val activeCount = countActiveProviders()
                 val totalSelected = selectedProviders.size
@@ -846,6 +893,35 @@ class MediaUniverseViewModel : ViewModel() {
 
         val normalized = normalizeAndDeduplicate(rawResults)
         return enrichEntriesWithDetails(normalized, maxHero = 3, maxClassifier = 10)
+    }
+
+    /**
+     * PERF-OOM: memoized [MediaUniverseClassifier.categorizeForUniverse]. The classifier walks
+     * a dozen regexes per call and projectUniverse() runs it for every entry of a ~2000 entry
+     * catalogue on each recompute (source change, favourite change, rotation tick...), which
+     * was stalling the main thread ("Skipped 140 frames", "Davey! duration=2497ms").
+     * The key embeds [UnifiedCatalogEntry.dedupKey], which changes whenever the entry is
+     * re-classified with fresh details, so the memo is invalidated with the data it derives from.
+     */
+    private fun categorizeEntry(
+        universeId: String,
+        entry: UnifiedCatalogEntry,
+        sectionName: String,
+        tags: List<String>?,
+        durationMinutes: Int?
+    ): List<MissaCategory> {
+        val key = "$universeId|${entry.dedupKey}"
+        categoryMemo[key]?.let { return it }
+        if (categoryMemo.size > 20_000) categoryMemo.clear()
+        return MediaUniverseClassifier.categorizeForUniverse(
+            universeId = universeId,
+            title = entry.primary.name,
+            sectionName = sectionName,
+            tags = tags.orEmpty(),
+            effectiveType = entry.effectiveType,
+            durationMinutes = durationMinutes,
+            url = entry.primary.url
+        ).also { categoryMemo[key] = it }
     }
 
     fun projectUniverse(
@@ -1214,22 +1290,17 @@ class MediaUniverseViewModel : ViewModel() {
             val entryUrl = entry.primary.url
             // DOC-LIVE-01: live channels & streams detected in plugin feeds (url, section, tags)
             // even when the plugin never stamped TvType.Live on the item.
+            val sectionName = entry.sectionHints.joinToString(" ")
+            val tags = entry.details?.tags ?: entry.cachedTags
+            val durationMinutes = entry.details?.duration ?: entry.cachedDuration
             val entryIsLive = MediaUniverseClassifier.isLiveStreamSignal(
                 effectiveOrRawType = entry.effectiveType ?: entry.primary.type,
                 title = entry.primary.name,
-                sectionName = entry.sectionHints.joinToString(" "),
-                tags = entry.details?.tags ?: entry.cachedTags,
+                sectionName = sectionName,
+                tags = tags,
                 url = entryUrl
             )
-            val categories = MediaUniverseClassifier.categorizeForUniverse(
-                universeId = universeId,
-                title = entry.primary.name,
-                sectionName = entry.sectionHints.joinToString(" "),
-                tags = entry.details?.tags ?: entry.cachedTags,
-                effectiveType = entry.effectiveType,
-                durationMinutes = entry.details?.duration ?: entry.cachedDuration,
-                url = entryUrl
-            )
+            val categories = categorizeEntry(universeId, entry, sectionName, tags, durationMinutes)
             for (cat in categories) {
                 val bucket = buckets.getOrPut(cat.id) {
                     BucketData(
@@ -1886,7 +1957,7 @@ class MediaUniverseViewModel : ViewModel() {
         val enrichOk = AtomicInteger(0)
         val enrichFail = AtomicInteger(0)
 
-        val semaphore = Semaphore(6)
+        val semaphore = Semaphore(MAX_PARALLEL_DETAILS)
         toFetch.map { entry ->
             async(Dispatchers.IO) {
                 val id = itemIdentity(entry.primary)
@@ -1894,29 +1965,37 @@ class MediaUniverseViewModel : ViewModel() {
                 semaphore.withPermit {
                     withTimeoutOrNull(DETAIL_TIMEOUT_MS) {
                         try {
-                            when (val loaded = APIRepository(api).load(entry.primary.url)) {
-                                is Resource.Success -> {
-                                    detailsCache[id] = loaded.value
-                                    enrichOk.incrementAndGet()
-                                }
-                                else -> {
-                                    enrichFail.incrementAndGet()
-                                    Log.w(
-                                        TAG,
-                                        "Details failed for '${entry.primary.name}' via ${api.name}: ${loaded::class.simpleName}"
-                                    )
-                                }
+                            // PERF-OOM: the provider is called directly instead of going
+                            // through APIRepository.load(), because the repository keeps the
+                            // response it returns in its own 20-entry cache — trimming the
+                            // episodes out of that shared instance would empty the episode
+                            // list of the detail page. Going direct gives us an object we own.
+                            val loaded = api.load(api.fixUrl(entry.primary.url))
+                            if (loaded == null) {
+                                enrichFail.incrementAndGet()
+                                Log.w(TAG, "Details null for '${entry.primary.name}' via ${api.name}")
+                            } else {
+                                detailsCache[id] = trimLoadedDetails(loaded)
+                                enrichOk.incrementAndGet()
                             }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
-                        } catch (e: Exception) {
+                        } catch (t: Throwable) {
+                            // Throwable, not Exception: APIRepository.safeApiCall used to catch
+                            // those for us (a plugin can throw NotImplementedError/Error and that
+                            // used to be swallowed) — a single rogue provider must never take the
+                            // whole census down while the catalogue is loading.
                             enrichFail.incrementAndGet()
-                            Log.w(TAG, "Details threw for '${entry.primary.name}' via ${api.name}: ${e.message}")
+                            Log.w(TAG, "Details threw for '${entry.primary.name}' via ${api.name}: ${t.message}")
                         }
                     }
                 }
             }
         }.awaitAll()
+
+        // PERF-OOM: release the snapshots that are no longer referenced so a long session
+        // cannot slowly grow the heap back up to the kill threshold.
+        trimDetailsCache(toFetch.mapTo(HashSet()) { itemIdentity(it.primary) })
 
         Log.i(
             TAG,
