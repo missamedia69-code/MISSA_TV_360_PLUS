@@ -114,9 +114,11 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:clipToPadding="false"
+                        android:fadingEdgeLength="@dimen/missa_top_strip_fade_width"
                         android:fillViewport="false"
                         android:focusable="false"
                         android:overScrollMode="never"
+                        android:requiresFadingEdge="horizontal"
                         android:scrollbars="none">
 
                         <LinearLayout
@@ -129,28 +131,6 @@
                             android:paddingEnd="28dp" />
                     </HorizontalScrollView>
 
-                    <!-- Right-edge scroll cue fade (NAV-01) -->
-                    <View
-                        android:id="@+id/missa_top_strip_fade_end"
-                        android:layout_width="@dimen/missa_top_strip_fade_width"
-                        android:layout_height="match_parent"
-                        android:layout_gravity="end"
-                        android:background="@drawable/missa_strip_fade_end"
-                        android:clickable="false"
-                        android:focusable="false"
-                        android:importantForAccessibility="no" />
-
-                    <!-- Left-edge cue appears only after the user scrolls the universe strip. -->
-                    <View
-                        android:id="@+id/missa_top_strip_fade_start"
-                        android:layout_width="@dimen/missa_top_strip_fade_width"
-                        android:layout_height="match_parent"
-                        android:layout_gravity="start"
-                        android:background="@drawable/missa_strip_fade_start"
-                        android:clickable="false"
-                        android:focusable="false"
-                        android:importantForAccessibility="no"
-                        android:visibility="gone" />
                 </FrameLayout>
 
                 <LinearLayout
