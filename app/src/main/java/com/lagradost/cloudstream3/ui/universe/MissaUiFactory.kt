@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.net.ConnectivityManager
 import android.os.Build
 import android.provider.Settings
+import android.util.TypedValue
 import android.text.TextUtils
 import android.view.ContextThemeWrapper
 import android.view.Gravity
@@ -112,6 +113,10 @@ object MissaUiFactory {
     /**
      * Creates a standardized MISSA pill button backed by @style/Widget.Missa.Pill
      * with a guaranteed 48dp touch height, optional leading icon, and semantic colors.
+     *
+     * @param compact builds the ribbon (header) variant: HEADER-01 shrank the application
+     * header to a third of its height, so the pills it hosts follow the smaller
+     * missa_top_strip_* scale instead of the 48dp touch scale used everywhere else.
      */
     fun createPillButton(
         context: Context,
@@ -119,9 +124,11 @@ object MissaUiFactory {
         selected: Boolean,
         @DrawableRes iconRes: Int = 0,
         marginEndDp: Int = 8,
+        compact: Boolean = false,
         onClick: () -> Unit
     ): MaterialButton {
         val themedCtx = ContextThemeWrapper(context, R.style.Widget_Missa_Pill)
+        val res = context.resources
         return MaterialButton(themedCtx, null, 0).apply {
             layoutParams = ViewGroup.MarginLayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -129,22 +136,33 @@ object MissaUiFactory {
             ).apply {
                 marginEnd = marginEndDp.toPx
             }
-            minHeight = context.resources.getDimensionPixelSize(R.dimen.missa_pill_touch_height)
+            minHeight = res.getDimensionPixelSize(
+                if (compact) R.dimen.missa_top_strip_pill_height else R.dimen.missa_pill_touch_height
+            )
             minimumHeight = minHeight
-            minWidth = 48.toPx
-            insetTop = context.resources.getDimensionPixelSize(R.dimen.missa_pill_inset_vertical)
-            insetBottom = context.resources.getDimensionPixelSize(R.dimen.missa_pill_inset_vertical)
-            val hPad = context.resources.getDimensionPixelSize(R.dimen.missa_pill_horizontal_padding)
+            minWidth = (if (compact) 32 else 48).toPx
+            val inset = res.getDimensionPixelSize(
+                if (compact) R.dimen.missa_top_strip_pill_inset_vertical else R.dimen.missa_pill_inset_vertical
+            )
+            insetTop = inset
+            insetBottom = inset
+            val hPad = res.getDimensionPixelSize(
+                if (compact) R.dimen.missa_top_strip_pill_horizontal_padding
+                else R.dimen.missa_pill_horizontal_padding
+            )
             setPadding(hPad, 0, hPad, 0)
             cornerRadius = 999.toPx
             isAllCaps = false
             maxLines = 1
             text = label
             setTextAppearance(R.style.TextAppearance_Missa_Button)
+            if (compact) {
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, res.getDimension(R.dimen.missa_top_strip_text_size))
+            }
             if (iconRes != 0) {
                 icon = ContextCompat.getDrawable(context, iconRes)
-                iconSize = 16.toPx
-                iconPadding = 6.toPx
+                iconSize = (if (compact) 14 else 16).toPx
+                iconPadding = (if (compact) 4 else 6).toPx
             } else {
                 icon = null
             }

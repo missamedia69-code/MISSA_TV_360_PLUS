@@ -658,7 +658,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 label = getString(entry.titleRes),
                 selected = false,
                 iconRes = entry.iconRes ?: 0,
-                marginEndDp = 6
+                marginEndDp = 6,
+                compact = true
             ) {
                 navigateTopLevelDestination(navController, entry.destinationId)
             }.apply {
@@ -700,7 +701,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     label = "",
                     selected = false,
                     iconRes = entry.iconRes ?: 0,
-                    marginEndDp = 4
+                    marginEndDp = 4,
+                    compact = true
                 ) {
                     navigateTopLevelDestination(navController, entry.destinationId)
                 }.apply {

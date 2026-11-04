@@ -27,11 +27,11 @@
             <LinearLayout
                 android:id="@+id/missa_mobile_brand_row"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="@dimen/missa_top_strip_brand_row_height"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp">
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -42,20 +42,22 @@
                     android:shadowDy="1"
                     android:shadowRadius="4"
                     android:text="MISSA TV"
+                    android:textSize="@dimen/missa_top_strip_brand_text_size"
                     android:textAppearance="@style/TextAppearance.Missa.RowTitle"
                     android:textColor="?attr/missaAccentPrimary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
+                    android:layout_marginStart="4dp"
                     android:background="@drawable/missa_pill_360"
-                    android:paddingStart="7dp"
-                    android:paddingTop="1dp"
-                    android:paddingEnd="7dp"
-                    android:paddingBottom="1dp"
+                    android:paddingStart="4dp"
+                    android:paddingTop="0dp"
+                    android:paddingEnd="4dp"
+                    android:paddingBottom="0dp"
                     android:text="360+"
                     android:textAppearance="@style/TextAppearance.Missa.Badge"
+                    android:textSize="@dimen/missa_top_strip_badge_text_size"
                     android:textColor="@color/missaOnRedLive" />
             </LinearLayout>
 
@@ -63,7 +65,7 @@
             <LinearLayout
                 android:id="@+id/missa_tv_bar_row"
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
+                android:layout_height="@dimen/missa_top_strip_height"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -74,33 +76,35 @@
                     android:focusable="false"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="10dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="6dp"
                     android:visibility="gone">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.03"
-                    android:shadowColor="#B3000000"
-                    android:shadowDx="0"
-                    android:shadowDy="1"
-                    android:shadowRadius="4"
+                        android:shadowColor="#B3000000"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        android:shadowRadius="4"
                         android:text="MISSA TV"
+                        android:textSize="@dimen/missa_top_strip_brand_text_size"
                         android:textAppearance="@style/TextAppearance.Missa.RowTitle"
                         android:textColor="?attr/missaAccentPrimary" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
+                        android:layout_marginStart="4dp"
                         android:background="@drawable/missa_pill_360"
-                        android:paddingStart="6dp"
-                        android:paddingTop="1dp"
-                        android:paddingEnd="6dp"
-                        android:paddingBottom="1dp"
+                        android:paddingStart="4dp"
+                        android:paddingTop="0dp"
+                        android:paddingEnd="4dp"
+                        android:paddingBottom="0dp"
                         android:text="360+"
                         android:textAppearance="@style/TextAppearance.Missa.Badge"
+                        android:textSize="@dimen/missa_top_strip_badge_text_size"
                         android:textColor="@color/missaOnRedLive" />
                 </LinearLayout>
 
@@ -125,8 +129,8 @@
                             android:layout_height="match_parent"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="28dp" />
+                            android:paddingStart="6dp"
+                            android:paddingEnd="16dp" />
                     </HorizontalScrollView>
 
                     <!-- Right-edge scroll cue fade (NAV-01) -->
