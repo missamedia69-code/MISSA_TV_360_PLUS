@@ -26,7 +26,7 @@
             <LinearLayout
                 android:id="@+id/missa_mobile_brand_row"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/missa_top_strip_brand_row_height"
+                android:layout_height="40dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="16dp"
@@ -36,7 +36,7 @@
             <LinearLayout
                 android:id="@+id/missa_tv_bar_row"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/missa_top_strip_height"
+                android:layout_height="62dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 

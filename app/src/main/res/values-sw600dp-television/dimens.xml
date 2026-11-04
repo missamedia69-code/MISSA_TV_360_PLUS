@@ -33,10 +33,6 @@
     <dimen name="missa_pill_horizontal_padding">14dp</dimen>
     <dimen name="missa_top_strip_fade_width">48dp</dimen>
 
-    <!-- HEADER-01: same 10-foot ribbon scale as values-television. -->
-    <dimen name="missa_top_strip_height">52dp</dimen>
-    <dimen name="missa_top_strip_brand_row_height">52dp</dimen>
-
     <!-- Unique 3dp navigation focus ring: green = navigation, yellow stays the selection accent -->
     <dimen name="missa_focus_stroke_width">3dp</dimen>
     <dimen name="missa_card_radius">14dp</dimen>
