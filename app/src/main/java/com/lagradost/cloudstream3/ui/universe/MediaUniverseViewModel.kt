@@ -140,6 +140,14 @@ class MediaUniverseViewModel : ViewModel() {
         private const val MAX_DETAILS_CACHE = 96
         /** Concurrent details loads. 6 of them made the GC thrash every second. */
         private const val MAX_PARALLEL_DETAILS = 3
+        /**
+         * CRASH-01: heap that must stay free for the details enrichment to run at all.
+         * A cold start has no disk snapshot, so it harvests every provider at once and the
+         * heap is at its tightest when the enrichment begins. Measured on the TV emulator the
+         * app settles around 24MB free, so anything above ~16MB still leaves room for the
+         * 27 LoadResponse allocations the pass performs.
+         */
+        private const val MIN_FREE_MEMORY_FOR_ENRICHMENT = 16L * 1024L * 1024L
         private const val SNAPSHOT_TTL_MS = 5 * 60_000L
         private const val LEGACY_DISK_CACHE_FILE = "missa_catalog_cache_v1.json"
         private const val DISK_CACHE_FILE = "missa_catalog_cache_v2.json"
@@ -743,6 +751,14 @@ class MediaUniverseViewModel : ViewModel() {
                             resumeWatching = resume,
                             updatedAtMs = System.currentTimeMillis()
                         )
+                        // CRASH-01: persist this partial harvest immediately. When the process
+                        // is killed during the secondary wave or the enrichment — which only
+                        // happens on a cold start, when no snapshot exists yet — the next launch
+                        // still boots from disk instead of harvesting everything again from
+                        // scratch. That is why the app used to need two or three attempts.
+                        if (quickEntries.isNotEmpty()) {
+                            saveCatalogToDiskCache(quickEntries, System.currentTimeMillis())
+                        }
                     }
                 }
                 if (secondaryWave.isNotEmpty()) {
@@ -804,11 +820,23 @@ class MediaUniverseViewModel : ViewModel() {
                     saveCatalogToDiskCache(baseEntries, updatedAt)
                     val ctx = context
                     val dataSaver = ctx != null && MissaUiFactory.isDataSaverActive(ctx)
-                    val enriched = enrichEntriesWithDetails(
-                        baseEntries,
-                        maxHero = if (dataSaver) 3 else MAX_HERO_ENRICH,
-                        maxClassifier = if (dataSaver) 16 else MAX_CLASSIFIER_ENRICH
-                    )
+                    // CRASH-01: never start allocating one LoadResponse per card when the
+                    // harvest has already eaten the heap — the catalogue still renders from the
+                    // raw harvest, it just gets fewer enriched tags on this pass.
+                    val enriched = if (hasEnrichmentHeadroom()) {
+                        enrichEntriesWithDetails(
+                            baseEntries,
+                            maxHero = if (dataSaver) 3 else MAX_HERO_ENRICH,
+                            maxClassifier = if (dataSaver) 16 else MAX_CLASSIFIER_ENRICH
+                        )
+                    } else {
+                        Log.w(
+                            TAG,
+                            "Enrichment skipped: only ${freeHeapMb()}MB of heap left " +
+                                "(need ${MIN_FREE_MEMORY_FOR_ENRICHMENT / (1024 * 1024)}MB)"
+                        )
+                        baseEntries
+                    }
                     val enrichedAt = System.currentTimeMillis()
                     saveCatalogToDiskCache(enriched, enrichedAt)
                     _catalogSnapshot.value = UnifiedCatalogSnapshot(
@@ -825,22 +853,50 @@ class MediaUniverseViewModel : ViewModel() {
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (oom: OutOfMemoryError) {
+                // CRASH-01: OutOfMemoryError is an Error, not an Exception, so it escaped the
+                // catch below and killed the whole app — always on a cold start, because that
+                // is the only launch that has no disk snapshot and harvests everything at once.
+                // Keep whatever the harvest already produced instead of dying.
+                Log.e(
+                    TAG,
+                    "Catalog load ran out of memory, keeping " +
+                        "${_catalogSnapshot.value?.entries?.size ?: 0} harvested entries",
+                    oom
+                )
+                publishHarvestFallback(resume)
             } catch (e: Exception) {
                 // Was a bare catch(_) - a crashing catalog load looked exactly like an empty one.
                 Log.e(TAG, "Catalog load failed, keeping ${_catalogSnapshot.value?.entries?.size ?: 0} cached entries", e)
-                val fallback = _catalogSnapshot.value?.entries.orEmpty()
-                _catalogSnapshot.value = UnifiedCatalogSnapshot(
-                    isLoading = false,
-                    hasError = fallback.isEmpty(),
-                    isOffline = !isNetworkConnected(),
-                    activeProviderCount = countActiveProviders(),
-                    entries = fallback,
-                    resumeWatching = resume,
-                    updatedAtMs = System.currentTimeMillis()
-                )
+                publishHarvestFallback(resume)
             }
         }
     }
+
+    /**
+     * CRASH-01: after a failed harvest, show whatever is already in the snapshot instead of
+     * blanking the screen (or the process, for an OutOfMemoryError).
+     */
+    private fun publishHarvestFallback(resumeWatching: List<DataStoreHelper.ResumeWatchingResult>) {
+        val fallback = _catalogSnapshot.value?.entries.orEmpty()
+        _catalogSnapshot.value = UnifiedCatalogSnapshot(
+            isLoading = false,
+            hasError = fallback.isEmpty(),
+            isOffline = !isNetworkConnected(),
+            activeProviderCount = countActiveProviders(),
+            entries = fallback,
+            resumeWatching = resumeWatching,
+            updatedAtMs = System.currentTimeMillis()
+        )
+    }
+
+    /** Free heap in MB, for the CRASH-01 guards and their logs. */
+    private fun freeHeapMb(): Long {
+        val runtime = Runtime.getRuntime()
+        return (runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())) / (1024 * 1024)
+    }
+
+    private fun hasEnrichmentHeadroom(): Boolean = freeHeapMb() * 1024 * 1024 >= MIN_FREE_MEMORY_FOR_ENRICHMENT
 
     suspend fun searchUnified(
         query: String,

@@ -548,23 +548,29 @@ object MissaKidsProviders {
     suspend fun fetchKidsCatalog(
         plan: List<KidsQuery>,
         onFirstWaveReady: ((List<MusicTrackPreset>) -> Unit)? = null
-    ): List<MusicTrackPreset> = coroutineScope {
-        if (plan.isEmpty()) return@coroutineScope emptyList()
-        val jobs = plan.map { kidsQuery ->
-            async { runKidsQuery(kidsQuery) }
-        }
-        val half = (jobs.size + 1) / 2
-        val firstWave = ArrayList<MusicTrackPreset>()
-        for (i in 0 until half) {
-            firstWave.addAll(jobs[i].await())
-        }
-        val firstWaveDeduped = dedupeKidsVideos(firstWave)
-        onFirstWaveReady?.invoke(firstWaveDeduped)
+    ): List<MusicTrackPreset> = withContext(Dispatchers.IO) {
+        // ANR-01: the queries below used to inherit the caller's dispatcher, which is the MAIN
+        // thread on a cold start (the ViewModel init runs them at launch). The whole YouTube
+        // extraction then ran on the main thread and froze the UI for seconds, which is what
+        // got the app killed on its first launch. Keep it off the main thread.
+        coroutineScope {
+            if (plan.isEmpty()) return@coroutineScope emptyList()
+            val jobs = plan.map { kidsQuery ->
+                async { runKidsQuery(kidsQuery) }
+            }
+            val half = (jobs.size + 1) / 2
+            val firstWave = ArrayList<MusicTrackPreset>()
+            for (i in 0 until half) {
+                firstWave.addAll(jobs[i].await())
+            }
+            val firstWaveDeduped = dedupeKidsVideos(firstWave)
+            onFirstWaveReady?.invoke(firstWaveDeduped)
 
-        val all = ArrayList(firstWave)
-        for (i in half until jobs.size) {
-            all.addAll(jobs[i].await())
+            val all = ArrayList(firstWave)
+            for (i in half until jobs.size) {
+                all.addAll(jobs[i].await())
+            }
+            dedupeKidsVideos(all)
         }
-        dedupeKidsVideos(all)
     }
 }

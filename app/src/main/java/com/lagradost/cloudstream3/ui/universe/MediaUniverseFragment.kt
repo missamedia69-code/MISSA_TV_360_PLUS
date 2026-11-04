@@ -3,6 +3,8 @@ package com.lagradost.cloudstream3.ui.universe
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognizerIntent
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -76,6 +78,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     companion object {
         const val ARG_UNIVERSE_ID = "universe_id"
         private const val MAX_INLINE_CATEGORY_PILLS = 8
+        /** ANR-01: how long several invalidations are merged before the screen is projected. */
+        private const val RENDER_COALESCE_MS = 70L
         private val focusMemoryByUniverse = ConcurrentHashMap<String, String>()
 
         /** Contextual filter strip is hidden on Home and shown inside dedicated universes (Films, Series, …). */
@@ -134,6 +138,17 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     private var screenAdapter: UniverseScreenAdapter? = null
     private var categoryPillAdapter: CategoryFilterPillAdapter? = null
+
+    // --- ANR-01 render throttling -------------------------------------------------
+    // A cold start posts one snapshot per finished provider plus the harvest and the
+    // enrichment pass. Each one used to re-project the whole catalogue (~2 000 entries)
+    // on the main thread, which is what froze the UI for seconds and got the app killed
+    // on its very first launch. Renders are now coalesced, and a snapshot that only
+    // moves the progress counters is ignored entirely.
+    private val renderHandler by lazy { Handler(Looper.getMainLooper()) }
+    private val renderRunnable = Runnable { renderScreenInternal() }
+    private var lastRenderedEntries: Any? = null
+    private var lastRenderedLoading: Boolean? = null
 
     private var currentSearchQuery: String = ""
     private var searchOverrideEntries: List<UnifiedCatalogEntry>? = null
@@ -207,6 +222,14 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             if (!activelyLoading) {
                 swipeRefresh?.isRefreshing = false
             }
+            // ANR-01: when only the counters moved (one more provider finished), the visible
+            // content is identical - re-projecting thousands of entries would block the main
+            // thread for nothing. See the note on the throttling fields above.
+            if (snapshot.entries === lastRenderedEntries && snapshot.isLoading == lastRenderedLoading) {
+                return@observe
+            }
+            lastRenderedEntries = snapshot.entries
+            lastRenderedLoading = snapshot.isLoading
             renderScreen()
         }
 
@@ -284,6 +307,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     override fun onDestroyView() {
+        renderHandler.removeCallbacks(renderRunnable)
+        lastRenderedEntries = null
+        lastRenderedLoading = null
         searchJob?.cancel()
         typingDebounceJob?.cancel()
         stickyFilterBar = null
@@ -794,7 +820,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         return true
     }
 
+    /** ANR-01: coalesces bursts of invalidations into a single projection. */
     private fun renderScreen() {
+        renderHandler.removeCallbacks(renderRunnable)
+        renderHandler.postDelayed(renderRunnable, RENDER_COALESCE_MS)
+    }
+
+    private fun renderScreenInternal() {
         val ctx = context ?: return
         val snapshot = viewModel.catalogSnapshot.value ?: UnifiedCatalogSnapshot()
         val projection = viewModel.projectUniverse(
