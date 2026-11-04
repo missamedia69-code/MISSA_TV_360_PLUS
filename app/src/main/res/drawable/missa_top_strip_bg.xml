@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Background of the MISSA TV 360 PLUS top navigation strip (NAV-01, THEME-01, A11Y-01).
+
+    "Horizon ambre / émeraude": a warm brand glow on the left, a cool navigation glow on the
+    right, a soft top sheen, a bottom scrim and a hairline that separates the bar from the page.
+
+    Anti-banding (THEME-06): on 8-bit TV panels a long alpha ramp shows visible steps
+    ("coupures"). Three measures keep the ramp smooth:
+      1. every glow is a 3-stop ramp with a low peak alpha, so the number of levels to spread is
+         small in the first place;
+      2. the vertical sheen lifts the surface so the AMOLED/black theme is no longer a pure
+         #000000 void where steps are the most visible;
+      3. a zero-mean dither tile (missa_dither_noise, 128x128, ~5 KB, tiled) is drawn on top: it
+         breaks the 8-bit steps without changing the average luminance of the surface.
+
+    Everything else is pure vector/gradient so the strip stays crisp at any resolution, and the
+    base layer follows the active theme (?attr/primaryBlackBackground) so every theme (dark,
+    AMOLED, light, dynamic) keeps working. Glows stay low-opacity: white pill labels keep a
+    contrast ratio far above the 4.5:1 AA threshold.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 1. Theme-aware base (black on AMOLED, #111111 on dark, light grey on light themes) -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/primaryBlackBackground" />
+        </shape>
+    </item>
+
+    <!-- 2. Vertical sheen: lifts the bar off the void and shades it towards the content -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:centerColor="#08FFFFFF"
+                android:centerY="0.55"
+                android:endColor="#00FFFFFF"
+                android:startColor="#17FFFFFF"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 3. Warm MISSA amber glow, confined to the left third of the strip (BRAND-01) -->
+    <item
+        android:alpha="0.14"
+        android:gravity="start"
+        android:width="@dimen/missa_top_strip_glow_width">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:centerColor="#40FFC12E"
+                android:centerX="0.20"
+                android:endColor="@android:color/transparent"
+                android:startColor="@color/missaTopStripAmber"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 4. Cool navigation emerald glow, confined to the right third of the strip (BRAND-01) -->
+    <item
+        android:alpha="0.14"
+        android:gravity="end"
+        android:width="@dimen/missa_top_strip_glow_width">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="180"
+                android:centerColor="#332FD37A"
+                android:centerX="0.20"
+                android:endColor="@android:color/transparent"
+                android:startColor="@color/missaTopStripEmerald"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 5. Bottom scrim: anchors the bar over the content scrolling underneath -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:centerColor="#0F000000"
+                android:endColor="#42000000"
+                android:startColor="@android:color/transparent"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- 6. Zero-mean dither tile: removes the 8-bit steps of the ramps above.
+
+         HEADER-01 (2026-11-04): the tile MUST stay small. A <bitmap> child passes its
+         intrinsic size to LayerDrawable.getMinimumHeight(), and the ribbon is a
+         wrap_content LinearLayout, so the 128x128 tile that shipped with the anti-banding
+         fix pinned the whole header to 128px: the pill row stayed at the top and ~65px of
+         dead background appeared underneath it, and no layout height change had any visible
+         effect. At 32x32 the minimum is well below any row height and the ribbon hugs its
+         rows again — the dither itself is unchanged (half black / half white, alpha 6/255). -->
+    <item>
+        <bitmap
+            android:src="@drawable/missa_dither_noise"
+            android:tileMode="repeat" />
+    </item>
+
+    <!-- 7. Emerald hairline, faded at both ends so it never reads as a hard cut -->
+    <item
+        android:gravity="bottom"
+        android:height="2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:centerColor="#592FD37A"
+                android:centerX="0.6"
+                android:endColor="#002FD37A"
+                android:startColor="#052FD37A"
+                android:type="linear" />
+        </shape>
+    </item>
+
+</layer-list>

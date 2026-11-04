@@ -78,6 +78,42 @@ data class DirectMusicSearchResponse(
 }
 
 /**
+ * A single YouTube Kids **video** (cartoon, nursery rhyme, family movie, tale…).
+ *
+ * KIDS-02: unlike music, Kids content is video-first — it opens in the standard video player
+ * (GeneratorPlayer), never in the Musiques audio player. It is deliberately NOT a
+ * [DirectMusicSearchResponse] so no existing audio path can claim the click.
+ */
+data class DirectKidsSearchResponse(
+    override val name: String,
+    override val url: String,
+    override val apiName: String = DIRECT_KIDS_API_NAME,
+    override var type: TvType? = TvType.Cartoon,
+    override var posterUrl: String? = null,
+    override var posterHeaders: Map<String, String>? = null,
+    override var id: Int? = url.hashCode(),
+    override var quality: SearchQuality? = null,
+    override var score: Score? = null,
+    val videoId: String = "",
+    val channel: String = "",
+    val categoryId: String = "",
+    val durationSeconds: Int = 0,
+    val artworkUrl: String? = null
+) : SearchResponse {
+    fun formattedDuration(): String? {
+        if (durationSeconds <= 0) return null
+        val hours = durationSeconds / 3600
+        val mins = (durationSeconds % 3600) / 60
+        val secs = durationSeconds % 3600 % 60
+        return if (hours > 0) {
+            "%d:%02d:%02d".format(hours, mins, secs)
+        } else {
+            "%02d:%02d".format(mins, secs)
+        }
+    }
+}
+
+/**
  * Navigation universe descriptor.
  * [familyGroup] groups related universes visually in the top strip (NAV-01):
  * 0 = Home, 1 = Cinema/VOD, 2 = Live Video, 3 = Audio, 4 = Retro Games.

@@ -777,8 +777,8 @@
     <string name="universe_films_description">Longs-métrages, mangas, animes, OAV et classiques issus de toutes vos sources compatibles.</string>
     <string name="universe_series_title">Séries</string>
     <string name="universe_series_description">Séries, saisons et épisodes unifiés depuis toutes vos extensions compatibles.</string>
-    <string name="universe_documentaries_title">Documentaires</string>
-    <string name="universe_documentaries_description">Grands documentaires, docu-séries, reportages, nature, histoire et sciences réunis dans un seul univers.</string>
+    <string name="universe_documentaries_title">Documentaires &amp; Live</string>
+    <string name="universe_documentaries_description">Grands documentaires, docu-séries, reportages, nature, histoire, sciences, plus les chaînes et directs Twitch, YouTube &amp; Dailymotion.</string>
     <string name="universe_shorts_title">Courts</string>
     <string name="universe_shorts_description">Créations et films au format court identifiés par durée et métadonnées.</string>
     <string name="universe_kids_title">Enfants</string>
@@ -800,7 +800,7 @@
     <string name="universe_eyebrow_home">À LA UNE</string>
     <string name="universe_eyebrow_films">FILMS &amp; MANGAS</string>
     <string name="universe_eyebrow_series">SÉRIES</string>
-    <string name="universe_eyebrow_documentaries">DÉCOUVERTE</string>
+    <string name="universe_eyebrow_documentaries">DÉCOUVERTE &amp; DIRECT</string>
     <string name="universe_eyebrow_shorts">COURTS-MÉTRAGES</string>
     <string name="universe_eyebrow_kids">JEUNESSE &amp; FAMILLE</string>
     <string name="universe_eyebrow_live_tv">CHAÎNES TV</string>
@@ -812,7 +812,7 @@
 
     <string name="universe_card_films_sub">Cinéma, mangas &amp; animes</string>
     <string name="universe_card_series_sub">Saisons &amp; épisodes</string>
-    <string name="universe_card_documentaries_sub">Nature, histoire &amp; enquêtes</string>
+    <string name="universe_card_documentaries_sub">Docs, reportages &amp; directs</string>
     <string name="universe_card_shorts_sub">Formats courts ≤ 40 min</string>
     <string name="universe_card_kids_sub">Jeunesse &amp; famille</string>
     <string name="universe_card_live_tv_sub">Chaînes en direct</string>
@@ -895,6 +895,9 @@
     <string name="missa_loading_catalog">Préparation du catalogue unifié…</string>
     <string name="missa_searching_sources_progress">%1$d/%2$d sources interrogées</string>
     <string name="missa_searching_music_youtube">Recherche audio YouTube &amp; serveurs musicaux pour « %1$s »…</string>
+    <string name="missa_searching_kids_youtube">Recherche YouTube Kids pour « %1$s »…</string>
+    <string name="missa_kids_opening_video">Ouverture de la vidéo…</string>
+    <string name="missa_kids_playback_error">Lecture impossible. Vérifiez votre connexion puis réessayez.</string>
     <string name="missa_updated_just_now">Mis à jour à l’instant</string>
     <string name="missa_updated_minutes_ago">Mis à jour il y a %1$d min</string>
     <string name="missa_data_saver_badge">Éco données</string>
@@ -1046,6 +1049,8 @@
 
     <string name="missa_cat_docs_featured">Documentaires à la une &amp; Nouveautés</string>
     <string name="missa_chip_docs_featured">Nouveautés</string>
+    <string name="missa_cat_docs_live">Directs &amp; chaînes live</string>
+    <string name="missa_chip_docs_live">Directs</string>
     <string name="missa_cat_docs_nature">Nature, Animaux &amp; Planète</string>
     <string name="missa_chip_docs_nature">Nature</string>
     <string name="missa_cat_docs_history">Histoire, Civilisations &amp; Biographies</string>
@@ -1070,6 +1075,10 @@
     <string name="missa_chip_kids_movies">Films</string>
     <string name="missa_cat_kids_cartoons">Dessins animés &amp; Séries jeunesse</string>
     <string name="missa_chip_kids_cartoons">Dessins animés</string>
+    <string name="missa_cat_kids_songs">Comptines &amp; Chansons</string>
+    <string name="missa_chip_kids_songs">Comptines</string>
+    <string name="missa_cat_kids_learn">Apprendre &amp; Découvrir</string>
+    <string name="missa_chip_kids_learn">Apprendre</string>
     <string name="missa_cat_kids_magic">Aventure &amp; Magie</string>
     <string name="missa_chip_kids_magic">Magie</string>
     <string name="missa_cat_kids_all">Univers Enfants</string>

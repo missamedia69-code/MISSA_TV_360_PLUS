@@ -202,6 +202,94 @@ class MediaUniverseClassifierTest {
     }
 
     @Test
+    fun `documentaires and live tab merges VOD documentaries with twitch youtube and discovery live streams`() {
+        // 1. On-demand documentaries keep their thematic rows and never land in the live row
+        val vodCats = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "documentaries",
+            title = "Ushua\u00efa Nature : Faune Sauvage d'Afrique",
+            sectionName = "Nouveaut\u00e9s Documentaires",
+            tags = listOf("Nature", "Afrique"),
+            effectiveType = TvType.Documentary
+        )
+        assertTrue(vodCats.contains(MissaCategory.DOCS_NATURE))
+        assertFalse(vodCats.contains(MissaCategory.DOCS_LIVE))
+
+        // 2. Live-streaming platform channels are detected from the plugin feed url (DOC-LIVE-01)
+        val twitchLive = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Live,
+            title = "Arte Documentaire Live",
+            sectionName = "Cha\u00eenes live",
+            url = "https://www.twitch.tv/artedoc"
+        )
+        assertTrue(twitchLive.contains("documentaries"))
+
+        val youtubeLive = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Others,
+            title = "NASA Live : Earth from space",
+            sectionName = "Directs",
+            url = "https://www.youtube.com/live/abc123"
+        )
+        assertTrue(youtubeLive.contains("documentaries"))
+
+        val kickLive = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Movie,
+            title = "Savoirs & D\u00e9couvertes",
+            sectionName = "Cha\u00eenes Live",
+            url = "https://kick.com/sciences"
+        )
+        assertTrue(kickLive.contains("documentaries"))
+
+        // 3. A plain VOD YouTube page is NOT a live: it stays a catalogue documentary
+        val youtubeVod = MediaUniverseClassifier.classifyAllUniverses(
+            type = TvType.Movie,
+            title = "Le Monde Secret des Oc\u00e9ans",
+            sectionName = "Documentaires",
+            url = "https://www.youtube.com/watch?v=abc123"
+        )
+        assertEquals(setOf("documentaries"), youtubeVod)
+
+        // 4. Knowledge / discovery streams (webcams, zoos, earth cams) join the tab
+        assertTrue(
+            MediaUniverseClassifier.matches("documentaries", TvType.Live, "Zoo de Beauval - Webcam 24/7")
+        )
+        assertTrue(
+            MediaUniverseClassifier.matches(
+                universeId = "documentaries",
+                type = TvType.Live,
+                title = "Volcans du Cameroun",
+                sectionName = "Cam\u00e9ras live"
+            )
+        )
+
+        // 5. Live sport stays in Sports and 24/7 news stays in Live TV: no cross-contamination
+        assertFalse(
+            MediaUniverseClassifier.matches(
+                universeId = "documentaries",
+                type = TvType.Live,
+                title = "21:00 Real Madrid vs FC Barcelone",
+                sectionName = "\u00c9v\u00e9nements en Direct"
+            )
+        )
+        assertFalse(
+            MediaUniverseClassifier.matches("documentaries", TvType.Live, "BFMTV News 24/7")
+        )
+        assertFalse(
+            MediaUniverseClassifier.matches("documentaries", TvType.Live, "BBC Radio 1 Live")
+        )
+
+        // 6. Live channels are promoted in a dedicated first row of the tab
+        val liveCats = MediaUniverseClassifier.categorizeForUniverse(
+            universeId = "documentaries",
+            title = "National Geographic Live",
+            sectionName = "Cha\u00eenes d\u00e9couverte en direct",
+            effectiveType = TvType.Live,
+            url = "https://www.twitch.tv/natgeo"
+        )
+        assertEquals(listOf(MissaCategory.DOCS_LIVE), liveCats)
+        assertTrue(MissaCategory.DOCS_LIVE.editorialRank < MissaCategory.DOCS_FEATURED.editorialRank)
+    }
+
+    @Test
     fun `incomplete or null plugin types are normalized from section and provider metadata`() {
         assertTrue(
             MediaUniverseClassifier.matches(

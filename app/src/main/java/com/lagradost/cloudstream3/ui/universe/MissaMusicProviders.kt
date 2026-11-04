@@ -275,13 +275,15 @@ object MissaMusicProviders {
     private val officialClipVideoIdCache = LinkedHashMap<String, String>(64, 0.75f, true)
 
     private val coverLookupSemaphore = Semaphore(4)
-    private val youTubeQuerySemaphore = Semaphore(9)
+    // internal: the Kids universe (MissaKidsProviders) shares this gate so the two
+    // YouTube surfaces never exceed the extractor budget between them.
+    internal val youTubeQuerySemaphore = Semaphore(9)
 
     // -------------------------------------------------------------------------
     // Pre-warming & NewPipe lifecycle
     // -------------------------------------------------------------------------
 
-    private fun ensureNewPipeReady() {
+    internal fun ensureNewPipeReady() {
         if (newPipeInitialized) return
         synchronized(newPipeLock) {
             if (!newPipeInitialized) {
@@ -622,7 +624,7 @@ object MissaMusicProviders {
         return httpsUrl
     }
 
-    private fun pickBestThumbnailUrl(thumbnails: List<Image>?, fallbackVideoId: String? = null): String? {
+    internal fun pickBestThumbnailUrl(thumbnails: List<Image>?, fallbackVideoId: String? = null): String? {
         if (!thumbnails.isNullOrEmpty()) {
             // Prefer square studio covers (`googleusercontent.com`) first, then highest-area borderless HD frame
             val studioSquare = thumbnails
@@ -786,7 +788,8 @@ object MissaMusicProviders {
     suspend fun enrichAuthenticCoverArtworks(
         tracks: List<MusicTrackPreset>,
         maxLookups: Int = 14
-    ): List<MusicTrackPreset> = coroutineScope {
+    ): List<MusicTrackPreset> = withContext(Dispatchers.IO) {
+        // ANR-01: same reason as fetchStyleCatalogProgressive - keep the lookups off the main thread.
         val crossMatched = crossMatchStudioCovers(tracks)
         var lookupsScheduled = 0
         crossMatched.map { track ->
@@ -1573,7 +1576,10 @@ object MissaMusicProviders {
     suspend fun fetchStyleCatalogProgressive(
         styleIds: Collection<String>?,
         onFirstWaveReady: ((List<MusicTrackPreset>) -> Unit)? = null
-    ): List<MusicTrackPreset> = coroutineScope {
+    ): List<MusicTrackPreset> = withContext(Dispatchers.IO) {
+        // ANR-01: this used to be a plain `coroutineScope`, so every `async` below inherited the
+        // MAIN dispatcher on a cold start (the ViewModel init launches the refresh at startup)
+        // and the whole YouTube extraction ran there, freezing the UI and getting the app killed.
         val selectedStyles = resolveSelectedStyles(styleIds)
         val nowMillis = System.currentTimeMillis()
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)

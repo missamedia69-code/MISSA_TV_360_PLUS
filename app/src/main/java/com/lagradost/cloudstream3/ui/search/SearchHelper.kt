@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.search
 
+import android.app.Activity
 import android.widget.Toast
 import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.CommonActivity.showToast
@@ -9,6 +10,8 @@ import com.lagradost.cloudstream3.ui.download.DOWNLOAD_ACTION_PLAY_FILE
 import com.lagradost.cloudstream3.ui.download.DownloadButtonSetup.handleDownloadClick
 import com.lagradost.cloudstream3.ui.download.DownloadClickEvent
 import com.lagradost.cloudstream3.ui.result.START_ACTION_LOAD_EP
+import com.lagradost.cloudstream3.ui.universe.DirectKidsPlayerManager
+import com.lagradost.cloudstream3.ui.universe.DirectKidsSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
@@ -38,6 +41,15 @@ object SearchHelper {
                 (activity as? MainActivity)?.navigateToUniverseWithParentalGuard(
                     MissaUniverses.byId("music")
                 )
+            }
+            return
+        }
+
+        // KIDS-02: a Kids card always plays as a video, from any surface (search, home, rows).
+        if (card is DirectKidsSearchResponse) {
+            if (callback.action != SEARCH_ACTION_SHOW_METADATA) {
+                val kidsActivity = (ctx as? Activity ?: activity) ?: return
+                DirectKidsPlayerManager.playDirectResponse(kidsActivity, card)
             }
             return
         }

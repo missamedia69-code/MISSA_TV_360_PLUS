@@ -27,6 +27,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.ui.APIRepository
 import com.lagradost.cloudstream3.ui.home.HomeViewModel
@@ -128,8 +129,25 @@ class MediaUniverseViewModel : ViewModel() {
         private const val SEARCH_PROVIDER_TIMEOUT_MS = 15_000L
         private const val DETAIL_TIMEOUT_MS = 3_200L
         private const val MAX_PROVIDERS_TO_HARVEST = 28
-        private const val MAX_HERO_ENRICH = 8
-        private const val MAX_CLASSIFIER_ENRICH = 48
+        // PERF-OOM (2026-11-04): the first catalogue load used to walk the heap from 54 MB to
+        // 174/198 MB (12% free) in under two seconds and the app was killed while "loading".
+        // The bulk of that was full LoadResponse objects (a single series carries thousands of
+        // Episode objects, roughly 2 MB each) retained by detailsCache. Fewer, lighter and
+        // less parallel detail loads keeps the heap far away from the OOM threshold.
+        private const val MAX_HERO_ENRICH = 6
+        private const val MAX_CLASSIFIER_ENRICH = 24
+        /** Hard upper bound for [detailsCache]; unreferenced snapshots are dropped past it. */
+        private const val MAX_DETAILS_CACHE = 96
+        /** Concurrent details loads. 6 of them made the GC thrash every second. */
+        private const val MAX_PARALLEL_DETAILS = 3
+        /**
+         * CRASH-01: heap that must stay free for the details enrichment to run at all.
+         * A cold start has no disk snapshot, so it harvests every provider at once and the
+         * heap is at its tightest when the enrichment begins. Measured on the TV emulator the
+         * app settles around 24MB free, so anything above ~16MB still leaves room for the
+         * 27 LoadResponse allocations the pass performs.
+         */
+        private const val MIN_FREE_MEMORY_FOR_ENRICHMENT = 16L * 1024L * 1024L
         private const val SNAPSHOT_TTL_MS = 5 * 60_000L
         private const val LEGACY_DISK_CACHE_FILE = "missa_catalog_cache_v1.json"
         private const val DISK_CACHE_FILE = "missa_catalog_cache_v2.json"
@@ -380,9 +398,10 @@ class MediaUniverseViewModel : ViewModel() {
             hasActiveFilter: Boolean,
             isOffline: Boolean,
             hasError: Boolean,
-            activeProviderCount: Int
+            activeProviderCount: Int,
+            isDirectProviderLoading: Boolean = false
         ): UniverseEmptyReason? = when {
-            effectiveLoading || hasVisibleRows -> null
+            effectiveLoading || isDirectProviderLoading || hasVisibleRows -> null
             hasActiveFilter -> UniverseEmptyReason.EMPTY_SEARCH_OR_FILTER
             activeProviderCount == 0 -> null
             isOffline || hasError -> UniverseEmptyReason.OFFLINE_OR_ERROR
@@ -392,6 +411,42 @@ class MediaUniverseViewModel : ViewModel() {
 
     private val detailsCache = ConcurrentHashMap<String, LoadResponse>()
     private val sourcesByItemUrl = ConcurrentHashMap<String, List<SearchResponse>>()
+    /**
+     * PERF-OOM: per (universe, entry) memo of [MediaUniverseClassifier.categorizeForUniverse].
+     * projectUniverse() re-runs a dozen regexes per entry on every recompute and it is called
+     * for ~2000 entries several times per screen — that showed up as "Skipped 140 frames".
+     */
+    private val categoryMemo = ConcurrentHashMap<String, List<MissaCategory>>()
+
+    /**
+     * Strips the heavy payloads a catalogue row never reads (episodes, recommendations,
+     * actors, trailers) from a freshly loaded [LoadResponse] before it is cached.
+     * The universe screens only need metadata: tags, duration, rating, year, score, poster.
+     */
+    private fun trimLoadedDetails(response: LoadResponse): LoadResponse = response.apply {
+        when (this) {
+            is TvSeriesLoadResponse -> episodes = emptyList()
+            is AnimeLoadResponse -> episodes.clear()
+        }
+        recommendations = null
+        actors = null
+        if (trailers.isNotEmpty()) trailers = mutableListOf()
+    }
+
+    /** Drops cached snapshots nobody points at any more, then hard-caps the map. */
+    private fun trimDetailsCache(retain: Set<String> = emptySet()) {
+        if (detailsCache.size <= MAX_DETAILS_CACHE) return
+        detailsCache.keys.removeIf { key -> key !in retain }
+        val overflow = detailsCache.size - MAX_DETAILS_CACHE
+        if (overflow > 0) {
+            detailsCache.keys.take(overflow).forEach { detailsCache.remove(it) }
+        }
+    }
+
+    private fun clearCachesForReload() {
+        categoryMemo.clear()
+        trimDetailsCache()
+    }
     private val frozenHeroKeysByUniverse = ConcurrentHashMap<String, List<String>>()
 
     private val _catalogSnapshot = MutableLiveData(UnifiedCatalogSnapshot())
@@ -399,6 +454,10 @@ class MediaUniverseViewModel : ViewModel() {
 
     private var catalogJob: Job? = null
     private var lastLoadedProviderSignature: String = ""
+
+    /** Launch seed already used to re-roll the Musiques rows (FRESH-01). */
+    @Volatile
+    private var musicRotationLaunchSeed: Long = Long.MIN_VALUE
 
     private val onPluginsLoadedListener: (Boolean) -> Unit = { force ->
         ensureCatalogLoaded(forceReload = force)
@@ -418,11 +477,17 @@ class MediaUniverseViewModel : ViewModel() {
         MainActivity.mainPluginsLoadedEvent += onMainPluginsLoadedListener
         MainActivity.reloadHomeEvent += onReloadHomeListener
         MainActivity.bookmarksUpdatedEvent += onBookmarksUpdatedListener
+        // FRESH-01: the very first refresh of a process bypasses the disk cache so every
+        // YouTube-powered surface (Enfants + Musiques) renews itself at each app launch.
+        val forceYouTubeRefresh = MissaCatalogRotation.consumeLaunchRefreshTicket()
         viewModelScope.launch {
             DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
         }
         viewModelScope.launch {
-            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
+            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded(force = forceYouTubeRefresh)
+        }
+        viewModelScope.launch {
+            DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = forceYouTubeRefresh)
         }
         hydrateDiskCacheAndLoad()
     }
@@ -562,11 +627,16 @@ class MediaUniverseViewModel : ViewModel() {
     fun ensureCatalogLoaded(forceReload: Boolean = false) {
         if (forceReload) {
             frozenHeroKeysByUniverse.clear()
+            // Force the next projection to re-roll the promoted YouTube cards (FRESH-01).
+            musicRotationLaunchSeed = Long.MIN_VALUE
             viewModelScope.launch {
                 DirectRadioPlayerManager.refreshRemotePresetsIfNeeded(force = true)
             }
             viewModelScope.launch {
                 DirectMusicPlayerManager.refreshRemoteTracksIfNeeded(force = true)
+            }
+            viewModelScope.launch {
+                DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
             }
         }
         val current = _catalogSnapshot.value ?: UnifiedCatalogSnapshot()
@@ -598,6 +668,7 @@ class MediaUniverseViewModel : ViewModel() {
             val online = isNetworkConnected()
 
             try {
+                clearCachesForReload()
                 val selectedProviders = selectProvidersForCatalog(requireMainPage = true)
                 val activeCount = countActiveProviders()
                 val totalSelected = selectedProviders.size
@@ -680,6 +751,14 @@ class MediaUniverseViewModel : ViewModel() {
                             resumeWatching = resume,
                             updatedAtMs = System.currentTimeMillis()
                         )
+                        // CRASH-01: persist this partial harvest immediately. When the process
+                        // is killed during the secondary wave or the enrichment — which only
+                        // happens on a cold start, when no snapshot exists yet — the next launch
+                        // still boots from disk instead of harvesting everything again from
+                        // scratch. That is why the app used to need two or three attempts.
+                        if (quickEntries.isNotEmpty()) {
+                            saveCatalogToDiskCache(quickEntries, System.currentTimeMillis())
+                        }
                     }
                 }
                 if (secondaryWave.isNotEmpty()) {
@@ -741,11 +820,23 @@ class MediaUniverseViewModel : ViewModel() {
                     saveCatalogToDiskCache(baseEntries, updatedAt)
                     val ctx = context
                     val dataSaver = ctx != null && MissaUiFactory.isDataSaverActive(ctx)
-                    val enriched = enrichEntriesWithDetails(
-                        baseEntries,
-                        maxHero = if (dataSaver) 3 else MAX_HERO_ENRICH,
-                        maxClassifier = if (dataSaver) 16 else MAX_CLASSIFIER_ENRICH
-                    )
+                    // CRASH-01: never start allocating one LoadResponse per card when the
+                    // harvest has already eaten the heap — the catalogue still renders from the
+                    // raw harvest, it just gets fewer enriched tags on this pass.
+                    val enriched = if (hasEnrichmentHeadroom()) {
+                        enrichEntriesWithDetails(
+                            baseEntries,
+                            maxHero = if (dataSaver) 3 else MAX_HERO_ENRICH,
+                            maxClassifier = if (dataSaver) 16 else MAX_CLASSIFIER_ENRICH
+                        )
+                    } else {
+                        Log.w(
+                            TAG,
+                            "Enrichment skipped: only ${freeHeapMb()}MB of heap left " +
+                                "(need ${MIN_FREE_MEMORY_FOR_ENRICHMENT / (1024 * 1024)}MB)"
+                        )
+                        baseEntries
+                    }
                     val enrichedAt = System.currentTimeMillis()
                     saveCatalogToDiskCache(enriched, enrichedAt)
                     _catalogSnapshot.value = UnifiedCatalogSnapshot(
@@ -762,22 +853,50 @@ class MediaUniverseViewModel : ViewModel() {
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (oom: OutOfMemoryError) {
+                // CRASH-01: OutOfMemoryError is an Error, not an Exception, so it escaped the
+                // catch below and killed the whole app — always on a cold start, because that
+                // is the only launch that has no disk snapshot and harvests everything at once.
+                // Keep whatever the harvest already produced instead of dying.
+                Log.e(
+                    TAG,
+                    "Catalog load ran out of memory, keeping " +
+                        "${_catalogSnapshot.value?.entries?.size ?: 0} harvested entries",
+                    oom
+                )
+                publishHarvestFallback(resume)
             } catch (e: Exception) {
                 // Was a bare catch(_) - a crashing catalog load looked exactly like an empty one.
                 Log.e(TAG, "Catalog load failed, keeping ${_catalogSnapshot.value?.entries?.size ?: 0} cached entries", e)
-                val fallback = _catalogSnapshot.value?.entries.orEmpty()
-                _catalogSnapshot.value = UnifiedCatalogSnapshot(
-                    isLoading = false,
-                    hasError = fallback.isEmpty(),
-                    isOffline = !isNetworkConnected(),
-                    activeProviderCount = countActiveProviders(),
-                    entries = fallback,
-                    resumeWatching = resume,
-                    updatedAtMs = System.currentTimeMillis()
-                )
+                publishHarvestFallback(resume)
             }
         }
     }
+
+    /**
+     * CRASH-01: after a failed harvest, show whatever is already in the snapshot instead of
+     * blanking the screen (or the process, for an OutOfMemoryError).
+     */
+    private fun publishHarvestFallback(resumeWatching: List<DataStoreHelper.ResumeWatchingResult>) {
+        val fallback = _catalogSnapshot.value?.entries.orEmpty()
+        _catalogSnapshot.value = UnifiedCatalogSnapshot(
+            isLoading = false,
+            hasError = fallback.isEmpty(),
+            isOffline = !isNetworkConnected(),
+            activeProviderCount = countActiveProviders(),
+            entries = fallback,
+            resumeWatching = resumeWatching,
+            updatedAtMs = System.currentTimeMillis()
+        )
+    }
+
+    /** Free heap in MB, for the CRASH-01 guards and their logs. */
+    private fun freeHeapMb(): Long {
+        val runtime = Runtime.getRuntime()
+        return (runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())) / (1024 * 1024)
+    }
+
+    private fun hasEnrichmentHeadroom(): Boolean = freeHeapMb() * 1024 * 1024 >= MIN_FREE_MEMORY_FOR_ENRICHMENT
 
     suspend fun searchUnified(
         query: String,
@@ -832,6 +951,35 @@ class MediaUniverseViewModel : ViewModel() {
         return enrichEntriesWithDetails(normalized, maxHero = 3, maxClassifier = 10)
     }
 
+    /**
+     * PERF-OOM: memoized [MediaUniverseClassifier.categorizeForUniverse]. The classifier walks
+     * a dozen regexes per call and projectUniverse() runs it for every entry of a ~2000 entry
+     * catalogue on each recompute (source change, favourite change, rotation tick...), which
+     * was stalling the main thread ("Skipped 140 frames", "Davey! duration=2497ms").
+     * The key embeds [UnifiedCatalogEntry.dedupKey], which changes whenever the entry is
+     * re-classified with fresh details, so the memo is invalidated with the data it derives from.
+     */
+    private fun categorizeEntry(
+        universeId: String,
+        entry: UnifiedCatalogEntry,
+        sectionName: String,
+        tags: List<String>?,
+        durationMinutes: Int?
+    ): List<MissaCategory> {
+        val key = "$universeId|${entry.dedupKey}"
+        categoryMemo[key]?.let { return it }
+        if (categoryMemo.size > 20_000) categoryMemo.clear()
+        return MediaUniverseClassifier.categorizeForUniverse(
+            universeId = universeId,
+            title = entry.primary.name,
+            sectionName = sectionName,
+            tags = tags.orEmpty(),
+            effectiveType = entry.effectiveType,
+            durationMinutes = durationMinutes,
+            url = entry.primary.url
+        ).also { categoryMemo[key] = it }
+    }
+
     fun projectUniverse(
         universeId: String,
         snapshot: UnifiedCatalogSnapshot,
@@ -847,8 +995,9 @@ class MediaUniverseViewModel : ViewModel() {
         val baseSourceEntries = overrideEntries ?: snapshot.entries
 
         // Match entries belonging to this universe + filter local query if overrideEntries not provided.
-        // "music" is 100% exclusively powered by YouTube (DirectMusicPlayerManager) — zero plugin entries.
-        val universeEntries = if (universeId == "music") {
+        // "music" is 100% exclusively powered by YouTube (DirectMusicPlayerManager) and "kids" is
+        // 100% exclusively powered by YouTube Kids (DirectKidsPlayerManager) — zero plugin entries.
+        val universeEntries = if (universeId == "music" || universeId == "kids") {
             emptyList()
         } else {
             baseSourceEntries.filter { entry ->
@@ -866,13 +1015,14 @@ class MediaUniverseViewModel : ViewModel() {
             "radio" -> DirectRadioPlayerManager.allPresetStations()
                 .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
             "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
+            "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
             else -> emptyList()
         }
 
-        val availableSources = if (universeId == "music") {
-            listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
-        } else {
-            (
+        val availableSources = when (universeId) {
+            "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
+            "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
+            else -> (
                 (overrideEntries ?: snapshot.entries)
                     .filter { universeId == "home" || it.universes.contains(universeId) }
                     .flatMap { entry -> entry.sources.map { it.apiName } } +
@@ -952,6 +1102,71 @@ class MediaUniverseViewModel : ViewModel() {
                     if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
                         bucket.items.add(resp)
                     }
+                }
+            }
+        }
+
+        // Dedicated 100%-YouTube Kids universe (KIDS-01): YouTube is the single source of the
+        // Enfants universe, and the selection is re-rolled on every launch (FRESH-01).
+        if (universeId == "kids") {
+            val kidsSearchHits = if (searchQuery.isNotBlank()) {
+                DirectKidsPlayerManager.getOnlineSearchResults(searchQuery)
+            } else {
+                emptyList()
+            }
+            val localKidsMatches = if (searchQuery.isNotBlank()) {
+                DirectKidsPlayerManager.allPresetVideos()
+                    .filter { MissaKidsProviders.matchesKidsQuery(it, searchQuery) }
+            } else {
+                emptyList()
+            }
+            val kidsSearchResults = (kidsSearchHits + localKidsMatches)
+                .distinctBy { it.id }
+                .filter { video ->
+                    normalizedSelectedSources.isEmpty() ||
+                        video.providerName.ifBlank { DIRECT_KIDS_API_NAME }
+                            .lowercase(Locale.ROOT) in normalizedSelectedSources
+                }
+
+            if (searchQuery.isNotBlank()) {
+                if (kidsSearchResults.isNotEmpty()) {
+                    val resultsTitle = ctx?.getString(
+                        R.string.universe_search_results_for,
+                        searchQuery.trim()
+                    ) ?: searchQuery.trim()
+                    buckets["kids_search_results"] = BucketData(
+                        key = "kids_search_results",
+                        rowTitle = resultsTitle,
+                        chipLabel = resultsTitle,
+                        rank = 1,
+                        items = kidsSearchResults.map { MissaKidsProviders.toKidsSearchResponse(it) }
+                            .toMutableList(),
+                        isHorizontal = false
+                    )
+                }
+            } else {
+                val selection = DirectKidsPlayerManager.currentSelection()
+                for ((category, items) in selection.rows) {
+                    if (items.isEmpty()) continue
+                    buckets[category.id] = BucketData(
+                        key = category.id,
+                        rowTitle = resolveStr(ctx, category.rowTitleRes, category.id),
+                        chipLabel = resolveStr(ctx, category.chipLabelRes, category.id),
+                        rank = category.editorialRank,
+                        items = items.map { MissaKidsProviders.toKidsSearchResponse(it) }.toMutableList(),
+                        isHorizontal = false
+                    )
+                }
+                if (selection.all.isNotEmpty()) {
+                    buckets["kids_all"] = BucketData(
+                        key = "kids_all",
+                        rowTitle = resolveStr(ctx, R.string.missa_cat_kids_all, "kids_all"),
+                        chipLabel = resolveStr(ctx, R.string.missa_chip_kids_all, "kids_all"),
+                        rank = 900,
+                        items = selection.all.map { MissaKidsProviders.toKidsSearchResponse(it) }
+                            .toMutableList(),
+                        isHorizontal = false
+                    )
                 }
             }
         }
@@ -1037,6 +1252,30 @@ class MediaUniverseViewModel : ViewModel() {
                     }
                 }
             }
+            // FRESH-01: re-roll the promoted YouTube cards once per app launch so the Musiques
+            // rows never open twice in a row on the very same clips.
+            val musicLaunchSeed = MissaCatalogRotation.currentLaunchSeed()
+            if (musicRotationLaunchSeed != musicLaunchSeed) {
+                musicRotationLaunchSeed = musicLaunchSeed
+                val rotationRandom = MissaCatalogRotation.currentRandom()
+                val recentMusicIds = DirectMusicPlayerManager.promotedIds()
+                val promotedNow = ArrayList<String>()
+                for (bucket in buckets.values) {
+                    if (bucket.key == MissaCategory.FAVORITES.id) continue
+                    if (bucket.items.size < 2) continue
+                    val rotated = MissaCatalogRotation.rotateAvoidingRecent(
+                        items = bucket.items.toList(),
+                        recentIds = recentMusicIds,
+                        random = rotationRandom,
+                        keySelector = { it.url }
+                    )
+                    bucket.items.clear()
+                    bucket.items.addAll(rotated)
+                    promotedNow.addAll(rotated.take(3).map { it.url })
+                }
+                DirectMusicPlayerManager.notePromotedIds(promotedNow)
+            }
+
             if (searchQuery.isNotBlank()) musicTracks.map { it.toSearchResponse() } else emptyList()
         } else {
             emptyList()
@@ -1104,14 +1343,20 @@ class MediaUniverseViewModel : ViewModel() {
         }
 
         for (entry in sourceFilteredEntries) {
-            val categories = MediaUniverseClassifier.categorizeForUniverse(
-                universeId = universeId,
+            val entryUrl = entry.primary.url
+            // DOC-LIVE-01: live channels & streams detected in plugin feeds (url, section, tags)
+            // even when the plugin never stamped TvType.Live on the item.
+            val sectionName = entry.sectionHints.joinToString(" ")
+            val tags = entry.details?.tags ?: entry.cachedTags
+            val durationMinutes = entry.details?.duration ?: entry.cachedDuration
+            val entryIsLive = MediaUniverseClassifier.isLiveStreamSignal(
+                effectiveOrRawType = entry.effectiveType ?: entry.primary.type,
                 title = entry.primary.name,
-                sectionName = entry.sectionHints.joinToString(" "),
-                tags = entry.details?.tags ?: entry.cachedTags,
-                effectiveType = entry.effectiveType,
-                durationMinutes = entry.details?.duration ?: entry.cachedDuration
+                sectionName = sectionName,
+                tags = tags,
+                url = entryUrl
             )
+            val categories = categorizeEntry(universeId, entry, sectionName, tags, durationMinutes)
             for (cat in categories) {
                 val bucket = buckets.getOrPut(cat.id) {
                     BucketData(
@@ -1126,6 +1371,8 @@ class MediaUniverseViewModel : ViewModel() {
                 }
                 if (definition.isHorizontalCards ||
                     cat == MissaCategory.HOME_LIVE ||
+                    cat == MissaCategory.DOCS_LIVE ||
+                    entryIsLive ||
                     entry.effectiveType == TvType.Live
                 ) {
                     bucket.isHorizontal = true
@@ -1353,7 +1600,12 @@ class MediaUniverseViewModel : ViewModel() {
         }
 
         val totalUniqueCount = allMatchingRows.flatMap { it.items }.distinctBy { it.url }.size
-        val effectiveLoading = snapshot.isLoading && visibleRows.isEmpty()
+        // A YouTube-only universe (Enfants) must not flash an "empty universe" card while its
+        // first catalogue is still downloading (KIDS-01).
+        val directProviderLoading = universeId == "kids" &&
+            visibleRows.isEmpty() &&
+            DirectKidsPlayerManager.isAwaitingFirstCatalogue()
+        val effectiveLoading = (snapshot.isLoading || directProviderLoading) && visibleRows.isEmpty()
 
         // Compute explicit empty/error reason without ever showing a plugin-missing card when no plugin is installed
         val hasActiveFilter = searchQuery.isNotBlank() ||
@@ -1365,7 +1617,8 @@ class MediaUniverseViewModel : ViewModel() {
             hasActiveFilter = hasActiveFilter,
             isOffline = snapshot.isOffline,
             hasError = snapshot.hasError,
-            activeProviderCount = snapshot.activeProviderCount
+            activeProviderCount = snapshot.activeProviderCount,
+            isDirectProviderLoading = directProviderLoading
         )
 
         val lastLiveUrl = if (universeId == "live_tv" || universeId == "sports") getLastLiveChannelUrl() else null
@@ -1434,6 +1687,32 @@ class MediaUniverseViewModel : ViewModel() {
                     tags = listOf(station.country).filter { it.isNotBlank() },
                     isDirectStream = true
                 )
+            }
+        }
+
+        // KIDS-02: the Enfants universe highlights a few rotated titles in a hero banner, the
+        // same way Films & Mangas does, instead of opening on a flat list of rows.
+        if (universeId == "kids") {
+            val heroKids = DirectKidsPlayerManager.heroVideos(max = 5)
+            if (heroKids.isNotEmpty()) {
+                return heroKids.map { video ->
+                    val resp = MissaKidsProviders.toKidsSearchResponse(video)
+                    val categoryLabel = KidsCategory.byId(video.genre)?.let {
+                        resolveStr(ctx, it.chipLabelRes, it.id)
+                    }
+                    HeroBannerSlide(
+                        card = resp,
+                        details = null,
+                        allSources = listOf(resp),
+                        eyebrow = eyebrowText,
+                        plot = video.artist.takeIf { it.isNotBlank() },
+                        yearText = resp.apiName,
+                        durationText = resp.formattedDuration(),
+                        scoreText = null,
+                        tags = listOfNotNull(categoryLabel),
+                        isDirectStream = true
+                    )
+                }
             }
         }
 
@@ -1734,7 +2013,7 @@ class MediaUniverseViewModel : ViewModel() {
         val enrichOk = AtomicInteger(0)
         val enrichFail = AtomicInteger(0)
 
-        val semaphore = Semaphore(6)
+        val semaphore = Semaphore(MAX_PARALLEL_DETAILS)
         toFetch.map { entry ->
             async(Dispatchers.IO) {
                 val id = itemIdentity(entry.primary)
@@ -1742,29 +2021,37 @@ class MediaUniverseViewModel : ViewModel() {
                 semaphore.withPermit {
                     withTimeoutOrNull(DETAIL_TIMEOUT_MS) {
                         try {
-                            when (val loaded = APIRepository(api).load(entry.primary.url)) {
-                                is Resource.Success -> {
-                                    detailsCache[id] = loaded.value
-                                    enrichOk.incrementAndGet()
-                                }
-                                else -> {
-                                    enrichFail.incrementAndGet()
-                                    Log.w(
-                                        TAG,
-                                        "Details failed for '${entry.primary.name}' via ${api.name}: ${loaded::class.simpleName}"
-                                    )
-                                }
+                            // PERF-OOM: the provider is called directly instead of going
+                            // through APIRepository.load(), because the repository keeps the
+                            // response it returns in its own 20-entry cache — trimming the
+                            // episodes out of that shared instance would empty the episode
+                            // list of the detail page. Going direct gives us an object we own.
+                            val loaded = api.load(api.fixUrl(entry.primary.url))
+                            if (loaded == null) {
+                                enrichFail.incrementAndGet()
+                                Log.w(TAG, "Details null for '${entry.primary.name}' via ${api.name}")
+                            } else {
+                                detailsCache[id] = trimLoadedDetails(loaded)
+                                enrichOk.incrementAndGet()
                             }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
-                        } catch (e: Exception) {
+                        } catch (t: Throwable) {
+                            // Throwable, not Exception: APIRepository.safeApiCall used to catch
+                            // those for us (a plugin can throw NotImplementedError/Error and that
+                            // used to be swallowed) — a single rogue provider must never take the
+                            // whole census down while the catalogue is loading.
                             enrichFail.incrementAndGet()
-                            Log.w(TAG, "Details threw for '${entry.primary.name}' via ${api.name}: ${e.message}")
+                            Log.w(TAG, "Details threw for '${entry.primary.name}' via ${api.name}: ${t.message}")
                         }
                     }
                 }
             }
         }.awaitAll()
+
+        // PERF-OOM: release the snapshots that are no longer referenced so a long session
+        // cannot slowly grow the heap back up to the kill threshold.
+        trimDetailsCache(toFetch.mapTo(HashSet()) { itemIdentity(it.primary) })
 
         Log.i(
             TAG,

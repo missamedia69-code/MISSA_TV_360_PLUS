@@ -35,6 +35,28 @@ object OfflinePlaybackHelper {
         )
     }
 
+    /**
+     * Opens an **already resolved** direct stream in the standard video player.
+     *
+     * Used by the Kids universe (KIDS-02): YouTube Kids videos are played as videos, with a
+     * title, instead of going through the Musiques audio player. `extract = false` keeps the
+     * resolved YouTube url untouched (no extractor round-trip).
+     */
+    fun playMedia(activity: Activity, url: String, name: String? = null) {
+        activity.navigate(
+            R.id.global_to_navigation_player, GeneratorPlayer.newInstance(
+                LinkGenerator(
+                    listOf(
+                        BasicLink(url, name)
+                    ),
+                    extract = false,
+                    id = url.hashCode()
+                ), 0
+            ),
+            replacePlayerNavOptions
+        )
+    }
+
     // See CloudStreamPackage
     fun playIntent(activity: Activity, intent: Intent?): Boolean {
         if (intent == null) return false

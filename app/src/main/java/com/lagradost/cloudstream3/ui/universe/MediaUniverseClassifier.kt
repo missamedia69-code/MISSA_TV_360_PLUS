@@ -52,7 +52,8 @@ enum class MissaCategory(
     SERIES_INTL("series_intl", 35, R.string.missa_cat_series_intl, R.string.missa_chip_series_intl),
     SERIES_CATALOG("series_catalog", 900, R.string.missa_cat_series_catalog, R.string.missa_chip_series_catalog),
 
-    // Documentaries (Documentaires)
+    // Documentaires & Live (DOC-LIVE-01): VOD documentaries + live channels/streams (Twitch, YouTube, Dailymotion…)
+    DOCS_LIVE("docs_live", 8, R.string.missa_cat_docs_live, R.string.missa_chip_docs_live),
     DOCS_FEATURED("docs_featured", 10, R.string.missa_cat_docs_featured, R.string.missa_chip_docs_featured),
     DOCS_NATURE("docs_nature", 20, R.string.missa_cat_docs_nature, R.string.missa_chip_docs_nature),
     DOCS_HISTORY("docs_history", 30, R.string.missa_cat_docs_history, R.string.missa_chip_docs_history),
@@ -200,6 +201,25 @@ internal object MediaUniverseClassifier {
     private val liveKeywords = wordRegex(
         """en\s+direct|live\s*tv|cha[iî]nes?\s+tv|iptv|direct\s+tv|24/7|tv\s+live"""
     )
+    /**
+     * Live-streaming platforms (DOC-LIVE-01). Only **live** surfaces are matched on purpose:
+     * a plain `youtube.com/watch?v=` or a VOD page must stay a VOD item.
+     */
+    private val livePlatformHostRegex = Regex(
+        """(?:twitch\.tv/|(?:www\.|m\.)?youtube\.com/(?:live/|@[^/\s]+/live|c/[^/\s]+/live|channel/[^/\s]+/live)|youtu\.be/live/|dailymotion\.com/live/|kick\.com/|trovo\.live/|rumble\.com/live/|vimeo\.com/(?:live|event)|facebook\.com/[^\s]+/live|livestream\.com/|ustream\.tv/|bilibili\.tv/(?:live|blive)|vkplay\.live/|ok\.ru/live/)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val livePlatformKeywords = wordRegex(
+        """twitch|twitch\.tv|kick(?:\.com)?|trovo|dailymotion|rumble|vimeo\s+live|streams?\s+live|live\s+streams?|directs?\s+(?:twitch|youtube|yt|kick)|cha[iî]nes?\s+(?:live|direct)|webcams?|live\s*cams?|cam[eé]ras?\s+live|24/7|24h/24|h24"""
+    )
+    /** Knowledge / discovery themes that make a live stream relevant for the Documentaires & Live tab. */
+    private val liveDiscoveryKeywords = wordRegex(
+        """national\s+geographic|nat\s*geo|discovery|arte|ushua[iï]a|plan[eè]te\+?|rmc\s+d[eé]couverte|histoire\s+tv|toute\s+l['’]histoire|science(?:\s+(?:&|et)\s+vie)?|espace|astronomie|astronomy|nasa|cosmos|volcans?|oc[eé]ans?|faune|wildlife|safari|zoos?|aquarium|animaux|nature|environnement|[eé]cologie|climat|m[eé]t[eé]o|glaciers?|for[eê]ts?|r[eé]cifs?|corail|oiseaux|insectes|dinosaures?|pr[eé]histoire|arch[eé]ologie|civilisations?|pyramides?|antiquit[eé]|histoire|patrimoine|mus[eé]es?|expositions?|documentaires?|documentary|documentaries|docus?|reportages?|enqu[eê]tes?|savoirs?|connaissances?|d[eé]couverte|d[eé]couvertes|explorations?|exp[eé]ditions?|sant[eé]|m[eé]decine|technolog|oc[eé]anographie|géographie|geography"""
+    )
+    /** 24/7 news channels stay in the Live TV universe: they are not documentaries. */
+    private val liveNewsKeywords = wordRegex(
+        """news|actualit[eé]s?|infos?|journal|jt\s|breaking|bfmtv|bfm|cnews|c\s*news|lci|france\s*info|france\s*24|france24|euronews|africanews|al\s*jazeera|rt\s*news|tv5\s*monde|dw|voa|rfi|canal\s*2|crtv|equinoxe"""
+    )
     private val explicitSeriesTitleRegex = wordRegex(
         """s\d{1,2}\s*e\d{1,3}|s0[1-9]|s[12]\d|\d{1,2}x\d{2}|saisons?\s*\d+|seasons?\s*\d+|ep\.?\s*\d+|mini[ -]?s[eé]ries?|s[eé]rie\s+(?:tv|compl[eè]te)|int[eé]grale\s+saisons?"""
     )
@@ -322,6 +342,82 @@ internal object MediaUniverseClassifier {
         return sportsKeywords.containsMatchIn(text) || liveMatchupRegex.containsMatchIn(title)
     }
 
+    /**
+     * DOC-LIVE-01: is this item a **live stream** rather than an on-demand title?
+     *
+     * Combines every provider-agnostic live proof available in a plugin feed: the item type,
+     * an HLS/live url, a live-streaming platform host (Twitch, YouTube live, Kick, Dailymotion…),
+     * explicit wording in the title/section ("en direct", "webcam", "24/7"), and the provider's
+     * own supported types. Pure VOD pages (a plain `youtube.com/watch?v=`) are never live.
+     */
+    internal fun isLiveStreamSignal(
+        effectiveOrRawType: TvType?,
+        title: String = "",
+        sectionName: String = "",
+        tags: Collection<String> = emptyList(),
+        url: String = "",
+        providerSupportedTypes: Set<TvType> = emptySet()
+    ): Boolean {
+        if (effectiveOrRawType == TvType.Live) return true
+        if (liveUrlRegex.containsMatchIn(url) || livePlatformHostRegex.containsMatchIn(url)) return true
+        val words = "$title $sectionName ${tags.joinToString(" ")}"
+        if (liveKeywords.containsMatchIn(words) || livePlatformKeywords.containsMatchIn(words)) return true
+        if (liveEventSectionRegex.containsMatchIn(sectionName)) return true
+        return (effectiveOrRawType == null || effectiveOrRawType == TvType.Others || effectiveOrRawType == TvType.Video) &&
+            TvType.Live in providerSupportedTypes
+    }
+
+    /**
+     * DOC-LIVE-01: does a live stream belong to the **Documentaires & Live** universe?
+     *
+     * Accepted: documentary live channels (National Geographic Live, Arte Doc…), discovery /
+     * knowledge streams (NASA, zoos, webcams, museums, history, science…) and live streams
+     * coming from a streaming platform (Twitch, YouTube Live, Kick, Dailymotion, Trovo…).
+     * Rejected: sports events, radio, podcasts, music concerts and 24/7 news channels, which
+     * keep their own universes (Sports, Radio, Podcasts, Musiques, Live TV).
+     */
+    internal fun isDocumentaryLiveCandidate(
+        effectiveOrRawType: TvType?,
+        title: String = "",
+        sectionName: String = "",
+        tags: Collection<String> = emptyList(),
+        url: String = "",
+        providerSupportedTypes: Set<TvType> = emptySet()
+    ): Boolean {
+        if (isSportsBroadcastOrEvent(
+                effectiveOrRawType = effectiveOrRawType,
+                title = title,
+                sectionName = sectionName,
+                tags = tags,
+                url = url,
+                providerSupportedTypes = providerSupportedTypes
+            )
+        ) return false
+        val text = "$title $sectionName ${tags.joinToString(" ")}"
+        if (radioKeywords.containsMatchIn(text) ||
+            podcastKeywords.containsMatchIn(text) ||
+            musicKeywords.containsMatchIn(text)
+        ) return false
+        // A bare `.m3u8` / `/live/` url is not enough: plenty of VOD titles are served as HLS.
+        // The live proof must be explicit (type, platform host, or live wording).
+        val explicitLive = effectiveOrRawType == TvType.Live ||
+            livePlatformHostRegex.containsMatchIn(url) ||
+            livePlatformKeywords.containsMatchIn(text) ||
+            liveKeywords.containsMatchIn("$title $sectionName") ||
+            liveEventSectionRegex.containsMatchIn(sectionName) ||
+            ((effectiveOrRawType == null || effectiveOrRawType == TvType.Others || effectiveOrRawType == TvType.Video) &&
+                TvType.Live in providerSupportedTypes)
+        if (!explicitLive) return false
+
+        val hasDocumentary = documentaryKeywords.containsMatchIn(text)
+        val hasDiscovery = liveDiscoveryKeywords.containsMatchIn(text)
+        val hasPlatform = livePlatformHostRegex.containsMatchIn(url) ||
+            livePlatformKeywords.containsMatchIn(text)
+        if (!hasDocumentary && !hasDiscovery && !hasPlatform) return false
+        if (!hasDocumentary && !hasDiscovery && liveNewsKeywords.containsMatchIn(text)) return false
+        return true
+    }
+
     /** Checks if a title/metadata contains mature/adult cues (also used by TRUST-01 parental guard). */
     fun hasMatureSignals(
         title: String,
@@ -393,6 +489,14 @@ internal object MediaUniverseClassifier {
         if (isSportsBroadcastOrEvent(rawType, title, sectionName, tags, url, providerSupportedTypes)) {
             return TvType.Live
         }
+        // DOC-LIVE-01: a live-streaming platform url (Twitch, YouTube Live, Kick…) is a live
+        // stream even when the plugin stamped a default Movie / TvSeries / Video type.
+        if (livePlatformHostRegex.containsMatchIn(url) &&
+            (rawType == null || rawType == TvType.Others || rawType == TvType.Video ||
+                rawType == TvType.Movie || rawType == TvType.TvSeries || rawType == TvType.Documentary)
+        ) {
+            return TvType.Live
+        }
         if (isDocumentarySignal &&
             (rawType == null || rawType == TvType.Others || rawType in movieTypes || rawType == TvType.TvSeries)
         ) {
@@ -448,6 +552,8 @@ internal object MediaUniverseClassifier {
             liveKeywords.containsMatchIn(sectionName) ||
                 liveEventSectionRegex.containsMatchIn(sectionName) ||
                 liveUrlRegex.containsMatchIn(url) ||
+                livePlatformHostRegex.containsMatchIn(url) ||
+                livePlatformKeywords.containsMatchIn(contextText) ||
                 (sportsKeywords.containsMatchIn(contextText) && TvType.Live in cleanProviderTypes) -> TvType.Live
             isMangaSignal -> {
                 if (movieHintKeywords.containsMatchIn(contextText) && !seriesHintKeywords.containsMatchIn(contextText)) {
@@ -592,7 +698,14 @@ internal object MediaUniverseClassifier {
                 !(isDocumentary && effectiveType != TvType.Live) &&
                 effectiveType != null &&
                 effectiveType in seriesTypes
-            "documentaries" -> isDocumentary
+            "documentaries" -> isDocumentary || isDocumentaryLiveCandidate(
+                effectiveOrRawType = effectiveType,
+                title = title,
+                sectionName = sectionName,
+                tags = tags,
+                url = url,
+                providerSupportedTypes = providerSupportedTypes
+            )
             "shorts" -> {
                 val canBeMovie = (effectiveType == null || effectiveType == TvType.Others || effectiveType in vodMovieOrDocTypes) &&
                     effectiveType !in seriesTypes &&
@@ -723,7 +836,8 @@ internal object MediaUniverseClassifier {
         tags: Collection<String> = emptyList(),
         effectiveType: TvType? = null,
         durationMinutes: Int? = null,
-        isTrending: Boolean = false
+        isTrending: Boolean = false,
+        url: String = ""
     ): List<MissaCategory> {
         val text = "$title $sectionName ${tags.joinToString(" ")}".lowercase(Locale.ROOT)
         val categories = LinkedHashSet<MissaCategory>()
@@ -815,6 +929,18 @@ internal object MediaUniverseClassifier {
             }
 
             "documentaries" -> {
+                // DOC-LIVE-01: live channels & streams get their own row, ahead of the VOD rows.
+                if (isDocumentaryLiveCandidate(
+                        effectiveOrRawType = effectiveType,
+                        title = title,
+                        sectionName = sectionName,
+                        tags = tags,
+                        url = url
+                    )
+                ) {
+                    categories.add(MissaCategory.DOCS_LIVE)
+                    return categories.toList()
+                }
                 if (isRecent || isTrendingSignal) categories.add(MissaCategory.DOCS_FEATURED)
                 if (containsAny(
                         text,

@@ -3,6 +3,8 @@ package com.lagradost.cloudstream3.ui.universe
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognizerIntent
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -35,6 +37,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
 import com.lagradost.cloudstream3.ui.result.FOCUS_SELF
@@ -75,6 +78,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     companion object {
         const val ARG_UNIVERSE_ID = "universe_id"
         private const val MAX_INLINE_CATEGORY_PILLS = 8
+        /** ANR-01: how long several invalidations are merged before the screen is projected. */
+        private const val RENDER_COALESCE_MS = 70L
         private val focusMemoryByUniverse = ConcurrentHashMap<String, String>()
 
         /** Contextual filter strip is hidden on Home and shown inside dedicated universes (Films, Series, …). */
@@ -133,6 +138,17 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     private var screenAdapter: UniverseScreenAdapter? = null
     private var categoryPillAdapter: CategoryFilterPillAdapter? = null
+
+    // --- ANR-01 render throttling -------------------------------------------------
+    // A cold start posts one snapshot per finished provider plus the harvest and the
+    // enrichment pass. Each one used to re-project the whole catalogue (~2 000 entries)
+    // on the main thread, which is what froze the UI for seconds and got the app killed
+    // on its very first launch. Renders are now coalesced, and a snapshot that only
+    // moves the progress counters is ignored entirely.
+    private val renderHandler by lazy { Handler(Looper.getMainLooper()) }
+    private val renderRunnable = Runnable { renderScreenInternal() }
+    private var lastRenderedEntries: Any? = null
+    private var lastRenderedLoading: Boolean? = null
 
     private var currentSearchQuery: String = ""
     private var searchOverrideEntries: List<UnifiedCatalogEntry>? = null
@@ -206,6 +222,14 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             if (!activelyLoading) {
                 swipeRefresh?.isRefreshing = false
             }
+            // ANR-01: when only the counters moved (one more provider finished), the visible
+            // content is identical - re-projecting thousands of entries would block the main
+            // thread for nothing. See the note on the throttling fields above.
+            if (snapshot.entries === lastRenderedEntries && snapshot.isLoading == lastRenderedLoading) {
+                return@observe
+            }
+            lastRenderedEntries = snapshot.entries
+            lastRenderedLoading = snapshot.isLoading
             renderScreen()
         }
 
@@ -238,6 +262,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         DirectMusicPlayerManager.tracksUpdated.observe(viewLifecycleOwner) {
             if (universeId == "music" || universeId == "home") {
+                renderScreen()
+            }
+        }
+
+        // Re-render when the per-launch rotated Kids catalogue arrives from YouTube (KIDS-01).
+        DirectKidsPlayerManager.videosUpdated.observe(viewLifecycleOwner) {
+            if (universeId == "kids" || universeId == "home") {
                 renderScreen()
             }
         }
@@ -276,6 +307,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     override fun onDestroyView() {
+        renderHandler.removeCallbacks(renderRunnable)
+        lastRenderedEntries = null
+        lastRenderedLoading = null
         searchJob?.cancel()
         typingDebounceJob?.cancel()
         stickyFilterBar = null
@@ -750,9 +784,33 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
     }
 
+    /** DOC-LIVE-01: a card that is a live stream (type, live platform url or live wording). */
+    private fun isLiveCard(card: SearchResponse): Boolean =
+        MediaUniverseClassifier.isDocumentaryLiveCandidate(
+            effectiveOrRawType = card.type,
+            title = card.name,
+            url = card.url
+        ) || MediaUniverseClassifier.isLiveStreamSignal(
+            effectiveOrRawType = card.type,
+            title = card.name,
+            url = card.url
+        )
+
+    /**
+     * Channel zapping targets: every channel of Live TV / Sports, and — DOC-LIVE-01 — the live
+     * row of the Documentaires & Live tab so the remote control behaves the same everywhere.
+     */
+    private fun liveZapTargets(): List<SearchResponse> {
+        val rows = lastProjection?.rows ?: return emptyList()
+        return when (universeId) {
+            "live_tv", "sports" -> rows.flatMap { it.items }
+            "documentaries" -> rows.filter { it.id == MissaCategory.DOCS_LIVE.id }.flatMap { it.items }
+            else -> emptyList()
+        }.distinctBy { it.url }
+    }
+
     private fun zapLiveChannel(delta: Int): Boolean {
-        if (universeId != "live_tv" && universeId != "sports") return false
-        val allChannels = lastProjection?.rows?.flatMap { it.items }?.distinctBy { it.url }.orEmpty()
+        val allChannels = liveZapTargets()
         if (allChannels.isEmpty()) return false
         val lastUrl = viewModel.getLastLiveChannelUrl()
         val currentIdx = allChannels.indexOfFirst { it.url == lastUrl }.let { if (it < 0) 0 else it }
@@ -762,7 +820,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         return true
     }
 
+    /** ANR-01: coalesces bursts of invalidations into a single projection. */
     private fun renderScreen() {
+        renderHandler.removeCallbacks(renderRunnable)
+        renderHandler.postDelayed(renderRunnable, RENDER_COALESCE_MS)
+    }
+
+    private fun renderScreenInternal() {
         val ctx = context ?: return
         val snapshot = viewModel.catalogSnapshot.value ?: UnifiedCatalogSnapshot()
         val projection = viewModel.projectUniverse(
@@ -987,6 +1051,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             searchProgressText?.isVisible = true
             if (universeId == "music") {
                 searchProgressText?.text = getString(R.string.missa_searching_music_youtube, trimmed)
+            } else if (universeId == "kids") {
+                searchProgressText?.text = getString(R.string.missa_searching_kids_youtube, trimmed)
             }
             try {
                 val results = coroutineScope {
@@ -1000,7 +1066,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     } else {
                         null
                     }
-                    val pluginResults = if (universeId == "music" || universeId == "radio") {
+                    val kidsJob = if (universeId == "kids") {
+                        async { DirectKidsPlayerManager.searchVideosOnline(trimmed) }
+                    } else {
+                        null
+                    }
+                    val pluginResults = if (universeId == "music" || universeId == "radio" || universeId == "kids") {
                         emptyList()
                     } else {
                         viewModel.searchUnified(trimmed) { done, total ->
@@ -1018,6 +1089,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     }
                     radioJob?.await()
                     musicJob?.await()
+                    kidsJob?.await()
                     pluginResults
                 }
                 isOnlineSearchInFlight = false
@@ -1054,8 +1126,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
             return
         }
+        // KIDS-02: Kids hero titles play as videos in the standard player.
+        if (item is DirectKidsSearchResponse) {
+            activity?.let { DirectKidsPlayerManager.playDirectResponse(it, item) }
+            return
+        }
         val preferred = viewModel.resolvePreferredCard(item, slide.allSources)
-        if (universeId == "live_tv" || universeId == "sports") {
+        if (universeId == "live_tv" || universeId == "sports" || isLiveCard(preferred)) {
             viewModel.recordLastLiveChannel(preferred)
         }
         activity?.loadSearchResult(preferred, START_ACTION_RESUME_LATEST)
@@ -1070,6 +1147,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
         if (item is DirectMusicSearchResponse) {
             DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
+            return
+        }
+        if (item is DirectKidsSearchResponse) {
+            activity?.let { DirectKidsPlayerManager.playDirectResponse(it, item) }
             return
         }
         val preferred = viewModel.resolvePreferredCard(item, slide.allSources)
@@ -1096,6 +1177,11 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         if (card is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), card)
+            return
+        }
+
+        if (card is DirectKidsSearchResponse) {
+            activity?.let { DirectKidsPlayerManager.playDirectResponse(it, card) }
             return
         }
 
@@ -1153,8 +1239,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
 
         if (callback.action == SEARCH_ACTION_SHOW_METADATA) {
-            // Long-press on Live TV / Sports toggles Favorite channel (FLOW-02)
-            if (universeId == "live_tv" || universeId == "sports") {
+            // Long-press on Live TV / Sports / Documentaires & Live toggles Favorite channel (FLOW-02)
+            if (universeId == "live_tv" || universeId == "sports" || isLiveCard(card)) {
                 val nowFav = viewModel.toggleFavoriteLiveChannel(card.url)
                 Toast.makeText(
                     requireContext(),
@@ -1189,10 +1275,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         val def = MissaUniverses.byId(universeId)
         val preferred = viewModel.resolvePreferredCard(card)
         if (callback.action == SEARCH_ACTION_LOAD &&
-            def.directPlayOnClick &&
+            (def.directPlayOnClick || isLiveCard(card)) &&
             card !is DataStoreHelper.ResumeWatchingResult
         ) {
-            if (universeId == "live_tv" || universeId == "sports") {
+            if (universeId == "live_tv" || universeId == "sports" || isLiveCard(card)) {
                 viewModel.recordLastLiveChannel(preferred)
             }
             activity?.loadSearchResult(preferred, START_ACTION_RESUME_LATEST)
@@ -1270,6 +1356,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         } else {
             if (universeId == "music" || universeId == "home") {
                 DirectMusicPlayerManager.forceRefreshCatalog()
+            }
+            if (universeId == "kids") {
+                DirectKidsPlayerManager.forceRefreshCatalog()
             }
             viewModel.ensureCatalogLoaded(forceReload = true)
             if (universeId == "music") {

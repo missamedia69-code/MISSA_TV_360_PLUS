@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android TV 10-foot UI overrides (3m viewing distance) -->
+    <!--
+        Android TV 10-foot UI overrides (3m viewing distance).
+
+        NOTE: most televisions also report `sw >= 600dp`, and `smallestWidth` outranks
+        `UI mode` in the resource qualifier table. The values that win on real TV hardware
+        therefore live in `values-sw600dp-television/dimens.xml`; this file keeps the same
+        10-foot scale for the (rare) TV devices below sw600dp so the two stay in sync.
+    -->
     <dimen name="missa_text_screen_title">28sp</dimen>
     <dimen name="missa_text_row_title">19sp</dimen>
     <dimen name="missa_text_body">15sp</dimen>
@@ -13,8 +20,28 @@
     <dimen name="missa_hero_artwork_size">96dp</dimen>
     <dimen name="missa_hero_padding">20dp</dimen>
     <dimen name="missa_section_horizontal_padding">24dp</dimen>
+    <!-- SPACING-01: same rhythm as the phone config, see values/dimens.xml. -->
+    <dimen name="missa_section_gap_top">6dp</dimen>
+    <dimen name="missa_section_gap_bottom">6dp</dimen>
+    <dimen name="missa_section_title_gap">3dp</dimen>
     <dimen name="missa_hub_card_width">196dp</dimen>
     <dimen name="missa_hub_card_height">132dp</dimen>
+    <dimen name="missa_pill_touch_height">52dp</dimen>
+    <dimen name="missa_pill_inset_vertical">6dp</dimen>
     <dimen name="missa_pill_horizontal_padding">14dp</dimen>
+    <dimen name="missa_top_strip_fade_width">48dp</dimen>
+    <!-- BRAND-01: see values/dimens.xml; a 960dp TV bar keeps the glow at ~13%. -->
+    <dimen name="missa_top_strip_glow_width">128dp</dimen>
+    <dimen name="missa_focus_stroke_width">3dp</dimen>
+    <dimen name="missa_card_radius">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">154dp</dimen>
+
+    <!--
+        Retro gamepad overlay (GAME-03, GAME-05) at 3 m viewing distance.
+        Previously missing here, so TV devices below sw600dp inherited the mobile 156dp D-Pad.
+    -->
+    <dimen name="missa_retro_dpad_size">216dp</dimen>
+    <dimen name="missa_retro_action_btn_size">68dp</dimen>
+    <dimen name="missa_retro_shoulder_btn_width">96dp</dimen>
+    <dimen name="missa_retro_shoulder_btn_height">56dp</dimen>
 </resources>
