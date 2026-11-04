@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- HARMONY-01: neutral veil drawn straight on top of the backdrop artwork. Raw
+         posters gave every slide a different colour temperature (olive, maroon, pink);
+         this pulls them all back toward the page background. -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/missaHeroBackdropVeil" />
+        </shape>
+    </item>
     <!-- Top subtle bar shadow so top content stays crisp -->
     <item>
         <shape android:shape="rectangle">

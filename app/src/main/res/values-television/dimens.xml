@@ -20,6 +20,10 @@
     <dimen name="missa_hero_artwork_size">96dp</dimen>
     <dimen name="missa_hero_padding">20dp</dimen>
     <dimen name="missa_section_horizontal_padding">24dp</dimen>
+    <!-- SPACING-01: same rhythm as the phone config, see values/dimens.xml. -->
+    <dimen name="missa_section_gap_top">6dp</dimen>
+    <dimen name="missa_section_gap_bottom">6dp</dimen>
+    <dimen name="missa_section_title_gap">3dp</dimen>
     <dimen name="missa_hub_card_width">196dp</dimen>
     <dimen name="missa_hub_card_height">132dp</dimen>
     <dimen name="missa_pill_touch_height">52dp</dimen>

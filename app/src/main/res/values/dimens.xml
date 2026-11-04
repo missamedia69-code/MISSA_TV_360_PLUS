@@ -46,6 +46,11 @@
     <dimen name="missa_hero_artwork_size">72dp</dimen>
     <dimen name="missa_hero_padding">14dp</dimen>
     <dimen name="missa_section_horizontal_padding">16dp</dimen>
+    <!-- SPACING-01: one vertical rhythm for every home section (hero, hub, resume,
+         category rows), so the page no longer alternates 8dp / 10dp / 16dp gaps. -->
+    <dimen name="missa_section_gap_top">4dp</dimen>
+    <dimen name="missa_section_gap_bottom">4dp</dimen>
+    <dimen name="missa_section_title_gap">2dp</dimen>
     <dimen name="missa_hub_card_width">144dp</dimen>
     <dimen name="missa_hub_card_height">110dp</dimen>
     <dimen name="missa_pill_touch_height">48dp</dimen>
