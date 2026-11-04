@@ -189,7 +189,7 @@
     <color name="missaHeroBackdropFallback">#14171F</color>
     <!-- HARMONY-01: laid over the poster backdrop so an olive, maroon or pink artwork
          all settle into the same cool neutral family instead of fighting the brand amber. -->
-    <color name="missaHeroBackdropVeil">#4D0E1015</color>
+    <color name="missaHeroBackdropVeil">#420E1015</color>
     <color name="missaHeroText">#F8F9FC</color>
     <color name="missaHeroSubtext">#D8DCE6</color>
     <color name="missaHeroEyebrowBg">#BF14171F</color>
