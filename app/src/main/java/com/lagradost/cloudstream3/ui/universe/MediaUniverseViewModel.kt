@@ -1080,7 +1080,7 @@ class MediaUniverseViewModel : ViewModel() {
                 val resp = station.toSearchResponse()
                 val cats = MediaUniverseClassifier.categorizeForUniverse(
                     universeId = "radio",
-                    title = "${station.name} ${station.country}",
+                    title = "${station.name} ${RadioOrigin.displayLabel(station.country, context)}",
                     sectionName = station.genre,
                     tags = listOf("country:${station.country}", station.providerName),
                     effectiveType = TvType.Audio
@@ -1684,7 +1684,8 @@ class MediaUniverseViewModel : ViewModel() {
                     yearText = null,
                     durationText = liveBadge,
                     scoreText = null,
-                    tags = listOf(station.country).filter { it.isNotBlank() },
+                    tags = listOf(RadioOrigin.displayLabel(station.country, context))
+                        .filter { it.isNotBlank() },
                     isDirectStream = true
                 )
             }

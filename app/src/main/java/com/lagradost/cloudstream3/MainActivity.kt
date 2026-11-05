@@ -918,7 +918,10 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         binding?.missaMiniRadioStatus?.text = when {
             radioState.hasError -> getString(R.string.universe_radio_error, st.name)
             radioState.isBuffering -> getString(R.string.universe_radio_buffering, st.name)
-            radioState.isPlaying -> getString(R.string.universe_radio_playing, st.country)
+            radioState.isPlaying -> getString(
+                R.string.universe_radio_playing,
+                RadioOrigin.displayLabel(st.country, this)
+            )
             else -> getString(R.string.universe_radio_paused, st.name)
         }
         binding?.missaMiniRadioPlayPause?.setIconResource(

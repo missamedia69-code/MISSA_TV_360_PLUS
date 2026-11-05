@@ -25,6 +25,7 @@ import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
+import com.lagradost.cloudstream3.ui.universe.RadioOrigin
 import com.lagradost.cloudstream3.utils.AppContextUtils.getNameFull
 import com.lagradost.cloudstream3.utils.AppContextUtils.getShortSeasonText
 import com.lagradost.cloudstream3.utils.DataStoreHelper
@@ -262,8 +263,9 @@ object SearchResultBuilder {
 
         when (card) {
             is DirectRadioSearchResponse -> {
-                val iso = card.country.lowercase()
-                val flagEmoji = SubtitleHelper.getFlagFromIso(iso)
+                // AUDIT H7: getFlagFromIso reads the code as a *language*, so "AF" (Africa)
+                // came back as the South African flag. RadioOrigin only flags real countries.
+                val flagEmoji = RadioOrigin.flagFor(card.country)
                 if (!flagEmoji.isNullOrBlank()) {
                     textFlag?.apply {
                         isVisible = true

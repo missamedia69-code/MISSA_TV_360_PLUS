@@ -773,6 +773,9 @@
     <string name="universe_home_title">Accueil</string>
     <string name="universe_home_description">Cinéma, séries, directs, audio et jeux rétro réunis sur une seule plateforme.</string>
     <string name="universe_home_catalogue">Sélection &amp; recommandations</string>
+    <!-- AUDIT H7 : origines continentales des radios ; pas de drapeau, uniquement un libellé -->
+    <string name="radio_origin_africa">Afrique</string>
+    <string name="radio_origin_world">Monde</string>
     <string name="universe_films_title">Films &amp; Mangas</string>
     <!-- AUDIT H5 : libellé compact pour la barre du haut ; le titre complet reste sur les cartes -->
     <string name="universe_films_title_short">Films</string>

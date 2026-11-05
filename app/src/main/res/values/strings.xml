@@ -817,6 +817,9 @@
     <string name="universe_home_title">Home</string>
     <string name="universe_home_description">Movies, series, live TV, audio and retro games brought together in one platform.</string>
     <string name="universe_home_catalogue">Selection &amp; picks</string>
+    <!-- AUDIT H7: continent-level radio origins; they have no flag, only a label -->
+    <string name="radio_origin_africa">Africa</string>
+    <string name="radio_origin_world">Worldwide</string>
     <string name="universe_films_title">Movies &amp; Mangas</string>
     <!-- AUDIT H5: compact label for the top strip; the full title stays on the cards -->
     <string name="universe_films_title_short">Movies</string>
