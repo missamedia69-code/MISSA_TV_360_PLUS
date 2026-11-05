@@ -526,9 +526,14 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
     private val utilityNavigationEntries by lazy {
         listOf(
-            TopNavigationEntry(R.id.navigation_search, R.string.title_search, R.drawable.search_icon),
+            // AUDIT H6: the row used to mix two icon families - search and download are
+            // stroke glyphs on an 850px canvas with a 60 stroke, library and settings are
+            // filled glyphs on a 960px canvas. The stroked ones looked thinner and smaller,
+            // so the utility row uses heavier variants of them (missa_util_*) and one
+            // uniform icon size.
+            TopNavigationEntry(R.id.navigation_search, R.string.title_search, R.drawable.missa_util_search),
             TopNavigationEntry(R.id.navigation_library, R.string.library, R.drawable.library_icon_selector),
-            TopNavigationEntry(R.id.navigation_downloads, R.string.title_downloads, R.drawable.netflix_download),
+            TopNavigationEntry(R.id.navigation_downloads, R.string.title_downloads, R.drawable.missa_util_download),
             TopNavigationEntry(R.id.navigation_settings, R.string.title_settings, R.drawable.settings_icon_selector),
         )
     }
@@ -747,8 +752,11 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     contentDescription = localizedString(entry.titleRes)
                     iconPadding = 0
                     iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
+                    iconSize = dp(22)
                     minWidth = dp(44)
                     minimumWidth = dp(44)
+                    minHeight = dp(44)
+                    minimumHeight = dp(44)
                     setPadding(0, 0, 0, 0)
                     isFocusable = true
                     isFocusableInTouchMode = false
