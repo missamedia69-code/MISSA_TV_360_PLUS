@@ -2122,7 +2122,7 @@ class MediaUniverseViewModel : ViewModel() {
                 ) ?: entry.effectiveType
                 val newBucket = rawDomainBucket(updatedType)
                 val updatedKey = MediaUniverseClassifier.normalizeTitleKey(entry.primary.name, newBucket)
-                val updatedUniverses = MediaUniverseClassifier.classifyAllUniverses(
+                val autoUniverses = MediaUniverseClassifier.classifyAllUniverses(
                     type = updatedType,
                     title = entry.primary.name,
                     tags = tags,
@@ -2132,6 +2132,11 @@ class MediaUniverseViewModel : ViewModel() {
                     url = entry.primary.url,
                     episodeCountHint = epHint,
                     isSeriesLoadResponse = seriesLoad
+                )
+                // EXT-GROUPS : on réapplique le choix de l'utilisateur
+                val updatedUniverses = MissaExtensionGroups.mergeUniversesForSources(
+                    auto = autoUniverses,
+                    sourceApiNames = entry.sources.map { it.apiName }.distinct()
                 )
                 entry.copy(
                     dedupKey = updatedKey,
@@ -2157,11 +2162,15 @@ class MediaUniverseViewModel : ViewModel() {
                 mergedSources.forEach { src ->
                     sourcesByItemUrl[itemIdentity(src)] = mergedSources
                 }
+                // EXT-GROUPS : la règle "films XOR séries" ne s'applique pas aux sources réglées par l'utilisateur
+                val hasForcedSource = mergedSources.any {
+                    MissaExtensionGroups.resolveForApiName(it.apiName) != null
+                }
                 primaryEntry.copy(
                     sources = mergedSources,
                     sectionHints = sameKeyEntries.flatMap { it.sectionHints }.toSet(),
                     universes = sameKeyEntries.flatMap { it.universes }.toSet().let { combined ->
-                        if ("films" in combined && "series" in combined) {
+                        if (!hasForcedSource && "films" in combined && "series" in combined) {
                             if (primaryEntry.effectiveType == TvType.TvSeries ||
                                 primaryEntry.effectiveType == TvType.Cartoon ||
                                 primaryEntry.effectiveType == TvType.AsianDrama
