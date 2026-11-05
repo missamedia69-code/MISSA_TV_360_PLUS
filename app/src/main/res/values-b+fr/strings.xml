@@ -773,11 +773,17 @@
     <string name="universe_home_title">Accueil</string>
     <string name="universe_home_description">Cinéma, séries, directs, audio et jeux rétro réunis sur une seule plateforme.</string>
     <string name="universe_home_catalogue">Sélection &amp; recommandations</string>
+    <!-- AUDIT H7 : origines continentales des radios ; pas de drapeau, uniquement un libellé -->
+    <string name="radio_origin_africa">Afrique</string>
+    <string name="radio_origin_world">Monde</string>
     <string name="universe_films_title">Films &amp; Mangas</string>
+    <!-- AUDIT H5 : libellé compact pour la barre du haut ; le titre complet reste sur les cartes -->
+    <string name="universe_films_title_short">Films</string>
     <string name="universe_films_description">Longs-métrages, mangas, animes, OAV et classiques issus de toutes vos sources compatibles.</string>
     <string name="universe_series_title">Séries</string>
     <string name="universe_series_description">Séries, saisons et épisodes unifiés depuis toutes vos extensions compatibles.</string>
     <string name="universe_documentaries_title">Documentaires &amp; Live</string>
+    <string name="universe_documentaries_title_short">Docs &amp; Live</string>
     <string name="universe_documentaries_description">Grands documentaires, docu-séries, reportages, nature, histoire, sciences, plus les chaînes et directs Twitch, YouTube &amp; Dailymotion.</string>
     <string name="universe_shorts_title">Courts</string>
     <string name="universe_shorts_description">Créations et films au format court identifiés par durée et métadonnées.</string>
@@ -793,7 +799,18 @@
     <string name="universe_podcasts_description">Découvrez des émissions audio, parcourez les épisodes et reprenez votre écoute.</string>
     <string name="universe_radio_title">Radio</string>
     <string name="universe_radio_description">Stations de radio d’Afrique, du Cameroun et du monde en écoute directe.</string>
+    <!-- EXT-GROUPS : choix du groupe de médias par extension -->
+    <string name="missa_ext_group_auto">Auto</string>
+    <string name="missa_ext_group_none">Aucun (non chargé)</string>
+    <string name="missa_ext_group_badge">Groupe : %1$s</string>
+    <string name="missa_ext_group_dialog_title">Groupe de médias — %1$s</string>
+    <string name="missa_ext_group_save">Enregistrer</string>
+    <string name="missa_ext_group_reset_auto">Auto</string>
+    <string name="missa_ext_group_cancel">Annuler</string>
+    <string name="missa_ext_group_whole_extension">Toute l\'extension</string>
+    <string name="missa_ext_group_inherit">hérité (%1$s)</string>
     <string name="universe_games_title">Jeux rétro</string>
+    <string name="universe_games_title_short">Jeux</string>
     <string name="universe_games_description">Catalogue indépendant de jeux rétro libres, téléchargement dédié et émulation intégrée.</string>
 
     <!-- Eyebrow badges -->

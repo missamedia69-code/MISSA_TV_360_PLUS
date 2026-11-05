@@ -499,7 +499,7 @@ internal object MissaUniverseDialogs {
                 }
                 val label = TextView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                    text = "${st.name} (${st.country})"
+                    text = "${st.name} (${RadioOrigin.displayLabel(st.country, context)})"
                     setTextAppearance(R.style.TextAppearance_Missa_Body)
                     isClickable = true
                     setOnClickListener {

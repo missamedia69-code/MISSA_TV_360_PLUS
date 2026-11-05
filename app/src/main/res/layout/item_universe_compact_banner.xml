@@ -18,7 +18,7 @@
         android:layout_width="26dp"
         android:layout_height="26dp"
         android:importantForAccessibility="no"
-        app:tint="?attr/missaAccentPrimary"
+        app:tint="?attr/missaAccentOnSurface"
         tools:src="@drawable/baseline_theaters_24" />
 
     <LinearLayout

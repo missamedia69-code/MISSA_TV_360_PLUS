@@ -128,7 +128,11 @@ data class UniverseDefinition(
     @StringRes val eyebrowRes: Int,
     val familyGroup: Int,
     val isHorizontalCards: Boolean = false,
-    val directPlayOnClick: Boolean = false
+    val directPlayOnClick: Boolean = false,
+    /** AUDIT H5: compact label for the top strip only. The full [titleRes] stays on the
+     *  cards and page titles, where there is room for it. Optional fields stay last so a
+     *  positional construction can never shift the required ones. */
+    @StringRes val shortTitleRes: Int? = null
 )
 
 object MissaUniverses {
@@ -147,6 +151,7 @@ object MissaUniverses {
         id = "films",
         destinationId = R.id.navigation_universe_films,
         titleRes = R.string.universe_films_title,
+        shortTitleRes = R.string.universe_films_title_short,
         descriptionRes = R.string.universe_films_description,
         cardSubtitleRes = R.string.universe_card_films_sub,
         iconRes = R.drawable.baseline_theaters_24,
@@ -169,6 +174,7 @@ object MissaUniverses {
         id = "documentaries",
         destinationId = R.id.navigation_universe_documentaries,
         titleRes = R.string.universe_documentaries_title,
+        shortTitleRes = R.string.universe_documentaries_title_short,
         descriptionRes = R.string.universe_documentaries_description,
         cardSubtitleRes = R.string.universe_card_documentaries_sub,
         iconRes = R.drawable.ic_missa_documentaries,
@@ -264,6 +270,7 @@ object MissaUniverses {
         id = "retro_games",
         destinationId = R.id.navigation_universe_retro_games,
         titleRes = R.string.universe_games_title,
+        shortTitleRes = R.string.universe_games_title_short,
         descriptionRes = R.string.universe_games_description,
         cardSubtitleRes = R.string.universe_card_games_sub,
         iconRes = R.drawable.ic_missa_gamepad,

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AUDIT H8 (2026-11-05): the neutral tile every radio logo is drawn on.
+
+    Station logos come from a dozen different sources, so their shape is not ours to
+    choose: Google's favicon service returns a square BBC block, Radio Browser hosts
+    wide wordmarks, and some stations only have a tiny PNG. Painted straight onto the
+    card those three cases read as three different objects, and the two BBC squares
+    looked like a broken image rather than a logo.
+
+    Giving every station the same rounded tile with the same inner padding makes the
+    shape ours and the logo theirs: a square, a wide wordmark and the monogram
+    fallback all sit in the same frame. The tint follows the theme, so the tile stays
+    neutral in the eight themes and never competes with the amber wordmark or the
+    emerald focus ring.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <solid android:color="?attr/missaSurfaceElevated" />
+
+    <stroke
+        android:width="1dp"
+        android:color="?attr/missaStrokeSubtle" />
+
+    <corners android:radius="12dp" />
+
+</shape>

@@ -2,22 +2,33 @@
 <!--
     Background of the MISSA TV 360 PLUS top navigation strip (NAV-01, THEME-01, A11Y-01).
 
-    "Horizon ambre / émeraude": a warm brand glow on the left, a cool navigation glow on the
-    right, a soft top sheen, a bottom scrim and a hairline that separates the bar from the page.
+    AUDIT H1 (2026-11-05, Option 1): a flat surface with a single brand accent, so the
+    bar disappears behind its content instead of reading as a decorative banner.
 
-    Anti-banding (THEME-06): on 8-bit TV panels a long alpha ramp shows visible steps
-    ("coupures"). Three measures keep the ramp smooth:
-      1. every glow is a 3-stop ramp with a low peak alpha, so the number of levels to spread is
-         small in the first place;
-      2. the vertical sheen lifts the surface so the AMOLED/black theme is no longer a pure
-         #000000 void where steps are the most visible;
-      3. a zero-mean dither tile (missa_dither_noise, 128x128, ~5 KB, tiled) is drawn on top: it
-         breaks the 8-bit steps without changing the average luminance of the surface.
+    What changed and why: the old "horizon ambre / émeraude" glows carried
+    android:alpha="0.14" on their <item>. LayerDrawableItem declares no `alpha`
+    attribute (checked against AOSP's declare-styleable), so the attribute was
+    silently ignored and both glows painted at full intensity (#FFC12E and #2FD37A).
+    The result was a gold block on the left and an emerald one on the right, and the
+    wordmark - drawn in ?attr/missaAccentPrimary - was lost on the gold.
 
-    Everything else is pure vector/gradient so the strip stays crisp at any resolution, and the
-    base layer follows the active theme (?attr/primaryBlackBackground) so every theme (dark,
-    AMOLED, light, dynamic) keeps working. Glows stay low-opacity: white pill labels keep a
-    contrast ratio far above the 4.5:1 AA threshold.
+    Brand colour budget from now on:
+      - amber   : the wordmark and the selected pill only
+      - emerald : the TV focus ring and the "360+" badge only
+      - red     : LIVE only
+    No decorative emerald hairline at the bottom of the bar any more: the separator
+    uses the same subtle stroke as the cards, so light themes stay correct.
+
+    Anti-banding (THEME-06): the sheen is a short, low-alpha ramp and the zero-mean
+    dither tile is kept so 8-bit TV panels still show no steps.
+    HEADER-01 (2026-11-04): the tile MUST stay 32x32. A <bitmap> child passes its
+    intrinsic size to LayerDrawable.getMinimumHeight(), and the ribbon is a
+    wrap_content LinearLayout, so the 128x128 tile that shipped with the anti-banding
+    fix pinned the whole header to 128px: the pill row stayed at the top and ~65px of
+    dead background appeared underneath it, and no layout height change had any
+    visible effect.
+
+    The height of the ribbon is NOT defined here and must not be (62dp, accepted).
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
@@ -28,90 +39,29 @@
         </shape>
     </item>
 
-    <!-- 2. Vertical sheen: lifts the bar off the void and shades it towards the content -->
+    <!-- 2. Vertical sheen, 4% white: lifts the bar off the void without a colour cast -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:centerColor="#08FFFFFF"
-                android:centerY="0.55"
                 android:endColor="#00FFFFFF"
-                android:startColor="#17FFFFFF"
-                android:type="linear" />
+                android:startColor="#0AFFFFFF" />
         </shape>
     </item>
 
-    <!-- 3. Warm MISSA amber glow, confined to the left third of the strip (BRAND-01) -->
-    <item
-        android:alpha="0.14"
-        android:gravity="start"
-        android:width="@dimen/missa_top_strip_glow_width">
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="0"
-                android:centerColor="#40FFC12E"
-                android:centerX="0.20"
-                android:endColor="@android:color/transparent"
-                android:startColor="@color/missaTopStripAmber"
-                android:type="linear" />
-        </shape>
-    </item>
-
-    <!-- 4. Cool navigation emerald glow, confined to the right third of the strip (BRAND-01) -->
-    <item
-        android:alpha="0.14"
-        android:gravity="end"
-        android:width="@dimen/missa_top_strip_glow_width">
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="180"
-                android:centerColor="#332FD37A"
-                android:centerX="0.20"
-                android:endColor="@android:color/transparent"
-                android:startColor="@color/missaTopStripEmerald"
-                android:type="linear" />
-        </shape>
-    </item>
-
-    <!-- 5. Bottom scrim: anchors the bar over the content scrolling underneath -->
-    <item>
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="270"
-                android:centerColor="#0F000000"
-                android:endColor="#42000000"
-                android:startColor="@android:color/transparent"
-                android:type="linear" />
-        </shape>
-    </item>
-
-    <!-- 6. Zero-mean dither tile: removes the 8-bit steps of the ramps above.
-
-         HEADER-01 (2026-11-04): the tile MUST stay small. A <bitmap> child passes its
-         intrinsic size to LayerDrawable.getMinimumHeight(), and the ribbon is a
-         wrap_content LinearLayout, so the 128x128 tile that shipped with the anti-banding
-         fix pinned the whole header to 128px: the pill row stayed at the top and ~65px of
-         dead background appeared underneath it, and no layout height change had any visible
-         effect. At 32x32 the minimum is well below any row height and the ribbon hugs its
-         rows again — the dither itself is unchanged (half black / half white, alpha 6/255). -->
+    <!-- 3. Zero-mean dither tile: removes the 8-bit steps of the sheen above (THEME-06) -->
     <item>
         <bitmap
             android:src="@drawable/missa_dither_noise"
             android:tileMode="repeat" />
     </item>
 
-    <!-- 7. Emerald hairline, faded at both ends so it never reads as a hard cut -->
+    <!-- 4. Separation hairline: the theme's subtle stroke, the one the cards already use -->
     <item
         android:gravity="bottom"
-        android:height="2dp">
+        android:height="1dp">
         <shape android:shape="rectangle">
-            <gradient
-                android:angle="0"
-                android:centerColor="#592FD37A"
-                android:centerX="0.6"
-                android:endColor="#002FD37A"
-                android:startColor="#052FD37A"
-                android:type="linear" />
+            <solid android:color="?attr/missaStrokeSubtle" />
         </shape>
     </item>
 

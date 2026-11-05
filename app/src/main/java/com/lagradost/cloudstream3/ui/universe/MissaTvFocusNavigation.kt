@@ -672,6 +672,16 @@ class MissaVerticalUniverseLayoutManager(
     private var attachedRecyclerView: RecyclerView? = null
     private val tmpLoc = IntArray(2)
 
+    /**
+     * Breathing room left above and below a row that had to be framed back into the
+     * viewport. Small on purpose: it is a margin, not a scroll zone (see below).
+     */
+    private val frameMargin: Int
+
+    init {
+        frameMargin = (8 * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+    }
+
     override fun onAttachedToWindow(view: RecyclerView?) {
         super.onAttachedToWindow(view)
         attachedRecyclerView = view
@@ -807,10 +817,21 @@ class MissaVerticalUniverseLayoutManager(
             val rowBottom = getDecoratedBottom(child)
             val rowHeight = rowBottom - rowTop
             val viewportHeight = (bottomLimit - topLimit).coerceAtLeast(1)
+            val fitsWithMargin = rowHeight <= viewportHeight - 2 * frameMargin
+
+            // AUDIT (2026-11-05): the framework asks every parent to reveal the newly focused
+            // view, so this runs on a DPAD_LEFT/RIGHT press too, not only up and down. The old
+            // test was `rowTop < topLimit + 8`, which also caught a row sitting fully visible
+            // inside that 8px band: each press then nudged the whole page by a few pixels, up
+            // or down, although nothing was hidden. Only a row really cut by the viewport may
+            // move the page now; a row that fits and is visible stays exactly where it is.
+            if (fitsWithMargin && rowTop >= topLimit && rowBottom <= bottomLimit) {
+                return false
+            }
 
             var dy = when {
-                rowHeight <= viewportHeight - 16 && rowTop < topLimit + 8 -> rowTop - (topLimit + 8)
-                rowHeight <= viewportHeight - 16 && rowBottom > bottomLimit - 8 -> rowBottom - (bottomLimit - 8)
+                fitsWithMargin && rowTop < topLimit -> rowTop - (topLimit + frameMargin)
+                fitsWithMargin && rowBottom > bottomLimit -> rowBottom - (bottomLimit - frameMargin)
                 else -> 0
             }
 

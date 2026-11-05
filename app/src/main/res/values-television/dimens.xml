@@ -10,6 +10,7 @@
     -->
     <dimen name="missa_text_screen_title">28sp</dimen>
     <dimen name="missa_text_row_title">19sp</dimen>
+    <dimen name="missa_text_card_count">24sp</dimen>
     <dimen name="missa_text_body">15sp</dimen>
     <dimen name="missa_text_caption">13sp</dimen>
     <dimen name="missa_text_button">14sp</dimen>
@@ -19,7 +20,12 @@
     <dimen name="missa_hero_height">196dp</dimen>
     <dimen name="missa_hero_artwork_size">96dp</dimen>
     <dimen name="missa_hero_padding">20dp</dimen>
-    <dimen name="missa_section_horizontal_padding">24dp</dimen>
+    <!-- AUDIT H4: one horizontal gutter for the whole TV screen - logo, page titles,
+         section titles and card rows all start on the same edge. 32dp keeps enough
+         overscan margin on a TV panel without eating the width of the rows.
+         The strip background stays full width; only its content follows the gutter. -->
+    <dimen name="missa_gutter_tv">32dp</dimen>
+    <dimen name="missa_section_horizontal_padding">@dimen/missa_gutter_tv</dimen>
     <!-- SPACING-01: same rhythm as the phone config, see values/dimens.xml. -->
     <dimen name="missa_section_gap_top">6dp</dimen>
     <dimen name="missa_section_gap_bottom">6dp</dimen>
@@ -28,7 +34,7 @@
     <dimen name="missa_hub_card_height">132dp</dimen>
     <dimen name="missa_pill_touch_height">52dp</dimen>
     <dimen name="missa_pill_inset_vertical">6dp</dimen>
-    <dimen name="missa_pill_horizontal_padding">14dp</dimen>
+    <dimen name="missa_pill_horizontal_padding">12dp</dimen>
     <dimen name="missa_top_strip_fade_width">48dp</dimen>
     <!-- BRAND-01: see values/dimens.xml; a 960dp TV bar keeps the glow at ~13%. -->
     <dimen name="missa_top_strip_glow_width">128dp</dimen>

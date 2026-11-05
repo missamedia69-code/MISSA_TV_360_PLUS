@@ -139,7 +139,10 @@ internal class UniverseHubCardAdapter(
     class HubCardViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val icon: ImageView = itemView.findViewById(R.id.universe_card_icon)
         private val liveDot: TextView = itemView.findViewById(R.id.universe_card_live_dot)
-        private val badge: TextView = itemView.findViewById(R.id.universe_card_badge)
+        // AUDIT H9: the figure sits where the card used to be empty, not on a badge in the
+        // corner. AUDIT H10: it is the size of the universe, so nothing is printed while
+        // the harvest has not settled.
+        private val count: TextView = itemView.findViewById(R.id.universe_card_count)
         private val title: TextView = itemView.findViewById(R.id.universe_card_title)
         private val subtitle: TextView = itemView.findViewById(R.id.universe_card_subtitle)
 
@@ -151,8 +154,8 @@ internal class UniverseHubCardAdapter(
             title.text = titleText
             subtitle.text = subText
             liveDot.isVisible = item.hasLiveNow
-            badge.isVisible = !item.countBadge.isNullOrBlank()
-            badge.text = item.countBadge.orEmpty()
+            count.isVisible = !item.countBadge.isNullOrBlank()
+            count.text = item.countBadge.orEmpty()
 
             itemView.contentDescription = listOfNotNull(
                 titleText,

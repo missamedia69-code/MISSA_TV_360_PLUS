@@ -126,6 +126,10 @@
     <!-- MISSA TV 360 PLUS semantic color tokens (THEME-02 & THEME-03) -->
     <color name="missaYellowPrimary">#F5BB00</color>
     <color name="missaYellowPrimaryLight">#E0A800</color>
+    <!-- AUDIT H11: same amber family as missaYellowPrimaryLight, darkened until the
+         wordmark clears 4.5:1 on the light surfaces (5.26:1 on white, 4.77:1 on the
+         lavender page). Used as ink only, never as a fill. -->
+    <color name="missaYellowInkLight">#8F6400</color>
     <color name="missaOnAccentDark">#141414</color>
     <color name="missaGreenSuccessDark">#48E484</color>
     <color name="missaGreenSuccessLight">#0A8744</color>

@@ -80,7 +80,7 @@ internal object MissaRadioProviders {
             id = "rfi_afrique",
             name = "RFI Afrique",
             genre = "Afrique • Actualités, Débats & Magazines",
-            country = "AF",
+            country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://rfiafrique64k.ice.infomaniak.ch/rfiafrique-64.mp3",
             logoUrl = brandFavicon("rfi.fr"),
             providerName = PROVIDER_MISSA_DIRECT,
@@ -90,7 +90,7 @@ internal object MissaRadioProviders {
             id = "africa_radio",
             name = "Africa Radio",
             genre = "Panafricaine • Info, Culture, Makossa & Afrobeats",
-            country = "AF",
+            country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://african1paris.ice.infomaniak.ch/african1paris-128.mp3",
             logoUrl = brandFavicon("africaradio.com"),
             providerName = PROVIDER_MISSA_DIRECT
@@ -108,7 +108,7 @@ internal object MissaRadioProviders {
             id = "bbc_world_africa",
             name = "BBC World Service Africa",
             genre = "Afrique & Monde • News 24/7",
-            country = "AF",
+            country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
             logoUrl = brandFavicon("bbc.com"),
             providerName = PROVIDER_MISSA_DIRECT
@@ -117,7 +117,7 @@ internal object MissaRadioProviders {
             id = "bbc_afrique",
             name = "BBC Afrique",
             genre = "Afrique Francophone • Info & Direct",
-            country = "AF",
+            country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://stream.live.vc.bbcmedia.co.uk/bbc_afrique_radio",
             logoUrl = brandFavicon("bbc.com"),
             providerName = PROVIDER_MISSA_DIRECT
@@ -126,7 +126,7 @@ internal object MissaRadioProviders {
             id = "rfi_musique",
             name = "RFI Musique",
             genre = "Musiques d'Afrique, Monde & Francophonie",
-            country = "AF",
+            country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://rfimusiquemonde64k.ice.infomaniak.ch/rfimusiquemonde-64.mp3",
             logoUrl = brandFavicon("musique.rfi.fr"),
             providerName = PROVIDER_MISSA_DIRECT
@@ -144,7 +144,7 @@ internal object MissaRadioProviders {
             id = "monte_carlo_doualiya",
             name = "Monte Carlo Doualiya",
             genre = "International, Méditerranée & Monde",
-            country = "INT",
+            country = RadioOrigin.REGION_WORLD,
             streamUrl = "https://montecarlodoualiya128k.ice.infomaniak.ch/mc-doualiya.mp3",
             logoUrl = brandFavicon("mc-doualiya.com"),
             providerName = PROVIDER_MISSA_DIRECT
@@ -325,10 +325,10 @@ internal object MissaRadioProviders {
         somaInstant("dronezone", "SomaFM Drone Zone", "Atmospheric Ambient & Relaxation"),
 
         // --- 5. Bouquet Laut.fm (Webradios Thématiques Directes) ---
-        lautInstant("afrobeats", "Laut.fm Afrobeats", "Afrobeats, Afropop, Amapiano & Naija", "AF"),
+        lautInstant("afrobeats", "Laut.fm Afrobeats", "Afrobeats, Afropop, Amapiano & Naija", RadioOrigin.REGION_AFRICA),
         lautInstant("jazzloft", "Laut.fm Jazzloft", "Smooth Jazz, Lounge & Swing", "DE"),
-        lautInstant("reggae", "Laut.fm Reggae", "Reggae, Dancehall & Roots", "INT"),
-        lautInstant("gospelradio", "Laut.fm Gospel", "Gospel, Louange & Soul", "INT"),
+        lautInstant("reggae", "Laut.fm Reggae", "Reggae, Dancehall & Roots", RadioOrigin.REGION_WORLD),
+        lautInstant("gospelradio", "Laut.fm Gospel", "Gospel, Louange & Soul", RadioOrigin.REGION_WORLD),
         lautInstant("lounge", "Laut.fm Lounge", "Lounge, Chillout & Lo-Fi", "DE")
     )
 
@@ -412,7 +412,7 @@ internal object MissaRadioProviders {
             val country = obj.optString("countrycode").trim()
                 .ifBlank { obj.optString("country").trim().take(4) }
                 .uppercase(Locale.ROOT)
-                .ifBlank { "INT" }
+                .ifBlank { RadioOrigin.REGION_WORLD }
 
             val favicon = obj.optString("favicon").trim().takeIf { isValidStreamUrl(it) }
                 ?: obj.optString("homepage").trim().takeIf { isValidStreamUrl(it) }?.let { homepage ->
@@ -578,7 +578,7 @@ internal object MissaRadioProviders {
                 id = "xiph_${listenUrl.hashCode()}",
                 name = name,
                 genre = genre,
-                country = "INT",
+                country = RadioOrigin.REGION_WORLD,
                 streamUrl = listenUrl,
                 providerName = PROVIDER_ICECAST_XIPH
             )
@@ -604,7 +604,7 @@ internal object MissaRadioProviders {
     fun parsePlaylistContent(
         content: String,
         defaultProvider: String = PROVIDER_M3U_PLAYLISTS,
-        defaultCountry: String = "INT",
+        defaultCountry: String = RadioOrigin.REGION_WORLD,
         defaultGenre: String = "Radio • M3U",
         isCustom: Boolean = false,
         maxStations: Int = 120
@@ -930,11 +930,11 @@ internal object MissaRadioProviders {
         }
 
         val githubM3uSources = listOf(
-            Triple("https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/top_radio.m3u", "INT", "Top Radio • M3U"),
-            Triple("https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/jazz.m3u", "INT", "Jazz • M3U"),
-            Triple("https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/hip_hop.m3u", "INT", "Hip-Hop & Urbain • M3U"),
-            Triple("https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/reggae.m3u", "INT", "Reggae • M3U"),
-            Triple("https://raw.githubusercontent.com/mikepierce/internet-radio-streams/main/streams.m3u", "INT", "Public Radio • M3U")
+            Triple("https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/top_radio.m3u", RadioOrigin.REGION_WORLD, "Top Radio • M3U"),
+            Triple("https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/jazz.m3u", RadioOrigin.REGION_WORLD, "Jazz • M3U"),
+            Triple("https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/hip_hop.m3u", RadioOrigin.REGION_WORLD, "Hip-Hop & Urbain • M3U"),
+            Triple("https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/reggae.m3u", RadioOrigin.REGION_WORLD, "Reggae • M3U"),
+            Triple("https://raw.githubusercontent.com/mikepierce/internet-radio-streams/main/streams.m3u", RadioOrigin.REGION_WORLD, "Public Radio • M3U")
         )
         val m3uDeferred = githubM3uSources.map { (m3uUrl, country, genre) ->
             async(Dispatchers.IO) {
@@ -973,7 +973,7 @@ internal object MissaRadioProviders {
     }
 
     private val africanIsoCodes = setOf(
-        "AF", "CM", "CI", "SN", "CD", "CG", "GA", "BJ", "TG", "ML", "BF", "GN", "NE", "TD",
+        RadioOrigin.REGION_AFRICA, "CM", "CI", "SN", "CD", "CG", "GA", "BJ", "TG", "ML", "BF", "GN", "NE", "TD",
         "CF", "GQ", "RW", "BI", "MG", "MA", "DZ", "TN", "NG", "GH", "KE", "ZA", "ET", "UG",
         "TZ", "AO", "MZ"
     )
@@ -1053,7 +1053,7 @@ internal object MissaRadioProviders {
             parseRadioBrowserArray(json)
         }
         val byCountry = async(Dispatchers.IO) {
-            val endpoint = if (frenchToIso != null && frenchToIso != "AF") {
+            val endpoint = if (frenchToIso != null && frenchToIso != RadioOrigin.REGION_AFRICA) {
                 "search?countrycode=$frenchToIso&limit=60&hidebroken=true&order=votes&reverse=true"
             } else {
                 "search?country=$encoded&limit=40&hidebroken=true&order=votes&reverse=true"

@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import java.util.Locale
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Bundle
@@ -201,6 +202,7 @@ import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
 import com.lagradost.cloudstream3.ui.universe.MissaUniverseDialogs
 import com.lagradost.cloudstream3.ui.universe.MissaUniverses
 import com.lagradost.cloudstream3.ui.universe.MusicPlaybackState
+import com.lagradost.cloudstream3.ui.universe.RadioOrigin
 import com.lagradost.cloudstream3.ui.universe.RadioPlaybackState
 import com.lagradost.cloudstream3.ui.universe.RetroGamesFragment
 import com.lagradost.cloudstream3.ui.universe.UniverseDefinition
@@ -503,11 +505,20 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         navHostFragment.navController.currentDestination?.let { updateNavBar(it) }
     }
 
+    /**
+     * AUDIT H5, corrected: every optional field stays at the END of the constructor.
+     * `shortTitleRes` had been inserted between `titleRes` and `iconRes`, and the utility
+     * entries below are built positionally - so the third argument, a drawable, silently
+     * landed in `shortTitleRes` and left `iconRes` null. The four utility buttons then
+     * rendered as empty pills: no crash, no warning, just a row of icons that vanished.
+     * Optional fields go last, and the utility entries now name their arguments.
+     */
     private data class TopNavigationEntry(
         @IdRes val destinationId: Int,
         val titleRes: Int,
         val iconRes: Int? = null,
-        val familyGroup: Int = 0
+        val familyGroup: Int = 0,
+        val shortTitleRes: Int? = null
     )
 
     private val universeNavigationEntries by lazy {
@@ -515,6 +526,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             TopNavigationEntry(
                 destinationId = uni.destinationId,
                 titleRes = uni.titleRes,
+                shortTitleRes = uni.shortTitleRes,
                 iconRes = uni.iconRes,
                 familyGroup = uni.familyGroup
             )
@@ -523,10 +535,31 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
     private val utilityNavigationEntries by lazy {
         listOf(
-            TopNavigationEntry(R.id.navigation_search, R.string.title_search, R.drawable.search_icon),
-            TopNavigationEntry(R.id.navigation_library, R.string.library, R.drawable.library_icon_selector),
-            TopNavigationEntry(R.id.navigation_downloads, R.string.title_downloads, R.drawable.netflix_download),
-            TopNavigationEntry(R.id.navigation_settings, R.string.title_settings, R.drawable.settings_icon_selector),
+            // AUDIT H6: the row used to mix two icon families - search and download are
+            // stroke glyphs on an 850px canvas with a 60 stroke, library and settings are
+            // filled glyphs on a 960px canvas. The stroked ones looked thinner and smaller,
+            // so the utility row uses heavier variants of them (missa_util_*) and one
+            // uniform icon size.
+            TopNavigationEntry(
+                destinationId = R.id.navigation_search,
+                titleRes = R.string.title_search,
+                iconRes = R.drawable.missa_util_search
+            ),
+            TopNavigationEntry(
+                destinationId = R.id.navigation_library,
+                titleRes = R.string.library,
+                iconRes = R.drawable.library_icon_selector
+            ),
+            TopNavigationEntry(
+                destinationId = R.id.navigation_downloads,
+                titleRes = R.string.title_downloads,
+                iconRes = R.drawable.missa_util_download
+            ),
+            TopNavigationEntry(
+                destinationId = R.id.navigation_settings,
+                titleRes = R.string.title_settings,
+                iconRes = R.drawable.settings_icon_selector
+            ),
         )
     }
 
@@ -627,14 +660,55 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         return focusCurrentDestinationContent(sourceView)
     }
 
+    /**
+     * AUDIT H3: the strip used to be built with whatever locale the Activity had at that
+     * moment. On a first launch the setup language screen writes the preference AFTER
+     * [setupTopNavigation] has run, so the pills kept the device language while the
+     * fragments - created later - read the application language. Resolve the labels against
+     * the stored preference explicitly instead of trusting the current resources.
+     */
+    private fun localizedString(resId: Int): String {
+        val tag = runCatching {
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .getString(getString(R.string.locale_key), null)
+        }.getOrNull()
+        if (tag.isNullOrBlank()) return getString(resId)
+        return runCatching {
+            val config = Configuration(resources.configuration)
+            config.setLocale(Locale.forLanguageTag(tag))
+            createConfigurationContext(config).getString(resId)
+        }.getOrDefault(getString(resId))
+    }
+
+    /** AUDIT H3: locale the strip was last built with, so a change can trigger a rebuild. */
+    private var stripLocaleTag: String? = null
+
+    private fun currentLocalePreferenceTag(): String? =
+        runCatching {
+            PreferenceManager.getDefaultSharedPreferences(this)
+                .getString(getString(R.string.locale_key), null)
+        }.getOrNull()
+
+    /**
+     * AUDIT H3bis: scrolls the strip so [view] sits in the middle of the visible window.
+     * The TV focus ring is a separate foreground view (MainActivity.TvFocus) that is not
+     * faded with the strip, so a pill parked under the fading edge looked cut in half.
+     */
+    private fun centerPillInStrip(scroll: android.widget.HorizontalScrollView?, view: View) {
+        val sv = scroll ?: return
+        val maxScroll = ((sv.getChildAt(0)?.width ?: 0) - sv.width).coerceAtLeast(0)
+        val targetX = (view.left + view.width / 2 - sv.width / 2).coerceIn(0, maxScroll)
+        sv.smoothScrollTo(targetX, 0)
+    }
+
     private fun setupTopNavigation(navController: NavController) {
         val universeContainer = binding?.root?.findViewById<LinearLayout>(R.id.tv_top_navigation_items)
             ?: return
         val topScroll = binding?.root?.findViewById<android.widget.HorizontalScrollView>(R.id.tv_top_navigation)
-        val fadeEnd = binding?.root?.findViewById<View>(R.id.missa_top_strip_fade_end)
         val utilityContainer = binding?.root?.findViewById<LinearLayout>(R.id.missa_utility_actions)
         val isTvMode = isLayout(TV or EMULATOR)
 
+        stripLocaleTag = currentLocalePreferenceTag()
         binding?.missaMobileBrandRow?.isVisible = !isTvMode
         binding?.missaTvBrandGroup?.isVisible = isTvMode
         utilityContainer?.isVisible = isTvMode
@@ -655,7 +729,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
             val button = MissaUiFactory.createPillButton(
                 context = this,
-                label = getString(entry.titleRes),
+                label = localizedString(entry.shortTitleRes ?: entry.titleRes),
                 selected = false,
                 iconRes = entry.iconRes ?: 0,
                 marginEndDp = 6
@@ -667,6 +741,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 isFocusable = isTvMode
                 isFocusableInTouchMode = false
                 if (isTvMode) {
+                    setOnFocusChangeListener { v, hasFocus ->
+                        if (hasFocus) centerPillInStrip(topScroll, v)
+                    }
                     setOnKeyListener { v, keyCode, event ->
                         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && event.action == KeyEvent.ACTION_DOWN) {
                             focusCurrentDestinationContent(v)
@@ -681,20 +758,17 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             allTopButtons.add(button)
         }
 
-        // Right-edge scroll fade visibility (NAV-01)
-        fun updateStripFade() {
-            val sv = topScroll ?: return
-            val child = sv.getChildAt(0) ?: return
-            val canScrollRight = child.width - (sv.scrollX + sv.width) > dp(8)
-            fadeEnd?.isVisible = canScrollRight
-        }
-        topScroll?.viewTreeObserver?.addOnScrollChangedListener { updateStripFade() }
-        topScroll?.post { updateStripFade() }
 
         if (isTvMode && utilityContainer != null) {
             utilityContainer.addView(MissaUiFactory.createStripFamilyDivider(this))
 
             utilityNavigationEntries.forEach { entry ->
+                // A utility pill without an icon renders as an empty oval: no crash, no
+                // warning, just a row of glyphs that silently vanished. Shout if that
+                // ever happens again instead of shipping an invisible button.
+                if (entry.iconRes == null) {
+                    Log.w("MissaNav", "Utility entry ${entry.destinationId} has no icon")
+                }
                 val utilBtn = MissaUiFactory.createPillButton(
                     context = this,
                     label = "",
@@ -706,8 +780,16 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 }.apply {
                     id = View.generateViewId()
                     tag = entry.destinationId
-                    contentDescription = getString(entry.titleRes)
+                    contentDescription = localizedString(entry.titleRes)
                     iconPadding = 0
+                    // AUDIT H6, corrected: these buttons carry an icon and no label.
+                    // ICON_GRAVITY_TEXT_START is the one that centres the glyph: MaterialButton
+                    // positions the compound drawable against the text box, and with an empty
+                    // label that box is zero-wide, so the icon lands in the middle of the 44dp
+                    // target. ICON_GRAVITY_START pins it against the left edge instead. The
+                    // size and the height stay the pill's own - 16dp glyph, 52dp tall on TV
+                    // (48dp elsewhere) - so the row keeps the optical weight and the baseline
+                    // of the nav pills next to it.
                     iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
                     minWidth = dp(44)
                     minimumWidth = dp(44)
@@ -872,7 +954,10 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         binding?.missaMiniRadioStatus?.text = when {
             radioState.hasError -> getString(R.string.universe_radio_error, st.name)
             radioState.isBuffering -> getString(R.string.universe_radio_buffering, st.name)
-            radioState.isPlaying -> getString(R.string.universe_radio_playing, st.country)
+            radioState.isPlaying -> getString(
+                R.string.universe_radio_playing,
+                RadioOrigin.displayLabel(st.country, this)
+            )
             else -> getString(R.string.universe_radio_paused, st.name)
         }
         binding?.missaMiniRadioPlayPause?.setIconResource(
@@ -906,11 +991,6 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
     private fun updateTopNavigation(destinationId: Int) {
         val utilityContainer = binding?.root?.findViewById<LinearLayout>(R.id.missa_utility_actions)
         val topScroll = binding?.root?.findViewById<android.widget.HorizontalScrollView>(R.id.tv_top_navigation)
-        val leadingFade = binding?.root?.findViewById<View>(R.id.missa_top_strip_fade_start)
-        topScroll?.setOnScrollChangeListener { _, scrollX, _, _, _ ->
-            leadingFade?.isVisible = scrollX > 0
-        }
-        leadingFade?.isVisible = (topScroll?.scrollX ?: 0) > 0
         val selectedId = selectedTopNavigationId(destinationId)
 
         universeButtonByDestId.forEach { (destId, button) ->
@@ -1064,6 +1144,14 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
     override fun onResume() {
         super.onResume()
+        // AUDIT H3: the application language can change while the Activity is alive (setup
+        // language screen, settings). The strip was built once in onCreate and kept the old
+        // language, so rebuild it when the preference moved.
+        if (currentLocalePreferenceTag() != stripLocaleTag) {
+            val navHost =
+                supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+            if (navHost != null) setupTopNavigation(navHost.navController)
+        }
         afterPluginsLoadedEvent += ::onAllPluginsLoaded
         setActivityInstance(this)
         try {

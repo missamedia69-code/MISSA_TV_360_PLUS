@@ -69,7 +69,9 @@ data class RawHarvestedItem(
     val sectionName: String,
     val isHorizontalSection: Boolean,
     val providerSupportedTypes: Set<TvType>,
-    val isPreferredLanguage: Boolean
+    val isPreferredLanguage: Boolean,
+    /** EXT-GROUPS : choix de l'utilisateur pour la source de cet item (null = Auto). */
+    val forcedUniverses: Set<String>? = null
 )
 
 data class UnifiedCatalogSnapshot(
@@ -354,7 +356,7 @@ class MediaUniverseViewModel : ViewModel() {
                     else -> inferred
                 }
 
-                val universes = MediaUniverseClassifier.classifyAllUniverses(
+                val autoUniverses = MediaUniverseClassifier.classifyAllUniverses(
                     type = effectiveType ?: bestRaw.response.type,
                     title = bestRaw.response.name,
                     tags = mergedTags,
@@ -365,6 +367,19 @@ class MediaUniverseViewModel : ViewModel() {
                     url = bestRaw.response.url,
                     episodeCountHint = maxEpisodeHint,
                     isSeriesLoadResponse = mergedSeriesLoad
+                )
+                // EXT-GROUPS : le crible trie le contenu parmi les groupes autorisés
+                val structuralUniverses = MissaContentSieve.structuralGroups(
+                    auto = autoUniverses,
+                    title = bestRaw.response.name,
+                    url = bestRaw.response.url,
+                    sectionName = sectionHints.joinToString(" "),
+                    tags = mergedTags,
+                    type = effectiveType ?: bestRaw.response.type
+                )
+                val universes = MissaExtensionGroups.mergeUniverses(
+                    auto = structuralUniverses,
+                    forcedPerSource = sortedGroup.map { it.raw.forcedUniverses }
                 )
 
                 entries.add(
@@ -921,6 +936,7 @@ class MediaUniverseViewModel : ViewModel() {
                         withTimeoutOrNull(SEARCH_PROVIDER_TIMEOUT_MS) {
                             try {
                                 val repo = APIRepository(api)
+                                val forcedUniverses = MissaExtensionGroups.resolveForApi(api)
                                 when (val res = repo.search(trimmed, 1)) {
                                     is Resource.Success -> res.value.items.map { item ->
                                         RawHarvestedItem(
@@ -928,7 +944,8 @@ class MediaUniverseViewModel : ViewModel() {
                                             sectionName = "",
                                             isHorizontalSection = api.supportedTypes.contains(TvType.Live),
                                             providerSupportedTypes = api.supportedTypes.toSet(),
-                                            isPreferredLanguage = isPreferred
+                                            isPreferredLanguage = isPreferred,
+                                            forcedUniverses = forcedUniverses
                                         )
                                     }
                                     else -> emptyList()
@@ -1080,7 +1097,7 @@ class MediaUniverseViewModel : ViewModel() {
                 val resp = station.toSearchResponse()
                 val cats = MediaUniverseClassifier.categorizeForUniverse(
                     universeId = "radio",
-                    title = "${station.name} ${station.country}",
+                    title = "${station.name} ${RadioOrigin.displayLabel(station.country, context)}",
                     sectionName = station.genre,
                     tags = listOf("country:${station.country}", station.providerName),
                     effectiveType = TvType.Audio
@@ -1548,12 +1565,24 @@ class MediaUniverseViewModel : ViewModel() {
         val hubShortcuts = if (universeId == "home" && searchQuery.isBlank()) {
             MissaUniverses.HUB_SHORTCUTS.map { uni ->
                 when (uni.id) {
-                    "retro_games" -> UniverseHubCardItem(
-                        definition = uni,
-                        itemCount = 5,
-                        countBadge = ctx?.resources?.getQuantityString(R.plurals.missa_games_count, 5, 5),
-                        hasLiveNow = false
-                    )
+                    "retro_games" -> {
+                        // AUDIT H10: the card used to print a hardcoded "5 games". The only
+                        // figure the app can stand behind is the number of ROMs the player
+                        // can actually open, i.e. the ones already in the retro library.
+                        val total = ctx?.let {
+                            File(it.filesDir, "retro-games").listFiles()?.count { file -> file.isFile }
+                        } ?: 0
+                        UniverseHubCardItem(
+                            definition = uni,
+                            itemCount = total,
+                            countBadge = if (total > 0) {
+                                ctx?.resources?.getQuantityString(R.plurals.missa_games_count, total, total)
+                            } else {
+                                null
+                            },
+                            hasLiveNow = false
+                        )
+                    }
                     "music" -> {
                         val total = DirectMusicPlayerManager.allPresetTracks().size
                         val badge = if (total > 0) {
@@ -1571,7 +1600,14 @@ class MediaUniverseViewModel : ViewModel() {
                     "radio" -> {
                         val pluginCount = snapshot.entries.count { it.universes.contains("radio") }
                         val total = pluginCount + DirectRadioPlayerManager.allPresetStations().size
-                        val badge = ctx?.resources?.getQuantityString(R.plurals.missa_stations_count, total, total)
+                        // AUDIT H10: while the harvest is still running snapshot.entries only
+                        // holds a partial page, so this is a floor and not the size of the
+                        // universe - printing it showed "16 titres" for a universe of 302.
+                        val badge = if (total > 0 && !snapshot.isLoading) {
+                            ctx?.resources?.getQuantityString(R.plurals.missa_stations_count, total, total)
+                        } else {
+                            null
+                        }
                         UniverseHubCardItem(
                             definition = uni,
                             itemCount = total,
@@ -1581,7 +1617,8 @@ class MediaUniverseViewModel : ViewModel() {
                     }
                     else -> {
                         val count = snapshot.entries.count { it.universes.contains(uni.id) }
-                        val badge = if (count > 0) {
+                        // AUDIT H10: same floor rule as the radio card, see above.
+                        val badge = if (count > 0 && !snapshot.isLoading) {
                             ctx?.resources?.getQuantityString(R.plurals.missa_titles_count, count, count)
                         } else {
                             null
@@ -1684,7 +1721,8 @@ class MediaUniverseViewModel : ViewModel() {
                     yearText = null,
                     durationText = liveBadge,
                     scoreText = null,
-                    tags = listOf(station.country).filter { it.isNotBlank() },
+                    tags = listOf(RadioOrigin.displayLabel(station.country, context))
+                        .filter { it.isNotBlank() },
                     isDirectStream = true
                 )
             }
@@ -1851,10 +1889,12 @@ class MediaUniverseViewModel : ViewModel() {
     }
 
     private fun computeProviderSignature(): String {
-        return apis.withLock {
+        val base = apis.withLock {
             apis.filter { !it.supportedTypes.all { t -> t == TvType.NSFW } }
                 .joinToString("|") { "${it.name}:${it.lang}:${it.hasMainPage}" }
         }
+        // EXT-GROUPS : un changement de groupe doit relancer la moisson
+        return "$base#${MissaExtensionGroups.signature()}"
     }
 
     private fun countActiveProviders(): Int {
@@ -1882,23 +1922,31 @@ class MediaUniverseViewModel : ViewModel() {
                     api.name != "None" &&
                         api.name != "Random" &&
                         (!requireMainPage || api.hasMainPage) &&
-                        !api.supportedTypes.all { it == TvType.NSFW || it == TvType.CustomMedia }
+                        !api.supportedTypes.all { it == TvType.NSFW || it == TvType.CustomMedia } &&
+                        // EXT-GROUPS : "Aucun" = jamais chargé
+                        !MissaExtensionGroups.isDisabled(api)
                 }
             }
 
+            // EXT-GROUPS : ce que l'utilisateur a réglé explicitement passe TOUJOURS en premier
+            val assigned = allCompatible
+                .filter { MissaExtensionGroups.hasAssignment(it) }
+                .map { it to true }
+            val assignedNames = assigned.map { it.first.name }.toSet()
+
             val preferred = allCompatible
-                .filter { it.name in preferredNames }
+                .filter { it.name in preferredNames && it.name !in assignedNames }
                 .map { it to true }
 
             val specialtyTypes = setOf(TvType.Live, TvType.Podcast, TvType.Audio, TvType.Music, TvType.AudioBook, TvType.Cartoon)
             val remaining = allCompatible
-                .filterNot { it.name in preferredNames }
+                .filterNot { it.name in preferredNames || it.name in assignedNames }
                 .filter { api ->
-                    preferred.size < 8 || api.supportedTypes.any { it in specialtyTypes }
+                    (assigned.size + preferred.size) < 8 || api.supportedTypes.any { it in specialtyTypes }
                 }
                 .map { it to false }
 
-            (preferred + remaining).take(MAX_PROVIDERS_TO_HARVEST)
+            (assigned + preferred + remaining).take(MAX_PROVIDERS_TO_HARVEST)
         }
 
     private suspend fun harvestProvidersMainPages(
@@ -1916,6 +1964,7 @@ class MediaUniverseViewModel : ViewModel() {
                         try {
                             val repository = APIRepository(api)
                             val supportedTypes = api.supportedTypes.toSet()
+                            val forcedUniverses = MissaExtensionGroups.resolveForApi(api)
                             when (val response = repository.getMainPage(1, null)) {
                                 is Resource.Success -> response.value
                                     .filterNotNull()
@@ -1927,7 +1976,8 @@ class MediaUniverseViewModel : ViewModel() {
                                                 sectionName = section.name,
                                                 isHorizontalSection = section.isHorizontalImages,
                                                 providerSupportedTypes = supportedTypes,
-                                                isPreferredLanguage = isPreferred
+                                                isPreferredLanguage = isPreferred,
+                                                forcedUniverses = forcedUniverses
                                             )
                                         }
                                     }
@@ -2080,7 +2130,7 @@ class MediaUniverseViewModel : ViewModel() {
                 ) ?: entry.effectiveType
                 val newBucket = rawDomainBucket(updatedType)
                 val updatedKey = MediaUniverseClassifier.normalizeTitleKey(entry.primary.name, newBucket)
-                val updatedUniverses = MediaUniverseClassifier.classifyAllUniverses(
+                val autoUniverses = MediaUniverseClassifier.classifyAllUniverses(
                     type = updatedType,
                     title = entry.primary.name,
                     tags = tags,
@@ -2090,6 +2140,19 @@ class MediaUniverseViewModel : ViewModel() {
                     url = entry.primary.url,
                     episodeCountHint = epHint,
                     isSeriesLoadResponse = seriesLoad
+                )
+                // EXT-GROUPS : on réapplique le choix de l'utilisateur, trié par le crible
+                val structuralUniverses = MissaContentSieve.structuralGroups(
+                    auto = autoUniverses,
+                    title = entry.primary.name,
+                    url = entry.primary.url,
+                    sectionName = sec,
+                    tags = tags,
+                    type = updatedType
+                )
+                val updatedUniverses = MissaExtensionGroups.mergeUniversesForSources(
+                    auto = structuralUniverses,
+                    sourceApiNames = entry.sources.map { it.apiName }.distinct()
                 )
                 entry.copy(
                     dedupKey = updatedKey,
@@ -2115,11 +2178,15 @@ class MediaUniverseViewModel : ViewModel() {
                 mergedSources.forEach { src ->
                     sourcesByItemUrl[itemIdentity(src)] = mergedSources
                 }
+                // EXT-GROUPS : la règle "films XOR séries" ne s'applique pas aux sources réglées par l'utilisateur
+                val hasForcedSource = mergedSources.any {
+                    MissaExtensionGroups.resolveForApiName(it.apiName) != null
+                }
                 primaryEntry.copy(
                     sources = mergedSources,
                     sectionHints = sameKeyEntries.flatMap { it.sectionHints }.toSet(),
                     universes = sameKeyEntries.flatMap { it.universes }.toSet().let { combined ->
-                        if ("films" in combined && "series" in combined) {
+                        if (!hasForcedSource && "films" in combined && "series" in combined) {
                             if (primaryEntry.effectiveType == TvType.TvSeries ||
                                 primaryEntry.effectiveType == TvType.Cartoon ||
                                 primaryEntry.effectiveType == TvType.AsianDrama
@@ -2156,6 +2223,11 @@ class MediaUniverseViewModel : ViewModel() {
                     obj.put("isHorizontalHint", entry.isHorizontalHint)
                     obj.put("sectionHints", JSONArray(entry.sectionHints.take(4).toList()))
                     obj.put("universes", JSONArray(entry.universes.toList()))
+                    // EXT-GROUPS : mémorise si l'entrée vient d'une source réglée par l'utilisateur
+                    obj.put(
+                        "forced",
+                        entry.sources.any { MissaExtensionGroups.resolveForApiName(it.apiName) != null }
+                    )
                     val tags = entry.details?.tags ?: entry.cachedTags
                     if (tags.isNotEmpty()) {
                         obj.put("tags", JSONArray(tags.take(8)))
@@ -2226,6 +2298,19 @@ class MediaUniverseViewModel : ViewModel() {
                         sectionName = hints.joinToString(" "),
                         url = url
                     )
+                    // EXT-GROUPS : si l'entrée était "forcée", on garde ses univers sauvegardés
+                    val savedUniverses = LinkedHashSet<String>()
+                    obj.optJSONArray("universes")?.let { ua ->
+                        for (j in 0 until ua.length()) {
+                            ua.optString(j).takeIf { it.isNotBlank() }?.let { savedUniverses.add(it) }
+                        }
+                    }
+                    val restoredUniverses: Set<String> =
+                        if (obj.optBoolean("forced", false) && savedUniverses.isNotEmpty()) {
+                            savedUniverses
+                        } else {
+                            recomputedUniverses
+                        }
                     restored.add(
                         UnifiedCatalogEntry(
                             dedupKey = obj.optString("dedupKey").ifBlank { url },
@@ -2234,7 +2319,7 @@ class MediaUniverseViewModel : ViewModel() {
                             effectiveType = tvType,
                             sectionHints = hints,
                             isHorizontalHint = obj.optBoolean("isHorizontalHint", false),
-                            universes = recomputedUniverses,
+                            universes = restoredUniverses,
                             cachedTags = tags,
                             cachedContentRating = contentRating,
                             cachedDuration = duration

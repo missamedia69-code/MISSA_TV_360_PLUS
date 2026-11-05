@@ -817,11 +817,17 @@
     <string name="universe_home_title">Home</string>
     <string name="universe_home_description">Movies, series, live TV, audio and retro games brought together in one platform.</string>
     <string name="universe_home_catalogue">Selection &amp; picks</string>
+    <!-- AUDIT H7: continent-level radio origins; they have no flag, only a label -->
+    <string name="radio_origin_africa">Africa</string>
+    <string name="radio_origin_world">Worldwide</string>
     <string name="universe_films_title">Movies &amp; Mangas</string>
+    <!-- AUDIT H5: compact label for the top strip; the full title stays on the cards -->
+    <string name="universe_films_title_short">Movies</string>
     <string name="universe_films_description">Feature films, mangas, anime, OVAs and classics unified across all compatible sources.</string>
     <string name="universe_series_title">Series</string>
     <string name="universe_series_description">Shows, seasons and episodes unified across all compatible extensions.</string>
     <string name="universe_documentaries_title">Documentaries &amp; Live</string>
+    <string name="universe_documentaries_title_short">Docs &amp; Live</string>
     <string name="universe_documentaries_description">Feature documentaries, docu-series, reports, nature, history, science, plus live channels and streams from Twitch, YouTube &amp; Dailymotion.</string>
     <string name="universe_shorts_title">Shorts</string>
     <string name="universe_shorts_description">Short-format films and creations identified by duration and metadata.</string>
@@ -837,7 +843,18 @@
     <string name="universe_podcasts_description">Discover audio shows, browse episodes and resume listening anytime.</string>
     <string name="universe_radio_title">Radio</string>
     <string name="universe_radio_description">Instant direct-stream radio stations from Africa and around the world.</string>
+    <!-- EXT-GROUPS : choix du groupe de médias par extension -->
+    <string name="missa_ext_group_auto">Auto</string>
+    <string name="missa_ext_group_none">None (not loaded)</string>
+    <string name="missa_ext_group_badge">Group: %1$s</string>
+    <string name="missa_ext_group_dialog_title">Media group — %1$s</string>
+    <string name="missa_ext_group_save">Save</string>
+    <string name="missa_ext_group_reset_auto">Auto</string>
+    <string name="missa_ext_group_cancel">Cancel</string>
+    <string name="missa_ext_group_whole_extension">Whole extension</string>
+    <string name="missa_ext_group_inherit">inherited (%1$s)</string>
     <string name="universe_games_title">Retro Games</string>
+    <string name="universe_games_title_short">Games</string>
     <string name="universe_games_description">Standalone retro gaming hub with free homebrew downloads and built-in emulation.</string>
 
     <!-- Eyebrow badges -->
