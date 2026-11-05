@@ -928,6 +928,7 @@ class MediaUniverseViewModel : ViewModel() {
                         withTimeoutOrNull(SEARCH_PROVIDER_TIMEOUT_MS) {
                             try {
                                 val repo = APIRepository(api)
+                                val forcedUniverses = MissaExtensionGroups.resolveForApi(api)
                                 when (val res = repo.search(trimmed, 1)) {
                                     is Resource.Success -> res.value.items.map { item ->
                                         RawHarvestedItem(
@@ -935,7 +936,8 @@ class MediaUniverseViewModel : ViewModel() {
                                             sectionName = "",
                                             isHorizontalSection = api.supportedTypes.contains(TvType.Live),
                                             providerSupportedTypes = api.supportedTypes.toSet(),
-                                            isPreferredLanguage = isPreferred
+                                            isPreferredLanguage = isPreferred,
+                                            forcedUniverses = forcedUniverses
                                         )
                                     }
                                     else -> emptyList()
@@ -1944,6 +1946,7 @@ class MediaUniverseViewModel : ViewModel() {
                         try {
                             val repository = APIRepository(api)
                             val supportedTypes = api.supportedTypes.toSet()
+                            val forcedUniverses = MissaExtensionGroups.resolveForApi(api)
                             when (val response = repository.getMainPage(1, null)) {
                                 is Resource.Success -> response.value
                                     .filterNotNull()
@@ -1955,7 +1958,8 @@ class MediaUniverseViewModel : ViewModel() {
                                                 sectionName = section.name,
                                                 isHorizontalSection = section.isHorizontalImages,
                                                 providerSupportedTypes = supportedTypes,
-                                                isPreferredLanguage = isPreferred
+                                                isPreferredLanguage = isPreferred,
+                                                forcedUniverses = forcedUniverses
                                             )
                                         }
                                     }
