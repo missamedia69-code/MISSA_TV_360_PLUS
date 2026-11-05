@@ -505,12 +505,20 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         navHostFragment.navController.currentDestination?.let { updateNavBar(it) }
     }
 
+    /**
+     * AUDIT H5, corrected: every optional field stays at the END of the constructor.
+     * `shortTitleRes` had been inserted between `titleRes` and `iconRes`, and the utility
+     * entries below are built positionally - so the third argument, a drawable, silently
+     * landed in `shortTitleRes` and left `iconRes` null. The four utility buttons then
+     * rendered as empty pills: no crash, no warning, just a row of icons that vanished.
+     * Optional fields go last, and the utility entries now name their arguments.
+     */
     private data class TopNavigationEntry(
         @IdRes val destinationId: Int,
         val titleRes: Int,
-        val shortTitleRes: Int? = null,
         val iconRes: Int? = null,
-        val familyGroup: Int = 0
+        val familyGroup: Int = 0,
+        val shortTitleRes: Int? = null
     )
 
     private val universeNavigationEntries by lazy {
@@ -532,10 +540,26 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             // filled glyphs on a 960px canvas. The stroked ones looked thinner and smaller,
             // so the utility row uses heavier variants of them (missa_util_*) and one
             // uniform icon size.
-            TopNavigationEntry(R.id.navigation_search, R.string.title_search, R.drawable.missa_util_search),
-            TopNavigationEntry(R.id.navigation_library, R.string.library, R.drawable.library_icon_selector),
-            TopNavigationEntry(R.id.navigation_downloads, R.string.title_downloads, R.drawable.missa_util_download),
-            TopNavigationEntry(R.id.navigation_settings, R.string.title_settings, R.drawable.settings_icon_selector),
+            TopNavigationEntry(
+                destinationId = R.id.navigation_search,
+                titleRes = R.string.title_search,
+                iconRes = R.drawable.missa_util_search
+            ),
+            TopNavigationEntry(
+                destinationId = R.id.navigation_library,
+                titleRes = R.string.library,
+                iconRes = R.drawable.library_icon_selector
+            ),
+            TopNavigationEntry(
+                destinationId = R.id.navigation_downloads,
+                titleRes = R.string.title_downloads,
+                iconRes = R.drawable.missa_util_download
+            ),
+            TopNavigationEntry(
+                destinationId = R.id.navigation_settings,
+                titleRes = R.string.title_settings,
+                iconRes = R.drawable.settings_icon_selector
+            ),
         )
     }
 
@@ -739,6 +763,12 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             utilityContainer.addView(MissaUiFactory.createStripFamilyDivider(this))
 
             utilityNavigationEntries.forEach { entry ->
+                // A utility pill without an icon renders as an empty oval: no crash, no
+                // warning, just a row of glyphs that silently vanished. Shout if that
+                // ever happens again instead of shipping an invisible button.
+                if (entry.iconRes == null) {
+                    Log.w("MissaNav", "Utility entry ${entry.destinationId} has no icon")
+                }
                 val utilBtn = MissaUiFactory.createPillButton(
                     context = this,
                     label = "",
@@ -752,14 +782,15 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     tag = entry.destinationId
                     contentDescription = localizedString(entry.titleRes)
                     iconPadding = 0
-                    // AUDIT H6, corrected: these buttons carry an icon and no label, so the
-                    // glyph must be anchored to the button (ICON_GRAVITY_START) and not to a
-                    // zero-width text box (ICON_GRAVITY_TEXT_START), where it can be laid out
-                    // outside the drawn area. The size is left to the pill style - 16dp, the
-                    // same as every other icon of the strip - instead of a bigger 22dp that
-                    // made the utility row the only one with outsized glyphs. The height stays
-                    // the pill's own 52dp on TV (the audit floor is 48dp), not a 44dp override.
-                    iconGravity = MaterialButton.ICON_GRAVITY_START
+                    // AUDIT H6, corrected: these buttons carry an icon and no label.
+                    // ICON_GRAVITY_TEXT_START is the one that centres the glyph: MaterialButton
+                    // positions the compound drawable against the text box, and with an empty
+                    // label that box is zero-wide, so the icon lands in the middle of the 44dp
+                    // target. ICON_GRAVITY_START pins it against the left edge instead. The
+                    // size and the height stay the pill's own - 16dp glyph, 52dp tall on TV
+                    // (48dp elsewhere) - so the row keeps the optical weight and the baseline
+                    // of the nav pills next to it.
+                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
                     minWidth = dp(44)
                     minimumWidth = dp(44)
                     setPadding(0, 0, 0, 0)

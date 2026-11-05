@@ -122,16 +122,17 @@ data class UniverseDefinition(
     val id: String,
     @IdRes val destinationId: Int,
     @StringRes val titleRes: Int,
-    /** AUDIT H5: compact label for the top strip only. The full [titleRes] stays on the
-     *  cards and page titles, where there is room for it. */
-    @StringRes val shortTitleRes: Int? = null,
     @StringRes val descriptionRes: Int,
     @StringRes val cardSubtitleRes: Int,
     @DrawableRes val iconRes: Int,
     @StringRes val eyebrowRes: Int,
     val familyGroup: Int,
     val isHorizontalCards: Boolean = false,
-    val directPlayOnClick: Boolean = false
+    val directPlayOnClick: Boolean = false,
+    /** AUDIT H5: compact label for the top strip only. The full [titleRes] stays on the
+     *  cards and page titles, where there is room for it. Optional fields stay last so a
+     *  positional construction can never shift the required ones. */
+    @StringRes val shortTitleRes: Int? = null
 )
 
 object MissaUniverses {
