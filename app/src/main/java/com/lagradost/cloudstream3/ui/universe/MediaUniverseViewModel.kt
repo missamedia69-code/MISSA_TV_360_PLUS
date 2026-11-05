@@ -1912,23 +1912,31 @@ class MediaUniverseViewModel : ViewModel() {
                     api.name != "None" &&
                         api.name != "Random" &&
                         (!requireMainPage || api.hasMainPage) &&
-                        !api.supportedTypes.all { it == TvType.NSFW || it == TvType.CustomMedia }
+                        !api.supportedTypes.all { it == TvType.NSFW || it == TvType.CustomMedia } &&
+                        // EXT-GROUPS : "Aucun" = jamais chargé
+                        !MissaExtensionGroups.isDisabled(api)
                 }
             }
 
+            // EXT-GROUPS : ce que l'utilisateur a réglé explicitement passe TOUJOURS en premier
+            val assigned = allCompatible
+                .filter { MissaExtensionGroups.hasAssignment(it) }
+                .map { it to true }
+            val assignedNames = assigned.map { it.first.name }.toSet()
+
             val preferred = allCompatible
-                .filter { it.name in preferredNames }
+                .filter { it.name in preferredNames && it.name !in assignedNames }
                 .map { it to true }
 
             val specialtyTypes = setOf(TvType.Live, TvType.Podcast, TvType.Audio, TvType.Music, TvType.AudioBook, TvType.Cartoon)
             val remaining = allCompatible
-                .filterNot { it.name in preferredNames }
+                .filterNot { it.name in preferredNames || it.name in assignedNames }
                 .filter { api ->
-                    preferred.size < 8 || api.supportedTypes.any { it in specialtyTypes }
+                    (assigned.size + preferred.size) < 8 || api.supportedTypes.any { it in specialtyTypes }
                 }
                 .map { it to false }
 
-            (preferred + remaining).take(MAX_PROVIDERS_TO_HARVEST)
+            (assigned + preferred + remaining).take(MAX_PROVIDERS_TO_HARVEST)
         }
 
     private suspend fun harvestProvidersMainPages(
