@@ -2207,6 +2207,11 @@ class MediaUniverseViewModel : ViewModel() {
                     obj.put("isHorizontalHint", entry.isHorizontalHint)
                     obj.put("sectionHints", JSONArray(entry.sectionHints.take(4).toList()))
                     obj.put("universes", JSONArray(entry.universes.toList()))
+                    // EXT-GROUPS : mémorise si l'entrée vient d'une source réglée par l'utilisateur
+                    obj.put(
+                        "forced",
+                        entry.sources.any { MissaExtensionGroups.resolveForApiName(it.apiName) != null }
+                    )
                     val tags = entry.details?.tags ?: entry.cachedTags
                     if (tags.isNotEmpty()) {
                         obj.put("tags", JSONArray(tags.take(8)))
@@ -2277,6 +2282,19 @@ class MediaUniverseViewModel : ViewModel() {
                         sectionName = hints.joinToString(" "),
                         url = url
                     )
+                    // EXT-GROUPS : si l'entrée était "forcée", on garde ses univers sauvegardés
+                    val savedUniverses = LinkedHashSet<String>()
+                    obj.optJSONArray("universes")?.let { ua ->
+                        for (j in 0 until ua.length()) {
+                            ua.optString(j).takeIf { it.isNotBlank() }?.let { savedUniverses.add(it) }
+                        }
+                    }
+                    val restoredUniverses: Set<String> =
+                        if (obj.optBoolean("forced", false) && savedUniverses.isNotEmpty()) {
+                            savedUniverses
+                        } else {
+                            recomputedUniverses
+                        }
                     restored.add(
                         UnifiedCatalogEntry(
                             dedupKey = obj.optString("dedupKey").ifBlank { url },
@@ -2285,7 +2303,7 @@ class MediaUniverseViewModel : ViewModel() {
                             effectiveType = tvType,
                             sectionHints = hints,
                             isHorizontalHint = obj.optBoolean("isHorizontalHint", false),
-                            universes = recomputedUniverses,
+                            universes = restoredUniverses,
                             cachedTags = tags,
                             cachedContentRating = contentRating,
                             cachedDuration = duration
