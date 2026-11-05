@@ -22,6 +22,7 @@ import com.lagradost.cloudstream3.ui.ViewHolderState
 import com.lagradost.cloudstream3.ui.newSharedPool
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
+import com.lagradost.cloudstream3.ui.universe.MissaExtensionGroups
 import com.lagradost.cloudstream3.utils.AppContextUtils.html
 import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
 import com.lagradost.cloudstream3.utils.SubtitleHelper.getNameNextToFlagEmoji
@@ -79,6 +80,18 @@ class PluginAdapter(
         val name = metadata.name.removeSuffix("Provider")
         val alpha = if (disabled) 0.6f else 1f
         val isLocal = !item.pluginWrapper.plugin.url.startsWith("http")
+        // EXT-GROUPS : chemin du fichier .cs3 de l'extension installée (null si non installée)
+        val installedPath: String? = when {
+            !item.isDownloaded -> null
+            isLocal -> metadata.url
+            else -> runCatching {
+                PluginManager.getPluginPath(
+                    itemView.context,
+                    metadata.internalName,
+                    item.pluginWrapper.repositoryData.url
+                ).absolutePath
+            }.getOrNull()
+        }
         binding.mainText.alpha = alpha
         binding.subText.alpha = alpha
 
@@ -101,7 +114,19 @@ class PluginAdapter(
             iconClickCallback.invoke(item.pluginWrapper)
         }
         itemView.setOnClickListener {
-            if (isLocal) return@setOnClickListener
+            if (isLocal) {
+                // EXT-GROUPS : ligne d'une extension installée -> choix du groupe de médias
+                val path = installedPath ?: return@setOnClickListener
+                val dialogContext = itemView.context.getActivity() ?: itemView.context
+                MissaExtensionGroupDialog.show(dialogContext, path, name) {
+                    binding.extVotes.text = itemView.context.getString(
+                        R.string.missa_ext_group_badge,
+                        MissaExtensionGroups.label(itemView.context, MissaExtensionGroups.getForExtension(path))
+                    )
+                    binding.extVotes.isVisible = true
+                }
+                return@setOnClickListener
+            }
 
             val sheet = PluginDetailsFragment(item)
             val activity = itemView.context.getActivity() as AppCompatActivity
@@ -172,6 +197,14 @@ class PluginAdapter(
         //val oldRecycleCount = (holder as? RepositoryViewHolderState)?.recycleCount
 
         binding.extVotes.isVisible = false
+        // EXT-GROUPS : on réutilise ce TextView (votes désactivés) comme pastille du groupe de médias
+        if (installedPath != null) {
+            binding.extVotes.text = itemView.context.getString(
+                R.string.missa_ext_group_badge,
+                MissaExtensionGroups.label(itemView.context, MissaExtensionGroups.getForExtension(installedPath))
+            )
+            binding.extVotes.isVisible = true
+        }
 
         // Disable this for now as the vote api is down, this will also significantly improve the lag
         // from doing all these network requests
