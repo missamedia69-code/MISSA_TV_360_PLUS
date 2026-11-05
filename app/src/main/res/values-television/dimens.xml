@@ -33,7 +33,7 @@
     <dimen name="missa_hub_card_height">132dp</dimen>
     <dimen name="missa_pill_touch_height">52dp</dimen>
     <dimen name="missa_pill_inset_vertical">6dp</dimen>
-    <dimen name="missa_pill_horizontal_padding">14dp</dimen>
+    <dimen name="missa_pill_horizontal_padding">12dp</dimen>
     <dimen name="missa_top_strip_fade_width">48dp</dimen>
     <!-- BRAND-01: see values/dimens.xml; a 960dp TV bar keeps the glow at ~13%. -->
     <dimen name="missa_top_strip_glow_width">128dp</dimen>

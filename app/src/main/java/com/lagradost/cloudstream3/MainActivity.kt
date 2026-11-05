@@ -507,6 +507,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
     private data class TopNavigationEntry(
         @IdRes val destinationId: Int,
         val titleRes: Int,
+        val shortTitleRes: Int? = null,
         val iconRes: Int? = null,
         val familyGroup: Int = 0
     )
@@ -516,6 +517,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             TopNavigationEntry(
                 destinationId = uni.destinationId,
                 titleRes = uni.titleRes,
+                shortTitleRes = uni.shortTitleRes,
                 iconRes = uni.iconRes,
                 familyGroup = uni.familyGroup
             )
@@ -697,7 +699,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
             val button = MissaUiFactory.createPillButton(
                 context = this,
-                label = localizedString(entry.titleRes),
+                label = localizedString(entry.shortTitleRes ?: entry.titleRes),
                 selected = false,
                 iconRes = entry.iconRes ?: 0,
                 marginEndDp = 6

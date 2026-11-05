@@ -774,10 +774,13 @@
     <string name="universe_home_description">Cinéma, séries, directs, audio et jeux rétro réunis sur une seule plateforme.</string>
     <string name="universe_home_catalogue">Sélection &amp; recommandations</string>
     <string name="universe_films_title">Films &amp; Mangas</string>
+    <!-- AUDIT H5 : libellé compact pour la barre du haut ; le titre complet reste sur les cartes -->
+    <string name="universe_films_title_short">Films</string>
     <string name="universe_films_description">Longs-métrages, mangas, animes, OAV et classiques issus de toutes vos sources compatibles.</string>
     <string name="universe_series_title">Séries</string>
     <string name="universe_series_description">Séries, saisons et épisodes unifiés depuis toutes vos extensions compatibles.</string>
     <string name="universe_documentaries_title">Documentaires &amp; Live</string>
+    <string name="universe_documentaries_title_short">Docs &amp; Live</string>
     <string name="universe_documentaries_description">Grands documentaires, docu-séries, reportages, nature, histoire, sciences, plus les chaînes et directs Twitch, YouTube &amp; Dailymotion.</string>
     <string name="universe_shorts_title">Courts</string>
     <string name="universe_shorts_description">Créations et films au format court identifiés par durée et métadonnées.</string>
@@ -794,6 +797,7 @@
     <string name="universe_radio_title">Radio</string>
     <string name="universe_radio_description">Stations de radio d’Afrique, du Cameroun et du monde en écoute directe.</string>
     <string name="universe_games_title">Jeux rétro</string>
+    <string name="universe_games_title_short">Jeux</string>
     <string name="universe_games_description">Catalogue indépendant de jeux rétro libres, téléchargement dédié et émulation intégrée.</string>
 
     <!-- Eyebrow badges -->

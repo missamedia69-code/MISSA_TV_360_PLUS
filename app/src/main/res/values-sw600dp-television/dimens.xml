@@ -39,7 +39,7 @@
 
     <dimen name="missa_pill_touch_height">52dp</dimen>
     <dimen name="missa_pill_inset_vertical">6dp</dimen>
-    <dimen name="missa_pill_horizontal_padding">14dp</dimen>
+    <dimen name="missa_pill_horizontal_padding">12dp</dimen>
     <dimen name="missa_top_strip_fade_width">48dp</dimen>
 
     <!-- Unique 3dp navigation focus ring: green = navigation, yellow stays the selection accent -->
