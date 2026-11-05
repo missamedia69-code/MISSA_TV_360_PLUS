@@ -752,12 +752,16 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     tag = entry.destinationId
                     contentDescription = localizedString(entry.titleRes)
                     iconPadding = 0
-                    iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-                    iconSize = dp(22)
+                    // AUDIT H6, corrected: these buttons carry an icon and no label, so the
+                    // glyph must be anchored to the button (ICON_GRAVITY_START) and not to a
+                    // zero-width text box (ICON_GRAVITY_TEXT_START), where it can be laid out
+                    // outside the drawn area. The size is left to the pill style - 16dp, the
+                    // same as every other icon of the strip - instead of a bigger 22dp that
+                    // made the utility row the only one with outsized glyphs. The height stays
+                    // the pill's own 52dp on TV (the audit floor is 48dp), not a 44dp override.
+                    iconGravity = MaterialButton.ICON_GRAVITY_START
                     minWidth = dp(44)
                     minimumWidth = dp(44)
-                    minHeight = dp(44)
-                    minimumHeight = dp(44)
                     setPadding(0, 0, 0, 0)
                     isFocusable = true
                     isFocusableInTouchMode = false
