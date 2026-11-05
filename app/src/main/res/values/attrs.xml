@@ -77,6 +77,12 @@
         <attr name="missaStrokeSubtle" format="color" />
         <attr name="missaAccentPrimary" format="color" />
         <attr name="missaOnAccentPrimary" format="color" />
+        <!-- AUDIT H11: the accent as ink - a wordmark, a glyph, an icon - as opposed to
+             missaAccentPrimary, which fills a pill or strokes a card. A colour that reads
+             well as a fill on a light theme is usually far too light to read as text:
+             the amber #E0A800 sits at 2.15:1 on white. The two are now separate so the
+             brand amber keeps filling the selected pill while the wordmark stays legible. -->
+        <attr name="missaAccentOnSurface" format="color" />
         <attr name="missaAccentSuccess" format="color" />
         <!-- Active state of the navigation selector. Dedicated so the rest of the
              accent palette (hero CTAs, chips, badges) keeps using missaAccentPrimary. -->

@@ -60,7 +60,7 @@
                         android:shadowRadius="4"
                         android:text="MISSA TV"
                         android:textAppearance="@style/TextAppearance.Missa.RowTitle"
-                        android:textColor="?attr/missaAccentPrimary" />
+                        android:textColor="?attr/missaAccentOnSurface" />
 
                     <TextView
                         android:layout_width="wrap_content"
