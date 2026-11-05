@@ -356,7 +356,7 @@ class MediaUniverseViewModel : ViewModel() {
                     else -> inferred
                 }
 
-                val universes = MediaUniverseClassifier.classifyAllUniverses(
+                val autoUniverses = MediaUniverseClassifier.classifyAllUniverses(
                     type = effectiveType ?: bestRaw.response.type,
                     title = bestRaw.response.name,
                     tags = mergedTags,
@@ -367,6 +367,11 @@ class MediaUniverseViewModel : ViewModel() {
                     url = bestRaw.response.url,
                     episodeCountHint = maxEpisodeHint,
                     isSeriesLoadResponse = mergedSeriesLoad
+                )
+                // EXT-GROUPS : le choix de l'utilisateur écrase / complète la devinette
+                val universes = MissaExtensionGroups.mergeUniverses(
+                    auto = autoUniverses,
+                    forcedPerSource = sortedGroup.map { it.raw.forcedUniverses }
                 )
 
                 entries.add(
