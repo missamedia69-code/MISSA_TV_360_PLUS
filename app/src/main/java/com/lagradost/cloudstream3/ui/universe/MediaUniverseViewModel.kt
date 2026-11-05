@@ -69,7 +69,9 @@ data class RawHarvestedItem(
     val sectionName: String,
     val isHorizontalSection: Boolean,
     val providerSupportedTypes: Set<TvType>,
-    val isPreferredLanguage: Boolean
+    val isPreferredLanguage: Boolean,
+    /** EXT-GROUPS : choix de l'utilisateur pour la source de cet item (null = Auto). */
+    val forcedUniverses: Set<String>? = null
 )
 
 data class UnifiedCatalogSnapshot(
