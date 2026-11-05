@@ -51,11 +51,18 @@ class MissaExtensionGroupsTest {
     }
 
     @Test
-    fun `assignable groups never contain music or kids`() {
+    fun `assignable groups cover every universe except home, music and kids`() {
         val ids = MissaExtensionGroups.ASSIGNABLE_GROUPS.map { it.id }
+        // music et kids sont 100 % YouTube : jamais assignables (projectUniverse leur passe une
+        // liste vide). home n'est pas un groupe, c'est la vue qui les contient tous.
         assertTrue("music" !in ids)
         assertTrue("kids" !in ids)
-        assertEquals(8, ids.size)
+        assertTrue("home" !in ids)
+        // Jeux rétro est alimenté par les extensions comme les autres : il doit être proposé.
+        assertTrue("retro_games" in ids)
+        assertEquals(9, ids.size)
+        // et rien que des identifiants d'univers qui existent vraiment
+        assertTrue(ids.all { id -> MissaUniverses.NAVIGATION_UNIVERSES.any { it.id == id } })
     }
 
     @Test
