@@ -60,6 +60,9 @@ object SearchResultBuilder {
     ) {
         val cardView: ImageView = itemView.findViewById(R.id.imageView)
         val cardText: TextView? = itemView.findViewById(R.id.imageText)
+        // AUDIT H8: monogram fallback of a radio card, shown when the station has no
+        // logo or when the logo fails to load.
+        val monogram: TextView? = itemView.findViewById(R.id.radio_monogram)
 
         val textIsDub: TextView? = itemView.findViewById(R.id.text_is_dub)
         val textIsSub: TextView? = itemView.findViewById(R.id.text_is_sub)
@@ -142,16 +145,36 @@ object SearchResultBuilder {
         cardText?.isVisible = showTitle || isDirectRadio || isDirectMusic
         cardView.isVisible = true
         if (isDirectRadio) {
+            // AUDIT H8: one neutral rounded tile for every station, logo inside with a
+            // generous inner margin and never full-bleed. Station logos have every shape
+            // there is - square favicons, wide wordmarks, tiny PNGs - and painting them
+            // straight onto the card made the row look like a set of different objects,
+            // with the two BBC favicons reading as broken images. When a logo is missing
+            // or fails, the station initials are drawn on the same tile: the generic
+            // radio icon was unreadable at row scale and four stations shared it.
             cardView.scaleType = ImageView.ScaleType.FIT_CENTER
             cardView.setPadding(18.toPx, 12.toPx, 18.toPx, 28.toPx)
+            cardView.setBackgroundResource(R.drawable.missa_radio_logo_tile)
+            monogram?.text = radioMonogram(card.name)
             if (!card.posterUrl.isNullOrEmpty()) {
                 cardView.loadImage(card.posterUrl, card.posterHeaders) {
                     error { getImageFromDrawable(itemView.context, R.drawable.ic_missa_radio) }
+                    listener(
+                        onSuccess = { _, _ -> showRadioMonogram(monogram, cardView, false) },
+                        onError = { _, _ -> showRadioMonogram(monogram, cardView, true) },
+                        onCancel = { /* a recycled card must not flicker to the monogram */ }
+                    )
                 }
+                showRadioMonogram(monogram, cardView, false)
             } else {
-                cardView.loadImage(R.drawable.ic_missa_radio)
+                cardView.setImageDrawable(null)
+                showRadioMonogram(monogram, cardView, true)
             }
         } else if (isDirectMusic) {
+            // The tile and the monogram belong to radio cards only, and a card view is
+            // recycled: every other branch has to clear them.
+            cardView.background = null
+            monogram?.isVisible = false
             if (!card.posterUrl.isNullOrEmpty()) {
                 cardView.scaleType = ImageView.ScaleType.CENTER_CROP
                 cardView.setPadding(0, 0, 0, 0)
@@ -164,6 +187,8 @@ object SearchResultBuilder {
                 cardView.loadImage(R.drawable.ic_missa_music)
             }
         } else {
+            cardView.background = null
+            monogram?.isVisible = false
             cardView.scaleType = ImageView.ScaleType.CENTER_CROP
             cardView.setPadding(0, 0, 0, 0)
             if (!card.posterUrl.isNullOrEmpty()) {
@@ -385,5 +410,34 @@ object SearchResultBuilder {
         textIsDub?.apply {
             backgroundTintList = ColorStateList.valueOf(context.colorFromAttribute(R.attr.textColor))
         }
+    }
+
+    /**
+     * AUDIT H8: draws the station initials instead of the logo. The logo view keeps the
+     * tile, only its content is cleared, so a station without artwork still gets the
+     * same rounded frame as the others.
+     */
+    private fun showRadioMonogram(monogram: TextView?, logo: ImageView, showMonogram: Boolean) {
+        monogram?.isVisible = showMonogram
+        if (showMonogram) logo.setImageDrawable(null)
+    }
+
+    /**
+     * AUDIT H8: two or three letters that stand for a station name.
+     * "Radio Balafon 90.3 Douala" -> "RB", "RFI Afrique" -> "RFI", "BBC" -> "BBC".
+     */
+    private fun radioMonogram(name: String): String {
+        val words = name.trim().split(Regex("\\s+")).filter { it.any(Char::isLetterOrDigit) }
+        if (words.isEmpty()) return "?"
+        val first = words[0].trim { !it.isLetterOrDigit() }
+        val acronym = first.filter(Char::isLetterOrDigit)
+        // A station that brands itself with an acronym keeps it whole: RFI, BBC, RTS, CRTV.
+        if (acronym.length in 2..4 && acronym.all(Char::isUpperCase) && first == first.uppercase()) {
+            return acronym
+        }
+        val initials = words.take(2).mapNotNull { word ->
+            word.trim { !it.isLetterOrDigit() }.firstOrNull(Char::isLetterOrDigit)?.uppercaseChar()
+        }.joinToString("")
+        return initials.ifBlank { first.take(2).uppercase() }
     }
 }

@@ -25,6 +25,22 @@
         android:scaleType="centerCrop"
         tools:src="@drawable/example_poster" />
 
+    <!-- AUDIT H8: monogram fallback for a radio card whose logo is missing or broken.
+         Hidden for every other card type; SearchResultBuilder shows it only for
+         DirectRadioSearchResponse and writes the station initials into it. -->
+    <TextView
+        android:id="@+id/radio_monogram"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingBottom="16dp"
+        android:textColor="?attr/missaAccentPrimary"
+        android:textSize="34sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:text="RB" />
+
     <ImageView
         android:id="@+id/title_shadow"
         android:layout_width="match_parent"
