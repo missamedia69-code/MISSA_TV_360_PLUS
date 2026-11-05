@@ -1881,10 +1881,12 @@ class MediaUniverseViewModel : ViewModel() {
     }
 
     private fun computeProviderSignature(): String {
-        return apis.withLock {
+        val base = apis.withLock {
             apis.filter { !it.supportedTypes.all { t -> t == TvType.NSFW } }
                 .joinToString("|") { "${it.name}:${it.lang}:${it.hasMainPage}" }
         }
+        // EXT-GROUPS : un changement de groupe doit relancer la moisson
+        return "$base#${MissaExtensionGroups.signature()}"
     }
 
     private fun countActiveProviders(): Int {
