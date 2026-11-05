@@ -24,7 +24,12 @@
     <dimen name="missa_hero_height">196dp</dimen>
     <dimen name="missa_hero_artwork_size">96dp</dimen>
     <dimen name="missa_hero_padding">20dp</dimen>
-    <dimen name="missa_section_horizontal_padding">24dp</dimen>
+    <!-- AUDIT H4: one horizontal gutter for the whole TV screen - logo, page titles,
+         section titles and card rows all start on the same edge. 32dp keeps enough
+         overscan margin on a TV panel without eating the width of the rows.
+         The strip background stays full width; only its content follows the gutter. -->
+    <dimen name="missa_gutter_tv">32dp</dimen>
+    <dimen name="missa_section_horizontal_padding">@dimen/missa_gutter_tv</dimen>
     <!-- SPACING-01: same rhythm as the phone config, see values/dimens.xml. -->
     <dimen name="missa_section_gap_top">6dp</dimen>
     <dimen name="missa_section_gap_bottom">6dp</dimen>

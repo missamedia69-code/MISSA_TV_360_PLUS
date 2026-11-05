@@ -47,7 +47,7 @@
                     android:focusable="false"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="18dp"
+                    android:paddingStart="@dimen/missa_gutter_tv"
                     android:paddingEnd="16dp">
 
                     <TextView
@@ -112,7 +112,7 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingStart="6dp"
-                    android:paddingEnd="16dp" />
+                    android:paddingEnd="@dimen/missa_gutter_tv" />
             </LinearLayout>
         </LinearLayout>
 
