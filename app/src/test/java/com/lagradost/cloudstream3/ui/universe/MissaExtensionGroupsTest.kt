@@ -107,6 +107,95 @@ class MissaExtensionGroupsTest {
         )
     }
 
+    private fun rawSeries(apiName: String, forced: Set<String>?) = RawHarvestedItem(
+        response = FakeResponse(
+            name = "Ma Serie Test",
+            url = "https://pack.example/serie/ma-serie-test",
+            apiName = apiName,
+            type = TvType.TvSeries
+        ),
+        sectionName = "Séries",
+        isHorizontalSection = false,
+        providerSupportedTypes = setOf(TvType.TvSeries),
+        isPreferredLanguage = true,
+        forcedUniverses = forced
+    )
+
+    // --- le crible (MissaContentSieve) ---
+
+    @Test
+    fun `sift keeps only the groups the content has the structure of`() {
+        assertEquals(setOf("series"), MissaContentSieve.sift(setOf("films", "series"), setOf("series")))
+        assertEquals(setOf("films"), MissaContentSieve.sift(setOf("films", "series"), setOf("films")))
+        assertEquals(
+            setOf("documentaries"),
+            MissaContentSieve.sift(setOf("documentaries"), setOf("documentaries", "live_tv"))
+        )
+    }
+
+    @Test
+    fun `sift never adds a group the extension did not tick`() {
+        assertEquals(setOf("films"), MissaContentSieve.sift(setOf("films"), setOf("series", "podcasts")))
+    }
+
+    @Test
+    fun `sift keeps nothing when the user chose none`() {
+        assertEquals(emptySet<String>(), MissaContentSieve.sift(emptySet(), setOf("films")))
+    }
+
+    @Test
+    fun `an extension ticked films and series feeds each group its own content`() {
+        val entries = MediaUniverseViewModel.deduplicateHarvestedItems(
+            listOf(
+                raw("PackSite", setOf("films", "series")),
+                rawSeries("PackSite", setOf("films", "series"))
+            )
+        )
+        assertEquals(2, entries.size)
+        assertEquals(setOf("films"), entries.first { it.primary.type == TvType.Movie }.universes)
+        assertEquals(setOf("series"), entries.first { it.primary.type == TvType.TvSeries }.universes)
+    }
+
+    @Test
+    fun `a rom is a retro game and not a movie`() {
+        assertEquals(
+            setOf("retro_games"),
+            MissaContentSieve.structuralGroups(
+                auto = setOf("films"),
+                title = "Super Mario Bros",
+                url = "https://roms.example/mario.nes",
+                type = TvType.Others
+            )
+        )
+    }
+
+    @Test
+    fun `a homebrew section feeds retro games`() {
+        assertEquals(
+            setOf("retro_games"),
+            MissaContentSieve.structuralGroups(
+                auto = setOf("films"),
+                title = "Blobby Volley",
+                url = "https://homebrew.example/blobby",
+                sectionName = "Homebrew",
+                type = TvType.Others
+            )
+        )
+    }
+
+    @Test
+    fun `a movie whose title names a console stays a movie`() {
+        assertEquals(
+            setOf("films"),
+            MissaContentSieve.structuralGroups(
+                auto = setOf("films"),
+                title = "Arcade",
+                url = "https://pack.example/film/arcade",
+                type = TvType.Movie
+            )
+        )
+    }
+
     @Test
     fun `forced universes override the heuristic during deduplication`() {
         val entries = MediaUniverseViewModel.deduplicateHarvestedItems(
