@@ -930,7 +930,7 @@ internal object MediaUniverseClassifier {
 
             "documentaries" -> {
                 // DOC-LIVE-01: live channels & streams get their own row, ahead of the VOD rows.
-                if (isDocumentaryLiveCandidate(
+                if (effectiveType == TvType.Live || isDocumentaryLiveCandidate(
                         effectiveOrRawType = effectiveType,
                         title = title,
                         sectionName = sectionName,
