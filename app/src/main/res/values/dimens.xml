@@ -46,6 +46,12 @@
     <dimen name="missa_hero_height">152dp</dimen>
     <dimen name="missa_hero_artwork_size">72dp</dimen>
     <dimen name="missa_hero_padding">14dp</dimen>
+    <!-- SPACING-02: the television gutter, 32dp on television and sw600dp-television.
+         It is declared here too because a resource that only exists behind a qualifier
+         crashes the moment it is queried in a configuration that does not match - lint
+         fails the PR build on it (MissingDefaultResource). The value is the same 32dp:
+         the qualified folders override it, this one is the safety net. -->
+    <dimen name="missa_gutter_tv">32dp</dimen>
     <dimen name="missa_section_horizontal_padding">16dp</dimen>
     <!-- SPACING-01: one vertical rhythm for every home section (hero, hub, resume,
          category rows), so the page no longer alternates 8dp / 10dp / 16dp gaps. -->
