@@ -799,6 +799,16 @@
     <string name="universe_podcasts_description">Découvrez des émissions audio, parcourez les épisodes et reprenez votre écoute.</string>
     <string name="universe_radio_title">Radio</string>
     <string name="universe_radio_description">Stations de radio d’Afrique, du Cameroun et du monde en écoute directe.</string>
+    <!-- EXT-GROUPS : choix du groupe de médias par extension -->
+    <string name="missa_ext_group_auto">Auto</string>
+    <string name="missa_ext_group_none">Aucun (non chargé)</string>
+    <string name="missa_ext_group_badge">Groupe : %1$s</string>
+    <string name="missa_ext_group_dialog_title">Groupe de médias — %1$s</string>
+    <string name="missa_ext_group_save">Enregistrer</string>
+    <string name="missa_ext_group_reset_auto">Auto</string>
+    <string name="missa_ext_group_cancel">Annuler</string>
+    <string name="missa_ext_group_whole_extension">Toute l\'extension</string>
+    <string name="missa_ext_group_inherit">hérité (%1$s)</string>
     <string name="universe_games_title">Jeux rétro</string>
     <string name="universe_games_title_short">Jeux</string>
     <string name="universe_games_description">Catalogue indépendant de jeux rétro libres, téléchargement dédié et émulation intégrée.</string>

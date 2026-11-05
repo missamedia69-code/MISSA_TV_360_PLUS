@@ -843,6 +843,16 @@
     <string name="universe_podcasts_description">Discover audio shows, browse episodes and resume listening anytime.</string>
     <string name="universe_radio_title">Radio</string>
     <string name="universe_radio_description">Instant direct-stream radio stations from Africa and around the world.</string>
+    <!-- EXT-GROUPS : choix du groupe de médias par extension -->
+    <string name="missa_ext_group_auto">Auto</string>
+    <string name="missa_ext_group_none">None (not loaded)</string>
+    <string name="missa_ext_group_badge">Group: %1$s</string>
+    <string name="missa_ext_group_dialog_title">Media group — %1$s</string>
+    <string name="missa_ext_group_save">Save</string>
+    <string name="missa_ext_group_reset_auto">Auto</string>
+    <string name="missa_ext_group_cancel">Cancel</string>
+    <string name="missa_ext_group_whole_extension">Whole extension</string>
+    <string name="missa_ext_group_inherit">inherited (%1$s)</string>
     <string name="universe_games_title">Retro Games</string>
     <string name="universe_games_title_short">Games</string>
     <string name="universe_games_description">Standalone retro gaming hub with free homebrew downloads and built-in emulation.</string>
