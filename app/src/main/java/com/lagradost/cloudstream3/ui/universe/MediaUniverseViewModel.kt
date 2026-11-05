@@ -1548,12 +1548,24 @@ class MediaUniverseViewModel : ViewModel() {
         val hubShortcuts = if (universeId == "home" && searchQuery.isBlank()) {
             MissaUniverses.HUB_SHORTCUTS.map { uni ->
                 when (uni.id) {
-                    "retro_games" -> UniverseHubCardItem(
-                        definition = uni,
-                        itemCount = 5,
-                        countBadge = ctx?.resources?.getQuantityString(R.plurals.missa_games_count, 5, 5),
-                        hasLiveNow = false
-                    )
+                    "retro_games" -> {
+                        // AUDIT H10: the card used to print a hardcoded "5 games". The only
+                        // figure the app can stand behind is the number of ROMs the player
+                        // can actually open, i.e. the ones already in the retro library.
+                        val total = ctx?.let {
+                            File(it.filesDir, "retro-games").listFiles()?.count { file -> file.isFile }
+                        } ?: 0
+                        UniverseHubCardItem(
+                            definition = uni,
+                            itemCount = total,
+                            countBadge = if (total > 0) {
+                                ctx?.resources?.getQuantityString(R.plurals.missa_games_count, total, total)
+                            } else {
+                                null
+                            },
+                            hasLiveNow = false
+                        )
+                    }
                     "music" -> {
                         val total = DirectMusicPlayerManager.allPresetTracks().size
                         val badge = if (total > 0) {
@@ -1571,7 +1583,14 @@ class MediaUniverseViewModel : ViewModel() {
                     "radio" -> {
                         val pluginCount = snapshot.entries.count { it.universes.contains("radio") }
                         val total = pluginCount + DirectRadioPlayerManager.allPresetStations().size
-                        val badge = ctx?.resources?.getQuantityString(R.plurals.missa_stations_count, total, total)
+                        // AUDIT H10: while the harvest is still running snapshot.entries only
+                        // holds a partial page, so this is a floor and not the size of the
+                        // universe - printing it showed "16 titres" for a universe of 302.
+                        val badge = if (total > 0 && !snapshot.isLoading) {
+                            ctx?.resources?.getQuantityString(R.plurals.missa_stations_count, total, total)
+                        } else {
+                            null
+                        }
                         UniverseHubCardItem(
                             definition = uni,
                             itemCount = total,
@@ -1581,7 +1600,8 @@ class MediaUniverseViewModel : ViewModel() {
                     }
                     else -> {
                         val count = snapshot.entries.count { it.universes.contains(uni.id) }
-                        val badge = if (count > 0) {
+                        // AUDIT H10: same floor rule as the radio card, see above.
+                        val badge = if (count > 0 && !snapshot.isLoading) {
                             ctx?.resources?.getQuantityString(R.plurals.missa_titles_count, count, count)
                         } else {
                             null
