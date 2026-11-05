@@ -10,6 +10,7 @@
     -->
     <dimen name="missa_text_screen_title">28sp</dimen>
     <dimen name="missa_text_row_title">19sp</dimen>
+    <dimen name="missa_text_card_count">24sp</dimen>
     <dimen name="missa_text_body">15sp</dimen>
     <dimen name="missa_text_caption">13sp</dimen>
     <dimen name="missa_text_button">14sp</dimen>

@@ -933,7 +933,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     dataSaverActive = dataSaver
                 )
             )
-        } else if (currentSearchQuery.isBlank() && !projection.isLoading) {
+        } else if (currentSearchQuery.isBlank() && !projection.isLoading &&
+            // AUDIT H9: on the home page the ribbon pill already names the universe, so this
+            // banner was a ~70px block reading "Accueil" above a page that opens on the hub
+            // row, which carries its own heading. It is dropped rather than shrunk: the
+            // title was pure duplication, and the space goes back to the content.
+            universeId != "home"
+        ) {
             // Compact universe title ONLY when Hero is absent (HOME-01: never duplicate title below Hero)
             items.add(
                 UniverseListItem.CompactBanner(

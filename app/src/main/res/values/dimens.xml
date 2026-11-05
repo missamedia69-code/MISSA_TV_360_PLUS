@@ -36,6 +36,7 @@
     <!-- MISSA TV 360 PLUS responsive typography & component tokens (THEME-05, HOME-01, HOME-09) -->
     <dimen name="missa_text_screen_title">22sp</dimen>
     <dimen name="missa_text_row_title">16sp</dimen>
+    <dimen name="missa_text_card_count">20sp</dimen>
     <dimen name="missa_text_body">14sp</dimen>
     <dimen name="missa_text_caption">12sp</dimen>
     <dimen name="missa_text_button">13sp</dimen>

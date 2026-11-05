@@ -1208,6 +1208,15 @@
         <item name="android:textColor">?attr/textColor</item>
     </style>
 
+    <!-- AUDIT H9/H10: the size of a universe, printed where the hub card used to be empty -->
+    <style name="TextAppearance.Missa.CardCount" parent="TextAppearance.Material3.TitleMedium">
+        <item name="fontFamily">@font/google_sans</item>
+        <item name="android:fontFamily">@font/google_sans</item>
+        <item name="android:textSize">@dimen/missa_text_card_count</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">?attr/textColor</item>
+    </style>
+
     <style name="TextAppearance.Missa.Body" parent="TextAppearance.Material3.BodyMedium">
         <item name="fontFamily">@font/google_sans</item>
         <item name="android:fontFamily">@font/google_sans</item>
