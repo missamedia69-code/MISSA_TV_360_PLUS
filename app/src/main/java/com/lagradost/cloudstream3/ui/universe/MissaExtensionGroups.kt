@@ -132,11 +132,15 @@ object MissaExtensionGroups {
     // ---------------------------------------------------------------- application sur les univers
 
     /**
-     * Combine la devinette automatique ([auto]) avec les choix de l'utilisateur des sources d'une entrée.
+     * Combine la structure du contenu ([auto], déjà passée au crible par l'appelant) avec les
+     * choix de l'utilisateur pour les sources d'une entrée.
      *  - aucune source réglée           -> auto (inchangé)
-     *  - toutes les sources réglées     -> uniquement les groupes choisis
-     *  - mélange (réglées + Auto)       -> auto + groupes choisis
-     * Fonction PURE (testable sans Android).
+     *  - toutes les sources réglées     -> les groupes choisis **que le crible retient**
+     *  - mélange (réglées + Auto)       -> auto + groupes retenus
+     *
+     * Chaque ensemble « choisi » passe par [MissaContentSieve.sift] : une extension réglée sur
+     * Films + Séries verse ses films dans Films et ses séries dans Séries, au lieu de verser
+     * les deux dans les deux. Fonction PURE (testable sans Android).
      */
     internal fun mergeUniverses(
         auto: Set<String>,
@@ -144,7 +148,9 @@ object MissaExtensionGroups {
     ): Set<String> {
         if (forcedPerSource.isEmpty() || forcedPerSource.all { it == null }) return auto
         val forcedUnion = LinkedHashSet<String>()
-        forcedPerSource.forEach { if (it != null) forcedUnion.addAll(it) }
+        forcedPerSource.forEach { forced ->
+            if (forced != null) forcedUnion.addAll(MissaContentSieve.sift(forced, auto))
+        }
         val hasAutoSource = forcedPerSource.any { it == null }
         return if (hasAutoSource) {
             LinkedHashSet(auto).apply { addAll(forcedUnion) }

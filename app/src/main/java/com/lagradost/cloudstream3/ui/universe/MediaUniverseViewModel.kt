@@ -368,9 +368,17 @@ class MediaUniverseViewModel : ViewModel() {
                     episodeCountHint = maxEpisodeHint,
                     isSeriesLoadResponse = mergedSeriesLoad
                 )
-                // EXT-GROUPS : le choix de l'utilisateur écrase / complète la devinette
-                val universes = MissaExtensionGroups.mergeUniverses(
+                // EXT-GROUPS : le crible trie le contenu parmi les groupes autorisés
+                val structuralUniverses = MissaContentSieve.structuralGroups(
                     auto = autoUniverses,
+                    title = bestRaw.response.name,
+                    url = bestRaw.response.url,
+                    sectionName = sectionHints.joinToString(" "),
+                    tags = mergedTags,
+                    type = effectiveType ?: bestRaw.response.type
+                )
+                val universes = MissaExtensionGroups.mergeUniverses(
+                    auto = structuralUniverses,
                     forcedPerSource = sortedGroup.map { it.raw.forcedUniverses }
                 )
 
@@ -2133,9 +2141,17 @@ class MediaUniverseViewModel : ViewModel() {
                     episodeCountHint = epHint,
                     isSeriesLoadResponse = seriesLoad
                 )
-                // EXT-GROUPS : on réapplique le choix de l'utilisateur
-                val updatedUniverses = MissaExtensionGroups.mergeUniversesForSources(
+                // EXT-GROUPS : on réapplique le choix de l'utilisateur, trié par le crible
+                val structuralUniverses = MissaContentSieve.structuralGroups(
                     auto = autoUniverses,
+                    title = entry.primary.name,
+                    url = entry.primary.url,
+                    sectionName = sec,
+                    tags = tags,
+                    type = updatedType
+                )
+                val updatedUniverses = MissaExtensionGroups.mergeUniversesForSources(
+                    auto = structuralUniverses,
                     sourceApiNames = entry.sources.map { it.apiName }.distinct()
                 )
                 entry.copy(
