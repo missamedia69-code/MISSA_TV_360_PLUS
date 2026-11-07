@@ -164,7 +164,8 @@ object DirectRadioPlayerManager {
 
     private suspend fun cachedRemoteStations(): List<RadioStationPreset> = withContext(Dispatchers.IO) {
         val v3 = runCatching {
-            getKey<Array<RadioStationPreset>>(REMOTE_STATIONS_CACHE_KEY)?.toList()
+            // PERF A5 : ce catalogue vit dans son propre fichier, plus dans rebuild_preference.
+            MissaCatalogueCache.read<Array<RadioStationPreset>>(REMOTE_STATIONS_CACHE_KEY)?.toList()
         }.getOrNull()
         if (!v3.isNullOrEmpty()) return@withContext v3
 
@@ -207,7 +208,7 @@ object DirectRadioPlayerManager {
             val harvested = MissaRadioProviders.harvestAllFreeProviders()
             if (harvested.isNotEmpty()) {
                 runCatching {
-                    setKey(REMOTE_STATIONS_CACHE_KEY, harvested.toTypedArray())
+                    MissaCatalogueCache.write(REMOTE_STATIONS_CACHE_KEY, harvested.toTypedArray())
                     setKey(REMOTE_STATIONS_UPDATED_AT_KEY, System.currentTimeMillis())
                 }
                 invalidateStationSnapshot()

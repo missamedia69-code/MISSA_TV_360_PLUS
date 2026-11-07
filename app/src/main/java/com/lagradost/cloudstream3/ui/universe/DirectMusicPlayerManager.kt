@@ -350,7 +350,7 @@ object DirectMusicPlayerManager {
             inMemoryStyleTracks = emptyList()
             discoveredSearchTracks.clear()
             runCatching {
-                removeKey(REMOTE_TRACKS_CACHE_KEY)
+                MissaCatalogueCache.remove(REMOTE_TRACKS_CACHE_KEY)
                 removeKey(REMOTE_TRACKS_UPDATED_AT_KEY)
                 setKey(REMOTE_TRACKS_STYLES_SIG_KEY, newSig)
             }
@@ -416,7 +416,8 @@ object DirectMusicPlayerManager {
             return@withContext emptyList()
         }
         val persisted = runCatching {
-            getKey<Array<MusicTrackPreset>>(REMOTE_TRACKS_CACHE_KEY)?.toList().orEmpty()
+            // PERF A5 : ce catalogue vit dans son propre fichier, plus dans rebuild_preference.
+            MissaCatalogueCache.read<Array<MusicTrackPreset>>(REMOTE_TRACKS_CACHE_KEY)?.toList().orEmpty()
         }.getOrDefault(emptyList())
         if (persisted.isNotEmpty()) {
             inMemoryStyleTracks = persisted
@@ -525,7 +526,7 @@ object DirectMusicPlayerManager {
             if (fullCatalog.isNotEmpty()) {
                 inMemoryStyleTracks = fullCatalog
                 runCatching {
-                    setKey(REMOTE_TRACKS_CACHE_KEY, fullCatalog.toTypedArray())
+                    MissaCatalogueCache.write(REMOTE_TRACKS_CACHE_KEY, fullCatalog.toTypedArray())
                     setKey(REMOTE_TRACKS_STYLES_SIG_KEY, currentSig)
                     setKey(REMOTE_TRACKS_UPDATED_AT_KEY, System.currentTimeMillis())
                 }

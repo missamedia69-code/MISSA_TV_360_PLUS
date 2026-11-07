@@ -78,7 +78,8 @@ object DirectKidsPlayerManager {
         val mem = inMemoryVideos
         if (mem.isNotEmpty()) return@withContext mem
         val persisted = runCatching {
-            getKey<Array<MusicTrackPreset>>(REMOTE_CACHE_KEY)?.toList().orEmpty()
+            // PERF A5 : ce catalogue vit dans son propre fichier, plus dans rebuild_preference.
+            MissaCatalogueCache.read<Array<MusicTrackPreset>>(REMOTE_CACHE_KEY)?.toList().orEmpty()
         }.getOrDefault(emptyList())
         if (persisted.isNotEmpty()) {
             inMemoryVideos = persisted
@@ -209,7 +210,7 @@ object DirectKidsPlayerManager {
                 inMemoryVideos = catalog
                 selection = null
                 runCatching {
-                    setKey(REMOTE_CACHE_KEY, catalog.toTypedArray())
+                    MissaCatalogueCache.write(REMOTE_CACHE_KEY, catalog.toTypedArray())
                     setKey(REMOTE_UPDATED_AT_KEY, System.currentTimeMillis())
                 }
                 _videosUpdated.postValue(System.currentTimeMillis())
