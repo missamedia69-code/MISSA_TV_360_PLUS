@@ -95,6 +95,7 @@ import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.ui.subtitles.SaveCaptionStyle
+import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
 import com.lagradost.cloudstream3.ui.subtitles.SubtitlesFragment.Companion.applyStyle
 import com.lagradost.cloudstream3.utils.AppContextUtils.isUsingMobileData
 import com.lagradost.cloudstream3.utils.AppContextUtils.setDefaultFocus
@@ -665,6 +666,14 @@ class CS3IPlayer : IPlayer {
 
     companion object {
         private const val CRONET_TIMEOUT_MS = 15_000
+
+        /**
+         * A12 : en mode économiseur de données, la hauteur vidéo est plafonnée à 480p.
+         * Le réglage de qualité de l'utilisateur n'est pas écrasé, seulement borné : celui
+         * qui a choisi 360p reste en 360p, celui qui a choisi « automatique » ne descend
+         * plus une piste 1080p sur un forfait mobile.
+         */
+        private const val DATA_SAVER_MAX_VIDEO_HEIGHT = 480
 
         /**
          * Single shared engine, to minimize the overhead of maintaining many as:
@@ -1420,6 +1429,14 @@ class CS3IPlayer : IPlayer {
             context.getString(if (context.isUsingMobileData()) R.string.quality_pref_mobile_data_key else R.string.quality_pref_key),
             Int.MAX_VALUE
         )
+        // A12 : économiseur de données (réglage MISSA ou restriction système sur un réseau
+        // facturé au volume). Les vignettes sont déjà réduites côté interface.
+        val effectiveMaxVideoHeight =
+            if (MissaUiFactory.isDataSaverActive(context)) {
+                DATA_SAVER_MAX_VIDEO_HEIGHT.coerceAtMost(maxVideoHeight)
+            } else {
+                maxVideoHeight
+            }
         val settings = AppSettings(context)
 
         try {
@@ -1444,7 +1461,7 @@ class CS3IPlayer : IPlayer {
                 videoBufferMs = videoBufferMs,
                 playWhenReady = playWhenReady,
                 subtitleOffset = currentSubtitleOffset,
-                maxVideoHeight = maxVideoHeight,
+                maxVideoHeight = effectiveMaxVideoHeight,
                 audioSources = audioSources,
                 onlineSource = onlineSource,
             )
