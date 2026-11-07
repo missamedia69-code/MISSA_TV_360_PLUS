@@ -24,12 +24,14 @@ import com.lagradost.cloudstream3.TvType
  * | `radio`         | une station : type Audio / Music + mots-clés radio |
  * | `retro_games`   | **ajouté ici** : le classifieur n'a aucune règle pour ce groupe (ROM, homebrew, émulation) |
  *
- * Deux garanties :
- *  - le crible ne peut jamais **ajouter** un groupe que l'extension n'a pas coché :
- *    il ne fait que retirer ceux dont le contenu n'a pas la structure ;
- *  - si un contenu n'a la structure d'**aucun** des groupes autorisés, le choix de
- *    l'utilisateur gagne ([sift] renvoie les groupes autorisés) : mieux vaut un titre un peu
- *    mal rangé qu'un titre perdu.
+ * Trois garanties :
+ *  - le crible ne peut jamais **ajouter** un groupe que l'extension n'a pas coché : il ne
+ *    fait que choisir parmi eux ;
+ *  - « Aucun » reste absolu : rien n'est chargé, quoi que dise la structure ;
+ *  - quand le contenu n'a la structure d'**aucun** des groupes cochés, la partition
+ *    films / séries tranche (c'est la seule que le classifieur traite comme exclusive :
+ *    une série d'une extension réglée sur Films seul part dans Séries). Partout ailleurs,
+ *    le réglage garde la main, sinon il ne servirait plus à corriger la devinette.
  */
 object MissaContentSieve {
 
@@ -100,16 +102,26 @@ object MissaContentSieve {
 
     private fun isVideoType(type: TvType?): Boolean = type != null && type in videoTypes
 
+    /** La seule partition que le classifieur traite comme exclusive : un titre est un film OU une série. */
+    private val filmsOrSeries = setOf("films", "series")
+
     /**
      * Le crible proprement dit : parmi les groupes que l'extension est autorisée à alimenter
      * ([allowed]), garde ceux dont le contenu a la structure ([structural]).
      *
      * - `allowed` vide (« Aucun ») → rien, ce contenu n'est chargé nulle part ;
-     * - aucune structure reconnue → on garde [allowed] tel quel, pour ne rien perdre.
+     * - recouvrement non vide → on trie : chaque groupe reçoit son propre contenu ;
+     * - aucun recouvrement → la partition films/séries tranche ; ailleurs, [allowed] garde la main.
      */
     fun sift(allowed: Set<String>, structural: Set<String>): Set<String> {
         if (allowed.isEmpty()) return emptySet()
         val kept = structural.filter { it in allowed }
-        return if (kept.isNotEmpty()) kept.toCollection(LinkedHashSet()) else LinkedHashSet(allowed)
+        if (kept.isNotEmpty()) return kept.toCollection(LinkedHashSet())
+
+        val structuralPartition = structural.filter { it in filmsOrSeries }
+        if (structuralPartition.isNotEmpty() && allowed.any { it in filmsOrSeries }) {
+            return structuralPartition.toCollection(LinkedHashSet())
+        }
+        return LinkedHashSet(allowed)
     }
 }

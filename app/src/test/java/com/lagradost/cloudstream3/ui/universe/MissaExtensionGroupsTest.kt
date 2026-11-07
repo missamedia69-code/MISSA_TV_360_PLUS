@@ -80,22 +80,46 @@ class MissaExtensionGroupsTest {
     }
 
     @Test
-    fun `mergeUniverses uses only forced groups when every source is forced`() {
+    fun `mergeUniverses uses only the groups the content fits when every source is forced`() {
         assertEquals(
             setOf("documentaries"),
-            MissaExtensionGroups.mergeUniverses(setOf("films"), listOf(setOf("documentaries")))
+            MissaExtensionGroups.mergeUniverses(setOf("documentaries"), listOf(setOf("documentaries")))
         )
         assertEquals(
             setOf("series", "sports"),
-            MissaExtensionGroups.mergeUniverses(setOf("films"), listOf(setOf("series"), setOf("sports")))
+            MissaExtensionGroups.mergeUniverses(
+                setOf("series", "sports"),
+                listOf(setOf("series"), setOf("sports"))
+            )
         )
     }
 
     @Test
     fun `mergeUniverses adds forced groups to auto when sources are mixed`() {
         assertEquals(
-            setOf("films", "series"),
-            MissaExtensionGroups.mergeUniverses(setOf("films"), listOf(setOf("series"), null))
+            setOf("films", "documentaries"),
+            MissaExtensionGroups.mergeUniverses(setOf("films"), listOf(setOf("documentaries"), null))
+        )
+    }
+
+    @Test
+    fun `an extension ticked films only still sends its series to Séries`() {
+        assertEquals(
+            setOf("series"),
+            MissaExtensionGroups.mergeUniverses(setOf("series"), listOf(setOf("films")))
+        )
+    }
+
+    @Test
+    fun `on any other group the extension setting keeps correcting the heuristic`() {
+        // réglée sur Documentaries, l'extension y verse son contenu même si la devinette dit « film »
+        assertEquals(
+            setOf("documentaries"),
+            MissaExtensionGroups.mergeUniverses(setOf("films"), listOf(setOf("documentaries")))
+        )
+        assertEquals(
+            setOf("sports"),
+            MissaExtensionGroups.mergeUniverses(setOf("films"), listOf(setOf("sports")))
         )
     }
 
