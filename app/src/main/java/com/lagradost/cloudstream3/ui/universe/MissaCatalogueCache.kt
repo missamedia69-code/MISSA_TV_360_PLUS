@@ -23,7 +23,9 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJsonLiteral
 object MissaCatalogueCache {
     private const val FILE_NAME = "missa_catalogue_cache"
 
-    private fun prefs(): SharedPreferences? =
+    // @PublishedApi : read() est inline, il ne peut pas appeler un membre private.
+    @PublishedApi
+    internal fun prefs(): SharedPreferences? =
         CloudStreamApp.context?.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
 
     /** Lit un catalogue, en le déplaçant depuis `rebuild_preference` s'il y est encore. */
