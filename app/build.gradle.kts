@@ -153,8 +153,12 @@ android {
     buildTypes {
         release {
             isDebuggable = false
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // PERF A8 : R8 était désactivé en release, donc aucun élagage du code mort
+            // (media3/Cronet/Jackson/Coil représentent l'essentiel de l'APK) et aucune
+            // optimisation. Les règles de app/proguard-rules.pro gardent tout ce que les
+            // extensions voient, car elles sont chargées à l'exécution.
+            isMinifyEnabled = true
+            isShrinkResources = true
             // PERF A1 : sans keystore "prerelease" (cas de la CI, qui n'en fournit pas),
             // l'APK release resterait non signé et donc impossible à installer. On le signe
             // avec la clé debug : ce sont des builds de test, pas des livraisons publiques.
