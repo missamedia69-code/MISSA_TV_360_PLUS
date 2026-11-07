@@ -494,17 +494,23 @@ class MediaUniverseViewModel : ViewModel() {
         MainActivity.mainPluginsLoadedEvent += onMainPluginsLoadedListener
         MainActivity.reloadHomeEvent += onReloadHomeListener
         MainActivity.bookmarksUpdatedEvent += onBookmarksUpdatedListener
-        // FRESH-01: the very first refresh of a process bypasses the disk cache so every
-        // YouTube-powered surface (Enfants + Musiques) renews itself at each app launch.
-        val forceYouTubeRefresh = MissaCatalogRotation.consumeLaunchRefreshTicket()
+        // PERF A6 : à froid, l'un des trois refreshes ci-dessous était forcé (FRESH-01
+        // consommait un ticket de lancement pour re-télécharger intégralement les catalogues
+        // YouTube), et les deux autres aussi, en plus du harvest des ~28 providers lancé
+        // juste après par hydrateDiskCacheAndLoad(). Le démarrage empilait donc trois
+        // téléchargements réseau concurrents de la moisson.
+        //
+        // On laisse chaque manager décider : ils ne vont sur le réseau que si leur cache a
+        // expiré. Un refresh forcé reste déclenché par l'utilisateur (pull-to-refresh,
+        // reloadHomeEvent) ou après installation d'une extension.
         viewModelScope.launch {
             DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
         }
         viewModelScope.launch {
-            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded(force = forceYouTubeRefresh)
+            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
         }
         viewModelScope.launch {
-            DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = forceYouTubeRefresh)
+            DirectKidsPlayerManager.refreshRemoteVideosIfNeeded()
         }
         hydrateDiskCacheAndLoad()
     }
