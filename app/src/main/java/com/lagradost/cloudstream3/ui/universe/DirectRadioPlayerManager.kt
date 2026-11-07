@@ -31,6 +31,7 @@ import androidx.media3.session.SessionToken
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -103,12 +104,27 @@ object DirectRadioPlayerManager {
     /** Emits after a remote catalogue refresh or online search so visible radio screens re-project. */
     val stationsUpdated: LiveData<Long> = _stationsUpdated
 
-    fun customStations(): List<RadioStationPreset> {
+    /**
+     * PERF A4 : dernier catalogue fusionné, gardé en mémoire. Les chemins d'interface
+     * (station suivante, play, favori) lisent ce snapshot au lieu de re-parser les JSON
+     * des catalogues sur le thread principal. Invalidé dès que le catalogue change.
+     */
+    @Volatile
+    private var mergedStationsSnapshot: List<RadioStationPreset>? = null
+
+    /** Dernier catalogue connu, sans toucher aux préférences : chemins UI synchrones. */
+    fun snapshotStations(): List<RadioStationPreset> = mergedStationsSnapshot.orEmpty()
+
+    private fun invalidateStationSnapshot() {
+        mergedStationsSnapshot = null
+    }
+
+    suspend fun customStations(): List<RadioStationPreset> = withContext(Dispatchers.IO) {
         val v2 = runCatching {
             getKey<Array<RadioStationPreset>>(CUSTOM_STATIONS_KEY)?.toList()
         }.getOrNull()
         if (v2 != null) {
-            return v2.map {
+            return@withContext v2.map {
                 it.copy(
                     isCustom = true,
                     providerName = MissaRadioProviders.PROVIDER_CUSTOM
@@ -116,7 +132,7 @@ object DirectRadioPlayerManager {
             }
         }
 
-        return runCatching {
+        return@withContext runCatching {
             getKey<Array<RadioStationPreset>>(LEGACY_CUSTOM_STATIONS_KEY)?.toList().orEmpty()
         }.getOrDefault(emptyList()).map {
             it.copy(
@@ -142,28 +158,35 @@ object DirectRadioPlayerManager {
             true
         }
         runCatching { setKey(FAVORITE_STATIONS_KEY, mutable.toTypedArray()) }
+        invalidateStationSnapshot()
         return nowFav
     }
 
-    private fun cachedRemoteStations(): List<RadioStationPreset> {
+    private suspend fun cachedRemoteStations(): List<RadioStationPreset> = withContext(Dispatchers.IO) {
         val v3 = runCatching {
             getKey<Array<RadioStationPreset>>(REMOTE_STATIONS_CACHE_KEY)?.toList()
         }.getOrNull()
-        if (!v3.isNullOrEmpty()) return v3
+        if (!v3.isNullOrEmpty()) return@withContext v3
 
-        return runCatching {
+        return@withContext runCatching {
             getKey<Array<RadioStationPreset>>(LEGACY_REMOTE_STATIONS_CACHE_KEY)?.toList().orEmpty()
         }.getOrDefault(emptyList())
     }
 
-    fun allPresetStations(): List<RadioStationPreset> {
+    suspend fun allPresetStations(): List<RadioStationPreset> {
         val custom = customStations()
         val remote = cachedRemoteStations()
         val onlineDiscovered = discoveredSearchStations.values.toList()
         // Curated instant bouquets come first so flagship African/Cameroonian/FIP/SomaFM streams stay prominent,
         // while alternate mirrors discovered in remote providers fold into fallbackUrls automatically.
         val combined = custom + defaultStations + remote + onlineDiscovered
-        return MissaRadioProviders.mergeStationCatalogues(combined, favoriteIds())
+        val favorites = withContext(Dispatchers.IO) { favoriteIds() }
+        // La fusion trie et déduplique ~1000 stations : sur Default, pas sur le thread appelant.
+        return withContext(Dispatchers.Default) {
+            val merged = MissaRadioProviders.mergeStationCatalogues(combined, favorites)
+            mergedStationsSnapshot = merged
+            merged
+        }
     }
 
     /**
@@ -187,6 +210,16 @@ object DirectRadioPlayerManager {
                     setKey(REMOTE_STATIONS_CACHE_KEY, harvested.toTypedArray())
                     setKey(REMOTE_STATIONS_UPDATED_AT_KEY, System.currentTimeMillis())
                 }
+                invalidateStationSnapshot()
+                // Re-remplit le snapshot tout de suite : sinon la station suivante demandée
+                // depuis la notification ne verrait rien avant le prochain rendu.
+                try {
+                    allPresetStations()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // Le snapshot sera rempli au prochain rendu.
+                }
                 _stationsUpdated.postValue(System.currentTimeMillis())
             }
         } finally {
@@ -207,6 +240,7 @@ object DirectRadioPlayerManager {
                     discoveredSearchStations[key] = st
                 }
             }
+            invalidateStationSnapshot()
             _stationsUpdated.postValue(System.currentTimeMillis())
         }
         return found
@@ -214,7 +248,7 @@ object DirectRadioPlayerManager {
 
     fun isValidStreamUrl(url: String): Boolean = MissaRadioProviders.isValidStreamUrl(url)
 
-    fun saveCustomStation(
+    suspend fun saveCustomStation(
         context: Context,
         name: String,
         streamUrl: String,
@@ -241,6 +275,7 @@ object DirectRadioPlayerManager {
         existing.removeAll { it.id == id || it.streamUrl.equals(trimmedUrl, ignoreCase = true) }
         existing.add(0, preset)
         runCatching { setKey(CUSTOM_STATIONS_KEY, existing.take(160).toTypedArray()) }
+        invalidateStationSnapshot()
         _stationsUpdated.postValue(System.currentTimeMillis())
         return preset
     }
@@ -270,6 +305,7 @@ object DirectRadioPlayerManager {
                 existing.removeAll { it.streamUrl.lowercase(Locale.ROOT) in newUrls }
                 val updated = (playlistStations + existing).take(160)
                 runCatching { setKey(CUSTOM_STATIONS_KEY, updated.toTypedArray()) }
+                invalidateStationSnapshot()
                 _stationsUpdated.postValue(System.currentTimeMillis())
                 return playlistStations
             }
@@ -286,12 +322,13 @@ object DirectRadioPlayerManager {
         return listOf(single)
     }
 
-    fun deleteCustomStation(stationIdOrUrl: String) {
+    suspend fun deleteCustomStation(stationIdOrUrl: String) {
         val existing = customStations().toMutableList()
         existing.removeAll {
             it.id == stationIdOrUrl || it.streamUrl.equals(stationIdOrUrl, ignoreCase = true)
         }
         runCatching { setKey(CUSTOM_STATIONS_KEY, existing.toTypedArray()) }
+        invalidateStationSnapshot()
         _stationsUpdated.postValue(System.currentTimeMillis())
         if (_state.value?.station?.let { it.id == stationIdOrUrl || it.streamUrl == stationIdOrUrl } == true) {
             stop()
@@ -660,7 +697,7 @@ object DirectRadioPlayerManager {
 
     fun playDirectResponse(context: Context, response: DirectRadioSearchResponse) {
         val fallbackGenre = context.getString(R.string.universe_radio_live_genre_default)
-        val preset = allPresetStations().firstOrNull { it.streamUrl.equals(response.url, ignoreCase = true) }
+        val preset = snapshotStations().firstOrNull { it.streamUrl.equals(response.url, ignoreCase = true) }
             ?: RadioStationPreset(
                 id = response.url.hashCode().toString(),
                 name = response.name,
@@ -675,7 +712,7 @@ object DirectRadioPlayerManager {
 
     fun togglePlayPause(context: Context) {
         val current = _state.value ?: return
-        val station = current.station ?: allPresetStations().firstOrNull() ?: return
+        val station = current.station ?: snapshotStations().firstOrNull() ?: return
         if (!isOwningPlayback) {
             playStation(context, station)
             return
@@ -691,7 +728,7 @@ object DirectRadioPlayerManager {
     }
 
     fun nextStation(context: Context) {
-        val stations = allPresetStations()
+        val stations = snapshotStations()
         if (stations.isEmpty()) return
         val currentUrl = _state.value?.station?.streamUrl
         val currentIndex = stations.indexOfFirst { it.streamUrl == currentUrl }
@@ -700,7 +737,7 @@ object DirectRadioPlayerManager {
     }
 
     fun previousStation(context: Context) {
-        val stations = allPresetStations()
+        val stations = snapshotStations()
         if (stations.isEmpty()) return
         val currentUrl = _state.value?.station?.streamUrl
         val currentIndex = stations.indexOfFirst { it.streamUrl == currentUrl }.let { if (it < 0) 0 else it }

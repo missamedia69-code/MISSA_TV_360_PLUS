@@ -22,6 +22,9 @@ import com.lagradost.cloudstream3.ui.universe.MusicItemKind
 import com.lagradost.cloudstream3.utils.AppContextUtils.loadSearchResult
 import com.lagradost.cloudstream3.utils.DataStoreHelper
 import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 object SearchHelper {
     fun handleSearchClickCallback(callback: SearchClickCallback) {
@@ -56,15 +59,18 @@ object SearchHelper {
 
         if (card is DirectRadioSearchResponse) {
             if (callback.action == SEARCH_ACTION_SHOW_METADATA) {
-                val stationKey = DirectRadioPlayerManager.allPresetStations()
-                    .firstOrNull { it.streamUrl.equals(card.url, ignoreCase = true) }
-                    ?.id
-                    ?: "radio_${card.url.hashCode()}"
-                val nowFav = DirectRadioPlayerManager.toggleFavorite(stationKey)
-                showToast(
-                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
-                    Toast.LENGTH_SHORT
-                )
+                // PERF A4 : le catalogue radio est lu sur IO, le favori est écrit après.
+                CoroutineScope(Dispatchers.Main).launch {
+                    val stationKey = DirectRadioPlayerManager.allPresetStations()
+                        .firstOrNull { it.streamUrl.equals(card.url, ignoreCase = true) }
+                        ?.id
+                        ?: "radio_${card.url.hashCode()}"
+                    val nowFav = DirectRadioPlayerManager.toggleFavorite(stationKey)
+                    showToast(
+                        if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                        Toast.LENGTH_SHORT
+                    )
+                }
             } else if (ctx != null) {
                 DirectRadioPlayerManager.playDirectResponse(ctx, card)
             }

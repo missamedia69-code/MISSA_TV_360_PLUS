@@ -1051,7 +1051,7 @@ class MediaUniverseViewModel : ViewModel() {
         )
     }
 
-    fun projectUniverse(
+    suspend fun projectUniverse(
         universeId: String,
         snapshot: UnifiedCatalogSnapshot,
         overrideEntries: List<UnifiedCatalogEntry>? = null,
@@ -1744,7 +1744,7 @@ class MediaUniverseViewModel : ViewModel() {
     private fun resolveStr(ctx: Context?, resId: Int, fallback: String): String =
         ctx?.getString(resId) ?: fallback
 
-    private fun buildHeroSlides(
+    private suspend fun buildHeroSlides(
         ctx: Context?,
         universeId: String,
         definition: UniverseDefinition,
