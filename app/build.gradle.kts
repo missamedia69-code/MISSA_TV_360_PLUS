@@ -155,6 +155,13 @@ android {
             isDebuggable = false
             isMinifyEnabled = false
             isShrinkResources = false
+            // PERF A1 : sans keystore "prerelease" (cas de la CI, qui n'en fournit pas),
+            // l'APK release resterait non signé et donc impossible à installer. On le signe
+            // avec la clé debug : ce sont des builds de test, pas des livraisons publiques.
+            // A8 activera isMinifyEnabled plus tard, en dernier.
+            if (!signingConfigs.names.contains("prerelease")) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
