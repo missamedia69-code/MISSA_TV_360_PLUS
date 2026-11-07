@@ -19,6 +19,7 @@ import androidx.media3.ui.PlayerView
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -353,6 +354,7 @@ object DirectMusicPlayerManager {
                 removeKey(REMOTE_TRACKS_UPDATED_AT_KEY)
                 setKey(REMOTE_TRACKS_STYLES_SIG_KEY, newSig)
             }
+            invalidateTracksSnapshot()
             _tracksUpdated.postValue(System.currentTimeMillis())
         }
 
@@ -390,13 +392,28 @@ object DirectMusicPlayerManager {
         return nowFav
     }
 
-    private fun cachedRemoteTracks(): List<MusicTrackPreset> {
+    /**
+     * PERF A4 : dernier catalogue fusionné, gardé en mémoire. Les chemins d'interface
+     * (piste suivante, play, clip vidéo) lisent ce snapshot au lieu de re-parser le JSON
+     * du catalogue sur le thread principal. Invalidé dès que le catalogue change.
+     */
+    @Volatile
+    private var mergedTracksSnapshot: List<MusicTrackPreset>? = null
+
+    /** Dernier catalogue connu, sans toucher aux préférences : chemins UI synchrones. */
+    fun snapshotTracks(): List<MusicTrackPreset> = mergedTracksSnapshot.orEmpty()
+
+    private fun invalidateTracksSnapshot() {
+        mergedTracksSnapshot = null
+    }
+
+    private suspend fun cachedRemoteTracks(): List<MusicTrackPreset> = withContext(Dispatchers.IO) {
         val mem = inMemoryStyleTracks
-        if (mem.isNotEmpty()) return mem
+        if (mem.isNotEmpty()) return@withContext mem
         val expectedSig = stylesSignature(selectedMusicStyleIds())
         val cachedSig = runCatching { getKey<String>(REMOTE_TRACKS_STYLES_SIG_KEY) }.getOrNull()
         if (!cachedSig.isNullOrBlank() && cachedSig != expectedSig) {
-            return emptyList()
+            return@withContext emptyList()
         }
         val persisted = runCatching {
             getKey<Array<MusicTrackPreset>>(REMOTE_TRACKS_CACHE_KEY)?.toList().orEmpty()
@@ -404,27 +421,34 @@ object DirectMusicPlayerManager {
         if (persisted.isNotEmpty()) {
             inMemoryStyleTracks = persisted
         }
-        return persisted
+        return@withContext persisted
     }
 
     /**
      * Returns all YouTube Clips, Studio Singles, Official Albums, and Playlists currently loaded
      * for the user's musical styles plus recent on-demand YouTube searches.
      */
-    fun allPresetTracks(): List<MusicTrackPreset> {
+    suspend fun allPresetTracks(): List<MusicTrackPreset> {
         val styleTracks = cachedRemoteTracks()
         val onlineDiscovered = discoveredSearchTracks.values.toList()
-        if (styleTracks.isEmpty() && onlineDiscovered.isEmpty()) return emptyList()
-
-        val merged = ArrayList<MusicTrackPreset>(styleTracks.size + onlineDiscovered.size)
-        val seenIds = HashSet<String>()
-        for (track in styleTracks + onlineDiscovered) {
-            if (track.title.isBlank() || track.streamUrl.isBlank()) continue
-            if (seenIds.add(track.id)) {
-                merged.add(track)
-            }
+        if (styleTracks.isEmpty() && onlineDiscovered.isEmpty()) {
+            mergedTracksSnapshot = emptyList()
+            return emptyList()
         }
-        return merged
+
+        // La fusion parcourt tout le catalogue : sur Default, pas sur le thread appelant.
+        return withContext(Dispatchers.Default) {
+            val merged = ArrayList<MusicTrackPreset>(styleTracks.size + onlineDiscovered.size)
+            val seenIds = HashSet<String>()
+            for (track in styleTracks + onlineDiscovered) {
+                if (track.title.isBlank() || track.streamUrl.isBlank()) continue
+                if (seenIds.add(track.id)) {
+                    merged.add(track)
+                }
+            }
+            mergedTracksSnapshot = merged
+            merged
+        }
     }
 
     /**
@@ -492,6 +516,7 @@ object DirectMusicPlayerManager {
                 onFirstWaveReady = { firstWave ->
                     if (firstWave.isNotEmpty()) {
                         inMemoryStyleTracks = firstWave
+                        invalidateTracksSnapshot()
                         _tracksUpdated.postValue(System.currentTimeMillis())
                         prefetchTopPlayableTracks(firstWave, count = 2)
                     }
@@ -503,6 +528,16 @@ object DirectMusicPlayerManager {
                     setKey(REMOTE_TRACKS_CACHE_KEY, fullCatalog.toTypedArray())
                     setKey(REMOTE_TRACKS_STYLES_SIG_KEY, currentSig)
                     setKey(REMOTE_TRACKS_UPDATED_AT_KEY, System.currentTimeMillis())
+                }
+                invalidateTracksSnapshot()
+                // Re-remplit le snapshot tout de suite : sinon « piste suivante » demandée
+                // depuis la notification ne verrait rien avant le prochain rendu.
+                try {
+                    allPresetTracks()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // Le snapshot sera rempli au prochain rendu.
                 }
                 _tracksUpdated.postValue(System.currentTimeMillis())
                 prefetchTopPlayableTracks(fullCatalog, count = 2)
@@ -546,6 +581,7 @@ object DirectMusicPlayerManager {
                 onlineSearchResultsByQuery[normKey] = found
             }
             found.forEach { track -> discoveredSearchTracks[track.id] = track }
+            invalidateTracksSnapshot()
             _tracksUpdated.postValue(System.currentTimeMillis())
             prefetchTopPlayableTracks(found, count = 3)
         }
@@ -947,7 +983,7 @@ object DirectMusicPlayerManager {
     }
 
     fun toPresetFromCard(card: DirectMusicSearchResponse): MusicTrackPreset {
-        return allPresetTracks().firstOrNull {
+        return snapshotTracks().firstOrNull {
             (card.trackId.isNotBlank() && it.id == card.trackId) || it.streamUrl == card.url
         } ?: MusicTrackPreset(
             id = card.trackId.ifBlank { "music_${card.url.hashCode()}" },
@@ -1070,7 +1106,7 @@ object DirectMusicPlayerManager {
         }
 
         activeCollectionUrl = null
-        val resolvedQueue = (queue ?: allPresetTracks().filter { !it.isAlbumOrPlaylist() })
+        val resolvedQueue = (queue ?: snapshotTracks().filter { !it.isAlbumOrPlaylist() })
             .ifEmpty { listOf(track) }
         val idx = resolvedQueue.indexOfFirst { it.id == track.id || it.streamUrl == track.streamUrl }
         if (idx >= 0) {
@@ -1323,7 +1359,7 @@ object DirectMusicPlayerManager {
         val currentTrack = snapshot.track
         // 1. If no track is loaded yet, automatically start the best matching preset in the chosen mode!
         if (currentTrack == null) {
-            val playablePresets = allPresetTracks().filter { !it.isAlbumOrPlaylist() }
+            val playablePresets = snapshotTracks().filter { !it.isAlbumOrPlaylist() }
             val chosen = if (enabled) {
                 playablePresets.firstOrNull { it.itemKind == MusicItemKind.CLIP }
                     ?: playablePresets.firstOrNull()
@@ -1735,8 +1771,8 @@ object DirectMusicPlayerManager {
         val current = latestState
         val activeTrack = current.track
         if (activeTrack == null) {
-            val first = allPresetTracks().firstOrNull { !it.isAlbumOrPlaylist() }
-                ?: allPresetTracks().firstOrNull()
+            val first = snapshotTracks().firstOrNull { !it.isAlbumOrPlaylist() }
+                ?: snapshotTracks().firstOrNull()
                 ?: return
             playTrack(context, first)
             return
@@ -1760,7 +1796,7 @@ object DirectMusicPlayerManager {
 
     fun nextTrack(context: Context) {
         if (activeQueue.isEmpty()) {
-            val presets = allPresetTracks().filter { !it.isAlbumOrPlaylist() }
+            val presets = snapshotTracks().filter { !it.isAlbumOrPlaylist() }
             if (presets.isNotEmpty()) playTrack(context, presets.first(), presets)
             return
         }
