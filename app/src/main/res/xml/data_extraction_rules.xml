@@ -1,3 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    SECURITE S1 : règles d'extraction Android 12+ (android:dataExtractionRules).
+    Pour Android 6 à 11, voir backup_descriptor.xml.
+
+    Les réglages, les favoris et l'historique restent sauvegardés ; seuls les secrets et les
+    gros catalogues sont exclus, dans le cloud comme lors d'un transfert direct.
+-->
 <data-extraction-rules>
+    <cloud-backup>
+        <!-- Jetons de connexion : jamais dans le cloud. -->
+        <exclude domain="sharedpref" path="missa_accounts.xml" />
+        <!-- Catalogues re-téléchargeables : plusieurs centaines de Ko (PERF A5). -->
+        <exclude domain="sharedpref" path="missa_catalogue_cache.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="missa_accounts.xml" />
+        <exclude domain="sharedpref" path="missa_catalogue_cache.xml" />
+    </device-transfer>
 </data-extraction-rules>

@@ -1,3 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    SECURITE S1 : règles de sauvegarde Android (Android 6 à 11, android:fullBackupContent).
+    Pour Android 12 et plus, voir data_extraction_rules.xml.
+
+    Par défaut Android sauvegarde TOUT le contenu de l'application, donc aussi le fichier de
+    préférences général. On continue de sauvegarder les réglages, les favoris et l'historique ;
+    seuls les secrets et les gros catalogues sont exclus.
+-->
 <full-backup-content>
+    <!-- Jetons de connexion (MAL, Kitsu, AniList, Simkl, OpenSubtitles, AnimeSkip).
+         Ils ne doivent jamais quitter l'appareil : ni cloud, ni transfert. -->
+    <exclude domain="sharedpref" path="missa_accounts.xml" />
+
+    <!-- Catalogues Radio / Musique / Enfants : plusieurs centaines de Ko, re-téléchargeables.
+         Les garder dans une sauvegarde ne sert qu'à la gonfler (PERF A5). -->
+    <exclude domain="sharedpref" path="missa_catalogue_cache.xml" />
 </full-backup-content>
