@@ -55,6 +55,15 @@
 # --- Ressource media3 resolue par son nom (PlayerGestureHelper) ---
 -keep class androidx.media3.ui.** { *; }
 
+# --- Classes du Java de bureau referencees par Rhino et Jackson ---
+#     (java.beans.*, javax.script.*) : elles n'existent pas sur Android. R8 les
+#     signale comme manquantes et fait echouer la build ; on lui demande
+#     explicitement de les ignorer plutot que d'abandonner la compilation.
+-dontwarn java.beans.**
+-dontwarn javax.script.**
+-dontwarn org.mozilla.javascript.**
+-dontwarn com.fasterxml.jackson.databind.ext.**
+
 # --- Lisibilite des rapports d'erreur ---
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
