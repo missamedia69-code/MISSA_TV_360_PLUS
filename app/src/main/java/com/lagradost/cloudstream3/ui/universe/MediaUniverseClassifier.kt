@@ -771,7 +771,97 @@ internal object MediaUniverseClassifier {
         }
     }
 
+    // --- PERF A7 : mémoïsation du classifieur ----------------------------------------
+    //
+    // classifyAllUniverses() parcourt une douzaine d'expressions régulières par univers et
+    // par entrée, et elle est appelée plusieurs fois pour la même entrée (classement,
+    // construction des lignes, enrichissement). On garde donc les résultats déjà calculés.
+    // L'heuristique elle-même ne change pas : c'est uniquement un cache devant.
+
+    private const val CLASSIFIER_CACHE_MAX_ENTRIES = 6000
+
+    /** LRU : les entrées les moins récemment utilisées sortent les premières. */
+    private val classifierCache = object : LinkedHashMap<String, Set<String>>(256, 0.75f, true) {
+        protected override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Set<String>>): Boolean =
+            size > CLASSIFIER_CACHE_MAX_ENTRIES
+    }
+
+    private const val CLASSIFIER_KEY_SEPARATOR = '\u0000'
+
+    private fun classifierKey(
+        type: TvType?,
+        title: String,
+        tags: Collection<String>,
+        contentRating: String?,
+        durationMinutes: Int?,
+        sectionName: String,
+        providerSupportedTypes: Set<TvType>,
+        url: String,
+        episodeCountHint: Int?,
+        isSeriesLoadResponse: Boolean?
+    ): String = buildString(96) {
+        append(type).append(CLASSIFIER_KEY_SEPARATOR)
+        append(title).append(CLASSIFIER_KEY_SEPARATOR)
+        if (tags.isNotEmpty()) tags.joinTo(this, ",")
+        append(CLASSIFIER_KEY_SEPARATOR)
+        append(contentRating).append(CLASSIFIER_KEY_SEPARATOR)
+        append(durationMinutes).append(CLASSIFIER_KEY_SEPARATOR)
+        append(sectionName).append(CLASSIFIER_KEY_SEPARATOR)
+        if (providerSupportedTypes.isNotEmpty()) providerSupportedTypes.joinTo(this, ",")
+        append(CLASSIFIER_KEY_SEPARATOR)
+        append(url).append(CLASSIFIER_KEY_SEPARATOR)
+        append(episodeCountHint).append(CLASSIFIER_KEY_SEPARATOR)
+        append(isSeriesLoadResponse)
+    }
+
     fun classifyAllUniverses(
+        type: TvType?,
+        title: String,
+        tags: Collection<String> = emptyList(),
+        contentRating: String? = null,
+        durationMinutes: Int? = null,
+        sectionName: String = "",
+        providerSupportedTypes: Set<TvType> = emptySet(),
+        url: String = "",
+        episodeCountHint: Int? = null,
+        isSeriesLoadResponse: Boolean? = null
+    ): Set<String> {
+        // Les catalogues sont figés le temps d'un rendu : deux appels avec les mêmes
+        // métadonnées donnent le même résultat.
+        val key = classifierKey(
+            type = type,
+            title = title,
+            tags = tags,
+            contentRating = contentRating,
+            durationMinutes = durationMinutes,
+            sectionName = sectionName,
+            providerSupportedTypes = providerSupportedTypes,
+            url = url,
+            episodeCountHint = episodeCountHint,
+            isSeriesLoadResponse = isSeriesLoadResponse
+        )
+        synchronized(classifierCache) {
+            classifierCache[key]?.let { return it }
+        }
+        val result = classifyAllUniversesUncached(
+            type = type,
+            title = title,
+            tags = tags,
+            contentRating = contentRating,
+            durationMinutes = durationMinutes,
+            sectionName = sectionName,
+            providerSupportedTypes = providerSupportedTypes,
+            url = url,
+            episodeCountHint = episodeCountHint,
+            isSeriesLoadResponse = isSeriesLoadResponse
+        )
+        synchronized(classifierCache) {
+            classifierCache[key] = result
+        }
+        return result
+    }
+
+    private fun classifyAllUniversesUncached(
         type: TvType?,
         title: String,
         tags: Collection<String> = emptyList(),
