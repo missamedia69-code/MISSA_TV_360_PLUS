@@ -1300,7 +1300,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     /** Single-item Resume removal on long-press with Undo Snackbar (HOME-11). */
     override fun onResumeSingleRemove(item: DataStoreHelper.ResumeWatchingResult) {
-        val saved = viewModel.removeSingleResumeItem(item.id)
+        val saved = viewModel.removeSingleResumeItem(item)
         val rootView = view ?: return
         val snackbar = Snackbar.make(rootView, R.string.universe_resume_removed, Snackbar.LENGTH_LONG)
         if (saved != null) {

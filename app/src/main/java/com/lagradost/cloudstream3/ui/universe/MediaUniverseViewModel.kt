@@ -545,8 +545,14 @@ class MediaUniverseViewModel : ViewModel() {
 
     // --- Resume Watching Management (HOME-11) ---
 
-    fun removeSingleResumeItem(parentId: Int?): DownloadObjects.ResumeWatching? {
-        if (parentId == null) return null
+    /**
+     * HOME-11, corrigé : la clé de stockage d'un « Reprendre » est le **parentId**.
+     * [DataStoreHelper.ResumeWatchingResult.id] est l'id de l'épisode (et il peut être null) :
+     * supprimer avec l'id ne supprimait aucune clé, donc le dialogue se fermait et la carte
+     * restait là. On prend maintenant l'item entier pour que la confusion soit impossible.
+     */
+    fun removeSingleResumeItem(item: DataStoreHelper.ResumeWatchingResult): DownloadObjects.ResumeWatching? {
+        val parentId = item.parentId ?: return null
         val snapshot = DataStoreHelper.getLastWatched(parentId)
         DataStoreHelper.removeLastWatched(parentId)
         refreshResumeWatching()
@@ -567,7 +573,8 @@ class MediaUniverseViewModel : ViewModel() {
 
     fun clearResumeItems(items: List<DataStoreHelper.ResumeWatchingResult>) {
         items.forEach { item ->
-            DataStoreHelper.removeLastWatched(item.id)
+            // même piège qu'au-dessus : item.id est l'id de l'épisode, pas la clé
+            DataStoreHelper.removeLastWatched(item.parentId)
         }
         refreshResumeWatching()
     }
