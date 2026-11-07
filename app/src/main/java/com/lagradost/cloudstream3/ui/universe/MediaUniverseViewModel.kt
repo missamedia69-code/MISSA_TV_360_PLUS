@@ -761,7 +761,11 @@ class MediaUniverseViewModel : ViewModel() {
                         }
                     )
                     if (harvested.isNotEmpty() && secondaryWave.isNotEmpty()) {
-                        val quickEntries = normalizeAndDeduplicate(harvested)
+                        // PERF A2 : la déduplication de ~2000 entrées prend ~0,5-1 s. Fait
+                        // sur le Main, c'est un freeze garanti à la fin de la 1re vague.
+                        val quickEntries = withContext(Dispatchers.Default) {
+                            normalizeAndDeduplicate(harvested)
+                        }
                         _catalogSnapshot.value = UnifiedCatalogSnapshot(
                             isLoading = true,
                             hasError = false,
@@ -798,7 +802,10 @@ class MediaUniverseViewModel : ViewModel() {
                     )
                 }
 
-                val baseEntries = normalizeAndDeduplicate(harvested)
+                // PERF A2 : idem, sur le rendu complet.
+                val baseEntries = withContext(Dispatchers.Default) {
+                    normalizeAndDeduplicate(harvested)
+                }
                 if (harvested.isEmpty() || baseEntries.isEmpty()) {
                     // Every provider is harvested inside per-provider try/catch + withTimeoutOrNull,
                     // so a total miss is silent. Surface it: zero here means getMainPage() failed,
@@ -971,7 +978,10 @@ class MediaUniverseViewModel : ViewModel() {
             }.awaitAll().flatten()
         }
 
-        val normalized = normalizeAndDeduplicate(rawResults)
+        // PERF A2 : idem sur la recherche, appelée depuis le thread principal.
+        val normalized = withContext(Dispatchers.Default) {
+            normalizeAndDeduplicate(rawResults)
+        }
         return enrichEntriesWithDetails(normalized, maxHero = 3, maxClassifier = 10)
     }
 
