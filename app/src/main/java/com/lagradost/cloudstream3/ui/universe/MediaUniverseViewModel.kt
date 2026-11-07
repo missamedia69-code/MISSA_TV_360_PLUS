@@ -37,6 +37,7 @@ import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -50,6 +51,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 private data class CachedCatalogSearchResponse(
@@ -508,6 +510,8 @@ class MediaUniverseViewModel : ViewModel() {
     }
 
     override fun onCleared() {
+        // PERF A3 : sans cela les threads de projection survivent au ViewModel.
+        projectionExecutor.shutdownNow()
         MainActivity.afterPluginsLoadedEvent -= onPluginsLoadedListener
         MainActivity.mainPluginsLoadedEvent -= onMainPluginsLoadedListener
         MainActivity.reloadHomeEvent -= onReloadHomeListener
@@ -1012,6 +1016,39 @@ class MediaUniverseViewModel : ViewModel() {
             durationMinutes = durationMinutes,
             url = entry.primary.url
         ).also { categoryMemo[key] = it }
+    }
+
+    /**
+     * PERF A3 : [projectUniverse] trie, groupe et projette ~2000 entrées sur le thread
+     * appelant. Appelé depuis le Main, c'est le pic de latence de chaque changement
+     * d'onglet. Deux threads au minimum : les univers Musiques et Radio projettent en
+     * parallèle quand l'utilisateur zappe.
+     */
+    private val projectionExecutor = Executors.newFixedThreadPool(2) { runnable ->
+        Thread(runnable, "missa-projection").apply { isDaemon = true }
+    }
+    private val projectionDispatcher = projectionExecutor.asCoroutineDispatcher()
+
+    suspend fun projectUniverseAsync(
+        universeId: String,
+        snapshot: UnifiedCatalogSnapshot,
+        overrideEntries: List<UnifiedCatalogEntry>? = null,
+        searchQuery: String = "",
+        selectedCategoryKey: String? = null,
+        selectedSources: Set<String> = emptySet(),
+        showAllRows: Boolean = false,
+        localizedContext: Context? = null
+    ): UniverseScreenProjection = withContext(projectionDispatcher) {
+        projectUniverse(
+            universeId = universeId,
+            snapshot = snapshot,
+            overrideEntries = overrideEntries,
+            searchQuery = searchQuery,
+            selectedCategoryKey = selectedCategoryKey,
+            selectedSources = selectedSources,
+            showAllRows = showAllRows,
+            localizedContext = localizedContext
+        )
     }
 
     fun projectUniverse(

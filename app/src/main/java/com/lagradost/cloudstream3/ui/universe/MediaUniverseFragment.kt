@@ -160,6 +160,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private var isOnlineSearchInFlight: Boolean = false
     private var suppressSearchTextWatcher: Boolean = false
     private var lastProjection: UniverseScreenProjection? = null
+    /** PERF A3 : see [renderScreenInternal], guards against out-of-order projections. */
+    private var projectionGeneration = 0
     private var didRestoreUniverseFocus = false
     private var lastObservedMusicSyncSig: String = "idle"
 
@@ -829,16 +831,31 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private fun renderScreenInternal() {
         val ctx = context ?: return
         val snapshot = viewModel.catalogSnapshot.value ?: UnifiedCatalogSnapshot()
-        val projection = viewModel.projectUniverse(
-            universeId = universeId,
-            snapshot = snapshot,
-            overrideEntries = searchOverrideEntries,
-            searchQuery = currentSearchQuery,
-            selectedCategoryKey = selectedCategoryKey,
-            selectedSources = selectedSources,
-            showAllRows = showAllRows,
-            localizedContext = ctx
-        )
+        // PERF A3 : la projection (tri + regroupement de ~2000 entrées) tourne maintenant
+        // hors du Main. Le numéro de génération évite qu'une projection lancée avant un
+        // changement de filtre n'écrase la suivante, arrivée plus vite.
+        val generation = ++projectionGeneration
+        viewLifecycleOwner.lifecycleScope.launch {
+            val projection = viewModel.projectUniverseAsync(
+                universeId = universeId,
+                snapshot = snapshot,
+                overrideEntries = searchOverrideEntries,
+                searchQuery = currentSearchQuery,
+                selectedCategoryKey = selectedCategoryKey,
+                selectedSources = selectedSources,
+                showAllRows = showAllRows,
+                localizedContext = ctx
+            )
+            // Une projection plus récente est déjà partie, ou la vue a été détruite :
+            // ce résultat n'est plus le bon.
+            if (generation != projectionGeneration || !isAdded) return@launch
+            applyProjection(projection)
+        }
+    }
+
+    /** PERF A3 : tout ce qui suit touche des vues, donc reste sur le Main. */
+    private fun applyProjection(projection: UniverseScreenProjection) {
+        val ctx = context ?: return
         lastProjection = projection
 
         // 1. Update sticky category pills via DiffUtil (hidden on Home; shown in Films & dedicated universes)
