@@ -158,8 +158,11 @@ class MissaExtensionGroupsTest {
     }
 
     @Test
-    fun `sift never adds a group the extension did not tick`() {
-        assertEquals(setOf("films"), MissaContentSieve.sift(setOf("films"), setOf("series", "podcasts")))
+    fun `sift never adds a group outside the films-series partition`() {
+        // Films est coché, le contenu est un podcast : hors partition films/séries,
+        // le réglage gagne et le podcast n'est pas versé ailleurs.
+        assertEquals(setOf("films"), MissaContentSieve.sift(setOf("films"), setOf("podcasts")))
+        assertEquals(setOf("sports"), MissaContentSieve.sift(setOf("sports"), setOf("series", "podcasts")))
     }
 
     @Test
@@ -241,12 +244,21 @@ class MissaExtensionGroupsTest {
     @Test
     fun `a forced source and an auto source of the same title share one entry with both groups`() {
         val entries = MediaUniverseViewModel.deduplicateHarvestedItems(
-            listOf(raw("ForcedSite", setOf("series")), raw("AutoSite", null))
+            listOf(raw("ForcedSite", setOf("documentaries")), raw("AutoSite", null))
         )
         assertEquals(1, entries.size)
         val universes = entries.first().universes
-        assertTrue("series" in universes)
+        assertTrue("documentaries" in universes)
         assertTrue("films" in universes)
+    }
+
+    @Test
+    fun `a film forced into Séries goes back to Films`() {
+        // la partition films/séries tranche : forcer une série sur un film ne le déplace pas
+        val entries = MediaUniverseViewModel.deduplicateHarvestedItems(
+            listOf(raw("PackSite", setOf("series")))
+        )
+        assertEquals(setOf("films"), entries.first().universes)
     }
 
     @Test
