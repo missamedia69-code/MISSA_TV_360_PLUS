@@ -95,6 +95,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         private const val MAX_INLINE_CATEGORY_PILLS = 8
         /** ANR-01: how long several invalidations are merged before the screen is projected. */
         private const val RENDER_COALESCE_MS = 70L
+        /**
+         * La liste arrive parfois en plusieurs temps : on réessaie de poser le sélecteur sur
+         * l'élément retenu avant de renoncer (NAV-02).
+         */
+        private const val FOCUS_RESTORE_MAX_ATTEMPTS = 4
+        private const val FOCUS_RESTORE_RETRY_MS = 90L
         private val focusMemoryByUniverse = ConcurrentHashMap<String, UniverseFocusMemory>()
 
         /** Contextual filter strip is hidden on Home and shown inside dedicated universes (Films, Series, …). */
@@ -1059,28 +1065,78 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     /** Restores last focused row when returning to a previously visited universe on TV (NAV-02). */
     private fun restoreUniverseFocusIfNeeded(items: List<UniverseListItem>) {
-        if (didRestoreUniverseFocus || !MissaUiFactory.isTvLayoutMode()) return
+        if (didRestoreUniverseFocus) return
         val memory = focusMemoryByUniverse[universeId] ?: return
         val idx = items.indexOfFirst { it.itemId == memory.rowKey }
         if (idx < 0) return
         val rv = masterRecycler ?: return
         didRestoreUniverseFocus = true
-        rv.post {
-            // La rangée retenue est presque toujours hors écran au retour du lecteur : sans
-            // ce défilement son ViewHolder n'existe pas encore, requestFocus() n'aboutit
-            // pas, et le sélecteur repart tout en haut de l'écran, à côté du logo.
+        // Télé et émulateur : le curseur est le moyen de navigation, un simple survol suffit à
+        // mériter un retour. Ailleurs (téléphone, tablette au doigt) on ne revient que sur un
+        // élément réellement ouvert, pour ne pas imposer un cadre de focus après un passage.
+        val remembersAnOpening = memory.itemPosition >= 0 || memory.itemUrl.isNotBlank()
+        if (!remembersAnOpening && !MissaUiFactory.isTvLayoutMode()) return
+        tryFocusRememberedRow(rv, idx, memory, attempt = 0)
+    }
+
+    /**
+     * Replace le sélecteur sur la rangée retenue, et **vérifie** qu'il y est bien arrivé.
+     *
+     * C'est là que le correctif précédent échouait encore : on demandait le focus sans jamais
+     * contrôler le résultat. Quand la carte n'était pas encore affichée — ce qui arrive à
+     * chaque retour du lecteur, la liste étant redessinée — la demande tombait dans le vide,
+     * rien n'était focalisé dans le contenu, et Android posait alors le sélecteur sur le
+     * premier élément focalisable de l'écran : la première pastille du ruban, contre le logo.
+     */
+    private fun tryFocusRememberedRow(
+        rv: RecyclerView,
+        idx: Int,
+        memory: UniverseFocusMemory,
+        attempt: Int
+    ) {
+        val step = Runnable {
             if (rv.findViewHolderForAdapterPosition(idx) == null) {
                 rv.scrollToPosition(idx)
             }
             rv.post {
                 val rowView = rv.findViewHolderForAdapterPosition(idx)?.itemView
-                if (rowView == null) {
-                    rv.requestFocus()
-                } else if (!focusRememberedCard(rowView, memory)) {
-                    rowView.requestFocus()
+                if (rowView != null && !focusRememberedCard(rowView, memory)) {
+                    // La carte exacte n'est pas (ou plus) affichée : on vise la rangée.
+                    focusFirstInView(rowView)
+                }
+                if (rv.findFocus() == null) {
+                    if (attempt < FOCUS_RESTORE_MAX_ATTEMPTS) {
+                        tryFocusRememberedRow(rv, idx, memory, attempt + 1)
+                    } else {
+                        focusFirstContentRow(rv)
+                    }
                 }
             }
         }
+        rv.postDelayed(step, if (attempt == 0) 0L else FOCUS_RESTORE_RETRY_MS)
+    }
+
+    /** Premier élément focalisable de [view] — une rangée n'est pas focalisable, ses cartes si. */
+    private fun focusFirstInView(view: View): Boolean =
+        (firstFocusableDescendant(view) ?: view).requestFocus()
+
+    /** Repli ultime : n'importe quelle rangée vaut mieux que le haut de l'écran. */
+    private fun focusFirstContentRow(rv: RecyclerView) {
+        for (i in 0 until rv.childCount) {
+            val child = rv.getChildAt(i) ?: continue
+            if (focusFirstInView(child)) return
+        }
+        rv.requestFocus()
+    }
+
+    private fun firstFocusableDescendant(view: View): View? {
+        if (view.isFocusable && view.isShown) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                firstFocusableDescendant(view.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
     }
 
     /**
@@ -1109,10 +1165,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         if (childRv.findViewHolderForAdapterPosition(pos) == null) {
             childRv.scrollToPosition(pos)
         }
+        val card = childRv.findViewHolderForAdapterPosition(pos)?.itemView
+        if (card != null && card.requestFocus()) return true
+        // Le rail n'a pas encore disposé la carte : on retente juste après le défilement.
         childRv.post {
             val vh = childRv.findViewHolderForAdapterPosition(pos)
             if (vh?.itemView?.requestFocus() != true) {
-                rowView.requestFocus()
+                focusFirstInView(childRv)
             }
         }
         return true

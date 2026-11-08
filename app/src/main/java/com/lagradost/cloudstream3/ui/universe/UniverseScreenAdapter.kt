@@ -577,6 +577,7 @@ internal class UniverseScreenAdapter(
         fun bind(item: UniverseListItem.HeroCarousel) {
             val universeChanged = currentItem?.universeId != item.universeId
             currentItem = item
+            slideAdapter.rowKey = item.itemId
             slideAdapter.dataSaverActive = item.dataSaverActive
             slideAdapter.submitList(item.slides) {
                 if (universeChanged && item.slides.isNotEmpty()) {
@@ -690,10 +691,13 @@ internal class UniverseScreenAdapter(
                 oldItem == newItem
         }
 
+        // NAV-02 : la clé de rangée du bandeau, pour que le sélecteur puisse y revenir.
+        var rowKey: String = "hero"
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SlideHolder {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_universe_hero_slide, parent, false)
-            return SlideHolder(view, callbacks)
+            return SlideHolder(view, callbacks) { rowKey }
         }
 
         override fun onBindViewHolder(holder: SlideHolder, position: Int) {
@@ -706,7 +710,8 @@ internal class UniverseScreenAdapter(
 
         class SlideHolder(
             itemView: View,
-            private val callbacks: Callbacks
+            private val callbacks: Callbacks,
+            private val rowKeyProvider: () -> String
         ) : RecyclerView.ViewHolder(itemView) {
             private val backdropArt: ImageView = itemView.findViewById(R.id.hero_backdrop_art)
             private val backdrop: ImageView = itemView.findViewById(R.id.hero_backdrop_image)
@@ -827,7 +832,7 @@ internal class UniverseScreenAdapter(
                 detailsCta.setOnKeyListener(keyNav)
 
                 val focusTracker = View.OnFocusChangeListener { v, hasFocus ->
-                    if (hasFocus) callbacks.onContentItemFocused("hero")
+                    if (hasFocus) callbacks.onContentItemFocused(rowKeyProvider())
                     if (MissaUiFactory.isTvLayoutMode() && MissaUiFactory.areAnimationsEnabled(v.context)) {
                         val s = if (hasFocus) 1.05f else 1f
                         v.animate().scaleX(s).scaleY(s).setDuration(140L).start()
@@ -1767,6 +1772,9 @@ internal class UniverseScreenAdapter(
         private val clearAllBtn: MaterialButton = itemView.findViewById(R.id.resume_clear_all_btn)
         private val recycler: RecyclerView = itemView.findViewById(R.id.resume_recycler)
         private var currentItems: List<DataStoreHelper.ResumeWatchingResult> = emptyList()
+        // NAV-02 : « resume » tout court ne correspondait à aucun élément de la liste ; la clé
+        // réelle est « resume_<univers> », sans quoi le sélecteur ne pouvait jamais y revenir.
+        private var currentRowKey: String = "resume"
 
         private val resumeAdapter = ResumeItemAdapter(
             nextFocusUp = View.NO_ID,
@@ -1779,8 +1787,11 @@ internal class UniverseScreenAdapter(
                             callbacks.onResumeSingleRemove(match)
                         }
                     }
-                    SEARCH_ACTION_FOCUSED -> callbacks.onContentItemFocused("resume")
-                    else -> callbacks.onCardClick(cb)
+                    SEARCH_ACTION_FOCUSED -> callbacks.onContentItemFocused(currentRowKey)
+                    else -> {
+                        callbacks.onContentItemActivated(currentRowKey, cb.card.url, cb.position)
+                        callbacks.onCardClick(cb)
+                    }
                 }
             },
             removeCallback = { callbacks.onClearAllResume(currentItems) }
@@ -1810,6 +1821,7 @@ internal class UniverseScreenAdapter(
         }
 
         fun bind(item: UniverseListItem.ResumeRow) {
+            currentRowKey = item.itemId
             currentItems = item.items
             titleView.setText(
                 if (item.universeId == "podcasts" || item.universeId == "music") {
