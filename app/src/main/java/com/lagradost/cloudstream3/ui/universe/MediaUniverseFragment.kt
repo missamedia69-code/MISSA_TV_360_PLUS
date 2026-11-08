@@ -268,7 +268,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 if (!tryApplyMusicProgressOnlyUpdate(nextState)) {
                     renderScreen()
                 }
-            } else if (universeId == "home") {
+            } else if (universeId == "home" || universeId == "podcasts") {
                 val sig = DirectMusicPlayerManager.activePlaybackSyncSignature()
                 if (sig != lastObservedMusicSyncSig) {
                     lastObservedMusicSyncSig = sig
@@ -286,6 +286,14 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         // Re-render when the per-launch rotated Kids catalogue arrives from YouTube (KIDS-01).
         DirectKidsPlayerManager.videosUpdated.observe(viewLifecycleOwner) {
             if (universeId == "kids" || universeId == "home") {
+                renderScreen()
+            }
+        }
+
+        // Le catalogue Podcasts se moissonne en arrière-plan : l'écran doit se redessiner quand
+        // il arrive, sinon l'univers resterait vide jusqu'au prochain passage par l'accueil.
+        DirectPodcastPlayerManager.showsUpdated.observe(viewLifecycleOwner) {
+            if (universeId == "podcasts" || universeId == "home") {
                 renderScreen()
             }
         }
@@ -945,10 +953,15 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         val items = ArrayList<UniverseListItem>()
         val dataSaver = MissaUiFactory.isDataSaverActive(ctx)
 
-        if (universeId == "music") {
+        // PODCASTS-03 : le lecteur audio n'apparaît dans l'univers Podcasts que lorsqu'un podcast
+        // est en cours. Il laisse alors voir les épisodes de l'émission ouverte, exactement comme
+        // Musiques laisse voir les titres d'un album.
+        val musicState = DirectMusicPlayerManager.currentState()
+        val playingPodcast = universeId == "podcasts" &&
+            musicState.track?.itemKind == MusicItemKind.PODCAST
+        if (universeId == "music" || playingPodcast) {
             // Musiques puts the Sophisticated Studio MP3 & Live Clip Player Console directly at position 0,
             // followed immediately by the interactive Playlist / Album Tracklist whenever opened.
-            val musicState = DirectMusicPlayerManager.currentState()
             val isFav = musicState.track?.id?.let { DirectMusicPlayerManager.isFavorite(it) } == true
             items.add(UniverseListItem.MusicDeck(musicState = musicState, isFavoriteTrack = isFav))
             if (musicState.isLoadingCollection ||
