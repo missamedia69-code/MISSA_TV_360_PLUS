@@ -55,7 +55,7 @@ Mesurés le 2026-11-05 en comptant les entrées des fichiers de préréglages :
 | Enfants | **7** éléments | `MissaKidsProviders.kt` |
 | TV direct | **0** chaîne livrée — l'utilisateur fournit sa playlist M3U | `MissaUniverseDialogs.kt` |
 | Films / Séries / Documentaires | **0** — tout vient des extensions actives | récolte à l'exécution |
-| Jeux rétro | **0** — l'utilisateur dépose ses ROM dans `filesDir/retro-games` | `RetroGamesFragment.kt` |
+| Jeux rétro | **5** jeux de secours dans le code + **12** jeux homebrew hébergés dans `jeux/` (catalogue `retro-catalog.json`) ; l'utilisateur peut aussi importer ses ROM | `RetroGamesFragment.kt`, `retro-catalog.json` |
 
 Ces colonnes ne sont pas le catalogue : ce sont les contenus **embarqués**. Le
 reste dépend de l'appareil, du réseau et des extensions activées.

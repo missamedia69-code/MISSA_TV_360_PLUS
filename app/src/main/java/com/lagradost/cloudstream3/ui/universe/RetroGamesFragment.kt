@@ -38,7 +38,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
@@ -66,7 +65,10 @@ class RetroGamesFragment : Fragment() {
         val downloadUrl: String,
         val sourceUrl: String,
         val licenceNote: String,
-        val estimatedBytes: Long = 0L
+        val estimatedBytes: Long = 0L,
+        val author: String = "",
+        /** Empreinte attendue de la ROM ; si présente, le téléchargement est vérifié. */
+        val sha256: String? = null
     )
 
     data class DownloadProgress(
@@ -371,12 +373,16 @@ class RetroGamesFragment : Fragment() {
 
         val installedByName = installedFiles.associateBy { it.name }
 
+        val catalogueTitles = HashMap<String, String>()
+        builtInCatalogue().forEach { catalogueTitles[it.fileName] = it.title }
+        remoteExtraGames.forEach { catalogueTitles[it.fileName] = it.title }
+
         val filteredInstalled = installedFiles.mapNotNull { file ->
             val (sysId, sysLabel) = classifyExtensionSystem(file.extension)
             if (selectedSystemId != "all" && sysId != selectedSystemId) return@mapNotNull null
             RetroListItem.InstalledCard(
                 filePath = file.absolutePath,
-                title = file.nameWithoutExtension.replace('_', ' '),
+                title = catalogueTitles[file.name] ?: file.nameWithoutExtension.replace('_', ' '),
                 systemId = sysId,
                 systemLabel = sysLabel,
                 sizeBytes = file.length(),
@@ -386,7 +392,9 @@ class RetroGamesFragment : Fragment() {
 
         val combinedCatalogue = LinkedHashMap<String, CatalogueGame>()
         builtInCatalogue().forEach { combinedCatalogue[it.fileName] = it }
-        remoteExtraGames.forEach { combinedCatalogue.putIfAbsent(it.fileName, it) }
+        // Le catalogue distant (dossier jeux/ du dépôt MISSA TV) a priorité sur la liste intégrée,
+        // qui ne sert que de secours hors ligne ou tant que le catalogue n'a jamais été chargé.
+        remoteExtraGames.forEach { combinedCatalogue[it.fileName] = it }
 
         val filteredCatalogue = combinedCatalogue.values
             .filter { selectedSystemId == "all" || it.systemId == selectedSystemId }
@@ -479,32 +487,8 @@ class RetroGamesFragment : Fragment() {
         }
     }
 
-    private fun parseRemoteCatalogueJson(json: String): List<CatalogueGame> {
-        val arr = JSONArray(json)
-        val out = ArrayList<CatalogueGame>(arr.length())
-        for (i in 0 until arr.length()) {
-            val obj = arr.optJSONObject(i) ?: continue
-            val downloadUrl = obj.optString("downloadUrl").trim()
-            val fileName = sanitizeFileName(obj.optString("fileName").trim())
-            if (!downloadUrl.startsWith("https://") || fileName.isBlank()) continue
-            out.add(
-                CatalogueGame(
-                    id = obj.optString("id", fileName),
-                    title = obj.optString("title", fileName.substringBeforeLast('.')),
-                    systemId = obj.optString("systemId", "gb"),
-                    platformLabel = obj.optString("platformLabel", "Retro"),
-                    genre = obj.optString("genre", "Homebrew"),
-                    description = obj.optString("description", ""),
-                    fileName = fileName,
-                    downloadUrl = downloadUrl,
-                    sourceUrl = obj.optString("sourceUrl", ""),
-                    licenceNote = obj.optString("licenceNote", "Open-source"),
-                    estimatedBytes = obj.optLong("estimatedBytes", 0L)
-                )
-            )
-        }
-        return out
-    }
+    private fun parseRemoteCatalogueJson(json: String): List<CatalogueGame> =
+        MissaRetroCatalog.parse(json)
 
     /**
      * Downloads a homebrew ROM with HTTP `Range` resume on `.part` files, real-time progress
@@ -618,6 +602,14 @@ class RetroGamesFragment : Fragment() {
             }
 
             require(partFile.isFile && partFile.length() > 0L) { "Empty ROM file" }
+            game.sha256?.let { expected ->
+                val actual = MissaRetroCatalog.sha256Of(partFile)
+                if (actual != expected) {
+                    // Fichier corrompu ou modifié : on repart de zéro au prochain essai.
+                    partFile.delete()
+                    error("ROM checksum mismatch")
+                }
+            }
             if (destination.exists()) destination.delete()
             check(partFile.renameTo(destination)) { "Could not finalize ROM file" }
         } finally {
@@ -670,12 +662,7 @@ class RetroGamesFragment : Fragment() {
         }
     }
 
-    private fun sanitizeFileName(raw: String): String {
-        val base = raw.substringAfterLast('/').substringAfterLast('\\')
-            .replace(Regex("[^A-Za-z0-9._-]"), "_")
-            .trim('_')
-        return base.ifBlank { "game.gb" }
-    }
+    private fun sanitizeFileName(raw: String): String = MissaRetroCatalog.sanitizeFileName(raw)
 
     private fun playRomFile(file: File) {
         val ctx = context ?: return
@@ -876,7 +863,7 @@ class RetroGamesFragment : Fragment() {
                 artwork.setImageResource(R.drawable.ic_missa_gamepad)
                 title.text = game.title
                 systemBadge.text = game.platformLabel
-                metaBadge.text = listOf(game.licenceNote, game.genre, formatBytes(game.estimatedBytes))
+                metaBadge.text = listOf(game.author, game.licenceNote, game.genre, formatBytes(game.estimatedBytes))
                     .filter { it.isNotBlank() }
                     .joinToString(" • ")
                 description.text = game.description

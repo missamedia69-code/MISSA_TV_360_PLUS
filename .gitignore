@@ -69,6 +69,8 @@ gen-external-apklibs
 *.nar
 *.ear
 *.zip
+# Sources GPL des jeux homebrew hébergés pour MISSA TV (obligation de la licence)
+!jeux/sources/*.zip
 *.tar.gz
 *.rar
 
