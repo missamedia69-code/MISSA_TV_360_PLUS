@@ -598,7 +598,11 @@ data class MusicTrackPreset(
     fun isAlbumOrPlaylist(): Boolean =
         itemKind == MusicItemKind.ALBUM ||
             itemKind == MusicItemKind.PLAYLIST ||
-            streamUrl.startsWith("ytplaylist://", ignoreCase = true)
+            streamUrl.startsWith("ytplaylist://", ignoreCase = true) ||
+            // PODCASTS-01 : une émission est une collection comme un album. Le lecteur déplie
+            // ses épisodes depuis le flux RSS au lieu d'essayer de jouer l'url telle quelle.
+            (itemKind == MusicItemKind.PODCAST &&
+                streamUrl.startsWith(PODCAST_SHOW_URL_PREFIX, ignoreCase = true))
 
     fun displayLabel(): String {
         val cleanArtist = artist.trim()

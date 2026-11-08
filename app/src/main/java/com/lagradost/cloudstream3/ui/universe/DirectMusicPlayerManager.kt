@@ -1066,14 +1066,20 @@ object DirectMusicPlayerManager {
                     sleepTimerMinutes = activeSleepMinutes
                 )
             }
+            // PODCASTS-01 : une émission se déplie depuis son flux RSS, pas depuis YouTube.
+            val podcastShowId = DirectPodcastPlayerManager.showIdFromScheme(track.streamUrl)
             resolveJob = ioScope.launch {
-                val expandedTracks = MissaMusicProviders.extractYouTubeAlbumOrPlaylistTracks(
-                    playlistOrLazyUrl = track.streamUrl,
-                    fallbackAlbumTitle = track.title,
-                    fallbackArtist = track.artist,
-                    fallbackArtworkUrl = track.artworkUrl,
-                    fallbackGenre = track.genre
-                )
+                val expandedTracks = if (podcastShowId != null) {
+                    DirectPodcastPlayerManager.expandShowEpisodes(podcastShowId)
+                } else {
+                    MissaMusicProviders.extractYouTubeAlbumOrPlaylistTracks(
+                        playlistOrLazyUrl = track.streamUrl,
+                        fallbackAlbumTitle = track.title,
+                        fallbackArtist = track.artist,
+                        fallbackArtworkUrl = track.artworkUrl,
+                        fallbackGenre = track.genre
+                    )
+                }
                 withContext(Dispatchers.Main) {
                     if (!isOwningPlayback) return@withContext
                     if (expandedTracks.isEmpty()) {
@@ -1470,7 +1476,10 @@ object DirectMusicPlayerManager {
                 streamUrl = track.streamUrl,
                 fallbackUrls = track.fallbackUrls
             )
-            val wantVideoNow = latestState.videoClipModeEnabled && isMusicScreenVisible
+            // PODCASTS-03 : un podcast est de l'audio, on ne lui cherche jamais de clip vidéo.
+            val wantVideoNow = latestState.videoClipModeEnabled &&
+                isMusicScreenVisible &&
+                track.itemKind != MusicItemKind.PODCAST
             // If user is in Video Mode on a static YouTube Music `SONG` ("Artist - Topic"),
             // upgrade to the matching Official Music Video (`MUSIC_VIDEOS`) so moving video plays!
             val officialClipMedia = if (wantVideoNow &&
