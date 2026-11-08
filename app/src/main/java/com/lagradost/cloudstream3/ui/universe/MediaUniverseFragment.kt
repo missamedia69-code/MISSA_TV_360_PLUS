@@ -1156,7 +1156,14 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     } else {
                         null
                     }
-                    val pluginResults = if (universeId == "music" || universeId == "radio" || universeId == "kids") {
+                    val podcastJob = if (universeId == "podcasts" || universeId == "home") {
+                        async { DirectPodcastPlayerManager.searchShowsOnline(trimmed) }
+                    } else {
+                        null
+                    }
+                    val pluginResults = if (universeId == "music" || universeId == "radio" ||
+                        universeId == "kids" || universeId == "podcasts"
+                    ) {
                         emptyList()
                     } else {
                         viewModel.searchUnified(trimmed) { done, total ->
@@ -1175,6 +1182,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     radioJob?.await()
                     musicJob?.await()
                     kidsJob?.await()
+                    podcastJob?.await()
                     pluginResults
                 }
                 isOnlineSearchInFlight = false
@@ -1213,6 +1221,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
             return
         }
+        if (item is DirectPodcastSearchResponse) {
+            openPodcastCard(item)
+            return
+        }
         // KIDS-02: Kids hero titles play as videos in the standard player.
         if (item is DirectKidsSearchResponse) {
             activity?.let { DirectKidsPlayerManager.playDirectResponse(it, item) }
@@ -1238,6 +1250,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
             return
         }
+        if (item is DirectPodcastSearchResponse) {
+            openPodcastCard(item)
+            return
+        }
         if (item is DirectKidsSearchResponse) {
             activity?.let { DirectKidsPlayerManager.playDirectResponse(it, item) }
             return
@@ -1260,12 +1276,43 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
     }
 
+    /**
+     * PODCASTS-01 : ouvrir une émission déplie ses épisodes dans le lecteur ; ouvrir un épisode
+     * le joue. C'est le même geste depuis une vignette ou depuis le bandeau du haut.
+     */
+    private fun openPodcastCard(card: DirectPodcastSearchResponse) {
+        if (!card.isShow) {
+            DirectPodcastPlayerManager.playEpisode(requireContext(), card.toEpisode())
+            return
+        }
+        val showId = DirectPodcastPlayerManager.showIdFromScheme(card.url)
+        val known = showId?.let { id ->
+            DirectPodcastPlayerManager.snapshotShows().firstOrNull { it.id == id }
+        }
+        if (known != null) {
+            DirectPodcastPlayerManager.playShow(requireContext(), known)
+            return
+        }
+        // L'émission a quitté la mémoire : on la retrouve avant de l'ouvrir.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val found = showId?.let { DirectPodcastPlayerManager.findShow(it) }
+            if (found != null && isAdded) {
+                DirectPodcastPlayerManager.playShow(requireContext(), found)
+            }
+        }
+    }
+
     override fun onCardClick(callback: SearchClickCallback) {
         if (callback.action == SEARCH_ACTION_FOCUSED) return
         val card = callback.card
 
         if (card is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), card)
+            return
+        }
+
+        if (card is DirectPodcastSearchResponse) {
+            openPodcastCard(card)
             return
         }
 

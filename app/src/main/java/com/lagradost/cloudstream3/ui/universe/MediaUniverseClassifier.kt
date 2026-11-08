@@ -99,6 +99,7 @@ enum class MissaCategory(
     MUSIC_ALL("music_all", 900, R.string.missa_cat_music_all, R.string.missa_chip_music_all),
 
     // Podcasts
+    PODCASTS_AFRICA("podcasts_africa", 12, R.string.missa_cat_podcasts_africa, R.string.missa_chip_podcasts_africa),
     PODCASTS_SOCIETY("podcasts_society", 15, R.string.missa_cat_podcasts_society, R.string.missa_chip_podcasts_society),
     PODCASTS_CULTURE("podcasts_culture", 25, R.string.missa_cat_podcasts_culture, R.string.missa_chip_podcasts_culture),
     PODCASTS_ALL("podcasts_all", 900, R.string.missa_cat_podcasts_all, R.string.missa_chip_podcasts_all),
@@ -197,6 +198,20 @@ internal object MediaUniverseClassifier {
     )
     private val podcastKeywords = wordRegex(
         """podcasts?|balados?|chroniques?\s+audio|[eé]missions?\s+audio|livres?\s+audio|audiobooks?"""
+    )
+
+    /**
+     * Ce qui rattache un contenu à l'Afrique : villes, pays, médias et codes de région.
+     * Partagé par la radio et les podcasts (PODCASTS-02) afin que les deux univers rangent
+     * l'Afrique de la même façon.
+     */
+    private val africaRegionNeedles = arrayOf(
+        "afrique", "africa", "africain", "cameroun", "cameroon", "douala", "yaound",
+        "crtv", "balafon", "equinoxe", "abidjan", "dakar", "kinshasa", "lagos",
+        "naija", "senegal", "sénégal", "cote d ivoire", "ivoirien", "ghana", "accra",
+        "nairobi", "kenya", "nigeria", "johannesburg", "region:africa",
+        "country:cm", "country:ci", "country:sn", "country:cd", "country:cg",
+        "country:ga", "country:ng", "country:gh", "country:ke", "country:za"
     )
     private val liveKeywords = wordRegex(
         """en\s+direct|live\s*tv|cha[iî]nes?\s+tv|iptv|direct\s+tv|24/7|tv\s+live"""
@@ -1179,6 +1194,10 @@ internal object MediaUniverseClassifier {
             }
 
             "podcasts" -> {
+                // PODCASTS-02 : l'Afrique a sa rangée, et elle passe avant les autres.
+                if (containsAny(text, *africaRegionNeedles)) {
+                    categories.add(MissaCategory.PODCASTS_AFRICA)
+                }
                 if (containsAny(text, "actu", "info", "société", "societe", "débat", "histoire", "politique")) {
                     categories.add(MissaCategory.PODCASTS_SOCIETY)
                 }

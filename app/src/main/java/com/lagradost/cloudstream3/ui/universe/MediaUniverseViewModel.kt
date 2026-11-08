@@ -512,6 +512,9 @@ class MediaUniverseViewModel : ViewModel() {
         viewModelScope.launch {
             DirectKidsPlayerManager.refreshRemoteVideosIfNeeded()
         }
+        viewModelScope.launch {
+            DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded()
+        }
         hydrateDiskCacheAndLoad()
     }
 
@@ -669,6 +672,9 @@ class MediaUniverseViewModel : ViewModel() {
             }
             viewModelScope.launch {
                 DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
+            }
+            viewModelScope.launch {
+                DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded(force = true)
             }
         }
         val current = _catalogSnapshot.value ?: UnifiedCatalogSnapshot()
@@ -1093,6 +1099,8 @@ class MediaUniverseViewModel : ViewModel() {
                 .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
             "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
             "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
+            "podcasts" -> DirectPodcastPlayerManager.allPresetShows()
+                .map { it.providerName.ifBlank { DIRECT_PODCAST_API_NAME } }
             else -> emptyList()
         }
 
@@ -1174,6 +1182,65 @@ class MediaUniverseViewModel : ViewModel() {
                     val rowCap = when {
                         searchQuery.isNotBlank() -> 240
                         cat == MissaCategory.RADIO_ALL -> 180
+                        else -> 80
+                    }
+                    if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
+                        bucket.items.add(resp)
+                    }
+                }
+            }
+        }
+
+        // Dedicated Podcasts universe (PODCASTS-01): the free RSS catalogue is the source of the
+        // whole universe, and the rows are ordered Africa first (PODCASTS-02).
+        if (universeId == "podcasts") {
+            val podcastShows = DirectPodcastPlayerManager.allPresetShows().filter { show ->
+                normalizedSelectedSources.isEmpty() ||
+                    show.providerName.ifBlank { DIRECT_PODCAST_API_NAME }
+                        .lowercase(Locale.ROOT) in normalizedSelectedSources
+            }
+            val favShowIds = DirectPodcastPlayerManager.favoriteIds()
+            val favShows = podcastShows.filter { favShowIds.contains(it.id) }
+                .map { it.toSearchResponse() }
+            if (favShows.isNotEmpty()) {
+                val favCat = MissaCategory.FAVORITES
+                buckets[favCat.id] = BucketData(
+                    key = favCat.id,
+                    rowTitle = resolveStr(ctx, favCat.rowTitleRes, "Favorites"),
+                    chipLabel = resolveStr(ctx, favCat.chipLabelRes, "Favorites"),
+                    rank = favCat.editorialRank,
+                    items = favShows.toMutableList(),
+                    isHorizontal = true
+                )
+            }
+            // En recherche, on montre d'abord ce qui correspond vraiment, puis le reste.
+            val showsToRender = if (searchQuery.isNotBlank()) {
+                (DirectPodcastPlayerManager.localMatches(searchQuery) + podcastShows)
+                    .distinctBy { it.id }
+            } else {
+                podcastShows
+            }
+            for (show in showsToRender) {
+                val resp = show.toSearchResponse()
+                val cats = MediaUniverseClassifier.categorizeForUniverse(
+                    universeId = "podcasts",
+                    title = "${show.title} ${show.author}",
+                    sectionName = show.genre,
+                    tags = listOf("region:${show.region.name}", show.providerName),
+                    effectiveType = TvType.Podcast
+                )
+                for (cat in cats) {
+                    val bucket = buckets.getOrPut(cat.id) {
+                        BucketData(
+                            key = cat.id,
+                            rowTitle = resolveStr(ctx, cat.rowTitleRes, cat.id),
+                            chipLabel = resolveStr(ctx, cat.chipLabelRes, cat.id),
+                            rank = cat.editorialRank
+                        )
+                    }
+                    val rowCap = when {
+                        searchQuery.isNotBlank() -> 240
+                        cat == MissaCategory.PODCASTS_ALL -> 120
                         else -> 80
                     }
                     if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
@@ -1699,9 +1766,11 @@ class MediaUniverseViewModel : ViewModel() {
         val totalUniqueCount = allMatchingRows.flatMap { it.items }.distinctBy { it.url }.size
         // A YouTube-only universe (Enfants) must not flash an "empty universe" card while its
         // first catalogue is still downloading (KIDS-01).
-        val directProviderLoading = universeId == "kids" &&
-            visibleRows.isEmpty() &&
-            DirectKidsPlayerManager.isAwaitingFirstCatalogue()
+        val directProviderLoading = visibleRows.isEmpty() && when (universeId) {
+            "kids" -> DirectKidsPlayerManager.isAwaitingFirstCatalogue()
+            "podcasts" -> DirectPodcastPlayerManager.isAwaitingFirstCatalogue()
+            else -> false
+        }
         val effectiveLoading = (snapshot.isLoading || directProviderLoading) && visibleRows.isEmpty()
 
         // Compute explicit empty/error reason without ever showing a plugin-missing card when no plugin is installed
@@ -1759,6 +1828,31 @@ class MediaUniverseViewModel : ViewModel() {
     ): List<HeroBannerSlide> {
         val eyebrowText = resolveStr(ctx, definition.eyebrowRes, "")
         val liveBadge = resolveStr(ctx, R.string.universe_live_badge, "LIVE")
+
+        if (universeId == "podcasts" && entries.isEmpty()) {
+            val basePool = DirectPodcastPlayerManager.allPresetShows()
+            val presetPool = if (normalizedSelectedSources.isEmpty()) {
+                basePool
+            } else {
+                basePool.filter {
+                    it.providerName.ifBlank { DIRECT_PODCAST_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                }
+            }
+            return presetPool.take(5).map { show ->
+                HeroBannerSlide(
+                    card = show.toSearchResponse(),
+                    details = null,
+                    allSources = listOf(show.toSearchResponse()),
+                    eyebrow = eyebrowText,
+                    plot = show.genre.takeIf { it.isNotBlank() },
+                    yearText = null,
+                    durationText = null,
+                    scoreText = null,
+                    tags = listOf(show.author).filter { it.isNotBlank() },
+                    isDirectStream = true
+                )
+            }
+        }
 
         if (universeId == "radio" && entries.isEmpty()) {
             val basePool = DirectRadioPlayerManager.allPresetStations()

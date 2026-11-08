@@ -1192,6 +1192,7 @@
     <string name="universe_music_up_next">À suivre : %1$s</string>
     <string name="universe_music_playlist_header_playlist">Playlist • %1$s</string>
     <string name="universe_music_playlist_header_album">Album • %1$s</string>
+    <string name="universe_music_playlist_header_show">Émission • %1$s</string>
     <string name="universe_music_playlist_header_queue">Liste des clips en lecture</string>
     <string name="universe_music_playlist_subtitle_count">%1$d clips • Sélectionnez un titre pour le lancer en haut</string>
     <string name="universe_music_playlist_loading">Chargement de tous les clips de : %1$s…</string>
@@ -1235,6 +1236,8 @@
     <string name="missa_music_style_reggae">Reggae &amp; Dancehall</string>
     <string name="missa_music_style_jazz_chill">Jazz, Acoustique &amp; Classique</string>
 
+    <string name="missa_cat_podcasts_africa">Afrique &amp; Cameroun</string>
+    <string name="missa_chip_podcasts_africa">Afrique</string>
     <string name="missa_cat_podcasts_society">Actualités, Histoire &amp; Société</string>
     <string name="missa_chip_podcasts_society">Société</string>
     <string name="missa_cat_podcasts_culture">Culture, Sciences &amp; Humour</string>

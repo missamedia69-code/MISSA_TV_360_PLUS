@@ -261,6 +261,19 @@ data class DirectPodcastSearchResponse(
 ) : SearchResponse {
     val isShow: Boolean get() = itemKind == PodcastItemKind.SHOW
 
+    /** Redevient un épisode jouable : la carte ne porte que l'url du fichier audio. */
+    fun toEpisode(): PodcastEpisode = PodcastEpisode(
+        id = url,
+        showTitle = showTitle,
+        author = author,
+        title = episodeTitle.ifBlank { name },
+        audioUrl = url,
+        artworkUrl = artworkUrl,
+        durationSeconds = durationSeconds,
+        publishedAtMillis = publishedAtMillis,
+        description = description
+    )
+
     fun formattedDuration(): String? {
         if (isShow) {
             return if (episodeCount > 0) "ÉMISSION • $episodeCount" else "ÉMISSION"

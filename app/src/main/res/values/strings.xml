@@ -1236,6 +1236,7 @@
     <string name="universe_music_up_next">Up next: %1$s</string>
     <string name="universe_music_playlist_header_playlist">Playlist • %1$s</string>
     <string name="universe_music_playlist_header_album">Album • %1$s</string>
+    <string name="universe_music_playlist_header_show">Show • %1$s</string>
     <string name="universe_music_playlist_header_queue">Now Playing Queue</string>
     <string name="universe_music_playlist_subtitle_count">%1$d clips • Tap or select any track to play at the top</string>
     <string name="universe_music_playlist_loading">Loading all clips from %1$s…</string>
@@ -1279,6 +1280,8 @@
     <string name="missa_music_style_reggae">Reggae &amp; Dancehall</string>
     <string name="missa_music_style_jazz_chill">Jazz, Acoustic &amp; Classical</string>
 
+    <string name="missa_cat_podcasts_africa">Africa &amp; Cameroon</string>
+    <string name="missa_chip_podcasts_africa">Africa</string>
     <string name="missa_cat_podcasts_society">News, History &amp; Society</string>
     <string name="missa_chip_podcasts_society">Society</string>
     <string name="missa_cat_podcasts_culture">Culture, Science &amp; Comedy</string>

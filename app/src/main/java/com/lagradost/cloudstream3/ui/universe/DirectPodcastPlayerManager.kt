@@ -222,6 +222,13 @@ object DirectPodcastPlayerManager {
         MissaPodcastProviders.clearEpisodeCache()
     }
 
+    /**
+     * Vrai tant que le tout premier catalogue n'est pas encore arrivé : l'écran affiche alors
+     * un chargement au lieu d'une carte « univers vide » qui clignoterait au démarrage.
+     */
+    suspend fun isAwaitingFirstCatalogue(): Boolean =
+        cachedShows().isEmpty() && remoteRefreshInFlight
+
     /** Recherche locale, sans accents, sur le catalogue déjà connu. */
     fun localMatches(query: String): List<PodcastShowPreset> {
         if (query.trim().length < 2) return emptyList()

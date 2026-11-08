@@ -1698,6 +1698,8 @@ internal class UniverseScreenAdapter(
                     ctx.getString(R.string.universe_music_playlist_header_playlist, collectionName)
                 state.activeCollectionKind == MusicItemKind.ALBUM && collectionName != null ->
                     ctx.getString(R.string.universe_music_playlist_header_album, collectionName)
+                state.activeCollectionKind == MusicItemKind.PODCAST && collectionName != null ->
+                    ctx.getString(R.string.universe_music_playlist_header_show, collectionName)
                 else -> ctx.getString(R.string.universe_music_playlist_header_queue)
             }
 
