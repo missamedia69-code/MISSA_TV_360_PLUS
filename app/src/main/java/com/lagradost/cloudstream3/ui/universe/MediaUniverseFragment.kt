@@ -39,6 +39,7 @@ import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.mvvm.logError
+import com.lagradost.cloudstream3.ui.BaseAdapter
 import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
 import com.lagradost.cloudstream3.ui.result.FOCUS_SELF
 import com.lagradost.cloudstream3.ui.result.START_ACTION_RESUME_LATEST
@@ -74,13 +75,27 @@ import java.util.concurrent.ConcurrentHashMap
  * - NAV-02 / NAV-03 / NAV-05: Globals.isLayout(TV or EMULATOR), per-universe focus memory, quick-return mobile top shell.
  * - TRUST-01 / FLOW-01 / FLOW-02: Kids Parental PIN lock, 3-step Onboarding Wizard, Live channel favorites & zapping.
  */
+/**
+ * Ce qu'on retient de la dernière position connue dans un univers, pour que le sélecteur
+ * revienne sur l'élément réellement choisi (NAV-02).
+ *
+ * @param rowKey identifiant de la rangée (héros, « Reprendre », catégorie…)
+ * @param itemUrl url de la carte ouverte, utile si le contenu de la rangée a changé
+ * @param itemPosition rang de la carte dans le rail interne de la rangée
+ */
+private data class UniverseFocusMemory(
+    val rowKey: String,
+    val itemUrl: String = "",
+    val itemPosition: Int = -1
+)
+
 class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     companion object {
         const val ARG_UNIVERSE_ID = "universe_id"
         private const val MAX_INLINE_CATEGORY_PILLS = 8
         /** ANR-01: how long several invalidations are merged before the screen is projected. */
         private const val RENDER_COALESCE_MS = 70L
-        private val focusMemoryByUniverse = ConcurrentHashMap<String, String>()
+        private val focusMemoryByUniverse = ConcurrentHashMap<String, UniverseFocusMemory>()
 
         /** Contextual filter strip is hidden on Home and shown inside dedicated universes (Films, Series, …). */
         fun shouldShowContextualFilterBar(universeId: String): Boolean =
@@ -1032,15 +1047,62 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     /** Restores last focused row when returning to a previously visited universe on TV (NAV-02). */
     private fun restoreUniverseFocusIfNeeded(items: List<UniverseListItem>) {
         if (didRestoreUniverseFocus || !MissaUiFactory.isTvLayoutMode()) return
-        val rememberedRowId = focusMemoryByUniverse[universeId] ?: return
-        val idx = items.indexOfFirst { it.itemId == rememberedRowId }
-        if (idx >= 0) {
-            didRestoreUniverseFocus = true
-            masterRecycler?.post {
-                val vh = masterRecycler?.findViewHolderForAdapterPosition(idx)
-                vh?.itemView?.requestFocus()
+        val memory = focusMemoryByUniverse[universeId] ?: return
+        val idx = items.indexOfFirst { it.itemId == memory.rowKey }
+        if (idx < 0) return
+        val rv = masterRecycler ?: return
+        didRestoreUniverseFocus = true
+        rv.post {
+            // La rangée retenue est presque toujours hors écran au retour du lecteur : sans
+            // ce défilement son ViewHolder n'existe pas encore, requestFocus() n'aboutit
+            // pas, et le sélecteur repart tout en haut de l'écran, à côté du logo.
+            if (rv.findViewHolderForAdapterPosition(idx) == null) {
+                rv.scrollToPosition(idx)
+            }
+            rv.post {
+                val rowView = rv.findViewHolderForAdapterPosition(idx)?.itemView
+                if (rowView == null) {
+                    rv.requestFocus()
+                } else if (!focusRememberedCard(rowView, memory)) {
+                    rowView.requestFocus()
+                }
             }
         }
+    }
+
+    /**
+     * Replace le sélecteur sur la carte exacte qui avait été ouverte, et pas seulement sur
+     * la rangée qui la contient. Renvoie `false` si cette rangée n'a pas de rail interne :
+     * l'appelant se rabat alors sur la rangée entière.
+     */
+    private fun focusRememberedCard(rowView: View, memory: UniverseFocusMemory): Boolean {
+        if (memory.itemPosition < 0) return false
+        val childRv = rowView.findViewById<RecyclerView>(R.id.row_child_recycler)
+            ?: rowView.findViewById<RecyclerView>(R.id.search_grid_recycler)
+            ?: rowView.findViewById<RecyclerView>(R.id.resume_recycler)
+            ?: rowView.findViewById<RecyclerView>(R.id.hub_shortcuts_recycler)
+            ?: return false
+        val count = childRv.adapter?.itemCount ?: return false
+        if (count == 0) return false
+        var pos = memory.itemPosition
+        // Si la rangée a été réordonnée entre-temps, le rang ne veut plus rien dire :
+        // on retrouve la carte par son url.
+        if (memory.itemUrl.isNotBlank()) {
+            val current = (childRv.adapter as? BaseAdapter<*, *>)?.immutableCurrentList
+            val byUrl = current?.indexOfFirst { (it as? SearchResponse)?.url == memory.itemUrl } ?: -1
+            if (byUrl >= 0) pos = byUrl
+        }
+        pos = pos.coerceIn(0, count - 1)
+        if (childRv.findViewHolderForAdapterPosition(pos) == null) {
+            childRv.scrollToPosition(pos)
+        }
+        childRv.post {
+            val vh = childRv.findViewHolderForAdapterPosition(pos)
+            if (vh?.itemView?.requestFocus() != true) {
+                rowView.requestFocus()
+            }
+        }
+        return true
     }
 
     private fun submitInUniverseSearch(
@@ -1141,6 +1203,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     override fun onHeroPrimaryAction(slide: HeroBannerSlide) {
         val item = slide.card
+        // NAV-02 : on retient la position pour revenir sur l'élément choisi au retour.
+        focusMemoryByUniverse[universeId] = UniverseFocusMemory(rowKey = "hero_$universeId")
         if (item is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), item)
             return
@@ -1164,6 +1228,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     /** 1-tap details screen using remembered preferred source (HOME-12). */
     override fun onHeroDetailsAction(slide: HeroBannerSlide) {
         val item = slide.card
+        // NAV-02 : idem, l'écran doit se rouvrir sur la vignette choisie.
+        focusMemoryByUniverse[universeId] = UniverseFocusMemory(rowKey = "hero_$universeId")
         if (item is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), item)
             return
@@ -1671,7 +1737,19 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     override fun onContentItemFocused(rowKey: String) {
-        focusMemoryByUniverse[universeId] = rowKey
+        val previous = focusMemoryByUniverse[universeId]
+        // Une carte qui n'a fait que recevoir le focus ne doit pas effacer la position
+        // précise retenue au moment du clic sur la même rangée.
+        if (previous != null && previous.rowKey == rowKey) return
+        focusMemoryByUniverse[universeId] = UniverseFocusMemory(rowKey = rowKey)
+    }
+
+    override fun onContentItemActivated(rowKey: String, itemUrl: String, itemPosition: Int) {
+        focusMemoryByUniverse[universeId] = UniverseFocusMemory(
+            rowKey = rowKey,
+            itemUrl = itemUrl,
+            itemPosition = itemPosition
+        )
     }
 
     /** Moves TV D-pad focus into the contextual filter strip (in dedicated universes) or primary content (NAV-02). */
@@ -1693,10 +1771,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 )?.let { if (it.requestFocus()) return true }
             }
         }
-        val rememberedRowId = focusMemoryByUniverse[universeId]
-        if (rememberedRowId != null) {
+        val remembered = focusMemoryByUniverse[universeId]
+        if (remembered != null) {
             val adapterItems = screenAdapter?.currentList.orEmpty()
-            val idx = adapterItems.indexOfFirst { it.itemId == rememberedRowId }
+            val idx = adapterItems.indexOfFirst { it.itemId == remembered.rowKey }
             if (idx >= 0) {
                 val vh = rv.findViewHolderForAdapterPosition(idx)
                 if (vh?.itemView?.requestFocus() == true) return true

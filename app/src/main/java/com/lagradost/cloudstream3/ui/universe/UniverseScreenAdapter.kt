@@ -307,6 +307,13 @@ internal class UniverseScreenAdapter(
         fun onMusicClearUpcomingQueue()
         fun onMusicOpenFullscreenClip()
         fun onContentItemFocused(rowKey: String)
+
+        /**
+         * Un élément vient d'être ouvert (clic ou OK). On retient la rangée **et** la carte
+         * pour que le sélecteur revienne précisément dessus au retour du lecteur, au lieu
+         * de repartir en haut de l'écran, à côté du logo.
+         */
+        fun onContentItemActivated(rowKey: String, itemUrl: String, itemPosition: Int)
     }
 
     companion object {
@@ -1895,6 +1902,7 @@ internal class UniverseScreenAdapter(
                 if (cb.action == SEARCH_ACTION_FOCUSED) {
                     callbacks.onContentItemFocused(item.itemId)
                 } else {
+                    callbacks.onContentItemActivated(item.itemId, cb.card.url, cb.position)
                     callbacks.onCardClick(cb)
                 }
             }
@@ -1963,6 +1971,7 @@ internal class UniverseScreenAdapter(
                 if (cb.action == SEARCH_ACTION_FOCUSED) {
                     callbacks.onContentItemFocused(item.itemId)
                 } else {
+                    callbacks.onContentItemActivated(item.itemId, cb.card.url, cb.position)
                     callbacks.onCardClick(cb)
                 }
             }
