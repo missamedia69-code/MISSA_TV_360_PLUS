@@ -739,6 +739,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         masterRecycler?.apply {
             layoutManager = MissaVerticalUniverseLayoutManager(ctx)
+            // PERF : la liste occupe tout l'écran (match_parent), sa taille ne dépend pas du
+            // contenu -> pas de re-mesure du parent à chaque mise à jour. Quelques rangées
+            // gardées prêtes en cache : remonter/redescendre à la télécommande ne re-crée pas
+            // les rails ni ne recharge leurs images.
+            setHasFixedSize(true)
+            setItemViewCacheSize(if (isTv) 4 else 3)
             // Gentle fade item animator respecting system animation settings (HOME-02, THEME-08)
             itemAnimator = if (MissaUiFactory.areAnimationsEnabled(ctx)) {
                 DefaultItemAnimator().apply {

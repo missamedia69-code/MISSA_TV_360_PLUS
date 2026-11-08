@@ -12,6 +12,7 @@ import java.util.Locale
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.util.Log
 import android.view.Gravity
@@ -19,6 +20,7 @@ import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.CheckBox
@@ -217,6 +219,11 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         const val TAG = "MAINACT"
         const val ANIMATED_OUTLINE: Boolean = true
+
+        /** FOCUS-FIX : durée pendant laquelle la pastille cliquée garde le sélecteur vert. */
+        private const val CLICK_FOCUS_GUARD_MS = 1800L
+        private const val CLICK_FOCUS_MAX_RESTORES = 4
+        private val CLICK_FOCUS_CHECK_DELAYS_MS = longArrayOf(120L, 380L, 800L, 1400L)
         var lastError: String? = null
 
         /** Update lastError variable based on error file, to check if app crashed.
@@ -688,6 +695,207 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             PreferenceManager.getDefaultSharedPreferences(this)
                 .getString(getString(R.string.locale_key), null)
         }.getOrNull()
+
+    // ---------------------------------------------------------------------------------
+    // FOCUS-FIX (sélecteur vert) : quand on clique une pastille à la télécommande, le
+    // contenu se re-dessine (navigation, nouvelle catégorie, DiffUtil...). Si la vue qui
+    // avait le focus est détachée ou recyclée pendant ce rendu, Android rend le focus au
+    // PREMIER élément focusable de la fenêtre, c'est-à-dire la pastille « Accueil » collée
+    // au logo MISSA TV : le sélecteur vert « revient au logo ». Un fragment qui restaure
+    // son propre focus (NAV-02) peut aussi le voler juste après le clic.
+    // On mémorise donc la pastille cliquée et, tant que l'utilisateur n'a pas bougé la
+    // croix directionnelle, on lui rend le focus si quelqu'un d'autre le prend.
+    // ---------------------------------------------------------------------------------
+    private var clickFocusAnchor: WeakReference<View>? = null
+    private var clickFocusAnchorParent: WeakReference<ViewGroup>? = null
+    private var clickFocusAnchorLabel: String? = null
+    private var clickFocusAnchorUptime: Long = 0L
+    private var clickFocusRestoreCount: Int = 0
+    private val clickFocusCheckRunnable = Runnable { enforceClickFocusAnchor(null) }
+
+    private fun isPillFocusAnchorCandidate(view: View?): Boolean {
+        if (view !is MaterialButton) return false
+        if (view.tag == "missa_pill") return true
+        return (view.parent as? View)?.id == R.id.missa_utility_actions
+    }
+
+    private fun armClickFocusGuard(focused: View?) {
+        if (!isPillFocusAnchorCandidate(focused)) {
+            clearClickFocusGuard()
+            return
+        }
+        val pill = focused as MaterialButton
+        clickFocusAnchor = WeakReference(pill)
+        clickFocusAnchorParent = WeakReference(pill.parent as? ViewGroup)
+        clickFocusAnchorLabel = pill.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: pill.contentDescription?.toString()
+        clickFocusAnchorUptime = SystemClock.uptimeMillis()
+        clickFocusRestoreCount = 0
+        val root = binding?.root ?: return
+        root.removeCallbacks(clickFocusCheckRunnable)
+        // Le rendu est asynchrone (coalescence 70 ms + projection + DiffUtil + transition de
+        // fragment) : on vérifie à plusieurs reprises pendant la fenêtre de garde.
+        for (delay in CLICK_FOCUS_CHECK_DELAYS_MS) {
+            root.postDelayed(clickFocusCheckRunnable, delay)
+        }
+    }
+
+    private fun clearClickFocusGuard() {
+        clickFocusAnchor = null
+        clickFocusAnchorParent = null
+        clickFocusAnchorLabel = null
+        binding?.root?.removeCallbacks(clickFocusCheckRunnable)
+    }
+
+    private fun isUsableFocusTarget(view: View?): Boolean =
+        view != null && view.isAttachedToWindow && view.isShown && view.isFocusable && view.isEnabled
+
+    /** Retrouve la pastille cliquée, même si RecyclerView l'a remplacée par un nouveau ViewHolder. */
+    private fun resolveClickFocusAnchor(): View? {
+        val direct = clickFocusAnchor?.get()
+        if (isUsableFocusTarget(direct)) return direct
+        val parent = clickFocusAnchorParent?.get() ?: return null
+        if (!parent.isAttachedToWindow || !parent.isShown) return null
+        val label = clickFocusAnchorLabel ?: return null
+        return parent.children.firstOrNull { child ->
+            child is MaterialButton && isUsableFocusTarget(child) &&
+                (child.text?.toString() == label || child.contentDescription?.toString() == label)
+        }
+    }
+
+    private fun enforceClickFocusAnchor(newFocus: View?) {
+        if (clickFocusAnchor == null) return
+        val elapsed = SystemClock.uptimeMillis() - clickFocusAnchorUptime
+        if (elapsed > CLICK_FOCUS_GUARD_MS || clickFocusRestoreCount >= CLICK_FOCUS_MAX_RESTORES) {
+            clearClickFocusGuard()
+            return
+        }
+        val anchor = resolveClickFocusAnchor() ?: return
+        val focusedNow = newFocus ?: currentFocus
+        if (focusedNow === anchor) return
+        clickFocusRestoreCount++
+        // Mise à jour de la référence si le ViewHolder a changé.
+        clickFocusAnchor = WeakReference(anchor)
+        anchor.post {
+            if (clickFocusAnchor != null && !anchor.isFocused && isUsableFocusTarget(anchor)) {
+                anchor.requestFocus()
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------------
+    // FOCUS-FIX 2 : saut involontaire vers le haut. Quand la vignette focalisée est retirée
+    // de l'écran pendant un rafraîchissement (chargement d'une extension, état radio/musique,
+    // rangée re-rendue), Android pose le sélecteur sur la première pastille du ruban, contre le
+    // logo. On retient donc en continu où était le sélecteur dans le contenu, et si ce saut se
+    // produit sans que l'utilisateur l'ait demandé, on le remet au même endroit.
+    // ---------------------------------------------------------------------------------
+    private var lastContentFocusRail: WeakReference<RecyclerView>? = null
+    private var lastContentFocusPosition: Int = RecyclerView.NO_POSITION
+    private var lastContentFocusDestId: Int? = null
+
+    private fun currentNavDestinationId(): Int? =
+        (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment)
+            ?.navController?.currentDestination?.id
+
+    private fun rememberContentFocus(view: View) {
+        val navHost = binding?.navHostFragment ?: return
+        if (!isViewDescendantOf(view, navHost)) return
+        lastContentFocusDestId = currentNavDestinationId()
+        var child: View = view
+        var parent = view.parent
+        while (parent is View) {
+            if (parent is RecyclerView) {
+                val pos = parent.getChildAdapterPosition(child)
+                if (pos != RecyclerView.NO_POSITION) {
+                    lastContentFocusRail = WeakReference(parent)
+                    lastContentFocusPosition = pos
+                }
+                return
+            }
+            if (parent === navHost) break
+            child = parent
+            parent = parent.parent
+        }
+        lastContentFocusRail = null
+        lastContentFocusPosition = RecyclerView.NO_POSITION
+    }
+
+    private fun firstFocusableIn(view: View): View? {
+        if (view.isFocusable && view.isShown) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                firstFocusableIn(view.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun recoverInvoluntaryFocusJump(oldFocus: View?, newFocus: View?): Boolean {
+        if (oldFocus == null || newFocus == null) return false
+        // Un déplacement normal (flèche, retour) laisse l'ancienne vue attachée.
+        if (oldFocus.isAttachedToWindow) return false
+        if (clickFocusAnchor != null) return false
+        val topShell = binding?.missaTopShell ?: return false
+        if (!isViewDescendantOf(newFocus, topShell)) return false
+        // On a changé d'écran (ouverture d'une fiche, du lecteur...) : rien à restaurer.
+        val destId = currentNavDestinationId()
+        if (destId == null || destId != lastContentFocusDestId) return false
+        newFocus.post { restoreContentFocusAfterJump(destId, attempt = 0) }
+        return true
+    }
+
+    private fun restoreContentFocusAfterJump(destId: Int, attempt: Int) {
+        if (currentNavDestinationId() != destId) return
+        // L'utilisateur a déjà bougé depuis la pastille : on ne lui reprend pas la main.
+        val focused = currentFocus
+        val topShell = binding?.missaTopShell
+        if (focused != null && topShell != null && !isViewDescendantOf(focused, topShell)) return
+        val rail = lastContentFocusRail?.get()
+        if (rail != null && rail.isAttachedToWindow && rail.isShown) {
+            val count = rail.adapter?.itemCount ?: 0
+            if (count > 0) {
+                val pos = lastContentFocusPosition.coerceIn(0, count - 1)
+                val target = rail.findViewHolderForAdapterPosition(pos)?.itemView
+                if (target != null) {
+                    if (firstFocusableIn(target)?.requestFocus() == true) return
+                } else if (attempt < 3) {
+                    rail.scrollToPosition(pos)
+                    rail.post { restoreContentFocusAfterJump(destId, attempt + 1) }
+                    return
+                }
+            }
+        }
+        // La rangée elle-même a été remplacée : on laisse l'univers reposer le sélecteur
+        // sur la rangée mémorisée (NAV-02).
+        val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+        when (val fragment = navHost?.childFragmentManager?.primaryNavigationFragment) {
+            is MediaUniverseFragment -> fragment.requestPrimaryContentFocus()
+            is RetroGamesFragment -> fragment.requestPrimaryContentFocus()
+        }
+    }
+
+    private val clickFocusGuardListener = ViewTreeObserver.OnGlobalFocusChangeListener { oldFocus, newFocus ->
+        if (newFocus != null) rememberContentFocus(newFocus)
+        if (!recoverInvoluntaryFocusJump(oldFocus, newFocus)) {
+            enforceClickFocusAnchor(newFocus)
+        }
+    }
+
+    /**
+     * Le focus a disparu (vue détachée/masquée) : au lieu de laisser Android le rendre au
+     * premier élément de l'écran (la pastille à côté du logo), on le rend à la pastille cliquée,
+     * au dernier élément focalisé encore visible, ou à la pastille de l'univers actif.
+     */
+    private fun recoverLostTvFocus(): Boolean {
+        val focused = currentFocus
+        if (focused != null && focused.isAttachedToWindow && focused.isShown) return false
+        val candidate = resolveClickFocusAnchor()
+            ?: TvFocus.lastFocus.get()?.takeIf { isUsableFocusTarget(it) }
+            ?: activeTopUniverseButton?.takeIf { isUsableFocusTarget(it) }
+            ?: return false
+        return candidate.requestFocus()
+    }
 
     /**
      * AUDIT H3bis: scrolls the strip so [view] sits in the middle of the visible window.
@@ -1180,8 +1388,34 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
-        CommonActivity.dispatchKeyEvent(this, event) ?: super.dispatchKeyEvent(event)
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && isLayout(TV or EMULATOR)) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER,
+                KeyEvent.KEYCODE_ENTER,
+                KeyEvent.KEYCODE_NUMPAD_ENTER,
+                KeyEvent.KEYCODE_BUTTON_A -> {
+                    if (event.repeatCount == 0) {
+                        recoverLostTvFocus()
+                        armClickFocusGuard(currentFocus)
+                    }
+                }
+
+                KeyEvent.KEYCODE_DPAD_UP,
+                KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_DPAD_LEFT,
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    // L'utilisateur reprend la main : on repart de la pastille cliquée si le
+                    // focus s'est perdu, puis on arrête de « garder » le focus.
+                    recoverLostTvFocus()
+                    clearClickFocusGuard()
+                }
+
+                KeyEvent.KEYCODE_BACK -> clearClickFocusGuard()
+            }
+        }
+        return CommonActivity.dispatchKeyEvent(this, event) ?: super.dispatchKeyEvent(event)
+    }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_VOICE_ASSIST || keyCode == KeyEvent.KEYCODE_SEARCH) {
@@ -1479,6 +1713,18 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         var focusOutline: WeakReference<View> = WeakReference(null)
         var lastFocus: WeakReference<View> = WeakReference(null)
+        /**
+         * PERF : une seule vérification différée à la fois. Avant, chaque passe de layout de la
+         * vue focalisée (ou de son rail) empilait un nouveau postDelayed : en défilant un rail on
+         * en accumulait des dizaines, toutes exécutées sur le thread principal.
+         */
+        private val delayedLayoutRefresh = Runnable {
+            updateFocusView(lastFocus.get(), same = false)
+        }
+        private val delayedPostCheck = Runnable {
+            updateFocusView(lastFocus.get(), same = true)
+        }
+
         private val layoutListener: View.OnLayoutChangeListener =
             View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
                 // shitty fix for layouts
@@ -1486,11 +1732,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     updateFocusView(
                         this, same = true
                     )
-                    postDelayed({
-                        updateFocusView(
-                            lastFocus.get(), same = false
-                        )
-                    }, 300)
+                    val outline = focusOutline.get() ?: return@apply
+                    outline.removeCallbacks(delayedLayoutRefresh)
+                    outline.postDelayed(delayedLayoutRefresh, 300)
                 }
             }
         private val attachListener: View.OnAttachStateChangeListener =
@@ -1571,7 +1815,12 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             return false
         }
 
+        /** PERF : le style (couleur/épaisseur/rayon) ne change que si la cible change. */
+        private var lastStyledTarget: WeakReference<View> = WeakReference(null)
+
         private fun applyDynamicFocusOutlineStyle(focusOutline: View, targetView: View) {
+            if (lastStyledTarget.get() === targetView && focusOutline.background != null) return
+            lastStyledTarget = WeakReference(targetView)
             if (focusOutline is ImageView && focusOutline.drawable != null) {
                 focusOutline.setImageDrawable(null)
             }
@@ -1753,9 +2002,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
                 // post check
                 if (!same) {
-                    newFocus.postDelayed({
-                        updateFocusView(lastFocus.get(), same = true)
-                    }, 200)
+                    focusOutline.removeCallbacks(delayedPostCheck)
+                    focusOutline.postDelayed(delayedPostCheck, 200)
                 }
 
                 /*
@@ -1851,6 +2099,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     newLocalBinding.root.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
                         TvFocus.updateFocusView(newFocus)
                     }
+                    newLocalBinding.root.viewTreeObserver.addOnGlobalFocusChangeListener(clickFocusGuardListener)
                 } else {
                     newLocalBinding.focusOutline.isVisible = false
                 }

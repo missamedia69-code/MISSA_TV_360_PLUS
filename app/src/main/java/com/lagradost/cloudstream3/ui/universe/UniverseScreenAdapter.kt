@@ -60,6 +60,19 @@ internal class CategoryFilterPillAdapter(
     private val onPillClicked: (CategoryFilterPillUi) -> Unit
 ) : ListAdapter<CategoryFilterPillUi, CategoryFilterPillAdapter.PillHolder>(Diff) {
 
+    init {
+        // FOCUS-FIX : des identifiants stables permettent à RecyclerView de garder le focus
+        // sur LA MÊME pastille quand la liste est re-soumise après un clic (au lieu de le
+        // perdre, ce qui renvoyait le sélecteur vert sur la pastille à côté du logo).
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        val item = getItem(position)
+        val base = (item.key ?: "__all__").hashCode().toLong()
+        return if (item.isOverflowMore) base xor 0x4D4F5245L else base
+    }
+
     object Diff : DiffUtil.ItemCallback<CategoryFilterPillUi>() {
         override fun areItemsTheSame(oldItem: CategoryFilterPillUi, newItem: CategoryFilterPillUi): Boolean =
             oldItem.key == newItem.key && oldItem.isOverflowMore == newItem.isOverflowMore
@@ -1869,6 +1882,8 @@ internal class UniverseScreenAdapter(
         private val countView: TextView = itemView.findViewById(R.id.row_category_count)
         private val seeAllBtn: MaterialButton = itemView.findViewById(R.id.row_see_all_button)
         private val childRecycler: RecyclerView = itemView.findViewById(R.id.row_child_recycler)
+        /** PERF/FOCUS : clé de la rangée actuellement affichée par ce ViewHolder. */
+        private var boundRowKey: String? = null
 
         init {
             childRecycler.setRecycledViewPool(HomeChildItemAdapter.sharedPool)
@@ -1878,6 +1893,9 @@ internal class UniverseScreenAdapter(
                 nextRight = FOCUS_SELF,
                 endEscapeTarget = { seeAllBtn.takeIf { it.isShown && it.isFocusable } }
             )
+            // PERF : prépare les premières vignettes d'un rail pendant le défilement vertical
+            // (RecyclerView imbriqué) au lieu de toutes les créer d'un coup à l'apparition.
+            (childRecycler.layoutManager as? LinearLayoutManager)?.initialPrefetchItemCount = 4
             seeAllBtn.nextFocusRightId = seeAllBtn.id
             seeAllBtn.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
@@ -1922,6 +1940,8 @@ internal class UniverseScreenAdapter(
             }
 
             val existing = childRecycler.adapter as? HomeChildItemAdapter
+            val sameRow = boundRowKey == item.itemId
+            boundRowKey = item.itemId
             if (existing == null) {
                 childRecycler.adapter = HomeChildItemAdapter(
                     id = item.itemId.hashCode() + adapterPosition,
@@ -1931,9 +1951,21 @@ internal class UniverseScreenAdapter(
                     submitList(railItems)
                 }
             } else {
-                existing.isHorizontal = row.isHorizontalCards
                 existing.clickCallback = handleClick
-                existing.submitIncomparableList(railItems)
+                if (sameRow && existing.isHorizontal == row.isHorizontalCards) {
+                    // PERF + FOCUS-FIX : même rangée re-rendue (chargement d'une extension,
+                    // état radio/musique, filtre...). Avant, toutes les vignettes étaient
+                    // détruites puis recréées : images rechargées, saccades, et la vignette qui
+                    // avait le sélecteur vert disparaissait -> Android le renvoyait en haut,
+                    // sur la pastille à côté du logo. Le DiffUtil ne touche que ce qui a changé.
+                    existing.submitList(railItems)
+                } else {
+                    // ViewHolder recyclé pour une autre rangée : remplacement complet, sans
+                    // animation parasite, et retour au début du rail.
+                    existing.isHorizontal = row.isHorizontalCards
+                    existing.submitIncomparableList(railItems)
+                    childRecycler.scrollToPosition(0)
+                }
             }
         }
 
@@ -1955,6 +1987,7 @@ internal class UniverseScreenAdapter(
         private val titleView: TextView = itemView.findViewById(R.id.search_grid_title)
         private val countView: TextView = itemView.findViewById(R.id.search_grid_count)
         private val gridRecycler: RecyclerView = itemView.findViewById(R.id.search_grid_recycler)
+        private var boundRowKey: String? = null
 
         fun bind(item: UniverseListItem.SearchGrid) {
             val ctx = itemView.context
@@ -1991,6 +2024,8 @@ internal class UniverseScreenAdapter(
             }
 
             val existing = gridRecycler.adapter as? HomeChildItemAdapter
+            val sameRow = boundRowKey == item.itemId
+            boundRowKey = item.itemId
             if (existing == null) {
                 gridRecycler.adapter = HomeChildItemAdapter(
                     id = item.itemId.hashCode(),
@@ -2000,9 +2035,14 @@ internal class UniverseScreenAdapter(
                     submitList(row.items)
                 }
             } else {
-                existing.isHorizontal = row.isHorizontalCards
                 existing.clickCallback = handleClick
-                existing.submitIncomparableList(row.items)
+                if (sameRow && existing.isHorizontal == row.isHorizontalCards) {
+                    // PERF + FOCUS-FIX : voir CategoryRowHolder.
+                    existing.submitList(row.items)
+                } else {
+                    existing.isHorizontal = row.isHorizontalCards
+                    existing.submitIncomparableList(row.items)
+                }
             }
         }
 
