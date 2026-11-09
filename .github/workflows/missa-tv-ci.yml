@@ -29,6 +29,9 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Check the games catalogue (game/catalogue.json)
+        run: python3 game/outils/catalogue.py --verifier
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
