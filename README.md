@@ -66,4 +66,4 @@ MISSA TV 360 PLUS est distribué sous licence **GNU General Public License v3.0 
 - Base moteur & système d'extensions : [reCloudStream / CloudStream](https://github.com/recloudstream/cloudstream) (GPL-3.0)
 - Pont d'émulation Libretro Kotlin Multiplatform : [kotlinds / libretro-kmp](https://github.com/kotlinds/libretro-kmp) & cœurs officiels Libretro (SameBoy, FCEUmm, Snes9x, mGBA, Genesis Plus GX)
 - Lecture audio & session média : [AndroidX Media3](https://developer.android.com/media/media3) (Apache-2.0)
-- Jeux homebrew du catalogue libre (12 jeux Game Boy, NES, GBA et Mega Drive sous GPL, Zlib ou CC0) : hébergés dans [`jeux/`](jeux/README.md) avec leurs licences, sources et crédits
+- Jeux homebrew du catalogue libre : *µCity* (AntonioND, GPL-3.0), *Big2Small* (mdsteele, GPL-3.0), *RoboRun NES* (heaven-hm, GPL-3.0), *Libbet & the Magic Floor* & *240p Test Suite Mini* (Damian Yerrick / pinobatch, Zlib/GPL)
