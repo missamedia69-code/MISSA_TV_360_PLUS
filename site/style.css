@@ -135,6 +135,17 @@ h3 { margin: 0 0 10px; font-size: 1.15rem; }
 .dot.amber { background: var(--yellow); }
 .dot.green { background: var(--green); }
 .dot.blue { background: var(--blue); }
+.dot.violet { background: #9b6cf0; }
+.universes li.soon { border-style: dashed; color: var(--text-soft); }
+
+.shots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+@media (max-width: 860px) { .shots { grid-template-columns: 1fr; } }
+.shots figure { margin: 0; }
+.shots img {
+  display: block; width: 100%; height: auto; border-radius: 14px;
+  border: 1px solid var(--stroke); box-shadow: 0 18px 44px rgba(0, 0, 0, .4);
+}
+.shots figcaption { margin-top: 12px; color: var(--text-soft); font-size: .95rem; }
 
 .steps ol { margin: 0; padding-left: 22px; color: var(--text-soft); }
 .steps li { margin: 0 0 10px; }
