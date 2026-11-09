@@ -111,7 +111,10 @@ android {
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.lagradost.cloudstream3"
+        // Identifiant propre à MISSA TV : l'appli s'installe à côté de CloudStream sans conflit.
+        // Le namespace (plus bas) reste com.lagradost.cloudstream3 : c'est lui que les
+        // extensions CloudStream utilisent, elles fonctionnent donc sans changement.
+        applicationId = "com.missatv.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = libs.versions.versionCode.get().toInt()

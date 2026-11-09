@@ -41,7 +41,7 @@ object InAppUpdater {
     private const val GITHUB_USER_NAME = "missamedia69-code"
     private const val GITHUB_REPO = "MISSA_TV_360_PLUS"
 
-    private const val PRERELEASE_PACKAGE_NAME = "com.lagradost.cloudstream3.prerelease"
+    private const val PRERELEASE_PACKAGE_NAME = "com.missatv.app.prerelease"
     private const val LOG_TAG = "InAppUpdater"
 
     @Serializable
