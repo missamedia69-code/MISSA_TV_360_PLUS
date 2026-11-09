@@ -70,6 +70,17 @@ internal object MissaRadioProviders {
     private fun brandFavicon(domain: String): String =
         "https://www.google.com/s2/favicons?domain=$domain&sz=128"
 
+    /*
+     * Vrais logos des stations intégrées (vérifiés le 2026-11-09). Chaque station a un logo
+     * principal en haute définition et, quand c'est possible, un second logo hébergé
+     * ailleurs : si le premier ne répond plus (site refait, limite de débit Wikimedia),
+     * la carte essaie le second avant d'afficher les initiales de la station.
+     */
+    private const val WIKIMEDIA_THUMBS = "https://upload.wikimedia.org/wikipedia/commons/thumb"
+    private const val RADIO_FRANCE_FAVICONS = "https://www.radiofrance.fr/external/favicons"
+    private const val RADIO_FRANCE_IMAGES = "https://www.radiofrance.fr/pikapi/images"
+    private const val FIP_LOGO = "https://charte.radiofrance.fr/images/fip/fip-avatar.png"
+
     /**
      * Instant zero-latency curated direct streams across Africa, Cameroon, Radio France/FIP,
      * Radio Swiss, SomaFM and Laut.fm — works offline / before remote providers finish loading.
@@ -82,7 +93,8 @@ internal object MissaRadioProviders {
             genre = "Afrique • Actualités, Débats & Magazines",
             country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://rfiafrique64k.ice.infomaniak.ch/rfiafrique-64.mp3",
-            logoUrl = brandFavicon("rfi.fr"),
+            logoUrl = "$WIKIMEDIA_THUMBS/d/dd/RFI_logo_2013.svg/500px-RFI_logo_2013.svg.png",
+            logoFallbackUrls = listOf(brandFavicon("rfi.fr")),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://rfiafrique96k.ice.infomaniak.ch/rfiafrique-96k.mp3")
         ),
@@ -92,7 +104,8 @@ internal object MissaRadioProviders {
             genre = "Panafricaine • Info, Culture, Makossa & Afrobeats",
             country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://african1paris.ice.infomaniak.ch/african1paris-128.mp3",
-            logoUrl = brandFavicon("africaradio.com"),
+            logoUrl = "https://images.lesindesradios.fr/fit-in/300x2000/filters:format(webp)/filters:quality(100)/radios/africaradio/images/logo_RvDT2jBisJ.png",
+            logoFallbackUrls = listOf(brandFavicon("africaradio.com")),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -101,7 +114,6 @@ internal object MissaRadioProviders {
             genre = "Cameroun • Info, Culture, Makossa & Bikutsi",
             country = "CM",
             streamUrl = "https://listen.radioking.com/radio/10903/stream/22164",
-            logoUrl = brandFavicon("radiobalafon.net"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -110,7 +122,8 @@ internal object MissaRadioProviders {
             genre = "Afrique & Monde • News 24/7",
             country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
-            logoUrl = brandFavicon("bbc.com"),
+            logoUrl = "$WIKIMEDIA_THUMBS/2/2c/BBC_World_Service_2022_%28Boxed%29.svg/500px-BBC_World_Service_2022_%28Boxed%29.svg.png",
+            logoFallbackUrls = listOf(brandFavicon("bbc.com")),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -119,7 +132,8 @@ internal object MissaRadioProviders {
             genre = "Afrique Francophone • Info & Direct",
             country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://stream.live.vc.bbcmedia.co.uk/bbc_afrique_radio",
-            logoUrl = brandFavicon("bbc.com"),
+            logoUrl = "https://static.files.bbci.co.uk/ws/simorgh-assets/public/afrique/images/icons/icon-192x192.png",
+            logoFallbackUrls = listOf("$WIKIMEDIA_THUMBS/2/2c/BBC_World_Service_2022_%28Boxed%29.svg/500px-BBC_World_Service_2022_%28Boxed%29.svg.png"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -128,7 +142,8 @@ internal object MissaRadioProviders {
             genre = "Musiques d'Afrique, Monde & Francophonie",
             country = RadioOrigin.REGION_AFRICA,
             streamUrl = "https://rfimusiquemonde64k.ice.infomaniak.ch/rfimusiquemonde-64.mp3",
-            logoUrl = brandFavicon("musique.rfi.fr"),
+            logoUrl = "https://musique.rfi.fr/mstile-144x144.png",
+            logoFallbackUrls = listOf("$WIKIMEDIA_THUMBS/d/dd/RFI_logo_2013.svg/500px-RFI_logo_2013.svg.png"),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -137,7 +152,8 @@ internal object MissaRadioProviders {
             genre = "International & Francophonie • Info 24/7",
             country = "FR",
             streamUrl = "https://rfimonde64k.ice.infomaniak.ch/rfimonde-64.mp3",
-            logoUrl = brandFavicon("rfi.fr"),
+            logoUrl = "$WIKIMEDIA_THUMBS/d/dd/RFI_logo_2013.svg/500px-RFI_logo_2013.svg.png",
+            logoFallbackUrls = listOf(brandFavicon("rfi.fr")),
             providerName = PROVIDER_MISSA_DIRECT
         ),
         RadioStationPreset(
@@ -157,7 +173,8 @@ internal object MissaRadioProviders {
             genre = "Afrobeats, Hip-Hop, Rap & R&B",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/mouv-midfi.mp3",
-            logoUrl = brandFavicon("radiofrance.fr"),
+            logoUrl = "https://charte.radiofrance.fr/images/mouv/mouv-avatar.png",
+            logoFallbackUrls = listOf("$RADIO_FRANCE_FAVICONS/mouv/favicon.png"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/mouv-hifi.aac")
         ),
@@ -167,7 +184,8 @@ internal object MissaRadioProviders {
             genre = "DJ Mix, Hip-Hop, Afrobeats & Club",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/mouv100p100mix-midfi.mp3",
-            logoUrl = brandFavicon("radiofrance.fr"),
+            logoUrl = "https://charte.radiofrance.fr/images/mouv/mouv-avatar.png",
+            logoFallbackUrls = listOf("$RADIO_FRANCE_FAVICONS/mouv/favicon.png"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/mouv100p100mix-hifi.aac")
         ),
@@ -177,7 +195,7 @@ internal object MissaRadioProviders {
             genre = "Actualités en continu 24/7",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3",
-            logoUrl = brandFavicon("franceinfo.fr"),
+            logoUrl = "$RADIO_FRANCE_FAVICONS/franceinfo/favicon.png",
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/franceinfo-hifi.aac")
         ),
@@ -187,7 +205,8 @@ internal object MissaRadioProviders {
             genre = "Généraliste, Débats & Culture",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/franceinter-midfi.mp3",
-            logoUrl = brandFavicon("radiofrance.fr"),
+            logoUrl = "$WIKIMEDIA_THUMBS/a/a0/France_Inter_logo_2021.svg/500px-France_Inter_logo_2021.svg.png",
+            logoFallbackUrls = listOf("$RADIO_FRANCE_FAVICONS/franceinter/favicon.png"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/franceinter-hifi.aac")
         ),
@@ -197,7 +216,8 @@ internal object MissaRadioProviders {
             genre = "Savoirs, Histoire, Documentaires & Idées",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/franceculture-midfi.mp3",
-            logoUrl = brandFavicon("radiofrance.fr"),
+            logoUrl = "$WIKIMEDIA_THUMBS/d/d6/France_Culture_logo_2021.svg/500px-France_Culture_logo_2021.svg.png",
+            logoFallbackUrls = listOf("$RADIO_FRANCE_FAVICONS/franceculture/favicon.png"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/franceculture-hifi.aac")
         ),
@@ -207,7 +227,8 @@ internal object MissaRadioProviders {
             genre = "Classique, Symphonique & Concerts",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/francemusique-midfi.mp3",
-            logoUrl = brandFavicon("radiofrance.fr"),
+            logoUrl = "$WIKIMEDIA_THUMBS/6/6c/France_Musique_logo_2021.svg/500px-France_Musique_logo_2021.svg.png",
+            logoFallbackUrls = listOf("$RADIO_FRANCE_FAVICONS/francemusique/favicon.png"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/francemusique-hifi.aac")
         ),
@@ -217,7 +238,8 @@ internal object MissaRadioProviders {
             genre = "Musique éclectique, Jazz, Soul & Monde",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fip-midfi.mp3",
-            logoUrl = brandFavicon("fip.fr"),
+            logoUrl = "https://charte.radiofrance.fr/images/fip/fip-avatar.png",
+            logoFallbackUrls = listOf("$RADIO_FRANCE_FAVICONS/fip/favicon.png"),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fip-hifi.aac")
         ),
@@ -227,7 +249,8 @@ internal object MissaRadioProviders {
             genre = "Soul, Funk, Afrobeat, R&B & Groove",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipgroove-midfi.mp3",
-            logoUrl = brandFavicon("fip.fr"),
+            logoUrl = "$RADIO_FRANCE_IMAGES/95cf76c3-26bc-404e-be1c-b81666188c3f/200x200",
+            logoFallbackUrls = listOf(FIP_LOGO),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipgroove-hifi.aac")
         ),
@@ -237,7 +260,8 @@ internal object MissaRadioProviders {
             genre = "Jazz Contemporain, Légendes & Swing",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipjazz-midfi.mp3",
-            logoUrl = brandFavicon("fip.fr"),
+            logoUrl = "$RADIO_FRANCE_IMAGES/2de59c50-9912-401e-9d1f-95a2f0b66567/200x200",
+            logoFallbackUrls = listOf(FIP_LOGO),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipjazz-hifi.aac")
         ),
@@ -247,7 +271,8 @@ internal object MissaRadioProviders {
             genre = "Reggae, Roots, Dub & Ska",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipreggae-midfi.mp3",
-            logoUrl = brandFavicon("fip.fr"),
+            logoUrl = "$RADIO_FRANCE_IMAGES/a242c7c5-bf1e-468b-9cb9-2154550f8be7/200x200",
+            logoFallbackUrls = listOf(FIP_LOGO),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipreggae-hifi.aac")
         ),
@@ -257,7 +282,8 @@ internal object MissaRadioProviders {
             genre = "Musiques du Monde, Afrique, Brésil & Caraïbes",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipworld-midfi.mp3",
-            logoUrl = brandFavicon("fip.fr"),
+            logoUrl = "$RADIO_FRANCE_IMAGES/524fabe1-7645-4847-aa93-932d9835de67/200x200",
+            logoFallbackUrls = listOf(FIP_LOGO),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipworld-hifi.aac")
         ),
@@ -267,7 +293,8 @@ internal object MissaRadioProviders {
             genre = "Électro, House, Lounge & Chill",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fipelectro-midfi.mp3",
-            logoUrl = brandFavicon("fip.fr"),
+            logoUrl = "$RADIO_FRANCE_IMAGES/bf85964f-395a-4e6a-beb4-6cc0590d20bb/200x200",
+            logoFallbackUrls = listOf(FIP_LOGO),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fipelectro-hifi.aac")
         ),
@@ -277,7 +304,8 @@ internal object MissaRadioProviders {
             genre = "Hip-Hop, Rap, Beats & Soul",
             country = "FR",
             streamUrl = "https://icecast.radiofrance.fr/fiphiphop-midfi.mp3",
-            logoUrl = brandFavicon("fip.fr"),
+            logoUrl = "$RADIO_FRANCE_IMAGES/5c52d959-7ea2-4c9e-b298-5aab893a9b86/200x200",
+            logoFallbackUrls = listOf(FIP_LOGO),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://icecast.radiofrance.fr/fiphiphop-hifi.aac")
         ),
@@ -289,7 +317,8 @@ internal object MissaRadioProviders {
             genre = "Jazz, Soul & Blues",
             country = "CH",
             streamUrl = "https://stream.srg-ssr.ch/m/rsj/mp3_128",
-            logoUrl = brandFavicon("radioswissjazz.ch"),
+            logoUrl = "https://www.radioswissjazz.ch/social-media/rsj-web.png",
+            logoFallbackUrls = listOf(brandFavicon("radioswissjazz.ch")),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://stream.srg-ssr.ch/m/rsj/aacp_96")
         ),
@@ -299,7 +328,8 @@ internal object MissaRadioProviders {
             genre = "Pop Internationale & Hits sans pub",
             country = "CH",
             streamUrl = "https://stream.srg-ssr.ch/m/rsp/mp3_128",
-            logoUrl = brandFavicon("radioswisspop.ch"),
+            logoUrl = "https://www.radioswisspop.ch/social-media/rsp-web.png",
+            logoFallbackUrls = listOf(brandFavicon("radioswisspop.ch")),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://stream.srg-ssr.ch/m/rsp/aacp_96")
         ),
@@ -309,7 +339,8 @@ internal object MissaRadioProviders {
             genre = "Musique Classique & Orchestre",
             country = "CH",
             streamUrl = "https://stream.srg-ssr.ch/m/rsc_fr/mp3_128",
-            logoUrl = brandFavicon("radioswissclassic.ch"),
+            logoUrl = "https://www.radioswissclassic.ch/social-media/rsc-web.png",
+            logoFallbackUrls = listOf(brandFavicon("radioswissclassic.ch")),
             providerName = PROVIDER_MISSA_DIRECT,
             fallbackUrls = listOf("https://stream.srg-ssr.ch/m/rsc_fr/aacp_96")
         ),
@@ -326,10 +357,10 @@ internal object MissaRadioProviders {
 
         // --- 5. Bouquet Laut.fm (Webradios Thématiques Directes) ---
         lautInstant("afrobeats", "Laut.fm Afrobeats", "Afrobeats, Afropop, Amapiano & Naija", RadioOrigin.REGION_AFRICA),
-        lautInstant("jazzloft", "Laut.fm Jazzloft", "Smooth Jazz, Lounge & Swing", "DE"),
-        lautInstant("reggae", "Laut.fm Reggae", "Reggae, Dancehall & Roots", RadioOrigin.REGION_WORLD),
+        lautInstant("jazzloft", "Laut.fm Jazzloft", "Smooth Jazz, Lounge & Swing", "DE", "4137de5de9d0c78e3f379b6cc60b4314"),
+        lautInstant("reggae", "Laut.fm Reggae", "Reggae, Dancehall & Roots", RadioOrigin.REGION_WORLD, "165557f0697e8c5e73ccd159ba1e6956"),
         lautInstant("gospelradio", "Laut.fm Gospel", "Gospel, Louange & Soul", RadioOrigin.REGION_WORLD),
-        lautInstant("lounge", "Laut.fm Lounge", "Lounge, Chillout & Lo-Fi", "DE")
+        lautInstant("lounge", "Laut.fm Lounge", "Lounge, Chillout & Lo-Fi", "DE", "1e1550f63e141f7febb75d2056260f65")
     )
 
     private fun somaInstant(channelId: String, title: String, genre: String): RadioStationPreset =
@@ -348,16 +379,47 @@ internal object MissaRadioProviders {
             )
         )
 
-    private fun lautInstant(slug: String, title: String, genre: String, country: String): RadioStationPreset =
+    /**
+     * [logoAsset] : identifiant de l'image de la station chez Laut.fm (api.laut.fm/station/<slug>).
+     * Sans image propre, la carte affiche les initiales plutôt que le logo générique de Laut.fm,
+     * identique pour toutes les stations.
+     */
+    private fun lautInstant(
+        slug: String,
+        title: String,
+        genre: String,
+        country: String,
+        logoAsset: String? = null
+    ): RadioStationPreset =
         RadioStationPreset(
             id = "lautfm_$slug",
             name = title,
             genre = genre,
             country = country,
             streamUrl = "https://stream.laut.fm/$slug",
-            logoUrl = brandFavicon("laut.fm"),
+            logoUrl = logoAsset?.let { "https://assets.laut.fm/$it?t=_120x120" },
+            logoFallbackUrls = listOfNotNull(logoAsset?.let { "https://assets.laut.fm/$it" }),
             providerName = PROVIDER_LAUT_FM
         )
+
+    /**
+     * Hébergeurs dont l'icône n'est pas celle de la station : une page Facebook, un logo
+     * Google saisi par erreur dans l'annuaire... Mieux vaut les initiales qu'un faux logo.
+     */
+    private val genericLogoHosts = listOf(
+        "facebook.com", "fbcdn.net", "google.com", "gstatic.com", "youtube.com",
+        "twitter.com", "x.com", "instagram.com", "wordpress.com", "blogspot.com"
+    )
+
+    internal fun isGenericLogoHost(host: String): Boolean {
+        val lower = host.lowercase(Locale.ROOT).removePrefix("www.")
+        return genericLogoHosts.any { lower == it || lower.endsWith(".$it") }
+    }
+
+    internal fun isGenericLogoUrl(url: String): Boolean {
+        val host = runCatching { URI(url.trim()).host }.getOrNull() ?: return false
+        return isGenericLogoHost(host)
+    }
 
     fun isValidStreamUrl(url: String): Boolean {
         val trimmed = url.trim()
@@ -414,14 +476,19 @@ internal object MissaRadioProviders {
                 .uppercase(Locale.ROOT)
                 .ifBlank { RadioOrigin.REGION_WORLD }
 
-            val favicon = obj.optString("favicon").trim().takeIf { isValidStreamUrl(it) }
-                ?: obj.optString("homepage").trim().takeIf { isValidStreamUrl(it) }?.let { homepage ->
-                    val host = runCatching { URI(homepage).host }.getOrNull()?.takeIf { it.isNotBlank() }
-                    host?.let {
-                        val enc = runCatching { URLEncoder.encode(it, "UTF-8") }.getOrDefault(it)
-                        "https://www.google.com/s2/favicons?domain=$enc&sz=128"
-                    }
+            val stationFavicon = obj.optString("favicon").trim()
+                .takeIf { isValidStreamUrl(it) && !isGenericLogoUrl(it) }
+            val homepageFavicon = obj.optString("homepage").trim().takeIf { isValidStreamUrl(it) }?.let { homepage ->
+                val host = runCatching { URI(homepage).host }.getOrNull()
+                    ?.takeIf { it.isNotBlank() && !isGenericLogoHost(it) }
+                host?.let {
+                    val enc = runCatching { URLEncoder.encode(it, "UTF-8") }.getOrDefault(it)
+                    "https://www.google.com/s2/favicons?domain=$enc&sz=128"
                 }
+            }
+            // Le logo fourni par l'annuaire d'abord, l'icône du site de la station en secours.
+            val favicon = stationFavicon ?: homepageFavicon
+            val faviconFallbacks = if (stationFavicon != null) listOfNotNull(homepageFavicon) else emptyList()
 
             val provider = if (isZenoStreamUrl(primaryUrl) || isZenoStreamUrl(rawUrl)) {
                 PROVIDER_ZENO_AFRICA
@@ -438,6 +505,7 @@ internal object MissaRadioProviders {
                     streamUrl = primaryUrl,
                     isCustom = false,
                     logoUrl = favicon,
+                    logoFallbackUrls = faviconFallbacks,
                     providerName = provider,
                     fallbackUrls = fallback
                 )
@@ -762,6 +830,18 @@ internal object MissaRadioProviders {
      * of the same `(normalizedName, country)` station into [RadioStationPreset.fallbackUrls] for
      * seamless automatic stream failover.
      */
+    /**
+     * Même station vue par deux sources : on garde le logo de la première et on ajoute ceux
+     * de la seconde en secours, pour que la carte ait plusieurs chances d'afficher un vrai logo.
+     */
+    private fun RadioStationPreset.withExtraLogos(other: RadioStationPreset): RadioStationPreset {
+        val all = (listOfNotNull(logoUrl) + logoFallbackUrls + listOfNotNull(other.logoUrl) + other.logoFallbackUrls)
+            .filter { it.isNotBlank() }
+            .distinct()
+        if (all.isEmpty()) return this
+        return copy(logoUrl = all.first(), logoFallbackUrls = all.drop(1).take(3))
+    }
+
     fun mergeStationCatalogues(
         stations: List<RadioStationPreset>,
         favoriteIds: Set<String> = emptySet()
@@ -774,9 +854,7 @@ internal object MissaRadioProviders {
             val normUrl = station.streamUrl.trim().lowercase(Locale.ROOT).trimEnd('/')
             val existingByUrl = byNormalizedUrl[normUrl]
             if (existingByUrl != null) {
-                if (existingByUrl.logoUrl.isNullOrBlank() && !station.logoUrl.isNullOrBlank()) {
-                    byNormalizedUrl[normUrl] = existingByUrl.copy(logoUrl = station.logoUrl)
-                }
+                byNormalizedUrl[normUrl] = existingByUrl.withExtraLogos(station)
                 continue
             }
 
@@ -795,8 +873,7 @@ internal object MissaRadioProviders {
                         .filter { !it.equals(primary.streamUrl, ignoreCase = true) && isValidStreamUrl(it) }
                         .distinctBy { it.lowercase(Locale.ROOT) }
                         .take(4)
-                    byNormalizedUrl[existingCanonicalUrl] = primary.copy(
-                        logoUrl = primary.logoUrl ?: station.logoUrl,
+                    byNormalizedUrl[existingCanonicalUrl] = primary.withExtraLogos(station).copy(
                         fallbackUrls = combinedFallbacks
                     )
                     continue

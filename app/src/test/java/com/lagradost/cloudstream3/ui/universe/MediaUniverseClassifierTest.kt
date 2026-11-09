@@ -738,7 +738,9 @@ class MediaUniverseClassifierTest {
         val curated = MissaRadioProviders.curatedInstantStations
         assertTrue(curated.size >= 30)
         assertTrue(curated.all { MissaRadioProviders.isValidStreamUrl(it.streamUrl) })
-        assertTrue(curated.all { !it.logoUrl.isNullOrBlank() && !it.logoUrl!!.contains("infomaniak") })
+        // Stations sans vrai logo connu : la carte affiche leurs initiales (MissaRadioLogosTest).
+        val withoutRealLogo = setOf("radio_balafon_cm", "lautfm_afrobeats", "lautfm_gospelradio")
+        assertTrue(curated.filter { it.id !in withoutRealLogo }.all { !it.logoUrl.isNullOrBlank() && !it.logoUrl!!.contains("infomaniak") })
         assertTrue(MissaUniverses.RADIO.isHorizontalCards)
         val fipJazz = curated.first { it.id == "fip_jazz" }
         assertEquals(MissaRadioProviders.PROVIDER_MISSA_DIRECT, fipJazz.providerName)

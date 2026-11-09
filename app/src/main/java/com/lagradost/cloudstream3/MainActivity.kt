@@ -1172,10 +1172,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         bar.isVisible = st != null && !hideOnScreen
         if (st == null || hideOnScreen) return
 
-        val radioArtwork = st.logoUrl?.takeIf { it.isNotBlank() }
-        val miniArtwork = binding?.missaMiniRadioArt
-        if (radioArtwork == null) miniArtwork?.setImageResource(R.drawable.ic_missa_radio)
-        else miniArtwork?.loadImage(radioArtwork)
+        val radioLogos = (listOfNotNull(st.logoUrl) + st.logoFallbackUrls).filter { it.isNotBlank() }.distinct()
+        binding?.missaMiniRadioArt?.let { loadMiniRadioLogo(it, st.id, radioLogos, 0) }
 
         binding?.missaMiniRadioTitle?.text = st.name
         binding?.missaMiniRadioStatus?.text = when {
@@ -1404,6 +1402,24 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             }
         } catch (e: Exception) {
             logError(e)
+        }
+    }
+
+    /** Mini-lecteur radio : logo principal, puis logos de secours, puis icône radio. */
+    private fun loadMiniRadioLogo(view: ImageView, stationId: String, logos: List<String>, index: Int) {
+        if (index == 0) {
+            if (view.getTag(R.id.missa_radio_logo_key) == stationId) return // déjà affiché
+            view.setTag(R.id.missa_radio_logo_key, stationId)
+        } else if (view.getTag(R.id.missa_radio_logo_key) != stationId) {
+            return // une autre station a pris la place pendant le chargement
+        }
+        val url = logos.getOrNull(index)
+        if (url == null) {
+            view.setImageResource(R.drawable.ic_missa_radio)
+            return
+        }
+        view.loadImage(url) {
+            listener(onError = { _, _ -> view.post { loadMiniRadioLogo(view, stationId, logos, index + 1) } })
         }
     }
 

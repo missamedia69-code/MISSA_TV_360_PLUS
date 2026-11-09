@@ -40,7 +40,9 @@ data class DirectRadioSearchResponse(
     override var score: Score? = null,
     val genre: String = "",
     val country: String = "",
-    val logoUrl: String? = null
+    val logoUrl: String? = null,
+    /** Logos à essayer, dans l'ordre, si [posterUrl] ne se charge pas. */
+    val logoFallbacks: List<String> = emptyList()
 ) : SearchResponse
 
 data class DirectMusicSearchResponse(
@@ -527,10 +529,16 @@ data class RadioStationPreset(
     val isCustom: Boolean = false,
     val logoUrl: String? = null,
     val providerName: String = DIRECT_RADIO_API_NAME,
-    val fallbackUrls: List<String> = emptyList()
+    val fallbackUrls: List<String> = emptyList(),
+    /** Logos de secours, essayés dans l'ordre si [logoUrl] ne se charge pas. */
+    val logoFallbackUrls: List<String> = emptyList()
 ) {
     fun toSearchResponse(): DirectRadioSearchResponse {
-        val resolvedLogo = logoUrl ?: streamUrl.toRadioLogoFallback()
+        val candidates = (listOfNotNull(logoUrl) + logoFallbackUrls)
+            .filter { it.isNotBlank() }
+            .ifEmpty { listOfNotNull(streamUrl.toRadioLogoFallback()) }
+            .distinct()
+        val resolvedLogo = candidates.firstOrNull()
         return DirectRadioSearchResponse(
             name = name,
             url = streamUrl,
@@ -538,7 +546,8 @@ data class RadioStationPreset(
             posterUrl = resolvedLogo,
             genre = genre,
             country = country,
-            logoUrl = resolvedLogo
+            logoUrl = resolvedLogo,
+            logoFallbacks = candidates.drop(1)
         )
     }
 }
@@ -554,7 +563,9 @@ private val genericStreamingCdnHosts = listOf(
     "securenetsystems",
     "radionomy",
     "shoutca.st",
-    "myradiostream"
+    "myradiostream",
+    // Plateforme de webradios : son icône est la même pour toutes ses stations.
+    "laut.fm"
 )
 
 /** Uses a station-provided logo first; maps broadcaster CDNs cleanly and skips generic hosting CDNs. */
@@ -570,7 +581,6 @@ private fun String.toRadioLogoFallback(): String? {
         lower.endsWith("radiofrance.fr") -> "radiofrance.fr"
         lower.contains("bbcmedia.co.uk") -> "bbc.com"
         lower.endsWith("somafm.com") -> "somafm.com"
-        lower.endsWith("laut.fm") -> "laut.fm"
         else -> rawHost
     }
     val encoded = runCatching { java.net.URLEncoder.encode(brandHost, "UTF-8") }.getOrDefault(brandHost)

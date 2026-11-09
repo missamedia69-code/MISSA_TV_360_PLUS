@@ -706,7 +706,8 @@ object DirectRadioPlayerManager {
                 country = response.country,
                 streamUrl = response.url,
                 logoUrl = response.logoUrl ?: response.posterUrl,
-                providerName = response.apiName.ifBlank { DIRECT_RADIO_API_NAME }
+                providerName = response.apiName.ifBlank { DIRECT_RADIO_API_NAME },
+                logoFallbackUrls = response.logoFallbacks
             )
         playStation(context, preset)
     }
