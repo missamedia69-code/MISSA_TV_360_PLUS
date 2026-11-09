@@ -36,7 +36,7 @@ Les APK sont aussi publiés par la CI (`missa-tv-360-prerelease-release`), conse
 
 ```bash
 adb shell am force-stop com.missatv.app.prerelease
-adb shell am start -W -n com.missatv.app.prerelease/.ui.account.AccountSelectActivity2
+adb shell am start -W -n com.missatv.app.prerelease/com.lagradost.cloudstream3.ui.account.AccountSelectActivity2
 ```
 
 → relever `TotalTime` (ms). Refaire **3 fois** et garder la médiane : la première mesure
