@@ -83,8 +83,30 @@ calcule son empreinte SHA-256 et crée la version GitHub avec deux fichiers :
 `MISSA-TV-360-PLUS.apk` et `MISSA-TV-360-PLUS.apk.sha256`. Le site affiche aussitôt le
 nouveau numéro, la taille et la date.
 
+## Avant la mise en ligne : informations à compléter
+
+Les pages légales contiennent des champs surlignés en jaune `[à compléter : …]`.
+Remplacez-les par vos informations, en français et en anglais :
+
+| Page française | Page anglaise | À compléter |
+|---|---|---|
+| `site/mentions-legales.html` | `site/en/legal-notice.html` | nom ou raison sociale, ville et pays, directeur de la publication |
+| `site/contact.html` | `site/en/contact.html` | e-mail de contact, numéro WhatsApp (ou supprimer ce bloc) |
+
 ## Modifier le site
 
-Le site est fait de trois fichiers simples, sans outil de construction :
-`site/index.html` (textes), `site/style.css` (apparence) et `site/app.js` (lecture de la
-dernière version). Ouvrez `site/index.html` dans un navigateur pour le prévisualiser.
+Le site est fait de fichiers simples, sans outil de construction :
+
+- `site/index.html` (français) et `site/en/index.html` (anglais) : la page principale ;
+- `site/mentions-legales.html`, `site/confidentialite.html`, `site/contact.html` et leurs
+  équivalents dans `site/en/` : les pages légales et le contact ;
+- `site/style.css` (apparence, commune à toutes les pages) et `site/app.js` (lecture de la
+  dernière version, dans la langue de la page).
+
+Ouvrez `site/index.html` dans un navigateur pour le prévisualiser. Quand vous modifiez un
+texte, pensez à faire la même modification dans l'autre langue.
+
+La politique de confidentialité décrit ce que fait l'application **aujourd'hui** (aucune
+donnée envoyée à l'éditeur, liste des services contactés). Si l'application change, par
+exemple avec un compte, un paiement ou des statistiques, cette page doit être mise à jour
+avant la publication de la version concernée.
