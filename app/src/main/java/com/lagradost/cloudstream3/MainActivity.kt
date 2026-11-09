@@ -1423,7 +1423,48 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }
     }
 
+    /** NAV-PERF : instant (uptimeMillis) du dernier déplacement par flèche réellement traité. */
+    private var lastHandledDpadMoveTime = 0L
+
+    private fun isDpadMoveKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+            keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+
+    /**
+     * NAV-PERF : appui long sur une flèche (voir MissaTvFocusHelper.shouldDropDpadRepeat).
+     * Pas dans le lecteur vidéo, où gauche/droite maintenus font avancer la lecture, ni dans
+     * un champ de saisie, où ils déplacent le curseur du texte.
+     * Renvoie vrai si l'événement doit être ignoré.
+     */
+    private fun throttleDpadRepeat(event: KeyEvent): Boolean {
+        if (!isDpadMoveKey(event.keyCode)) return false
+        if (event.action == KeyEvent.ACTION_UP) {
+            MissaTvFocusHelper.isFastNavigating = false
+            return false
+        }
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+        if (currentFocus is android.widget.EditText) return false
+        val destId = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment)
+            ?.navController?.currentDestination?.id
+        if (destId == R.id.navigation_player) return false
+
+        MissaTvFocusHelper.isFastNavigating = event.repeatCount > 0
+        if (MissaTvFocusHelper.shouldDropDpadRepeat(
+                repeatCount = event.repeatCount,
+                eventTime = event.eventTime,
+                now = SystemClock.uptimeMillis(),
+                lastHandledMoveTime = lastHandledDpadMoveTime
+            )
+        ) {
+            return true
+        }
+        lastHandledDpadMoveTime = event.eventTime
+        return false
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Une répétition écartée est consommée : ni le focus ni les écouteurs ne la voient.
+        if (isLayout(TV or EMULATOR) && throttleDpadRepeat(event)) return true
         if (event.action == KeyEvent.ACTION_DOWN && isLayout(TV or EMULATOR)) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_CENTER,

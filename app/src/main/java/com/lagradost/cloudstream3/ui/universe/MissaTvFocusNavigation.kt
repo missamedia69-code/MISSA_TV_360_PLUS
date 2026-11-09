@@ -17,6 +17,49 @@ import kotlin.math.abs
  */
 internal object MissaTvFocusHelper {
 
+    // -----------------------------------------------------------------------------------
+    // NAV-PERF : appui long sur une flèche de la télécommande.
+    //
+    // Android répète la touche environ toutes les 50 ms. Sur une box TV modeste, chaque
+    // déplacement (recherche du focus dans les rangées imbriquées + défilement + rendu)
+    // prend souvent plus longtemps : les répétitions s'empilent dans la file d'événements
+    // et, une fois la touche relâchée, le sélecteur continue d'avancer tout seul pendant
+    // une demi-seconde ou plus. On écarte donc :
+    //  - les répétitions arrivées en retard (déjà vieilles quand on les traite) ;
+    //  - les répétitions trop rapprochées, pour garder un rythme régulier que l'écran
+    //    peut suivre.
+    // Le premier appui n'est JAMAIS écarté : un appui court bouge toujours d'un cran.
+    // -----------------------------------------------------------------------------------
+
+    /** Écart minimal entre deux déplacements répétés (≈ 11 cases par seconde). */
+    const val DPAD_REPEAT_MIN_INTERVAL_MS = 90L
+
+    /** Au-delà, une répétition est périmée : l'utilisateur l'a envoyée il y a trop longtemps. */
+    const val DPAD_REPEAT_STALE_MS = 140L
+
+    /**
+     * Vrai pendant un appui long sur une flèche. Les défilements passent alors en mode
+     * immédiat : une animation lancée à chaque cran serait interrompue par la suivante et
+     * ferait trembler la liste.
+     */
+    @Volatile
+    var isFastNavigating: Boolean = false
+
+    /**
+     * Faut-il ignorer cette répétition de flèche ? Fonction pure (testée en JVM).
+     * [eventTime] et [now] sur la même horloge (SystemClock.uptimeMillis).
+     */
+    fun shouldDropDpadRepeat(
+        repeatCount: Int,
+        eventTime: Long,
+        now: Long,
+        lastHandledMoveTime: Long
+    ): Boolean {
+        if (repeatCount <= 0) return false
+        if (now - eventTime > DPAD_REPEAT_STALE_MS) return true
+        return lastHandledMoveTime > 0L && eventTime - lastHandledMoveTime < DPAD_REPEAT_MIN_INTERVAL_MS
+    }
+
     /**
      * Computes the horizontal scroll delta (`dx`) for a horizontal rail so that:
      * 1. Cards already completely inside `[leftEdge, rightEdge]` do NOT scroll (`dx = 0`),
@@ -807,7 +850,7 @@ class MissaVerticalUniverseLayoutManager(
         if (pos == 0) {
             val dy = getDecoratedTop(child) - topLimit
             if (dy < 0 && parent.canScrollVertically(-1)) {
-                if (immediate) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
+                if (immediate || MissaTvFocusHelper.isFastNavigating) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
                 return true
             }
         } else if (pos > 0) {
@@ -848,7 +891,7 @@ class MissaVerticalUniverseLayoutManager(
             }
 
             if (dy != 0 && parent.canScrollVertically(if (dy > 0) 1 else -1)) {
-                if (immediate) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
+                if (immediate || MissaTvFocusHelper.isFastNavigating) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
                 return true
             }
         }

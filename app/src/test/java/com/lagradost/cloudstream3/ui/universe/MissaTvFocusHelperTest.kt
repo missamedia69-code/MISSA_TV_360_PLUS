@@ -2,6 +2,7 @@ package com.lagradost.cloudstream3.ui.universe
 
 import android.view.View
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -386,4 +387,25 @@ class MissaTvFocusHelperTest {
     }
 
     // endregion
+
+    // --- NAV-PERF : appui long sur une flèche ----------------------------------------------
+
+    @Test
+    fun `a first press is never dropped`() {
+        assertFalse(MissaTvFocusHelper.shouldDropDpadRepeat(repeatCount = 0, eventTime = 1_000, now = 5_000, lastHandledMoveTime = 990))
+    }
+
+    @Test
+    fun `a stale repeat queued behind slow frames is dropped`() {
+        // Envoyée il y a 300 ms : l'utilisateur a peut-être déjà relâché la touche.
+        assertTrue(MissaTvFocusHelper.shouldDropDpadRepeat(repeatCount = 4, eventTime = 1_000, now = 1_300, lastHandledMoveTime = 800))
+    }
+
+    @Test
+    fun `repeats are paced to a steady rhythm`() {
+        // 50 ms après le dernier déplacement traité : trop tôt.
+        assertTrue(MissaTvFocusHelper.shouldDropDpadRepeat(repeatCount = 2, eventTime = 1_050, now = 1_060, lastHandledMoveTime = 1_000))
+        // 100 ms après : on avance.
+        assertFalse(MissaTvFocusHelper.shouldDropDpadRepeat(repeatCount = 2, eventTime = 1_100, now = 1_110, lastHandledMoveTime = 1_000))
+    }
 }
