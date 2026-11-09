@@ -27,6 +27,7 @@ import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.annotation.IdRes
 import androidx.annotation.MainThread
@@ -711,6 +712,20 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
     private var clickFocusRestoreCount: Int = 0
     private val clickFocusCheckRunnable = Runnable { enforceClickFocusAnchor(null) }
 
+    /**
+     * Retour pendant la garde : l'utilisateur reprend la main, on arrête de garder le focus.
+     * Passe par OnBackPressedDispatcher (et non par KEYCODE_BACK) pour rester compatible avec
+     * le retour prédictif d'Android 16+, où le geste retour n'envoie plus de KEYCODE_BACK.
+     * Le rappel n'est actif que pendant la garde ; il libère la garde puis rend le retour
+     * au rappel suivant (navigation, fragment ou activité), sans rien consommer d'autre.
+     */
+    private val clickFocusBackCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            clearClickFocusGuard()
+            onBackPressedDispatcher.onBackPressed()
+        }
+    }
+
     private fun isPillFocusAnchorCandidate(view: View?): Boolean {
         if (view !is MaterialButton) return false
         if (view.tag == "missa_pill") return true
@@ -729,6 +744,11 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             ?: pill.contentDescription?.toString()
         clickFocusAnchorUptime = SystemClock.uptimeMillis()
         clickFocusRestoreCount = 0
+        // Ré-enregistré à chaque clic pour passer avant les rappels ajoutés depuis
+        // (le dernier ajouté est servi en premier, ex. celui de la navigation).
+        clickFocusBackCallback.remove()
+        clickFocusBackCallback.isEnabled = true
+        onBackPressedDispatcher.addCallback(clickFocusBackCallback)
         val root = binding?.root ?: return
         root.removeCallbacks(clickFocusCheckRunnable)
         // Le rendu est asynchrone (coalescence 70 ms + projection + DiffUtil + transition de
@@ -739,6 +759,8 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
     }
 
     private fun clearClickFocusGuard() {
+        clickFocusBackCallback.isEnabled = false
+        clickFocusBackCallback.remove()
         clickFocusAnchor = null
         clickFocusAnchorParent = null
         clickFocusAnchorLabel = null
@@ -1407,8 +1429,6 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     recoverLostTvFocus()
                     clearClickFocusGuard()
                 }
-
-                KeyEvent.KEYCODE_BACK -> clearClickFocusGuard()
             }
         }
         return CommonActivity.dispatchKeyEvent(this, event) ?: super.dispatchKeyEvent(event)
