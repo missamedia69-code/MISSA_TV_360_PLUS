@@ -36,6 +36,7 @@
     <!-- MISSA TV 360 PLUS responsive typography & component tokens (THEME-05, HOME-01, HOME-09) -->
     <dimen name="missa_text_screen_title">22sp</dimen>
     <dimen name="missa_text_row_title">16sp</dimen>
+    <dimen name="missa_text_card_count">20sp</dimen>
     <dimen name="missa_text_body">14sp</dimen>
     <dimen name="missa_text_caption">12sp</dimen>
     <dimen name="missa_text_button">13sp</dimen>
@@ -45,6 +46,12 @@
     <dimen name="missa_hero_height">152dp</dimen>
     <dimen name="missa_hero_artwork_size">72dp</dimen>
     <dimen name="missa_hero_padding">14dp</dimen>
+    <!-- SPACING-02: the television gutter, 32dp on television and sw600dp-television.
+         It is declared here too because a resource that only exists behind a qualifier
+         crashes the moment it is queried in a configuration that does not match - lint
+         fails the PR build on it (MissingDefaultResource). The value is the same 32dp:
+         the qualified folders override it, this one is the safety net. -->
+    <dimen name="missa_gutter_tv">32dp</dimen>
     <dimen name="missa_section_horizontal_padding">16dp</dimen>
     <!-- SPACING-01: one vertical rhythm for every home section (hero, hub, resume,
          category rows), so the page no longer alternates 8dp / 10dp / 16dp gaps. -->
@@ -64,8 +71,4 @@
     <dimen name="missa_focus_stroke_width">3dp</dimen>
     <dimen name="missa_card_radius">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">116dp</dimen>
-    <dimen name="missa_retro_dpad_size">156dp</dimen>
-    <dimen name="missa_retro_action_btn_size">54dp</dimen>
-    <dimen name="missa_retro_shoulder_btn_width">76dp</dimen>
-    <dimen name="missa_retro_shoulder_btn_height">48dp</dimen>
 </resources>

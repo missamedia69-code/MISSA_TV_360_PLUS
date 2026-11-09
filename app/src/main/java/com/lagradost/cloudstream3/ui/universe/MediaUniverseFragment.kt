@@ -39,6 +39,7 @@ import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.mvvm.logError
+import com.lagradost.cloudstream3.ui.BaseAdapter
 import com.lagradost.cloudstream3.ui.home.HomeChildItemAdapter
 import com.lagradost.cloudstream3.ui.result.FOCUS_SELF
 import com.lagradost.cloudstream3.ui.result.START_ACTION_RESUME_LATEST
@@ -74,13 +75,33 @@ import java.util.concurrent.ConcurrentHashMap
  * - NAV-02 / NAV-03 / NAV-05: Globals.isLayout(TV or EMULATOR), per-universe focus memory, quick-return mobile top shell.
  * - TRUST-01 / FLOW-01 / FLOW-02: Kids Parental PIN lock, 3-step Onboarding Wizard, Live channel favorites & zapping.
  */
+/**
+ * Ce qu'on retient de la dernière position connue dans un univers, pour que le sélecteur
+ * revienne sur l'élément réellement choisi (NAV-02).
+ *
+ * @param rowKey identifiant de la rangée (héros, « Reprendre », catégorie…)
+ * @param itemUrl url de la carte ouverte, utile si le contenu de la rangée a changé
+ * @param itemPosition rang de la carte dans le rail interne de la rangée
+ */
+private data class UniverseFocusMemory(
+    val rowKey: String,
+    val itemUrl: String = "",
+    val itemPosition: Int = -1
+)
+
 class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     companion object {
         const val ARG_UNIVERSE_ID = "universe_id"
         private const val MAX_INLINE_CATEGORY_PILLS = 8
         /** ANR-01: how long several invalidations are merged before the screen is projected. */
         private const val RENDER_COALESCE_MS = 70L
-        private val focusMemoryByUniverse = ConcurrentHashMap<String, String>()
+        /**
+         * La liste arrive parfois en plusieurs temps : on réessaie de poser le sélecteur sur
+         * l'élément retenu avant de renoncer (NAV-02).
+         */
+        private const val FOCUS_RESTORE_MAX_ATTEMPTS = 4
+        private const val FOCUS_RESTORE_RETRY_MS = 90L
+        private val focusMemoryByUniverse = ConcurrentHashMap<String, UniverseFocusMemory>()
 
         /** Contextual filter strip is hidden on Home and shown inside dedicated universes (Films, Series, …). */
         fun shouldShowContextualFilterBar(universeId: String): Boolean =
@@ -160,6 +181,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private var isOnlineSearchInFlight: Boolean = false
     private var suppressSearchTextWatcher: Boolean = false
     private var lastProjection: UniverseScreenProjection? = null
+    /** PERF A3 : see [renderScreenInternal], guards against out-of-order projections. */
+    private var projectionGeneration = 0
     private var didRestoreUniverseFocus = false
     private var lastObservedMusicSyncSig: String = "idle"
 
@@ -251,7 +274,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 if (!tryApplyMusicProgressOnlyUpdate(nextState)) {
                     renderScreen()
                 }
-            } else if (universeId == "home") {
+            } else if (universeId == "home" || universeId == "podcasts") {
                 val sig = DirectMusicPlayerManager.activePlaybackSyncSignature()
                 if (sig != lastObservedMusicSyncSig) {
                     lastObservedMusicSyncSig = sig
@@ -269,6 +292,14 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         // Re-render when the per-launch rotated Kids catalogue arrives from YouTube (KIDS-01).
         DirectKidsPlayerManager.videosUpdated.observe(viewLifecycleOwner) {
             if (universeId == "kids" || universeId == "home") {
+                renderScreen()
+            }
+        }
+
+        // Le catalogue Podcasts se moissonne en arrière-plan : l'écran doit se redessiner quand
+        // il arrive, sinon l'univers resterait vide jusqu'au prochain passage par l'accueil.
+        DirectPodcastPlayerManager.showsUpdated.observe(viewLifecycleOwner) {
+            if (universeId == "podcasts" || universeId == "home") {
                 renderScreen()
             }
         }
@@ -708,6 +739,12 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         masterRecycler?.apply {
             layoutManager = MissaVerticalUniverseLayoutManager(ctx)
+            // PERF : la liste occupe tout l'écran (match_parent), sa taille ne dépend pas du
+            // contenu -> pas de re-mesure du parent à chaque mise à jour. Quelques rangées
+            // gardées prêtes en cache : remonter/redescendre à la télécommande ne re-crée pas
+            // les rails ni ne recharge leurs images.
+            setHasFixedSize(true)
+            setItemViewCacheSize(if (isTv) 4 else 3)
             // Gentle fade item animator respecting system animation settings (HOME-02, THEME-08)
             itemAnimator = if (MissaUiFactory.areAnimationsEnabled(ctx)) {
                 DefaultItemAnimator().apply {
@@ -829,16 +866,31 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     private fun renderScreenInternal() {
         val ctx = context ?: return
         val snapshot = viewModel.catalogSnapshot.value ?: UnifiedCatalogSnapshot()
-        val projection = viewModel.projectUniverse(
-            universeId = universeId,
-            snapshot = snapshot,
-            overrideEntries = searchOverrideEntries,
-            searchQuery = currentSearchQuery,
-            selectedCategoryKey = selectedCategoryKey,
-            selectedSources = selectedSources,
-            showAllRows = showAllRows,
-            localizedContext = ctx
-        )
+        // PERF A3 : la projection (tri + regroupement de ~2000 entrées) tourne maintenant
+        // hors du Main. Le numéro de génération évite qu'une projection lancée avant un
+        // changement de filtre n'écrase la suivante, arrivée plus vite.
+        val generation = ++projectionGeneration
+        viewLifecycleOwner.lifecycleScope.launch {
+            val projection = viewModel.projectUniverseAsync(
+                universeId = universeId,
+                snapshot = snapshot,
+                overrideEntries = searchOverrideEntries,
+                searchQuery = currentSearchQuery,
+                selectedCategoryKey = selectedCategoryKey,
+                selectedSources = selectedSources,
+                showAllRows = showAllRows,
+                localizedContext = ctx
+            )
+            // Une projection plus récente est déjà partie, ou la vue a été détruite :
+            // ce résultat n'est plus le bon.
+            if (generation != projectionGeneration || !isAdded) return@launch
+            applyProjection(projection)
+        }
+    }
+
+    /** PERF A3 : tout ce qui suit touche des vues, donc reste sur le Main. */
+    private fun applyProjection(projection: UniverseScreenProjection) {
+        val ctx = context ?: return
         lastProjection = projection
 
         // 1. Update sticky category pills via DiffUtil (hidden on Home; shown in Films & dedicated universes)
@@ -913,10 +965,15 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         val items = ArrayList<UniverseListItem>()
         val dataSaver = MissaUiFactory.isDataSaverActive(ctx)
 
-        if (universeId == "music") {
+        // PODCASTS-03 : le lecteur audio n'apparaît dans l'univers Podcasts que lorsqu'un podcast
+        // est en cours. Il laisse alors voir les épisodes de l'émission ouverte, exactement comme
+        // Musiques laisse voir les titres d'un album.
+        val musicState = DirectMusicPlayerManager.currentState()
+        val playingPodcast = universeId == "podcasts" &&
+            musicState.track?.itemKind == MusicItemKind.PODCAST
+        if (universeId == "music" || playingPodcast) {
             // Musiques puts the Sophisticated Studio MP3 & Live Clip Player Console directly at position 0,
             // followed immediately by the interactive Playlist / Album Tracklist whenever opened.
-            val musicState = DirectMusicPlayerManager.currentState()
             val isFav = musicState.track?.id?.let { DirectMusicPlayerManager.isFavorite(it) } == true
             items.add(UniverseListItem.MusicDeck(musicState = musicState, isFavoriteTrack = isFav))
             if (musicState.isLoadingCollection ||
@@ -933,7 +990,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     dataSaverActive = dataSaver
                 )
             )
-        } else if (currentSearchQuery.isBlank() && !projection.isLoading) {
+        } else if (currentSearchQuery.isBlank() && !projection.isLoading &&
+            // AUDIT H9: on the home page the ribbon pill already names the universe, so this
+            // banner was a ~70px block reading "Accueil" above a page that opens on the hub
+            // row, which carries its own heading. It is dropped rather than shrunk: the
+            // title was pure duplication, and the space goes back to the content.
+            universeId != "home"
+        ) {
             // Compact universe title ONLY when Hero is absent (HOME-01: never duplicate title below Hero)
             items.add(
                 UniverseListItem.CompactBanner(
@@ -1008,16 +1071,116 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     /** Restores last focused row when returning to a previously visited universe on TV (NAV-02). */
     private fun restoreUniverseFocusIfNeeded(items: List<UniverseListItem>) {
-        if (didRestoreUniverseFocus || !MissaUiFactory.isTvLayoutMode()) return
-        val rememberedRowId = focusMemoryByUniverse[universeId] ?: return
-        val idx = items.indexOfFirst { it.itemId == rememberedRowId }
-        if (idx >= 0) {
-            didRestoreUniverseFocus = true
-            masterRecycler?.post {
-                val vh = masterRecycler?.findViewHolderForAdapterPosition(idx)
-                vh?.itemView?.requestFocus()
+        if (didRestoreUniverseFocus) return
+        val memory = focusMemoryByUniverse[universeId] ?: return
+        val idx = items.indexOfFirst { it.itemId == memory.rowKey }
+        if (idx < 0) return
+        val rv = masterRecycler ?: return
+        didRestoreUniverseFocus = true
+        // Télé et émulateur : le curseur est le moyen de navigation, un simple survol suffit à
+        // mériter un retour. Ailleurs (téléphone, tablette au doigt) on ne revient que sur un
+        // élément réellement ouvert, pour ne pas imposer un cadre de focus après un passage.
+        val remembersAnOpening = memory.itemPosition >= 0 || memory.itemUrl.isNotBlank()
+        if (!remembersAnOpening && !MissaUiFactory.isTvLayoutMode()) return
+        tryFocusRememberedRow(rv, idx, memory, attempt = 0)
+    }
+
+    /**
+     * Replace le sélecteur sur la rangée retenue, et **vérifie** qu'il y est bien arrivé.
+     *
+     * C'est là que le correctif précédent échouait encore : on demandait le focus sans jamais
+     * contrôler le résultat. Quand la carte n'était pas encore affichée — ce qui arrive à
+     * chaque retour du lecteur, la liste étant redessinée — la demande tombait dans le vide,
+     * rien n'était focalisé dans le contenu, et Android posait alors le sélecteur sur le
+     * premier élément focalisable de l'écran : la première pastille du ruban, contre le logo.
+     */
+    private fun tryFocusRememberedRow(
+        rv: RecyclerView,
+        idx: Int,
+        memory: UniverseFocusMemory,
+        attempt: Int
+    ) {
+        val step = Runnable {
+            if (rv.findViewHolderForAdapterPosition(idx) == null) {
+                rv.scrollToPosition(idx)
+            }
+            rv.post {
+                val rowView = rv.findViewHolderForAdapterPosition(idx)?.itemView
+                if (rowView != null && !focusRememberedCard(rowView, memory)) {
+                    // La carte exacte n'est pas (ou plus) affichée : on vise la rangée.
+                    focusFirstInView(rowView)
+                }
+                if (rv.findFocus() == null) {
+                    if (attempt < FOCUS_RESTORE_MAX_ATTEMPTS) {
+                        tryFocusRememberedRow(rv, idx, memory, attempt + 1)
+                    } else {
+                        focusFirstContentRow(rv)
+                    }
+                }
             }
         }
+        rv.postDelayed(step, if (attempt == 0) 0L else FOCUS_RESTORE_RETRY_MS)
+    }
+
+    /** Premier élément focalisable de [view] — une rangée n'est pas focalisable, ses cartes si. */
+    private fun focusFirstInView(view: View): Boolean =
+        (firstFocusableDescendant(view) ?: view).requestFocus()
+
+    /** Repli ultime : n'importe quelle rangée vaut mieux que le haut de l'écran. */
+    private fun focusFirstContentRow(rv: RecyclerView) {
+        for (i in 0 until rv.childCount) {
+            val child = rv.getChildAt(i) ?: continue
+            if (focusFirstInView(child)) return
+        }
+        rv.requestFocus()
+    }
+
+    private fun firstFocusableDescendant(view: View): View? {
+        if (view.isFocusable && view.isShown) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                firstFocusableDescendant(view.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Replace le sélecteur sur la carte exacte qui avait été ouverte, et pas seulement sur
+     * la rangée qui la contient. Renvoie `false` si cette rangée n'a pas de rail interne :
+     * l'appelant se rabat alors sur la rangée entière.
+     */
+    private fun focusRememberedCard(rowView: View, memory: UniverseFocusMemory): Boolean {
+        if (memory.itemPosition < 0) return false
+        val childRv = rowView.findViewById<RecyclerView>(R.id.row_child_recycler)
+            ?: rowView.findViewById<RecyclerView>(R.id.search_grid_recycler)
+            ?: rowView.findViewById<RecyclerView>(R.id.resume_recycler)
+            ?: rowView.findViewById<RecyclerView>(R.id.hub_shortcuts_recycler)
+            ?: return false
+        val count = childRv.adapter?.itemCount ?: return false
+        if (count == 0) return false
+        var pos = memory.itemPosition
+        // Si la rangée a été réordonnée entre-temps, le rang ne veut plus rien dire :
+        // on retrouve la carte par son url.
+        if (memory.itemUrl.isNotBlank()) {
+            val current = (childRv.adapter as? BaseAdapter<*, *>)?.immutableCurrentList
+            val byUrl = current?.indexOfFirst { (it as? SearchResponse)?.url == memory.itemUrl } ?: -1
+            if (byUrl >= 0) pos = byUrl
+        }
+        pos = pos.coerceIn(0, count - 1)
+        if (childRv.findViewHolderForAdapterPosition(pos) == null) {
+            childRv.scrollToPosition(pos)
+        }
+        val card = childRv.findViewHolderForAdapterPosition(pos)?.itemView
+        if (card != null && card.requestFocus()) return true
+        // Le rail n'a pas encore disposé la carte : on retente juste après le défilement.
+        childRv.post {
+            val vh = childRv.findViewHolderForAdapterPosition(pos)
+            if (vh?.itemView?.requestFocus() != true) {
+                focusFirstInView(childRv)
+            }
+        }
+        return true
     }
 
     private fun submitInUniverseSearch(
@@ -1071,7 +1234,14 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     } else {
                         null
                     }
-                    val pluginResults = if (universeId == "music" || universeId == "radio" || universeId == "kids") {
+                    val podcastJob = if (universeId == "podcasts" || universeId == "home") {
+                        async { DirectPodcastPlayerManager.searchShowsOnline(trimmed) }
+                    } else {
+                        null
+                    }
+                    val pluginResults = if (universeId == "music" || universeId == "radio" ||
+                        universeId == "kids" || universeId == "podcasts"
+                    ) {
                         emptyList()
                     } else {
                         viewModel.searchUnified(trimmed) { done, total ->
@@ -1090,6 +1260,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     radioJob?.await()
                     musicJob?.await()
                     kidsJob?.await()
+                    podcastJob?.await()
                     pluginResults
                 }
                 isOnlineSearchInFlight = false
@@ -1118,12 +1289,18 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     override fun onHeroPrimaryAction(slide: HeroBannerSlide) {
         val item = slide.card
+        // NAV-02 : on retient la position pour revenir sur l'élément choisi au retour.
+        focusMemoryByUniverse[universeId] = UniverseFocusMemory(rowKey = "hero_$universeId")
         if (item is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), item)
             return
         }
         if (item is DirectMusicSearchResponse) {
             DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
+            return
+        }
+        if (item is DirectPodcastSearchResponse) {
+            openPodcastCard(item)
             return
         }
         // KIDS-02: Kids hero titles play as videos in the standard player.
@@ -1141,12 +1318,18 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     /** 1-tap details screen using remembered preferred source (HOME-12). */
     override fun onHeroDetailsAction(slide: HeroBannerSlide) {
         val item = slide.card
+        // NAV-02 : idem, l'écran doit se rouvrir sur la vignette choisie.
+        focusMemoryByUniverse[universeId] = UniverseFocusMemory(rowKey = "hero_$universeId")
         if (item is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), item)
             return
         }
         if (item is DirectMusicSearchResponse) {
             DirectMusicPlayerManager.playDirectResponse(requireContext(), item, collectVisibleMusicQueue(item))
+            return
+        }
+        if (item is DirectPodcastSearchResponse) {
+            openPodcastCard(item)
             return
         }
         if (item is DirectKidsSearchResponse) {
@@ -1171,12 +1354,43 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
         }
     }
 
+    /**
+     * PODCASTS-01 : ouvrir une émission déplie ses épisodes dans le lecteur ; ouvrir un épisode
+     * le joue. C'est le même geste depuis une vignette ou depuis le bandeau du haut.
+     */
+    private fun openPodcastCard(card: DirectPodcastSearchResponse) {
+        if (!card.isShow) {
+            DirectPodcastPlayerManager.playEpisode(requireContext(), card.toEpisode())
+            return
+        }
+        val showId = DirectPodcastPlayerManager.showIdFromScheme(card.url)
+        val known = showId?.let { id ->
+            DirectPodcastPlayerManager.snapshotShows().firstOrNull { it.id == id }
+        }
+        if (known != null) {
+            DirectPodcastPlayerManager.playShow(requireContext(), known)
+            return
+        }
+        // L'émission a quitté la mémoire : on la retrouve avant de l'ouvrir.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val found = showId?.let { DirectPodcastPlayerManager.findShow(it) }
+            if (found != null && isAdded) {
+                DirectPodcastPlayerManager.playShow(requireContext(), found)
+            }
+        }
+    }
+
     override fun onCardClick(callback: SearchClickCallback) {
         if (callback.action == SEARCH_ACTION_FOCUSED) return
         val card = callback.card
 
         if (card is DirectRadioSearchResponse) {
             DirectRadioPlayerManager.playDirectResponse(requireContext(), card)
+            return
+        }
+
+        if (card is DirectPodcastSearchResponse) {
+            openPodcastCard(card)
             return
         }
 
@@ -1212,7 +1426,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                         val nowFav = DirectMusicPlayerManager.toggleFavorite(trackKey)
                         Toast.makeText(
                             requireContext(),
-                            if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                            if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_favorite_removed,
                             Toast.LENGTH_SHORT
                         ).show()
                         renderScreen()
@@ -1244,7 +1458,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 val nowFav = viewModel.toggleFavoriteLiveChannel(card.url)
                 Toast.makeText(
                     requireContext(),
-                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_favorite_removed,
                     Toast.LENGTH_SHORT
                 ).show()
                 renderScreen()
@@ -1294,7 +1508,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
     /** Single-item Resume removal on long-press with Undo Snackbar (HOME-11). */
     override fun onResumeSingleRemove(item: DataStoreHelper.ResumeWatchingResult) {
-        val saved = viewModel.removeSingleResumeItem(item.id)
+        val saved = viewModel.removeSingleResumeItem(item)
         val rootView = view ?: return
         val snackbar = Snackbar.make(rootView, R.string.universe_resume_removed, Snackbar.LENGTH_LONG)
         if (saved != null) {
@@ -1610,7 +1824,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 val nowFav = DirectMusicPlayerManager.toggleFavorite(trackId)
                 Toast.makeText(
                     requireContext(),
-                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_favorite_removed,
                     Toast.LENGTH_SHORT
                 ).show()
                 renderScreen()
@@ -1648,7 +1862,19 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
     }
 
     override fun onContentItemFocused(rowKey: String) {
-        focusMemoryByUniverse[universeId] = rowKey
+        val previous = focusMemoryByUniverse[universeId]
+        // Une carte qui n'a fait que recevoir le focus ne doit pas effacer la position
+        // précise retenue au moment du clic sur la même rangée.
+        if (previous != null && previous.rowKey == rowKey) return
+        focusMemoryByUniverse[universeId] = UniverseFocusMemory(rowKey = rowKey)
+    }
+
+    override fun onContentItemActivated(rowKey: String, itemUrl: String, itemPosition: Int) {
+        focusMemoryByUniverse[universeId] = UniverseFocusMemory(
+            rowKey = rowKey,
+            itemUrl = itemUrl,
+            itemPosition = itemPosition
+        )
     }
 
     /** Moves TV D-pad focus into the contextual filter strip (in dedicated universes) or primary content (NAV-02). */
@@ -1670,10 +1896,10 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 )?.let { if (it.requestFocus()) return true }
             }
         }
-        val rememberedRowId = focusMemoryByUniverse[universeId]
-        if (rememberedRowId != null) {
+        val remembered = focusMemoryByUniverse[universeId]
+        if (remembered != null) {
             val adapterItems = screenAdapter?.currentList.orEmpty()
-            val idx = adapterItems.indexOfFirst { it.itemId == rememberedRowId }
+            val idx = adapterItems.indexOfFirst { it.itemId == remembered.rowKey }
             if (idx >= 0) {
                 val vh = rv.findViewHolderForAdapterPosition(idx)
                 if (vh?.itemView?.requestFocus() == true) return true

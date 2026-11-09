@@ -74,30 +74,34 @@ object DirectKidsPlayerManager {
     // Catalogue access
     // -------------------------------------------------------------------------
 
-    private fun cachedRemoteVideos(): List<MusicTrackPreset> {
+    private suspend fun cachedRemoteVideos(): List<MusicTrackPreset> = withContext(Dispatchers.IO) {
         val mem = inMemoryVideos
-        if (mem.isNotEmpty()) return mem
+        if (mem.isNotEmpty()) return@withContext mem
         val persisted = runCatching {
-            getKey<Array<MusicTrackPreset>>(REMOTE_CACHE_KEY)?.toList().orEmpty()
+            // PERF A5 : ce catalogue vit dans son propre fichier, plus dans rebuild_preference.
+            MissaCatalogueCache.read<Array<MusicTrackPreset>>(REMOTE_CACHE_KEY)?.toList().orEmpty()
         }.getOrDefault(emptyList())
         if (persisted.isNotEmpty()) {
             inMemoryVideos = persisted
         }
-        return persisted
+        return@withContext persisted
     }
 
     /** Every Kids video currently known (cached catalogue + on-demand searches). */
-    fun allPresetVideos(): List<MusicTrackPreset> {
+    suspend fun allPresetVideos(): List<MusicTrackPreset> {
         val cached = cachedRemoteVideos()
         val discovered = discoveredSearchVideos.values.toList()
         if (cached.isEmpty() && discovered.isEmpty()) return emptyList()
-        val merged = ArrayList<MusicTrackPreset>(cached.size + discovered.size)
-        val seenIds = HashSet<String>()
-        for (video in cached + discovered) {
-            if (video.title.isBlank() || video.streamUrl.isBlank()) continue
-            if (seenIds.add(video.id)) merged.add(video)
+        // La fusion parcourt tout le catalogue : sur Default, pas sur le thread appelant.
+        return withContext(Dispatchers.Default) {
+            val merged = ArrayList<MusicTrackPreset>(cached.size + discovered.size)
+            val seenIds = HashSet<String>()
+            for (video in cached + discovered) {
+                if (video.title.isBlank() || video.streamUrl.isBlank()) continue
+                if (seenIds.add(video.id)) merged.add(video)
+            }
+            merged
         }
-        return merged
     }
 
     /** Ids promoted during the previous launches; they are demoted by the next rotation. */
@@ -119,7 +123,7 @@ object DirectKidsPlayerManager {
      * Returns the rotated selection for this launch, rebuilding it only when the underlying
      * catalogue changed (or on the very first call of the process).
      */
-    fun currentSelection(): KidsCatalogSelection {
+    suspend fun currentSelection(): KidsCatalogSelection {
         val videos = allPresetVideos()
         val stamp = MissaCatalogRotation.catalogueStamp(videos) { (it as? MusicTrackPreset)?.id }
         val cached = selection
@@ -134,7 +138,7 @@ object DirectKidsPlayerManager {
      * `true` while the very first Kids catalogue of the process is still being fetched, so the
      * universe can show the shimmer instead of an "empty universe" card (KIDS-01).
      */
-    fun isAwaitingFirstCatalogue(): Boolean =
+    suspend fun isAwaitingFirstCatalogue(): Boolean =
         allPresetVideos().isEmpty() && (refreshInFlight || refreshJob?.isActive == true)
 
     /** Drops the cached rotation (called after a refresh so the new catalogue is re-rolled). */
@@ -206,7 +210,7 @@ object DirectKidsPlayerManager {
                 inMemoryVideos = catalog
                 selection = null
                 runCatching {
-                    setKey(REMOTE_CACHE_KEY, catalog.toTypedArray())
+                    MissaCatalogueCache.write(REMOTE_CACHE_KEY, catalog.toTypedArray())
                     setKey(REMOTE_UPDATED_AT_KEY, System.currentTimeMillis())
                 }
                 _videosUpdated.postValue(System.currentTimeMillis())
@@ -284,7 +288,7 @@ object DirectKidsPlayerManager {
     }
 
     /** Resolves the first [count] streams in the background so playback starts instantly. */
-    fun prefetchTopVideos(count: Int = 2) {
+    suspend fun prefetchTopVideos(count: Int = 2) {
         val top = currentSelection().all.take(count)
         if (top.isEmpty()) return
         ioScope.launch {
@@ -301,7 +305,7 @@ object DirectKidsPlayerManager {
      * mixes a nursery rhyme, a cartoon, a family movie…), then completed from the whole
      * selection. The order follows the per-launch rotation (FRESH-01).
      */
-    fun heroVideos(max: Int = 5): List<MusicTrackPreset> {
+    suspend fun heroVideos(max: Int = 5): List<MusicTrackPreset> {
         val selection = currentSelection()
         if (selection.all.isEmpty()) return emptyList()
         val picked = ArrayList<MusicTrackPreset>(max)

@@ -487,7 +487,7 @@ internal object MissaUniverseDialogs {
             .setNegativeButton(R.string.cancel, null)
             .create()
 
-        fun populateCustomList() {
+        suspend fun populateCustomList() {
             val customs = DirectRadioPlayerManager.customStations()
             customListContainer.removeAllViews()
             customListContainer.isVisible = customs.isNotEmpty()
@@ -499,7 +499,7 @@ internal object MissaUniverseDialogs {
                 }
                 val label = TextView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                    text = "${st.name} (${st.country})"
+                    text = "${st.name} (${RadioOrigin.displayLabel(st.country, context)})"
                     setTextAppearance(R.style.TextAppearance_Missa_Body)
                     isClickable = true
                     setOnClickListener {
@@ -511,13 +511,15 @@ internal object MissaUniverseDialogs {
                 }
                 val delBtn = MissaUiFactory.createPillButton(
                     context = context,
-                    label = context.getString(R.string.universe_retro_delete),
+                    label = context.getString(R.string.delete),
                     selected = false,
                     marginEndDp = 0
                 ) {
-                    DirectRadioPlayerManager.deleteCustomStation(st.id)
-                    populateCustomList()
-                    onStationsChanged()
+                    CoroutineScope(Dispatchers.Main).launch {
+                        DirectRadioPlayerManager.deleteCustomStation(st.id)
+                        populateCustomList()
+                        onStationsChanged()
+                    }
                 }
                 row.addView(label)
                 row.addView(delBtn)
@@ -578,20 +580,22 @@ internal object MissaUniverseDialogs {
                     dialog.dismiss()
                 }
             } else {
-                val saved = DirectRadioPlayerManager.saveCustomStation(
-                    context = context,
-                    name = enteredName,
-                    streamUrl = url,
-                    country = enteredCountry,
-                    existingId = editingId
-                )
-                onStationsChanged()
-                DirectRadioPlayerManager.playStation(context, saved)
-                dialog.dismiss()
+                CoroutineScope(Dispatchers.Main).launch {
+                    val saved = DirectRadioPlayerManager.saveCustomStation(
+                        context = context,
+                        name = enteredName,
+                        streamUrl = url,
+                        country = enteredCountry,
+                        existingId = editingId
+                    )
+                    onStationsChanged()
+                    DirectRadioPlayerManager.playStation(context, saved)
+                    dialog.dismiss()
+                }
             }
         }
 
-        populateCustomList()
+        CoroutineScope(Dispatchers.Main).launch { populateCustomList() }
         dialog.show()
         dialog.setDefaultFocus()
     }

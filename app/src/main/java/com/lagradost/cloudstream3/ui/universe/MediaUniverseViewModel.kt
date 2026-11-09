@@ -37,6 +37,7 @@ import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -50,6 +51,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 private data class CachedCatalogSearchResponse(
@@ -69,7 +71,9 @@ data class RawHarvestedItem(
     val sectionName: String,
     val isHorizontalSection: Boolean,
     val providerSupportedTypes: Set<TvType>,
-    val isPreferredLanguage: Boolean
+    val isPreferredLanguage: Boolean,
+    /** EXT-GROUPS : choix de l'utilisateur pour la source de cet item (null = Auto). */
+    val forcedUniverses: Set<String>? = null
 )
 
 data class UnifiedCatalogSnapshot(
@@ -354,7 +358,7 @@ class MediaUniverseViewModel : ViewModel() {
                     else -> inferred
                 }
 
-                val universes = MediaUniverseClassifier.classifyAllUniverses(
+                val autoUniverses = MediaUniverseClassifier.classifyAllUniverses(
                     type = effectiveType ?: bestRaw.response.type,
                     title = bestRaw.response.name,
                     tags = mergedTags,
@@ -365,6 +369,11 @@ class MediaUniverseViewModel : ViewModel() {
                     url = bestRaw.response.url,
                     episodeCountHint = maxEpisodeHint,
                     isSeriesLoadResponse = mergedSeriesLoad
+                )
+                // EXT-GROUPS : le crible trie le contenu parmi les groupes autorisés
+                val universes = MissaExtensionGroups.mergeUniverses(
+                    auto = autoUniverses,
+                    forcedPerSource = sortedGroup.map { it.raw.forcedUniverses }
                 )
 
                 entries.add(
@@ -477,22 +486,33 @@ class MediaUniverseViewModel : ViewModel() {
         MainActivity.mainPluginsLoadedEvent += onMainPluginsLoadedListener
         MainActivity.reloadHomeEvent += onReloadHomeListener
         MainActivity.bookmarksUpdatedEvent += onBookmarksUpdatedListener
-        // FRESH-01: the very first refresh of a process bypasses the disk cache so every
-        // YouTube-powered surface (Enfants + Musiques) renews itself at each app launch.
-        val forceYouTubeRefresh = MissaCatalogRotation.consumeLaunchRefreshTicket()
+        // PERF A6 : à froid, l'un des trois refreshes ci-dessous était forcé (FRESH-01
+        // consommait un ticket de lancement pour re-télécharger intégralement les catalogues
+        // YouTube), et les deux autres aussi, en plus du harvest des ~28 providers lancé
+        // juste après par hydrateDiskCacheAndLoad(). Le démarrage empilait donc trois
+        // téléchargements réseau concurrents de la moisson.
+        //
+        // On laisse chaque manager décider : ils ne vont sur le réseau que si leur cache a
+        // expiré. Un refresh forcé reste déclenché par l'utilisateur (pull-to-refresh,
+        // reloadHomeEvent) ou après installation d'une extension.
         viewModelScope.launch {
             DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
         }
         viewModelScope.launch {
-            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded(force = forceYouTubeRefresh)
+            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
         }
         viewModelScope.launch {
-            DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = forceYouTubeRefresh)
+            DirectKidsPlayerManager.refreshRemoteVideosIfNeeded()
+        }
+        viewModelScope.launch {
+            DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded()
         }
         hydrateDiskCacheAndLoad()
     }
 
     override fun onCleared() {
+        // PERF A3 : sans cela les threads de projection survivent au ViewModel.
+        projectionExecutor.shutdownNow()
         MainActivity.afterPluginsLoadedEvent -= onPluginsLoadedListener
         MainActivity.mainPluginsLoadedEvent -= onMainPluginsLoadedListener
         MainActivity.reloadHomeEvent -= onReloadHomeListener
@@ -530,8 +550,14 @@ class MediaUniverseViewModel : ViewModel() {
 
     // --- Resume Watching Management (HOME-11) ---
 
-    fun removeSingleResumeItem(parentId: Int?): DownloadObjects.ResumeWatching? {
-        if (parentId == null) return null
+    /**
+     * HOME-11, corrigé : la clé de stockage d'un « Reprendre » est le **parentId**.
+     * [DataStoreHelper.ResumeWatchingResult.id] est l'id de l'épisode (et il peut être null) :
+     * supprimer avec l'id ne supprimait aucune clé, donc le dialogue se fermait et la carte
+     * restait là. On prend maintenant l'item entier pour que la confusion soit impossible.
+     */
+    fun removeSingleResumeItem(item: DataStoreHelper.ResumeWatchingResult): DownloadObjects.ResumeWatching? {
+        val parentId = item.parentId ?: return null
         val snapshot = DataStoreHelper.getLastWatched(parentId)
         DataStoreHelper.removeLastWatched(parentId)
         refreshResumeWatching()
@@ -552,7 +578,8 @@ class MediaUniverseViewModel : ViewModel() {
 
     fun clearResumeItems(items: List<DataStoreHelper.ResumeWatchingResult>) {
         items.forEach { item ->
-            DataStoreHelper.removeLastWatched(item.id)
+            // même piège qu'au-dessus : item.id est l'id de l'épisode, pas la clé
+            DataStoreHelper.removeLastWatched(item.parentId)
         }
         refreshResumeWatching()
     }
@@ -637,6 +664,9 @@ class MediaUniverseViewModel : ViewModel() {
             }
             viewModelScope.launch {
                 DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
+            }
+            viewModelScope.launch {
+                DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded(force = true)
             }
         }
         val current = _catalogSnapshot.value ?: UnifiedCatalogSnapshot()
@@ -739,7 +769,11 @@ class MediaUniverseViewModel : ViewModel() {
                         }
                     )
                     if (harvested.isNotEmpty() && secondaryWave.isNotEmpty()) {
-                        val quickEntries = normalizeAndDeduplicate(harvested)
+                        // PERF A2 : la déduplication de ~2000 entrées prend ~0,5-1 s. Fait
+                        // sur le Main, c'est un freeze garanti à la fin de la 1re vague.
+                        val quickEntries = withContext(Dispatchers.Default) {
+                            normalizeAndDeduplicate(harvested)
+                        }
                         _catalogSnapshot.value = UnifiedCatalogSnapshot(
                             isLoading = true,
                             hasError = false,
@@ -776,7 +810,10 @@ class MediaUniverseViewModel : ViewModel() {
                     )
                 }
 
-                val baseEntries = normalizeAndDeduplicate(harvested)
+                // PERF A2 : idem, sur le rendu complet.
+                val baseEntries = withContext(Dispatchers.Default) {
+                    normalizeAndDeduplicate(harvested)
+                }
                 if (harvested.isEmpty() || baseEntries.isEmpty()) {
                     // Every provider is harvested inside per-provider try/catch + withTimeoutOrNull,
                     // so a total miss is silent. Surface it: zero here means getMainPage() failed,
@@ -921,6 +958,7 @@ class MediaUniverseViewModel : ViewModel() {
                         withTimeoutOrNull(SEARCH_PROVIDER_TIMEOUT_MS) {
                             try {
                                 val repo = APIRepository(api)
+                                val forcedUniverses = MissaExtensionGroups.resolveForApi(api)
                                 when (val res = repo.search(trimmed, 1)) {
                                     is Resource.Success -> res.value.items.map { item ->
                                         RawHarvestedItem(
@@ -928,7 +966,8 @@ class MediaUniverseViewModel : ViewModel() {
                                             sectionName = "",
                                             isHorizontalSection = api.supportedTypes.contains(TvType.Live),
                                             providerSupportedTypes = api.supportedTypes.toSet(),
-                                            isPreferredLanguage = isPreferred
+                                            isPreferredLanguage = isPreferred,
+                                            forcedUniverses = forcedUniverses
                                         )
                                     }
                                     else -> emptyList()
@@ -947,7 +986,10 @@ class MediaUniverseViewModel : ViewModel() {
             }.awaitAll().flatten()
         }
 
-        val normalized = normalizeAndDeduplicate(rawResults)
+        // PERF A2 : idem sur la recherche, appelée depuis le thread principal.
+        val normalized = withContext(Dispatchers.Default) {
+            normalizeAndDeduplicate(rawResults)
+        }
         return enrichEntriesWithDetails(normalized, maxHero = 3, maxClassifier = 10)
     }
 
@@ -980,7 +1022,40 @@ class MediaUniverseViewModel : ViewModel() {
         ).also { categoryMemo[key] = it }
     }
 
-    fun projectUniverse(
+    /**
+     * PERF A3 : [projectUniverse] trie, groupe et projette ~2000 entrées sur le thread
+     * appelant. Appelé depuis le Main, c'est le pic de latence de chaque changement
+     * d'onglet. Deux threads au minimum : les univers Musiques et Radio projettent en
+     * parallèle quand l'utilisateur zappe.
+     */
+    private val projectionExecutor = Executors.newFixedThreadPool(2) { runnable ->
+        Thread(runnable, "missa-projection").apply { isDaemon = true }
+    }
+    private val projectionDispatcher = projectionExecutor.asCoroutineDispatcher()
+
+    suspend fun projectUniverseAsync(
+        universeId: String,
+        snapshot: UnifiedCatalogSnapshot,
+        overrideEntries: List<UnifiedCatalogEntry>? = null,
+        searchQuery: String = "",
+        selectedCategoryKey: String? = null,
+        selectedSources: Set<String> = emptySet(),
+        showAllRows: Boolean = false,
+        localizedContext: Context? = null
+    ): UniverseScreenProjection = withContext(projectionDispatcher) {
+        projectUniverse(
+            universeId = universeId,
+            snapshot = snapshot,
+            overrideEntries = overrideEntries,
+            searchQuery = searchQuery,
+            selectedCategoryKey = selectedCategoryKey,
+            selectedSources = selectedSources,
+            showAllRows = showAllRows,
+            localizedContext = localizedContext
+        )
+    }
+
+    suspend fun projectUniverse(
         universeId: String,
         snapshot: UnifiedCatalogSnapshot,
         overrideEntries: List<UnifiedCatalogEntry>? = null,
@@ -1016,6 +1091,8 @@ class MediaUniverseViewModel : ViewModel() {
                 .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
             "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
             "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
+            "podcasts" -> DirectPodcastPlayerManager.allPresetShows()
+                .map { it.providerName.ifBlank { DIRECT_PODCAST_API_NAME } }
             else -> emptyList()
         }
 
@@ -1080,7 +1157,7 @@ class MediaUniverseViewModel : ViewModel() {
                 val resp = station.toSearchResponse()
                 val cats = MediaUniverseClassifier.categorizeForUniverse(
                     universeId = "radio",
-                    title = "${station.name} ${station.country}",
+                    title = "${station.name} ${RadioOrigin.displayLabel(station.country, context)}",
                     sectionName = station.genre,
                     tags = listOf("country:${station.country}", station.providerName),
                     effectiveType = TvType.Audio
@@ -1097,6 +1174,65 @@ class MediaUniverseViewModel : ViewModel() {
                     val rowCap = when {
                         searchQuery.isNotBlank() -> 240
                         cat == MissaCategory.RADIO_ALL -> 180
+                        else -> 80
+                    }
+                    if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
+                        bucket.items.add(resp)
+                    }
+                }
+            }
+        }
+
+        // Dedicated Podcasts universe (PODCASTS-01): the free RSS catalogue is the source of the
+        // whole universe, and the rows are ordered Africa first (PODCASTS-02).
+        if (universeId == "podcasts") {
+            val podcastShows = DirectPodcastPlayerManager.allPresetShows().filter { show ->
+                normalizedSelectedSources.isEmpty() ||
+                    show.providerName.ifBlank { DIRECT_PODCAST_API_NAME }
+                        .lowercase(Locale.ROOT) in normalizedSelectedSources
+            }
+            val favShowIds = DirectPodcastPlayerManager.favoriteIds()
+            val favShows = podcastShows.filter { favShowIds.contains(it.id) }
+                .map { it.toSearchResponse() }
+            if (favShows.isNotEmpty()) {
+                val favCat = MissaCategory.FAVORITES
+                buckets[favCat.id] = BucketData(
+                    key = favCat.id,
+                    rowTitle = resolveStr(ctx, favCat.rowTitleRes, "Favorites"),
+                    chipLabel = resolveStr(ctx, favCat.chipLabelRes, "Favorites"),
+                    rank = favCat.editorialRank,
+                    items = favShows.toMutableList(),
+                    isHorizontal = true
+                )
+            }
+            // En recherche, on montre d'abord ce qui correspond vraiment, puis le reste.
+            val showsToRender = if (searchQuery.isNotBlank()) {
+                (DirectPodcastPlayerManager.localMatches(searchQuery) + podcastShows)
+                    .distinctBy { it.id }
+            } else {
+                podcastShows
+            }
+            for (show in showsToRender) {
+                val resp = show.toSearchResponse()
+                val cats = MediaUniverseClassifier.categorizeForUniverse(
+                    universeId = "podcasts",
+                    title = "${show.title} ${show.author}",
+                    sectionName = show.genre,
+                    tags = listOf("region:${show.region.name}", show.providerName),
+                    effectiveType = TvType.Podcast
+                )
+                for (cat in cats) {
+                    val bucket = buckets.getOrPut(cat.id) {
+                        BucketData(
+                            key = cat.id,
+                            rowTitle = resolveStr(ctx, cat.rowTitleRes, cat.id),
+                            chipLabel = resolveStr(ctx, cat.chipLabelRes, cat.id),
+                            rank = cat.editorialRank
+                        )
+                    }
+                    val rowCap = when {
+                        searchQuery.isNotBlank() -> 240
+                        cat == MissaCategory.PODCASTS_ALL -> 120
                         else -> 80
                     }
                     if (bucket.items.size < rowCap && bucket.items.none { it.url == resp.url }) {
@@ -1548,12 +1684,20 @@ class MediaUniverseViewModel : ViewModel() {
         val hubShortcuts = if (universeId == "home" && searchQuery.isBlank()) {
             MissaUniverses.HUB_SHORTCUTS.map { uni ->
                 when (uni.id) {
-                    "retro_games" -> UniverseHubCardItem(
-                        definition = uni,
-                        itemCount = 5,
-                        countBadge = ctx?.resources?.getQuantityString(R.plurals.missa_games_count, 5, 5),
-                        hasLiveNow = false
-                    )
+                    "games" -> {
+                        // Nombre de jeux du dernier catalogue lu ; rien tant qu'il n'a jamais été lu.
+                        val total = ctx?.let { MissaGames.cachedCatalogue(it)?.games?.size } ?: 0
+                        UniverseHubCardItem(
+                            definition = uni,
+                            itemCount = total,
+                            countBadge = if (total > 0) {
+                                ctx?.resources?.getQuantityString(R.plurals.missa_games_count, total, total)
+                            } else {
+                                null
+                            },
+                            hasLiveNow = false
+                        )
+                    }
                     "music" -> {
                         val total = DirectMusicPlayerManager.allPresetTracks().size
                         val badge = if (total > 0) {
@@ -1571,7 +1715,14 @@ class MediaUniverseViewModel : ViewModel() {
                     "radio" -> {
                         val pluginCount = snapshot.entries.count { it.universes.contains("radio") }
                         val total = pluginCount + DirectRadioPlayerManager.allPresetStations().size
-                        val badge = ctx?.resources?.getQuantityString(R.plurals.missa_stations_count, total, total)
+                        // AUDIT H10: while the harvest is still running snapshot.entries only
+                        // holds a partial page, so this is a floor and not the size of the
+                        // universe - printing it showed "16 titres" for a universe of 302.
+                        val badge = if (total > 0 && !snapshot.isLoading) {
+                            ctx?.resources?.getQuantityString(R.plurals.missa_stations_count, total, total)
+                        } else {
+                            null
+                        }
                         UniverseHubCardItem(
                             definition = uni,
                             itemCount = total,
@@ -1581,7 +1732,8 @@ class MediaUniverseViewModel : ViewModel() {
                     }
                     else -> {
                         val count = snapshot.entries.count { it.universes.contains(uni.id) }
-                        val badge = if (count > 0) {
+                        // AUDIT H10: same floor rule as the radio card, see above.
+                        val badge = if (count > 0 && !snapshot.isLoading) {
                             ctx?.resources?.getQuantityString(R.plurals.missa_titles_count, count, count)
                         } else {
                             null
@@ -1602,9 +1754,11 @@ class MediaUniverseViewModel : ViewModel() {
         val totalUniqueCount = allMatchingRows.flatMap { it.items }.distinctBy { it.url }.size
         // A YouTube-only universe (Enfants) must not flash an "empty universe" card while its
         // first catalogue is still downloading (KIDS-01).
-        val directProviderLoading = universeId == "kids" &&
-            visibleRows.isEmpty() &&
-            DirectKidsPlayerManager.isAwaitingFirstCatalogue()
+        val directProviderLoading = visibleRows.isEmpty() && when (universeId) {
+            "kids" -> DirectKidsPlayerManager.isAwaitingFirstCatalogue()
+            "podcasts" -> DirectPodcastPlayerManager.isAwaitingFirstCatalogue()
+            else -> false
+        }
         val effectiveLoading = (snapshot.isLoading || directProviderLoading) && visibleRows.isEmpty()
 
         // Compute explicit empty/error reason without ever showing a plugin-missing card when no plugin is installed
@@ -1653,7 +1807,7 @@ class MediaUniverseViewModel : ViewModel() {
     private fun resolveStr(ctx: Context?, resId: Int, fallback: String): String =
         ctx?.getString(resId) ?: fallback
 
-    private fun buildHeroSlides(
+    private suspend fun buildHeroSlides(
         ctx: Context?,
         universeId: String,
         definition: UniverseDefinition,
@@ -1662,6 +1816,31 @@ class MediaUniverseViewModel : ViewModel() {
     ): List<HeroBannerSlide> {
         val eyebrowText = resolveStr(ctx, definition.eyebrowRes, "")
         val liveBadge = resolveStr(ctx, R.string.universe_live_badge, "LIVE")
+
+        if (universeId == "podcasts" && entries.isEmpty()) {
+            val basePool = DirectPodcastPlayerManager.allPresetShows()
+            val presetPool = if (normalizedSelectedSources.isEmpty()) {
+                basePool
+            } else {
+                basePool.filter {
+                    it.providerName.ifBlank { DIRECT_PODCAST_API_NAME }.lowercase(Locale.ROOT) in normalizedSelectedSources
+                }
+            }
+            return presetPool.take(5).map { show ->
+                HeroBannerSlide(
+                    card = show.toSearchResponse(),
+                    details = null,
+                    allSources = listOf(show.toSearchResponse()),
+                    eyebrow = eyebrowText,
+                    plot = show.genre.takeIf { it.isNotBlank() },
+                    yearText = null,
+                    durationText = null,
+                    scoreText = null,
+                    tags = listOf(show.author).filter { it.isNotBlank() },
+                    isDirectStream = true
+                )
+            }
+        }
 
         if (universeId == "radio" && entries.isEmpty()) {
             val basePool = DirectRadioPlayerManager.allPresetStations()
@@ -1684,7 +1863,8 @@ class MediaUniverseViewModel : ViewModel() {
                     yearText = null,
                     durationText = liveBadge,
                     scoreText = null,
-                    tags = listOf(station.country).filter { it.isNotBlank() },
+                    tags = listOf(RadioOrigin.displayLabel(station.country, context))
+                        .filter { it.isNotBlank() },
                     isDirectStream = true
                 )
             }
@@ -1851,10 +2031,12 @@ class MediaUniverseViewModel : ViewModel() {
     }
 
     private fun computeProviderSignature(): String {
-        return apis.withLock {
+        val base = apis.withLock {
             apis.filter { !it.supportedTypes.all { t -> t == TvType.NSFW } }
                 .joinToString("|") { "${it.name}:${it.lang}:${it.hasMainPage}" }
         }
+        // EXT-GROUPS : un changement de groupe doit relancer la moisson
+        return "$base#${MissaExtensionGroups.signature()}"
     }
 
     private fun countActiveProviders(): Int {
@@ -1882,23 +2064,31 @@ class MediaUniverseViewModel : ViewModel() {
                     api.name != "None" &&
                         api.name != "Random" &&
                         (!requireMainPage || api.hasMainPage) &&
-                        !api.supportedTypes.all { it == TvType.NSFW || it == TvType.CustomMedia }
+                        !api.supportedTypes.all { it == TvType.NSFW || it == TvType.CustomMedia } &&
+                        // EXT-GROUPS : "Aucun" = jamais chargé
+                        !MissaExtensionGroups.isDisabled(api)
                 }
             }
 
+            // EXT-GROUPS : ce que l'utilisateur a réglé explicitement passe TOUJOURS en premier
+            val assigned = allCompatible
+                .filter { MissaExtensionGroups.hasAssignment(it) }
+                .map { it to true }
+            val assignedNames = assigned.map { it.first.name }.toSet()
+
             val preferred = allCompatible
-                .filter { it.name in preferredNames }
+                .filter { it.name in preferredNames && it.name !in assignedNames }
                 .map { it to true }
 
             val specialtyTypes = setOf(TvType.Live, TvType.Podcast, TvType.Audio, TvType.Music, TvType.AudioBook, TvType.Cartoon)
             val remaining = allCompatible
-                .filterNot { it.name in preferredNames }
+                .filterNot { it.name in preferredNames || it.name in assignedNames }
                 .filter { api ->
-                    preferred.size < 8 || api.supportedTypes.any { it in specialtyTypes }
+                    (assigned.size + preferred.size) < 8 || api.supportedTypes.any { it in specialtyTypes }
                 }
                 .map { it to false }
 
-            (preferred + remaining).take(MAX_PROVIDERS_TO_HARVEST)
+            (assigned + preferred + remaining).take(MAX_PROVIDERS_TO_HARVEST)
         }
 
     private suspend fun harvestProvidersMainPages(
@@ -1916,6 +2106,7 @@ class MediaUniverseViewModel : ViewModel() {
                         try {
                             val repository = APIRepository(api)
                             val supportedTypes = api.supportedTypes.toSet()
+                            val forcedUniverses = MissaExtensionGroups.resolveForApi(api)
                             when (val response = repository.getMainPage(1, null)) {
                                 is Resource.Success -> response.value
                                     .filterNotNull()
@@ -1927,7 +2118,8 @@ class MediaUniverseViewModel : ViewModel() {
                                                 sectionName = section.name,
                                                 isHorizontalSection = section.isHorizontalImages,
                                                 providerSupportedTypes = supportedTypes,
-                                                isPreferredLanguage = isPreferred
+                                                isPreferredLanguage = isPreferred,
+                                                forcedUniverses = forcedUniverses
                                             )
                                         }
                                     }
@@ -2080,7 +2272,7 @@ class MediaUniverseViewModel : ViewModel() {
                 ) ?: entry.effectiveType
                 val newBucket = rawDomainBucket(updatedType)
                 val updatedKey = MediaUniverseClassifier.normalizeTitleKey(entry.primary.name, newBucket)
-                val updatedUniverses = MediaUniverseClassifier.classifyAllUniverses(
+                val autoUniverses = MediaUniverseClassifier.classifyAllUniverses(
                     type = updatedType,
                     title = entry.primary.name,
                     tags = tags,
@@ -2090,6 +2282,11 @@ class MediaUniverseViewModel : ViewModel() {
                     url = entry.primary.url,
                     episodeCountHint = epHint,
                     isSeriesLoadResponse = seriesLoad
+                )
+                // EXT-GROUPS : on réapplique le choix de l'utilisateur, trié par le crible
+                val updatedUniverses = MissaExtensionGroups.mergeUniversesForSources(
+                    auto = autoUniverses,
+                    sourceApiNames = entry.sources.map { it.apiName }.distinct()
                 )
                 entry.copy(
                     dedupKey = updatedKey,
@@ -2115,11 +2312,15 @@ class MediaUniverseViewModel : ViewModel() {
                 mergedSources.forEach { src ->
                     sourcesByItemUrl[itemIdentity(src)] = mergedSources
                 }
+                // EXT-GROUPS : la règle "films XOR séries" ne s'applique pas aux sources réglées par l'utilisateur
+                val hasForcedSource = mergedSources.any {
+                    MissaExtensionGroups.resolveForApiName(it.apiName) != null
+                }
                 primaryEntry.copy(
                     sources = mergedSources,
                     sectionHints = sameKeyEntries.flatMap { it.sectionHints }.toSet(),
                     universes = sameKeyEntries.flatMap { it.universes }.toSet().let { combined ->
-                        if ("films" in combined && "series" in combined) {
+                        if (!hasForcedSource && "films" in combined && "series" in combined) {
                             if (primaryEntry.effectiveType == TvType.TvSeries ||
                                 primaryEntry.effectiveType == TvType.Cartoon ||
                                 primaryEntry.effectiveType == TvType.AsianDrama
@@ -2156,6 +2357,11 @@ class MediaUniverseViewModel : ViewModel() {
                     obj.put("isHorizontalHint", entry.isHorizontalHint)
                     obj.put("sectionHints", JSONArray(entry.sectionHints.take(4).toList()))
                     obj.put("universes", JSONArray(entry.universes.toList()))
+                    // EXT-GROUPS : mémorise si l'entrée vient d'une source réglée par l'utilisateur
+                    obj.put(
+                        "forced",
+                        entry.sources.any { MissaExtensionGroups.resolveForApiName(it.apiName) != null }
+                    )
                     val tags = entry.details?.tags ?: entry.cachedTags
                     if (tags.isNotEmpty()) {
                         obj.put("tags", JSONArray(tags.take(8)))
@@ -2226,6 +2432,19 @@ class MediaUniverseViewModel : ViewModel() {
                         sectionName = hints.joinToString(" "),
                         url = url
                     )
+                    // EXT-GROUPS : si l'entrée était "forcée", on garde ses univers sauvegardés
+                    val savedUniverses = LinkedHashSet<String>()
+                    obj.optJSONArray("universes")?.let { ua ->
+                        for (j in 0 until ua.length()) {
+                            ua.optString(j).takeIf { it.isNotBlank() }?.let { savedUniverses.add(it) }
+                        }
+                    }
+                    val restoredUniverses: Set<String> =
+                        if (obj.optBoolean("forced", false) && savedUniverses.isNotEmpty()) {
+                            savedUniverses
+                        } else {
+                            recomputedUniverses
+                        }
                     restored.add(
                         UnifiedCatalogEntry(
                             dedupKey = obj.optString("dedupKey").ifBlank { url },
@@ -2234,7 +2453,7 @@ class MediaUniverseViewModel : ViewModel() {
                             effectiveType = tvType,
                             sectionHints = hints,
                             isHorizontalHint = obj.optBoolean("isHorizontalHint", false),
-                            universes = recomputedUniverses,
+                            universes = restoredUniverses,
                             cachedTags = tags,
                             cachedContentRating = contentRating,
                             cachedDuration = duration

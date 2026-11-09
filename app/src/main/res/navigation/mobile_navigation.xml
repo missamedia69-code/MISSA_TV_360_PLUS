@@ -439,14 +439,14 @@
     </fragment>
 
     <fragment
-        android:id="@+id/navigation_universe_retro_games"
-        android:name="com.lagradost.cloudstream3.ui.universe.RetroGamesFragment"
+        android:id="@+id/navigation_universe_games"
+        android:name="com.lagradost.cloudstream3.ui.universe.GamesFragment"
         android:label="@string/universe_games_title"
         app:enterAnim="@anim/enter_anim"
         app:exitAnim="@anim/exit_anim"
         app:popEnterAnim="@anim/enter_anim"
         app:popExitAnim="@anim/exit_anim"
-        tools:layout="@layout/fragment_retro_games" />
+        tools:layout="@layout/fragment_games" />
 
     <fragment
         android:id="@+id/navigation_search"

@@ -1,9 +1,9 @@
 # MISSA TV 360 PLUS
 
-**Plateforme multimédia & rétro-gaming unifiée pour Android Mobile, Tablette et Android TV.**  
-*Unified Cinema, Live TV, Direct Radio & Retro Gaming Platform for Android Phone, Tablet & Android TV.*
+**Plateforme multimédia unifiée pour Android Mobile, Tablette et Android TV.**  
+*Unified Cinema, Live TV & Direct Radio Platform for Android Phone, Tablet & Android TV.*
 
-> **Note importante / Disclaimer** : Par défaut, MISSA TV 360 PLUS n'embarque aucune source vidéo commerciale ni aucune ROM commerciale. Les flux vidéo/audio reposent sur les extensions compatibles installées par l'utilisateur, tandis que les stations de radio directes et le catalogue de jeux rétro open-source (homebrew) fonctionnent immédiatement.
+> **Note importante / Disclaimer** : Par défaut, MISSA TV 360 PLUS n'embarque aucune source vidéo commerciale. Les flux vidéo/audio reposent sur les extensions compatibles installées par l'utilisateur, tandis que les stations de radio directes fonctionnent immédiatement.
 
 ---
 
@@ -21,7 +21,7 @@ MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agr�
 8. **Musiques** (`navigation_universe_music`) — Titres, albums, clips vidéo, concerts, chaînes musicales et flux musicaux en continu (Afro, Cameroun, Urbain, Pop, Gospel, Jazz…).
 9. **Podcasts** (`navigation_universe_podcasts`) — Émissions audio, chroniques et livres audio.
 10. **Radio directe** (`navigation_universe_radio`) — Stations africaines (Cameroun, Côte d'Ivoire, Sénégal, RDC…) et internationales en lecture directe via **AndroidX Media3 `MediaSessionService`** (notification système, écran verrouillé, mini-lecteur persistant, minuterie de veille et flux personnalisés `M3U8`/`MP3`/`AAC`).
-11. **Jeux Rétro** (`navigation_universe_retro_games`) — Catalogue homebrew libre + import de ROMs légales avec émulation **Libretro** à la demande (Game Boy / GBC, NES, Super Nintendo, GBA, Mega Drive / Master System), croix directionnelle 8 directions multi-touch, états de sauvegarde automatiques et menu Pause navigable à la télécommande.
+11. **Jeux** (`navigation_universe_games`) — Jeux homebrew libres (NES, Game Boy / Color) téléchargés à la demande depuis le dossier [`game/`](game/README.md) : le jeu, son émulateur ([EmulatorJS](https://emulatorjs.org), GPL-3.0) et ses sauvegardes restent sur l'appareil et tournent hors ligne, à la télécommande, à la manette ou en tactile.
 
 ---
 
@@ -64,6 +64,4 @@ Le workflow GitHub Actions (`.github/workflows/missa-tv-ci.yml`) compile automat
 MISSA TV 360 PLUS est distribué sous licence **GNU General Public License v3.0 (GPL-3.0)** et s'appuie sur l'écosystème open-source suivant :
 
 - Base moteur & système d'extensions : [reCloudStream / CloudStream](https://github.com/recloudstream/cloudstream) (GPL-3.0)
-- Pont d'émulation Libretro Kotlin Multiplatform : [kotlinds / libretro-kmp](https://github.com/kotlinds/libretro-kmp) & cœurs officiels Libretro (SameBoy, FCEUmm, Snes9x, mGBA, Genesis Plus GX)
 - Lecture audio & session média : [AndroidX Media3](https://developer.android.com/media/media3) (Apache-2.0)
-- Jeux homebrew du catalogue libre : *µCity* (AntonioND, GPL-3.0), *Big2Small* (mdsteele, GPL-3.0), *RoboRun NES* (heaven-hm, GPL-3.0), *Libbet & the Magic Floor* & *240p Test Suite Mini* (Damian Yerrick / pinobatch, Zlib/GPL)

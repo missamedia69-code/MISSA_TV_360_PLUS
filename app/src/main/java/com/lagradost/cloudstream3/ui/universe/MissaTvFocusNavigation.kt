@@ -17,6 +17,49 @@ import kotlin.math.abs
  */
 internal object MissaTvFocusHelper {
 
+    // -----------------------------------------------------------------------------------
+    // NAV-PERF : appui long sur une flèche de la télécommande.
+    //
+    // Android répète la touche environ toutes les 50 ms. Sur une box TV modeste, chaque
+    // déplacement (recherche du focus dans les rangées imbriquées + défilement + rendu)
+    // prend souvent plus longtemps : les répétitions s'empilent dans la file d'événements
+    // et, une fois la touche relâchée, le sélecteur continue d'avancer tout seul pendant
+    // une demi-seconde ou plus. On écarte donc :
+    //  - les répétitions arrivées en retard (déjà vieilles quand on les traite) ;
+    //  - les répétitions trop rapprochées, pour garder un rythme régulier que l'écran
+    //    peut suivre.
+    // Le premier appui n'est JAMAIS écarté : un appui court bouge toujours d'un cran.
+    // -----------------------------------------------------------------------------------
+
+    /** Écart minimal entre deux déplacements répétés (≈ 11 cases par seconde). */
+    const val DPAD_REPEAT_MIN_INTERVAL_MS = 90L
+
+    /** Au-delà, une répétition est périmée : l'utilisateur l'a envoyée il y a trop longtemps. */
+    const val DPAD_REPEAT_STALE_MS = 140L
+
+    /**
+     * Vrai pendant un appui long sur une flèche. Les défilements passent alors en mode
+     * immédiat : une animation lancée à chaque cran serait interrompue par la suivante et
+     * ferait trembler la liste.
+     */
+    @Volatile
+    var isFastNavigating: Boolean = false
+
+    /**
+     * Faut-il ignorer cette répétition de flèche ? Fonction pure (testée en JVM).
+     * [eventTime] et [now] sur la même horloge (SystemClock.uptimeMillis).
+     */
+    fun shouldDropDpadRepeat(
+        repeatCount: Int,
+        eventTime: Long,
+        now: Long,
+        lastHandledMoveTime: Long
+    ): Boolean {
+        if (repeatCount <= 0) return false
+        if (now - eventTime > DPAD_REPEAT_STALE_MS) return true
+        return lastHandledMoveTime > 0L && eventTime - lastHandledMoveTime < DPAD_REPEAT_MIN_INTERVAL_MS
+    }
+
     /**
      * Computes the horizontal scroll delta (`dx`) for a horizontal rail so that:
      * 1. Cards already completely inside `[leftEdge, rightEdge]` do NOT scroll (`dx = 0`),
@@ -413,7 +456,7 @@ internal object MissaTvFocusHelper {
 
 /**
  * Column-aligned [GridLayoutManager] for MISSA TV 360 PLUS (`Voir tout` sheet, in-universe
- * search grids, and Retro Games multi-column grids).
+ * and search grids).
  *
  * - Never wraps horizontally across row boundaries (`DPAD_LEFT` at col 0 / `DPAD_RIGHT` at col `N-1`).
  * - Preserves exact `spanIndex` column on `DPAD_UP` / `DPAD_DOWN`, including grids with full-span headers.
@@ -615,7 +658,7 @@ class MissaAlignedGridLayoutManager(
                     ensureGridRowVisible(rv, revealed)
                     return revealed
                 }
-                // Target position was a non-focusable section header row (e.g., Retro Games header):
+                // Target position was a non-focusable section header row (e.g., a section header):
                 // step one more group in the same vertical direction, or escape upward if at group 0.
                 val lookup = spanSizeLookup
                 val spans = spanCount.coerceAtLeast(1)
@@ -671,6 +714,16 @@ class MissaVerticalUniverseLayoutManager(
 
     private var attachedRecyclerView: RecyclerView? = null
     private val tmpLoc = IntArray(2)
+
+    /**
+     * Breathing room left above and below a row that had to be framed back into the
+     * viewport. Small on purpose: it is a margin, not a scroll zone (see below).
+     */
+    private val frameMargin: Int
+
+    init {
+        frameMargin = (8 * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+    }
 
     override fun onAttachedToWindow(view: RecyclerView?) {
         super.onAttachedToWindow(view)
@@ -797,7 +850,7 @@ class MissaVerticalUniverseLayoutManager(
         if (pos == 0) {
             val dy = getDecoratedTop(child) - topLimit
             if (dy < 0 && parent.canScrollVertically(-1)) {
-                if (immediate) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
+                if (immediate || MissaTvFocusHelper.isFastNavigating) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
                 return true
             }
         } else if (pos > 0) {
@@ -807,10 +860,21 @@ class MissaVerticalUniverseLayoutManager(
             val rowBottom = getDecoratedBottom(child)
             val rowHeight = rowBottom - rowTop
             val viewportHeight = (bottomLimit - topLimit).coerceAtLeast(1)
+            val fitsWithMargin = rowHeight <= viewportHeight - 2 * frameMargin
+
+            // AUDIT (2026-11-05): the framework asks every parent to reveal the newly focused
+            // view, so this runs on a DPAD_LEFT/RIGHT press too, not only up and down. The old
+            // test was `rowTop < topLimit + 8`, which also caught a row sitting fully visible
+            // inside that 8px band: each press then nudged the whole page by a few pixels, up
+            // or down, although nothing was hidden. Only a row really cut by the viewport may
+            // move the page now; a row that fits and is visible stays exactly where it is.
+            if (fitsWithMargin && rowTop >= topLimit && rowBottom <= bottomLimit) {
+                return false
+            }
 
             var dy = when {
-                rowHeight <= viewportHeight - 16 && rowTop < topLimit + 8 -> rowTop - (topLimit + 8)
-                rowHeight <= viewportHeight - 16 && rowBottom > bottomLimit - 8 -> rowBottom - (bottomLimit - 8)
+                fitsWithMargin && rowTop < topLimit -> rowTop - (topLimit + frameMargin)
+                fitsWithMargin && rowBottom > bottomLimit -> rowBottom - (bottomLimit - frameMargin)
                 else -> 0
             }
 
@@ -827,7 +891,7 @@ class MissaVerticalUniverseLayoutManager(
             }
 
             if (dy != 0 && parent.canScrollVertically(if (dy > 0) 1 else -1)) {
-                if (immediate) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
+                if (immediate || MissaTvFocusHelper.isFastNavigating) parent.scrollBy(0, dy) else parent.smoothScrollBy(0, dy)
                 return true
             }
         }

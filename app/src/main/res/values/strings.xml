@@ -527,7 +527,7 @@
     <string name="plugins_disabled" formatted="true">Disabled: %d</string>
     <string name="plugins_not_downloaded" formatted="true">Not downloaded: %d</string>
     <string name="plugins_updated" formatted="true">Updated %d plugins</string>
-    <string name="blank_repo_message">MISSA TV 360 has no external streaming sources installed by default. Add a compatible extension repository to populate Movies, Series, Live TV and Podcasts, or enjoy Radio and Retro Games right away.</string>
+    <string name="blank_repo_message">MISSA TV 360 has no external streaming sources installed by default. Add a compatible extension repository to populate Movies, Series, Live TV and Podcasts, or enjoy Radio right away.</string>
     <string name="view_public_repositories_button">View community repositories</string>
     <string name="view_public_repositories_button_short">Public list</string>
     <string name="uppercase_all_subtitles">Uppercase all subtitles</string>
@@ -815,13 +815,19 @@
 
     <!-- MISSA TV 360 media universes (English default fallback - I18N-02) -->
     <string name="universe_home_title">Home</string>
-    <string name="universe_home_description">Movies, series, live TV, audio and retro games brought together in one platform.</string>
+    <string name="universe_home_description">Movies, series, live TV and audio brought together in one platform.</string>
     <string name="universe_home_catalogue">Selection &amp; picks</string>
+    <!-- AUDIT H7: continent-level radio origins; they have no flag, only a label -->
+    <string name="radio_origin_africa">Africa</string>
+    <string name="radio_origin_world">Worldwide</string>
     <string name="universe_films_title">Movies &amp; Mangas</string>
+    <!-- AUDIT H5: compact label for the top strip; the full title stays on the cards -->
+    <string name="universe_films_title_short">Movies</string>
     <string name="universe_films_description">Feature films, mangas, anime, OVAs and classics unified across all compatible sources.</string>
     <string name="universe_series_title">Series</string>
     <string name="universe_series_description">Shows, seasons and episodes unified across all compatible extensions.</string>
     <string name="universe_documentaries_title">Documentaries &amp; Live</string>
+    <string name="universe_documentaries_title_short">Docs &amp; Live</string>
     <string name="universe_documentaries_description">Feature documentaries, docu-series, reports, nature, history, science, plus live channels and streams from Twitch, YouTube &amp; Dailymotion.</string>
     <string name="universe_shorts_title">Shorts</string>
     <string name="universe_shorts_description">Short-format films and creations identified by duration and metadata.</string>
@@ -837,8 +843,16 @@
     <string name="universe_podcasts_description">Discover audio shows, browse episodes and resume listening anytime.</string>
     <string name="universe_radio_title">Radio</string>
     <string name="universe_radio_description">Instant direct-stream radio stations from Africa and around the world.</string>
-    <string name="universe_games_title">Retro Games</string>
-    <string name="universe_games_description">Standalone retro gaming hub with free homebrew downloads and built-in emulation.</string>
+    <!-- EXT-GROUPS : choix du groupe de médias par extension -->
+    <string name="missa_ext_group_auto">Auto</string>
+    <string name="missa_ext_group_none">None (not loaded)</string>
+    <string name="missa_ext_group_badge">Group: %1$s</string>
+    <string name="missa_ext_group_dialog_title">Media group — %1$s</string>
+    <string name="missa_ext_group_save">Save</string>
+    <string name="missa_ext_group_reset_auto">Auto</string>
+    <string name="missa_ext_group_cancel">Cancel</string>
+    <string name="missa_ext_group_whole_extension">Whole extension</string>
+    <string name="missa_ext_group_inherit">inherited (%1$s)</string>
 
     <!-- Eyebrow badges -->
     <string name="universe_eyebrow_home">FEATURED</string>
@@ -852,7 +866,6 @@
     <string name="universe_eyebrow_music">ON-DEMAND MUSIC</string>
     <string name="universe_eyebrow_podcasts">PODCASTS</string>
     <string name="universe_eyebrow_radio">RADIO</string>
-    <string name="universe_eyebrow_games">RETRO GAMES</string>
 
     <string name="universe_card_films_sub">Cinema, mangas &amp; anime</string>
     <string name="universe_card_series_sub">Seasons &amp; episodes</string>
@@ -864,7 +877,6 @@
     <string name="universe_card_music_sub">Tracks, albums &amp; mixes</string>
     <string name="universe_card_podcasts_sub">Shows &amp; episodes</string>
     <string name="universe_card_radio_sub">Direct listening</string>
-    <string name="universe_card_games_sub">Catalog &amp; emulation</string>
 
     <string name="universe_hero_watch">Watch</string>
     <string name="universe_hero_watch_live">Watch live</string>
@@ -876,7 +888,7 @@
     <string name="universe_hero_manage_plugins">Set up sources</string>
     <string name="universe_hero_onboarding_badge">WELCOME TO MISSA TV 360</string>
     <string name="universe_hero_onboarding_title">Your cinema, live channels and audio organized by universe</string>
-    <string name="universe_hero_onboarding_plot">MISSA TV 360 automatically organizes movies, series, short films, kids titles, live TV, sports, podcasts and radio from your background extensions. Set up sources in 3 steps, or jump straight into Radio and Retro Games.</string>
+    <string name="universe_hero_onboarding_plot">MISSA TV 360 automatically organizes movies, series, short films, kids titles, live TV, sports, podcasts and radio from your background extensions. Set up sources in 3 steps, or jump straight into Radio.</string>
 
     <string name="universe_resume_watching_title">Continue watching</string>
     <string name="universe_resume_listening_title">Continue listening</string>
@@ -925,10 +937,6 @@
         <item quantity="one">%d source</item>
         <item quantity="other">%d sources</item>
     </plurals>
-    <plurals name="missa_games_count">
-        <item quantity="one">%d game</item>
-        <item quantity="other">%d games</item>
-    </plurals>
     <plurals name="missa_tracks_count">
         <item quantity="one">%d track</item>
         <item quantity="other">%d tracks</item>
@@ -947,7 +955,7 @@
     <string name="missa_data_saver_badge">Data Saver</string>
 
     <string name="missa_state_no_plugins_title">No streaming sources configured yet</string>
-    <string name="missa_state_no_plugins_desc">Add a compatible extension repository in 3 quick steps to unlock Movies, Series, Live TV and Podcasts, or explore Radio and Retro Games right now.</string>
+    <string name="missa_state_no_plugins_desc">Add a compatible extension repository in 3 quick steps to unlock Movies, Series, Live TV and Podcasts, or explore Radio right now.</string>
     <string name="missa_state_no_plugins_cta">Start 3-step setup</string>
 
     <string name="missa_state_empty_universe_title">No content available in %1$s right now</string>
@@ -995,12 +1003,12 @@
     <!-- 3-step onboarding wizard (FLOW-01) -->
     <string name="missa_onboarding_step_indicator">Step %1$d of 3</string>
     <string name="missa_onboarding_step1_title">Welcome to MISSA TV 360 PLUS</string>
-    <string name="missa_onboarding_step1_desc">One cinema-grade interface for 11 media universes: Movies &amp; Mangas, Series, Documentaries, Shorts, Kids, Live TV, Sports, Music, Podcasts, Direct Radio and Retro Games.</string>
+    <string name="missa_onboarding_step1_desc">One cinema-grade interface for 11 media universes: Movies &amp; Mangas, Series, Documentaries, Shorts, Kids, Live TV, Sports, Music, Podcasts, Direct Radio and Games.</string>
     <string name="missa_onboarding_step2_title">Region, Audio &amp; Data Preferences</string>
     <string name="missa_onboarding_step2_desc">Optimize your experience: highlight African &amp; international radio presets, and optionally enable Data Saver on mobile networks.</string>
     <string name="missa_onboarding_data_saver_toggle">Enable Data Saver (lighter images, paused hero auto-play)</string>
     <string name="missa_onboarding_step3_title">Connect Extension Sources</string>
-    <string name="missa_onboarding_step3_desc">Open the Extensions manager to add a repository URL or enable installed providers. Radio and Retro Games work immediately without plugins.</string>
+    <string name="missa_onboarding_step3_desc">Open the Extensions manager to add a repository URL or enable installed providers. Radio works immediately without plugins.</string>
     <string name="missa_onboarding_open_extensions">Open Extensions Manager</string>
     <string name="missa_onboarding_skip">Skip for now</string>
     <string name="missa_onboarding_next">Continue</string>
@@ -1219,6 +1227,7 @@
     <string name="universe_music_up_next">Up next: %1$s</string>
     <string name="universe_music_playlist_header_playlist">Playlist • %1$s</string>
     <string name="universe_music_playlist_header_album">Album • %1$s</string>
+    <string name="universe_music_playlist_header_show">Show • %1$s</string>
     <string name="universe_music_playlist_header_queue">Now Playing Queue</string>
     <string name="universe_music_playlist_subtitle_count">%1$d clips • Tap or select any track to play at the top</string>
     <string name="universe_music_playlist_loading">Loading all clips from %1$s…</string>
@@ -1262,6 +1271,8 @@
     <string name="missa_music_style_reggae">Reggae &amp; Dancehall</string>
     <string name="missa_music_style_jazz_chill">Jazz, Acoustic &amp; Classical</string>
 
+    <string name="missa_cat_podcasts_africa">Africa &amp; Cameroon</string>
+    <string name="missa_chip_podcasts_africa">Africa</string>
     <string name="missa_cat_podcasts_society">News, History &amp; Society</string>
     <string name="missa_chip_podcasts_society">Society</string>
     <string name="missa_cat_podcasts_culture">Culture, Science &amp; Comedy</string>
@@ -1285,94 +1296,50 @@
     <string name="missa_chip_radio_all">Stations</string>
     <string name="universe_radio_m3u_imported">%1$d stations imported from M3U playlist</string>
 
-    <!-- Retro Games Hub & Immersive Overlay Player (GAME-01..05) -->
-    <string name="universe_retro_import">Import ROM</string>
-    <string name="universe_retro_refresh">Refresh library</string>
-    <string name="universe_retro_downloads">Homebrew Hub</string>
-    <string name="universe_retro_installed_section">Installed Library</string>
-    <string name="universe_retro_catalog_section">Free Open-Source Catalog</string>
-    <string name="universe_retro_title">Retro Games</string>
-    <string name="universe_retro_intro">Standalone retro gaming ecosystem: download free homebrew titles or import your legal ROMs, then play directly inside MISSA TV 360.</string>
-    <string name="universe_retro_empty">No installed ROM matches this console filter yet. Download a free game below or import a compatible ROM file.</string>
-    <string name="universe_retro_engine_missing">On-demand Libretro cores (Game Boy / GBC, NES, Super Nintendo, GBA, Mega Drive / Master System). Other formats open in an external emulator.</string>
-    <string name="universe_retro_open">Play</string>
-    <string name="universe_retro_download">Download</string>
-    <string name="universe_retro_downloading_pct">Downloading %1$d%% (%2$s)</string>
-    <string name="universe_retro_downloading_bytes">Downloading (%1$s)</string>
-    <string name="universe_retro_cancel_download">Cancel</string>
-    <string name="universe_retro_installed_badge">Installed</string>
-    <string name="universe_retro_builtin_engine_badge">Built-in core</string>
-    <string name="universe_retro_external_engine_badge">External emulator</string>
-    <string name="universe_retro_delete">Delete</string>
-    <string name="universe_retro_deleted">Game removed from library</string>
-    <string name="universe_retro_file_imported">Game ready in your library</string>
-    <string name="universe_retro_import_error">Unable to import or download this file. Check the ROM format or network connection.</string>
-    <string name="universe_retro_catalogue_notice">Free &amp; open-source homebrew games ready for instant download.</string>
-    <string name="universe_retro_controller_gamepad">Controller detected: %1$s</string>
-    <string name="universe_retro_controller_tv">Android TV remote ready (Bluetooth/USB gamepad recommended for action games)</string>
-    <string name="universe_retro_controller_touch">Overlay touch controls ready (Bluetooth gamepad supported)</string>
-    <string name="universe_retro_console_other">Other consoles</string>
-
-    <!-- Integrated retro player & pause menu -->
-    <string name="universe_retro_download_engine">Install emulation core</string>
-    <string name="universe_retro_engine_downloading">Downloading Libretro core…</string>
-    <string name="universe_retro_engine_ready">Core ready. Launching game…</string>
-    <string name="universe_retro_engine_failed">Unable to install emulation core. Check your connection and retry.</string>
-    <string name="universe_retro_engine_incompatible">Built-in emulation requires Android 7.0+ (ARM64 / ARMv7 / x86_64). Use a compatible external emulator.</string>
-    <string name="universe_retro_loading_game">Loading cartridge…</string>
-    <string name="universe_retro_player_title">MISSA TV 360 · Retro</string>
-    <string name="universe_retro_pause">Pause</string>
-    <string name="universe_retro_resume">Resume game</string>
-    <string name="universe_retro_reset_console">Reset console</string>
-    <string name="universe_retro_save_state">Save state</string>
-    <string name="universe_retro_load_state">Load state</string>
-    <string name="universe_retro_state_saved">Game state saved</string>
-    <string name="universe_retro_state_loaded">Game state restored</string>
-    <string name="universe_retro_state_unavailable">No saved state available yet</string>
-    <string name="universe_retro_toggle_touch">Toggle touch overlay</string>
-    <string name="universe_retro_touch_opacity">Cycle overlay opacity</string>
-    <string name="universe_retro_exit">Quit game</string>
-    <string name="universe_retro_pause_menu_title">Game Paused</string>
-    <string name="universe_retro_controls">Gamepad / Remote: D-pad, A/OK, B, X/Select, Y/Start, L1/R1. Back or Menu opens Pause.</string>
-    <string name="universe_retro_engine_notice">On-demand Libretro emulation (SameBoy, FCEUmm, Snes9x, mGBA, Genesis Plus GX) • No commercial ROMs bundled.</string>
-    <string name="universe_retro_player_failed">The game could not start with this core. Verify the ROM file integrity.</string>
-    <string name="universe_retro_external_engine">Open in external emulator</string>
-
-    <!-- Retro catalog filters, localized cards & immersive player extras -->
-    <string name="universe_retro_filter_all">All consoles</string>
-    <string name="universe_retro_filter_gb">Game Boy / GBC</string>
-    <string name="universe_retro_filter_nes">NES</string>
-    <string name="universe_retro_filter_snes">Super Nintendo</string>
-    <string name="universe_retro_filter_gba">Game Boy Advance</string>
-    <string name="universe_retro_filter_sega">Mega Drive / SMS</string>
-    <string name="universe_retro_source_code">Source</string>
-    <string name="universe_retro_delete_confirm">Remove “%1$s” from your installed library?</string>
-    <string name="universe_retro_engine_required_fmt">%1$s emulation core required (one-time download)</string>
-    <string name="universe_retro_install_engine_fmt">Install %1$s core</string>
-    <string name="universe_retro_player_title_fmt">MISSA TV 360 · %1$s</string>
-    <string name="universe_retro_touch_scale">Cycle button size</string>
-    <string name="universe_retro_touch_opacity_fmt">Overlay opacity: %1$d%%</string>
-    <string name="universe_retro_touch_scale_fmt">Overlay size: %1$s</string>
-    <string name="universe_retro_auto_resumed">Resumed from last session</string>
-    <string name="universe_retro_quit_confirm">Save session and quit to the Retro Games hub?</string>
-    <string name="universe_retro_dpad_desc">8-way directional pad</string>
-    <string name="universe_retro_button_l">Left shoulder button L</string>
-    <string name="universe_retro_button_r">Right shoulder button R</string>
-    <string name="universe_retro_button_select">Select button</string>
-    <string name="universe_retro_button_start">Start button</string>
-    <string name="universe_retro_button_x">X action button</string>
-    <string name="universe_retro_button_y">Y action button</string>
-    <string name="universe_retro_button_a">A action button</string>
-    <string name="universe_retro_button_b">B action button</string>
+    <string name="universe_favorite_removed">Removed from favorites</string>
     <string name="missa_a11y_selected">Selected</string>
-    <string name="universe_retro_game_ucity_genre">City-Building &amp; Strategy</string>
-    <string name="universe_retro_game_ucity_desc">Full-featured open-source city-building and urban simulation crafted specifically for Game Boy Color.</string>
-    <string name="universe_retro_game_big2small_genre">Puzzle &amp; Logic</string>
-    <string name="universe_retro_game_big2small_desc">Guide an elephant, goat and mouse to their goals across dozens of clever puzzle stages.</string>
-    <string name="universe_retro_game_roborun_genre">Action &amp; Platformer</string>
-    <string name="universe_retro_game_roborun_desc">Fast-paced 8-bit retro action runner and platformer built natively for the NES.</string>
-    <string name="universe_retro_game_libbet_genre">Arcade &amp; Maze</string>
-    <string name="universe_retro_game_libbet_desc">Classic Damian Yerrick homebrew blending tactical movement with bounce physics.</string>
-    <string name="universe_retro_game_240p_genre">AV &amp; Controller Suite</string>
-    <string name="universe_retro_game_240p_desc">Interactive open-source suite to test display geometry, colors and gamepad latency on GBA.</string>
+
+    <!-- Univers Jeux (game/catalogue.json, EmulatorJS en WebView) -->
+    <string name="universe_games_title">Games</string>
+    <string name="universe_games_title_short">Games</string>
+    <string name="universe_games_description">Free retro games, downloaded on demand and played offline.</string>
+    <string name="universe_card_games_sub">NES, Game Boy and more</string>
+    <string name="universe_eyebrow_games">GAMES</string>
+    <string name="universe_games_intro">Download a game in one tap: the emulator for its console comes with it. Then play offline.</string>
+    <string name="universe_games_refresh">Refresh</string>
+    <string name="universe_games_filter_all">All</string>
+    <string name="universe_games_unavailable">The games catalogue is not available yet. Check your connection and refresh.</string>
+    <string name="universe_games_ready">%1$s is ready to play</string>
+    <string name="universe_games_download_error">Download failed. Check your connection and try again.</string>
+    <string name="universe_games_delete_confirm">Remove this game from the device? You can download it again at any time.</string>
+    <string name="universe_games_info_button">Info</string>
+    <string name="universe_games_info">Author: %1$s
+Console: %2$s
+Licence: %3$s
+Emulator: %4$s (%5$s)
+Source: %6$s</string>
+    <string name="universe_games_controller_gamepad">Controller ready: %1$s</string>
+    <string name="universe_games_controller_tv">Remote ready (a controller is better for action games)</string>
+    <string name="universe_games_controller_touch">On-screen controls</string>
+    <string name="universe_games_step_engine">Installing the game engine… %1$d%%</string>
+    <string name="universe_games_step_emulator">Installing the console emulator… %1$d%%</string>
+    <string name="universe_games_step_game">Downloading the game… %1$d%%</string>
+    <string name="universe_games_cancel">Cancel</string>
+    <string name="universe_games_play">Play</string>
+    <string name="universe_games_download">Download (%1$s)</string>
+    <string name="universe_games_loading">Loading %1$s…</string>
+    <string name="universe_games_hint_tv">OK: A · Back: B · Hold Back: menu</string>
+    <string name="universe_games_hint_touch">Back: pause menu</string>
+    <string name="universe_games_menu_title">Pause</string>
+    <string name="universe_games_menu_resume">Resume</string>
+    <string name="universe_games_menu_save">Save game</string>
+    <string name="universe_games_menu_load">Load saved game</string>
+    <string name="universe_games_menu_start">Press START</string>
+    <string name="universe_games_menu_select">Press SELECT</string>
+    <string name="universe_games_menu_restart">Restart</string>
+    <string name="universe_games_menu_quit">Quit the game</string>
+    <plurals name="missa_games_count">
+        <item quantity="one">%d game</item>
+        <item quantity="other">%d games</item>
+    </plurals>
 </resources>

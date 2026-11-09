@@ -60,6 +60,19 @@ internal class CategoryFilterPillAdapter(
     private val onPillClicked: (CategoryFilterPillUi) -> Unit
 ) : ListAdapter<CategoryFilterPillUi, CategoryFilterPillAdapter.PillHolder>(Diff) {
 
+    init {
+        // FOCUS-FIX : des identifiants stables permettent à RecyclerView de garder le focus
+        // sur LA MÊME pastille quand la liste est re-soumise après un clic (au lieu de le
+        // perdre, ce qui renvoyait le sélecteur vert sur la pastille à côté du logo).
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long {
+        val item = getItem(position)
+        val base = (item.key ?: "__all__").hashCode().toLong()
+        return if (item.isOverflowMore) base xor 0x4D4F5245L else base
+    }
+
     object Diff : DiffUtil.ItemCallback<CategoryFilterPillUi>() {
         override fun areItemsTheSame(oldItem: CategoryFilterPillUi, newItem: CategoryFilterPillUi): Boolean =
             oldItem.key == newItem.key && oldItem.isOverflowMore == newItem.isOverflowMore
@@ -139,7 +152,10 @@ internal class UniverseHubCardAdapter(
     class HubCardViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val icon: ImageView = itemView.findViewById(R.id.universe_card_icon)
         private val liveDot: TextView = itemView.findViewById(R.id.universe_card_live_dot)
-        private val badge: TextView = itemView.findViewById(R.id.universe_card_badge)
+        // AUDIT H9: the figure sits where the card used to be empty, not on a badge in the
+        // corner. AUDIT H10: it is the size of the universe, so nothing is printed while
+        // the harvest has not settled.
+        private val count: TextView = itemView.findViewById(R.id.universe_card_count)
         private val title: TextView = itemView.findViewById(R.id.universe_card_title)
         private val subtitle: TextView = itemView.findViewById(R.id.universe_card_subtitle)
 
@@ -151,8 +167,8 @@ internal class UniverseHubCardAdapter(
             title.text = titleText
             subtitle.text = subText
             liveDot.isVisible = item.hasLiveNow
-            badge.isVisible = !item.countBadge.isNullOrBlank()
-            badge.text = item.countBadge.orEmpty()
+            count.isVisible = !item.countBadge.isNullOrBlank()
+            count.text = item.countBadge.orEmpty()
 
             itemView.contentDescription = listOfNotNull(
                 titleText,
@@ -304,6 +320,13 @@ internal class UniverseScreenAdapter(
         fun onMusicClearUpcomingQueue()
         fun onMusicOpenFullscreenClip()
         fun onContentItemFocused(rowKey: String)
+
+        /**
+         * Un élément vient d'être ouvert (clic ou OK). On retient la rangée **et** la carte
+         * pour que le sélecteur revienne précisément dessus au retour du lecteur, au lieu
+         * de repartir en haut de l'écran, à côté du logo.
+         */
+        fun onContentItemActivated(rowKey: String, itemUrl: String, itemPosition: Int)
     }
 
     companion object {
@@ -567,6 +590,7 @@ internal class UniverseScreenAdapter(
         fun bind(item: UniverseListItem.HeroCarousel) {
             val universeChanged = currentItem?.universeId != item.universeId
             currentItem = item
+            slideAdapter.rowKey = item.itemId
             slideAdapter.dataSaverActive = item.dataSaverActive
             slideAdapter.submitList(item.slides) {
                 if (universeChanged && item.slides.isNotEmpty()) {
@@ -680,10 +704,13 @@ internal class UniverseScreenAdapter(
                 oldItem == newItem
         }
 
+        // NAV-02 : la clé de rangée du bandeau, pour que le sélecteur puisse y revenir.
+        var rowKey: String = "hero"
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SlideHolder {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_universe_hero_slide, parent, false)
-            return SlideHolder(view, callbacks)
+            return SlideHolder(view, callbacks) { rowKey }
         }
 
         override fun onBindViewHolder(holder: SlideHolder, position: Int) {
@@ -696,7 +723,8 @@ internal class UniverseScreenAdapter(
 
         class SlideHolder(
             itemView: View,
-            private val callbacks: Callbacks
+            private val callbacks: Callbacks,
+            private val rowKeyProvider: () -> String
         ) : RecyclerView.ViewHolder(itemView) {
             private val backdropArt: ImageView = itemView.findViewById(R.id.hero_backdrop_art)
             private val backdrop: ImageView = itemView.findViewById(R.id.hero_backdrop_image)
@@ -817,7 +845,7 @@ internal class UniverseScreenAdapter(
                 detailsCta.setOnKeyListener(keyNav)
 
                 val focusTracker = View.OnFocusChangeListener { v, hasFocus ->
-                    if (hasFocus) callbacks.onContentItemFocused("hero")
+                    if (hasFocus) callbacks.onContentItemFocused(rowKeyProvider())
                     if (MissaUiFactory.isTvLayoutMode() && MissaUiFactory.areAnimationsEnabled(v.context)) {
                         val s = if (hasFocus) 1.05f else 1f
                         v.animate().scaleX(s).scaleY(s).setDuration(140L).start()
@@ -1688,6 +1716,8 @@ internal class UniverseScreenAdapter(
                     ctx.getString(R.string.universe_music_playlist_header_playlist, collectionName)
                 state.activeCollectionKind == MusicItemKind.ALBUM && collectionName != null ->
                     ctx.getString(R.string.universe_music_playlist_header_album, collectionName)
+                state.activeCollectionKind == MusicItemKind.PODCAST && collectionName != null ->
+                    ctx.getString(R.string.universe_music_playlist_header_show, collectionName)
                 else -> ctx.getString(R.string.universe_music_playlist_header_queue)
             }
 
@@ -1755,6 +1785,9 @@ internal class UniverseScreenAdapter(
         private val clearAllBtn: MaterialButton = itemView.findViewById(R.id.resume_clear_all_btn)
         private val recycler: RecyclerView = itemView.findViewById(R.id.resume_recycler)
         private var currentItems: List<DataStoreHelper.ResumeWatchingResult> = emptyList()
+        // NAV-02 : « resume » tout court ne correspondait à aucun élément de la liste ; la clé
+        // réelle est « resume_<univers> », sans quoi le sélecteur ne pouvait jamais y revenir.
+        private var currentRowKey: String = "resume"
 
         private val resumeAdapter = ResumeItemAdapter(
             nextFocusUp = View.NO_ID,
@@ -1767,8 +1800,11 @@ internal class UniverseScreenAdapter(
                             callbacks.onResumeSingleRemove(match)
                         }
                     }
-                    SEARCH_ACTION_FOCUSED -> callbacks.onContentItemFocused("resume")
-                    else -> callbacks.onCardClick(cb)
+                    SEARCH_ACTION_FOCUSED -> callbacks.onContentItemFocused(currentRowKey)
+                    else -> {
+                        callbacks.onContentItemActivated(currentRowKey, cb.card.url, cb.position)
+                        callbacks.onCardClick(cb)
+                    }
                 }
             },
             removeCallback = { callbacks.onClearAllResume(currentItems) }
@@ -1798,6 +1834,7 @@ internal class UniverseScreenAdapter(
         }
 
         fun bind(item: UniverseListItem.ResumeRow) {
+            currentRowKey = item.itemId
             currentItems = item.items
             titleView.setText(
                 if (item.universeId == "podcasts" || item.universeId == "music") {
@@ -1845,6 +1882,8 @@ internal class UniverseScreenAdapter(
         private val countView: TextView = itemView.findViewById(R.id.row_category_count)
         private val seeAllBtn: MaterialButton = itemView.findViewById(R.id.row_see_all_button)
         private val childRecycler: RecyclerView = itemView.findViewById(R.id.row_child_recycler)
+        /** PERF/FOCUS : clé de la rangée actuellement affichée par ce ViewHolder. */
+        private var boundRowKey: String? = null
 
         init {
             childRecycler.setRecycledViewPool(HomeChildItemAdapter.sharedPool)
@@ -1854,6 +1893,9 @@ internal class UniverseScreenAdapter(
                 nextRight = FOCUS_SELF,
                 endEscapeTarget = { seeAllBtn.takeIf { it.isShown && it.isFocusable } }
             )
+            // PERF : prépare les premières vignettes d'un rail pendant le défilement vertical
+            // (RecyclerView imbriqué) au lieu de toutes les créer d'un coup à l'apparition.
+            (childRecycler.layoutManager as? LinearLayoutManager)?.initialPrefetchItemCount = 4
             seeAllBtn.nextFocusRightId = seeAllBtn.id
             seeAllBtn.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
@@ -1892,11 +1934,14 @@ internal class UniverseScreenAdapter(
                 if (cb.action == SEARCH_ACTION_FOCUSED) {
                     callbacks.onContentItemFocused(item.itemId)
                 } else {
+                    callbacks.onContentItemActivated(item.itemId, cb.card.url, cb.position)
                     callbacks.onCardClick(cb)
                 }
             }
 
             val existing = childRecycler.adapter as? HomeChildItemAdapter
+            val sameRow = boundRowKey == item.itemId
+            boundRowKey = item.itemId
             if (existing == null) {
                 childRecycler.adapter = HomeChildItemAdapter(
                     id = item.itemId.hashCode() + adapterPosition,
@@ -1906,9 +1951,21 @@ internal class UniverseScreenAdapter(
                     submitList(railItems)
                 }
             } else {
-                existing.isHorizontal = row.isHorizontalCards
                 existing.clickCallback = handleClick
-                existing.submitIncomparableList(railItems)
+                if (sameRow && existing.isHorizontal == row.isHorizontalCards) {
+                    // PERF + FOCUS-FIX : même rangée re-rendue (chargement d'une extension,
+                    // état radio/musique, filtre...). Avant, toutes les vignettes étaient
+                    // détruites puis recréées : images rechargées, saccades, et la vignette qui
+                    // avait le sélecteur vert disparaissait -> Android le renvoyait en haut,
+                    // sur la pastille à côté du logo. Le DiffUtil ne touche que ce qui a changé.
+                    existing.submitList(railItems)
+                } else {
+                    // ViewHolder recyclé pour une autre rangée : remplacement complet, sans
+                    // animation parasite, et retour au début du rail.
+                    existing.isHorizontal = row.isHorizontalCards
+                    existing.submitIncomparableList(railItems)
+                    childRecycler.scrollToPosition(0)
+                }
             }
         }
 
@@ -1930,6 +1987,7 @@ internal class UniverseScreenAdapter(
         private val titleView: TextView = itemView.findViewById(R.id.search_grid_title)
         private val countView: TextView = itemView.findViewById(R.id.search_grid_count)
         private val gridRecycler: RecyclerView = itemView.findViewById(R.id.search_grid_recycler)
+        private var boundRowKey: String? = null
 
         fun bind(item: UniverseListItem.SearchGrid) {
             val ctx = itemView.context
@@ -1960,11 +2018,14 @@ internal class UniverseScreenAdapter(
                 if (cb.action == SEARCH_ACTION_FOCUSED) {
                     callbacks.onContentItemFocused(item.itemId)
                 } else {
+                    callbacks.onContentItemActivated(item.itemId, cb.card.url, cb.position)
                     callbacks.onCardClick(cb)
                 }
             }
 
             val existing = gridRecycler.adapter as? HomeChildItemAdapter
+            val sameRow = boundRowKey == item.itemId
+            boundRowKey = item.itemId
             if (existing == null) {
                 gridRecycler.adapter = HomeChildItemAdapter(
                     id = item.itemId.hashCode(),
@@ -1974,9 +2035,14 @@ internal class UniverseScreenAdapter(
                     submitList(row.items)
                 }
             } else {
-                existing.isHorizontal = row.isHorizontalCards
                 existing.clickCallback = handleClick
-                existing.submitIncomparableList(row.items)
+                if (sameRow && existing.isHorizontal == row.isHorizontalCards) {
+                    // PERF + FOCUS-FIX : voir CategoryRowHolder.
+                    existing.submitList(row.items)
+                } else {
+                    existing.isHorizontal = row.isHorizontalCards
+                    existing.submitIncomparableList(row.items)
+                }
             }
         }
 

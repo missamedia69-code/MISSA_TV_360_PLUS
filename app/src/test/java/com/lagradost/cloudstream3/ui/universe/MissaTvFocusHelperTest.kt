@@ -2,6 +2,7 @@ package com.lagradost.cloudstream3.ui.universe
 
 import android.view.View
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -355,7 +356,7 @@ class MissaTvFocusHelperTest {
     fun `tv dims declare the 10 foot scale for sw600dp televisions`() {
         // Qualifier precedence: smallestWidth outranks UI mode, so a values-television overlay
         // alone is shadowed by values-sw600dp on every 720p/1080p/4K TV. The union directory
-        // must exist and must carry the 10-foot hero / gamepad scale.
+        // must exist and must carry the 10-foot hero scale.
         val dimsRoot = java.io.File("src/main/res").takeIf { it.isDirectory }
             ?: java.io.File("app/src/main/res")
         val unionDims = java.io.File(dimsRoot, "values-sw600dp-television/dimens.xml")
@@ -368,11 +369,7 @@ class MissaTvFocusHelperTest {
             "missa_text_screen_title",
             "missa_hero_height",
             "missa_section_horizontal_padding",
-            "missa_hub_card_width",
-            "missa_retro_dpad_size",
-            "missa_retro_action_btn_size",
-            "missa_retro_shoulder_btn_width",
-            "missa_retro_shoulder_btn_height"
+            "missa_hub_card_width"
         )) {
             assertTrue("missing $dimen in values-sw600dp-television/dimens.xml", union.contains(dimen))
         }
@@ -380,10 +377,6 @@ class MissaTvFocusHelperTest {
         assertTrue(
             "TV hero must stay taller than the tablet hero",
             dimenValue(union, "missa_hero_height") > dimenValue(tablet, "missa_hero_height")
-        )
-        assertTrue(
-            "TV gamepad overlay must stay larger than the tablet one",
-            dimenValue(union, "missa_retro_dpad_size") > dimenValue(tablet, "missa_retro_dpad_size")
         )
     }
 
@@ -394,4 +387,25 @@ class MissaTvFocusHelperTest {
     }
 
     // endregion
+
+    // --- NAV-PERF : appui long sur une flèche ----------------------------------------------
+
+    @Test
+    fun `a first press is never dropped`() {
+        assertFalse(MissaTvFocusHelper.shouldDropDpadRepeat(repeatCount = 0, eventTime = 1_000, now = 5_000, lastHandledMoveTime = 990))
+    }
+
+    @Test
+    fun `a stale repeat queued behind slow frames is dropped`() {
+        // Envoyée il y a 300 ms : l'utilisateur a peut-être déjà relâché la touche.
+        assertTrue(MissaTvFocusHelper.shouldDropDpadRepeat(repeatCount = 4, eventTime = 1_000, now = 1_300, lastHandledMoveTime = 800))
+    }
+
+    @Test
+    fun `repeats are paced to a steady rhythm`() {
+        // 50 ms après le dernier déplacement traité : trop tôt.
+        assertTrue(MissaTvFocusHelper.shouldDropDpadRepeat(repeatCount = 2, eventTime = 1_050, now = 1_060, lastHandledMoveTime = 1_000))
+        // 100 ms après : on avance.
+        assertFalse(MissaTvFocusHelper.shouldDropDpadRepeat(repeatCount = 2, eventTime = 1_100, now = 1_110, lastHandledMoveTime = 1_000))
+    }
 }

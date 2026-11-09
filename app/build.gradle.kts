@@ -111,7 +111,10 @@ android {
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.lagradost.cloudstream3"
+        // Identifiant propre à MISSA TV : l'appli s'installe à côté de CloudStream sans conflit.
+        // Le namespace (plus bas) reste com.lagradost.cloudstream3 : c'est lui que les
+        // extensions CloudStream utilisent, elles fonctionnent donc sans changement.
+        applicationId = "com.missatv.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = libs.versions.versionCode.get().toInt()
@@ -153,8 +156,19 @@ android {
     buildTypes {
         release {
             isDebuggable = false
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // PERF A8 : R8 était désactivé en release, donc aucun élagage du code mort
+            // (media3/Cronet/Jackson/Coil représentent l'essentiel de l'APK) et aucune
+            // optimisation. Les règles de app/proguard-rules.pro gardent tout ce que les
+            // extensions voient, car elles sont chargées à l'exécution.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // PERF A1 : sans keystore "prerelease" (cas de la CI, qui n'en fournit pas),
+            // l'APK release resterait non signé et donc impossible à installer. On le signe
+            // avec la clé debug : ce sont des builds de test, pas des livraisons publiques.
+            // A8 activera isMinifyEnabled plus tard, en dernier.
+            if (!signingConfigs.names.contains("prerelease")) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -174,6 +188,12 @@ android {
     productFlavors {
         create("stable") {
             dimension = "state"
+            // Versions publiques (workflow release.yml) : signées avec la clé MISSA fournie
+            // par les secrets du dépôt, toujours la même, pour que les mises à jour
+            // s'installent par-dessus. Sans clé, rien ne change (clé debug, cf. buildTypes).
+            if (signingConfigs.names.contains("prerelease")) {
+                signingConfig = signingConfigs.getByName("prerelease")
+            }
         }
         create("prerelease") {
             isDefault = true
@@ -300,7 +320,6 @@ dependencies {
     implementation(libs.kotlinx.io.core) // Logcat parser
 
     // Embedded Game Boy / Game Boy Color core frontend (cores are downloaded on demand).
-    implementation("dev.kotlinds:libretro-kmp:0.1.2")
 
     implementation(project(":library"))
     implementation(project(":shared"))

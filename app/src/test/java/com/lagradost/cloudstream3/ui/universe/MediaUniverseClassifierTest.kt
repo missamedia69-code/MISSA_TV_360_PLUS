@@ -456,19 +456,6 @@ class MediaUniverseClassifierTest {
     }
 
     @Test
-    fun `retro game player maps each supported console extension to its official Libretro core`() {
-        assertEquals("sameboy_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("gb")?.coreFileName)
-        assertEquals("sameboy_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("GBC")?.coreFileName)
-        assertEquals("fceumm_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("nes")?.coreFileName)
-        assertEquals("snes9x_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("sfc")?.coreFileName)
-        assertEquals("snes9x_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("smc")?.coreFileName)
-        assertEquals("mgba_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("gba")?.coreFileName)
-        assertEquals("genesis_plus_gx_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("md")?.coreFileName)
-        assertEquals("genesis_plus_gx_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("sms")?.coreFileName)
-        assertEquals(null, RetroGamePlayerActivity.resolveCoreSpec("iso"))
-    }
-
-    @Test
     fun `navigation universes cover all 11 content universes plus Home with family separators`() {
         assertEquals(11, MissaUniverses.HUB_SHORTCUTS.size)
         assertEquals(12, MissaUniverses.NAVIGATION_UNIVERSES.size)
@@ -751,7 +738,9 @@ class MediaUniverseClassifierTest {
         val curated = MissaRadioProviders.curatedInstantStations
         assertTrue(curated.size >= 30)
         assertTrue(curated.all { MissaRadioProviders.isValidStreamUrl(it.streamUrl) })
-        assertTrue(curated.all { !it.logoUrl.isNullOrBlank() && !it.logoUrl!!.contains("infomaniak") })
+        // Stations sans vrai logo connu : la carte affiche leurs initiales (MissaRadioLogosTest).
+        val withoutRealLogo = setOf("radio_balafon_cm", "lautfm_afrobeats", "lautfm_gospelradio")
+        assertTrue(curated.filter { it.id !in withoutRealLogo }.all { !it.logoUrl.isNullOrBlank() && !it.logoUrl!!.contains("infomaniak") })
         assertTrue(MissaUniverses.RADIO.isHorizontalCards)
         val fipJazz = curated.first { it.id == "fip_jazz" }
         assertEquals(MissaRadioProviders.PROVIDER_MISSA_DIRECT, fipJazz.providerName)

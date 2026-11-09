@@ -99,6 +99,7 @@ enum class MissaCategory(
     MUSIC_ALL("music_all", 900, R.string.missa_cat_music_all, R.string.missa_chip_music_all),
 
     // Podcasts
+    PODCASTS_AFRICA("podcasts_africa", 12, R.string.missa_cat_podcasts_africa, R.string.missa_chip_podcasts_africa),
     PODCASTS_SOCIETY("podcasts_society", 15, R.string.missa_cat_podcasts_society, R.string.missa_chip_podcasts_society),
     PODCASTS_CULTURE("podcasts_culture", 25, R.string.missa_cat_podcasts_culture, R.string.missa_chip_podcasts_culture),
     PODCASTS_ALL("podcasts_all", 900, R.string.missa_cat_podcasts_all, R.string.missa_chip_podcasts_all),
@@ -197,6 +198,20 @@ internal object MediaUniverseClassifier {
     )
     private val podcastKeywords = wordRegex(
         """podcasts?|balados?|chroniques?\s+audio|[eé]missions?\s+audio|livres?\s+audio|audiobooks?"""
+    )
+
+    /**
+     * Ce qui rattache un contenu à l'Afrique : villes, pays, médias et codes de région.
+     * Partagé par la radio et les podcasts (PODCASTS-02) afin que les deux univers rangent
+     * l'Afrique de la même façon.
+     */
+    private val africaRegionNeedles = arrayOf(
+        "afrique", "africa", "africain", "cameroun", "cameroon", "douala", "yaound",
+        "crtv", "balafon", "equinoxe", "abidjan", "dakar", "kinshasa", "lagos",
+        "naija", "senegal", "sénégal", "cote d ivoire", "ivoirien", "ghana", "accra",
+        "nairobi", "kenya", "nigeria", "johannesburg", "region:africa",
+        "country:cm", "country:ci", "country:sn", "country:cd", "country:cg",
+        "country:ga", "country:ng", "country:gh", "country:ke", "country:za"
     )
     private val liveKeywords = wordRegex(
         """en\s+direct|live\s*tv|cha[iî]nes?\s+tv|iptv|direct\s+tv|24/7|tv\s+live"""
@@ -771,7 +786,97 @@ internal object MediaUniverseClassifier {
         }
     }
 
+    // --- PERF A7 : mémoïsation du classifieur ----------------------------------------
+    //
+    // classifyAllUniverses() parcourt une douzaine d'expressions régulières par univers et
+    // par entrée, et elle est appelée plusieurs fois pour la même entrée (classement,
+    // construction des lignes, enrichissement). On garde donc les résultats déjà calculés.
+    // L'heuristique elle-même ne change pas : c'est uniquement un cache devant.
+
+    private const val CLASSIFIER_CACHE_MAX_ENTRIES = 6000
+
+    /** LRU : les entrées les moins récemment utilisées sortent les premières. */
+    private val classifierCache = object : LinkedHashMap<String, Set<String>>(256, 0.75f, true) {
+        protected override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Set<String>>): Boolean =
+            size > CLASSIFIER_CACHE_MAX_ENTRIES
+    }
+
+    private const val CLASSIFIER_KEY_SEPARATOR = '\u0000'
+
+    private fun classifierKey(
+        type: TvType?,
+        title: String,
+        tags: Collection<String>,
+        contentRating: String?,
+        durationMinutes: Int?,
+        sectionName: String,
+        providerSupportedTypes: Set<TvType>,
+        url: String,
+        episodeCountHint: Int?,
+        isSeriesLoadResponse: Boolean?
+    ): String = buildString(96) {
+        append(type).append(CLASSIFIER_KEY_SEPARATOR)
+        append(title).append(CLASSIFIER_KEY_SEPARATOR)
+        if (tags.isNotEmpty()) tags.joinTo(this, ",")
+        append(CLASSIFIER_KEY_SEPARATOR)
+        append(contentRating).append(CLASSIFIER_KEY_SEPARATOR)
+        append(durationMinutes).append(CLASSIFIER_KEY_SEPARATOR)
+        append(sectionName).append(CLASSIFIER_KEY_SEPARATOR)
+        if (providerSupportedTypes.isNotEmpty()) providerSupportedTypes.joinTo(this, ",")
+        append(CLASSIFIER_KEY_SEPARATOR)
+        append(url).append(CLASSIFIER_KEY_SEPARATOR)
+        append(episodeCountHint).append(CLASSIFIER_KEY_SEPARATOR)
+        append(isSeriesLoadResponse)
+    }
+
     fun classifyAllUniverses(
+        type: TvType?,
+        title: String,
+        tags: Collection<String> = emptyList(),
+        contentRating: String? = null,
+        durationMinutes: Int? = null,
+        sectionName: String = "",
+        providerSupportedTypes: Set<TvType> = emptySet(),
+        url: String = "",
+        episodeCountHint: Int? = null,
+        isSeriesLoadResponse: Boolean? = null
+    ): Set<String> {
+        // Les catalogues sont figés le temps d'un rendu : deux appels avec les mêmes
+        // métadonnées donnent le même résultat.
+        val key = classifierKey(
+            type = type,
+            title = title,
+            tags = tags,
+            contentRating = contentRating,
+            durationMinutes = durationMinutes,
+            sectionName = sectionName,
+            providerSupportedTypes = providerSupportedTypes,
+            url = url,
+            episodeCountHint = episodeCountHint,
+            isSeriesLoadResponse = isSeriesLoadResponse
+        )
+        synchronized(classifierCache) {
+            classifierCache[key]?.let { return it }
+        }
+        val result = classifyAllUniversesUncached(
+            type = type,
+            title = title,
+            tags = tags,
+            contentRating = contentRating,
+            durationMinutes = durationMinutes,
+            sectionName = sectionName,
+            providerSupportedTypes = providerSupportedTypes,
+            url = url,
+            episodeCountHint = episodeCountHint,
+            isSeriesLoadResponse = isSeriesLoadResponse
+        )
+        synchronized(classifierCache) {
+            classifierCache[key] = result
+        }
+        return result
+    }
+
+    private fun classifyAllUniversesUncached(
         type: TvType?,
         title: String,
         tags: Collection<String> = emptyList(),
@@ -930,7 +1035,7 @@ internal object MediaUniverseClassifier {
 
             "documentaries" -> {
                 // DOC-LIVE-01: live channels & streams get their own row, ahead of the VOD rows.
-                if (isDocumentaryLiveCandidate(
+                if (effectiveType == TvType.Live || isDocumentaryLiveCandidate(
                         effectiveOrRawType = effectiveType,
                         title = title,
                         sectionName = sectionName,
@@ -1089,6 +1194,10 @@ internal object MediaUniverseClassifier {
             }
 
             "podcasts" -> {
+                // PODCASTS-02 : l'Afrique a sa rangée, et elle passe avant les autres.
+                if (containsAny(text, *africaRegionNeedles)) {
+                    categories.add(MissaCategory.PODCASTS_AFRICA)
+                }
                 if (containsAny(text, "actu", "info", "société", "societe", "débat", "histoire", "politique")) {
                     categories.add(MissaCategory.PODCASTS_SOCIETY)
                 }

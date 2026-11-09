@@ -28,6 +28,9 @@ class WebviewFragment : BaseFragment<FragmentWebviewBinding>(
             findNavController().popBackStack()
         }
 
+        // SECURITE S3 : voir le commentaire sur addJavascriptInterface plus bas.
+        val allowRepoBridge = arguments?.getBoolean(WEBVIEW_REPO_BRIDGE) == true
+
         binding.webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
@@ -47,7 +50,15 @@ class WebviewFragment : BaseFragment<FragmentWebviewBinding>(
         binding.webView.apply {
             WebViewResolver.webViewUserAgent = settings.userAgentString
 
-            addJavascriptInterface(RepoApi(activity), "RepoApi")
+            // SECURITE S3 : ce pont permet à la page web affichée de faire apparaître le
+            // dialogue « ajouter un dépôt », donc d'installer du code dans l'application.
+            // Or ce WebView sert aussi de navigateur de repli pour n'importe quel lien
+            // (openBrowser -> openWebView) : une page quelconque ne doit pas pouvoir
+            // proposer l'installation d'une extension. Le pont n'est donc branché que si
+            // l'appelant le demande explicitement.
+            if (allowRepoBridge) {
+                addJavascriptInterface(RepoApi(activity), "RepoApi")
+            }
             settings.javaScriptEnabled = true
             settings.userAgentString = USER_AGENT
             settings.domStorageEnabled = true
@@ -60,9 +71,13 @@ class WebviewFragment : BaseFragment<FragmentWebviewBinding>(
 
     companion object {
         private const val WEBVIEW_URL = "webview_url"
-        fun newInstance(webViewUrl: String) =
+        /** SECURITE S3 : n'accorde le pont JavaScript qu'aux écrans qui en ont besoin. */
+        private const val WEBVIEW_REPO_BRIDGE = "webview_repo_bridge"
+
+        fun newInstance(webViewUrl: String, allowRepoBridge: Boolean = false) =
             Bundle().apply {
                 putString(WEBVIEW_URL, webViewUrl)
+                putBoolean(WEBVIEW_REPO_BRIDGE, allowRepoBridge)
             }
     }
 

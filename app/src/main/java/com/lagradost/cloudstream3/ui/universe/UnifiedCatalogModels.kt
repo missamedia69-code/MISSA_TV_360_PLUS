@@ -13,12 +13,19 @@ import com.lagradost.cloudstream3.TvType
 
 const val DIRECT_RADIO_API_NAME = "MISSA Radio Direct"
 const val DIRECT_MUSIC_API_NAME = "YouTube"
+const val DIRECT_PODCAST_API_NAME = "MISSA Podcasts"
 
 enum class MusicItemKind {
     CLIP,
     SONG,
     ALBUM,
-    PLAYLIST
+    PLAYLIST,
+    /**
+     * Un épisode de podcast. Il passe par le lecteur audio de Musiques (PODCASTS-03) mais il
+     * n'est ni un clip ni une chanson : l'interface l'affiche avec son émission, pas avec un
+     * artiste.
+     */
+    PODCAST
 }
 
 data class DirectRadioSearchResponse(
@@ -33,7 +40,9 @@ data class DirectRadioSearchResponse(
     override var score: Score? = null,
     val genre: String = "",
     val country: String = "",
-    val logoUrl: String? = null
+    val logoUrl: String? = null,
+    /** Logos à essayer, dans l'ordre, si [posterUrl] ne se charge pas. */
+    val logoFallbacks: List<String> = emptyList()
 ) : SearchResponse
 
 data class DirectMusicSearchResponse(
@@ -62,6 +71,11 @@ data class DirectMusicSearchResponse(
         return when (itemKind) {
             MusicItemKind.ALBUM -> if (trackCount > 0) "ALBUM • $trackCount" else "ALBUM"
             MusicItemKind.PLAYLIST -> if (trackCount > 0) "PLAYLIST • $trackCount" else "PLAYLIST"
+            MusicItemKind.PODCAST -> if (durationSeconds > 0) {
+                "%02d:%02d".format((durationSeconds % 3600) / 60, durationSeconds % 3600 % 60)
+            } else {
+                "PODCAST"
+            }
             MusicItemKind.CLIP, MusicItemKind.SONG -> {
                 if (durationSeconds <= 0) return if (itemKind == MusicItemKind.CLIP) "CLIP" else null
                 val hours = durationSeconds / 3600
@@ -113,10 +127,175 @@ data class DirectKidsSearchResponse(
     }
 }
 
+const val PODCAST_SHOW_URL_PREFIX = "missapodcast://show/"
+const val PODCAST_EPISODE_URL_PREFIX = "missapodcast://episode/"
+
+/**
+ * Ce qu'est la carte : une **émission**, dans laquelle on entre pour voir ses épisodes, ou un
+ * **épisode** prêt à être écouté.
+ *
+ * PODCASTS-01 : l'univers Podcasts est présenté par émission, comme Musiques présente des
+ * albums, et non comme une longue liste d'épisodes toutes émissions confondues.
+ */
+enum class PodcastItemKind {
+    SHOW,
+    EPISODE
+}
+
+/**
+ * Origine éditoriale de l'émission. Elle règle l'ordre des rangées : l'Afrique d'abord
+ * (PODCASTS-02), ensuite le reste de la francophonie, ensuite le monde.
+ */
+enum class PodcastRegion(val order: Int) {
+    AFRICA(0),
+    FRANCOPHONE(1),
+    WORLD(2)
+}
+
+/**
+ * Une **émission** de podcast : une vignette de l'univers Podcasts. Ses épisodes ne sont pas
+ * dedans, ils vivent dans le flux RSS pointé par [feedUrl] et ne sont téléchargés qu'à
+ * l'ouverture de l'émission.
+ */
+data class PodcastShowPreset(
+    val id: String,
+    val title: String,
+    val author: String = "",
+    val description: String = "",
+    val artworkUrl: String? = null,
+    val feedUrl: String = "",
+    val genre: String = "",
+    val region: PodcastRegion = PodcastRegion.WORLD,
+    val episodeCount: Int = 0,
+    val providerName: String = DIRECT_PODCAST_API_NAME
+) {
+    val isAfrica: Boolean get() = region == PodcastRegion.AFRICA
+
+    fun toSearchResponse(): DirectPodcastSearchResponse = DirectPodcastSearchResponse(
+        name = title,
+        url = PODCAST_SHOW_URL_PREFIX + id,
+        posterUrl = artworkUrl,
+        showTitle = title,
+        author = author,
+        artworkUrl = artworkUrl,
+        feedUrl = feedUrl,
+        episodeCount = episodeCount,
+        itemKind = PodcastItemKind.SHOW
+    )
+}
+
+/**
+ * Un **épisode** d'une émission. [audioUrl] est un fichier audio direct (mp3, m4a…) : il n'y a
+ * rien à extraire ni à transmuxer, contrairement aux pistes YouTube de l'univers Musiques.
+ */
+data class PodcastEpisode(
+    val id: String,
+    val showId: String = "",
+    val showTitle: String = "",
+    val author: String = "",
+    val title: String = "",
+    val audioUrl: String = "",
+    val artworkUrl: String? = null,
+    val durationSeconds: Int = 0,
+    val publishedAtMillis: Long = 0L,
+    val description: String = "",
+    val region: PodcastRegion = PodcastRegion.WORLD,
+    val providerName: String = DIRECT_PODCAST_API_NAME
+) {
+    fun toSearchResponse(): DirectPodcastSearchResponse = DirectPodcastSearchResponse(
+        name = title.ifBlank { showTitle },
+        url = audioUrl,
+        posterUrl = artworkUrl,
+        showTitle = showTitle,
+        episodeTitle = title,
+        author = author.ifBlank { showTitle },
+        artworkUrl = artworkUrl,
+        durationSeconds = durationSeconds,
+        publishedAtMillis = publishedAtMillis,
+        description = description,
+        itemKind = PodcastItemKind.EPISODE
+    )
+
+    /**
+     * PODCASTS-03 : l'épisode part dans le lecteur audio de Musiques, mais il s'y affiche
+     * comme un podcast — l'émission en guise d'artiste, et plus tard la reprise de lecture.
+     */
+    fun toMusicTrackPreset(): MusicTrackPreset = MusicTrackPreset(
+        id = id.ifBlank { audioUrl },
+        title = title.ifBlank { showTitle },
+        artist = author.ifBlank { showTitle },
+        album = showTitle,
+        genre = "Podcast",
+        streamUrl = audioUrl,
+        artworkUrl = artworkUrl,
+        durationSeconds = durationSeconds,
+        providerName = providerName,
+        isPipedLazy = false,
+        itemKind = MusicItemKind.PODCAST
+    )
+}
+
+/**
+ * Une carte de l'univers Podcasts. C'est la seule réponse de recherche que cet univers produit :
+ * elle n'est ni une [DirectMusicSearchResponse] ni une [DirectRadioSearchResponse], pour qu'aucun
+ * chemin audio existant ne puisse la revendiquer par erreur.
+ */
+data class DirectPodcastSearchResponse(
+    override val name: String,
+    override val url: String,
+    override val apiName: String = DIRECT_PODCAST_API_NAME,
+    override var type: TvType? = TvType.Podcast,
+    override var posterUrl: String? = null,
+    override var posterHeaders: Map<String, String>? = null,
+    override var id: Int? = url.hashCode(),
+    override var quality: SearchQuality? = null,
+    override var score: Score? = null,
+    val showTitle: String = "",
+    val episodeTitle: String = "",
+    val author: String = "",
+    val artworkUrl: String? = null,
+    val durationSeconds: Int = 0,
+    val publishedAtMillis: Long = 0L,
+    val description: String = "",
+    val feedUrl: String = "",
+    val episodeCount: Int = 0,
+    val itemKind: PodcastItemKind = PodcastItemKind.EPISODE
+) : SearchResponse {
+    val isShow: Boolean get() = itemKind == PodcastItemKind.SHOW
+
+    /** Redevient un épisode jouable : la carte ne porte que l'url du fichier audio. */
+    fun toEpisode(): PodcastEpisode = PodcastEpisode(
+        id = url,
+        showTitle = showTitle,
+        author = author,
+        title = episodeTitle.ifBlank { name },
+        audioUrl = url,
+        artworkUrl = artworkUrl,
+        durationSeconds = durationSeconds,
+        publishedAtMillis = publishedAtMillis,
+        description = description
+    )
+
+    fun formattedDuration(): String? {
+        if (isShow) {
+            return if (episodeCount > 0) "ÉMISSION • $episodeCount" else "ÉMISSION"
+        }
+        if (durationSeconds <= 0) return null
+        val hours = durationSeconds / 3600
+        val mins = (durationSeconds % 3600) / 60
+        val secs = durationSeconds % 3600 % 60
+        return if (hours > 0) {
+            "%d:%02d:%02d".format(hours, mins, secs)
+        } else {
+            "%02d:%02d".format(mins, secs)
+        }
+    }
+}
+
 /**
  * Navigation universe descriptor.
  * [familyGroup] groups related universes visually in the top strip (NAV-01):
- * 0 = Home, 1 = Cinema/VOD, 2 = Live Video, 3 = Audio, 4 = Retro Games.
+ * 0 = Home, 1 = Cinema/VOD, 2 = Live Video, 3 = Audio, 4 = Games.
  */
 data class UniverseDefinition(
     val id: String,
@@ -128,7 +307,11 @@ data class UniverseDefinition(
     @StringRes val eyebrowRes: Int,
     val familyGroup: Int,
     val isHorizontalCards: Boolean = false,
-    val directPlayOnClick: Boolean = false
+    val directPlayOnClick: Boolean = false,
+    /** AUDIT H5: compact label for the top strip only. The full [titleRes] stays on the
+     *  cards and page titles, where there is room for it. Optional fields stay last so a
+     *  positional construction can never shift the required ones. */
+    @StringRes val shortTitleRes: Int? = null
 )
 
 object MissaUniverses {
@@ -147,6 +330,7 @@ object MissaUniverses {
         id = "films",
         destinationId = R.id.navigation_universe_films,
         titleRes = R.string.universe_films_title,
+        shortTitleRes = R.string.universe_films_title_short,
         descriptionRes = R.string.universe_films_description,
         cardSubtitleRes = R.string.universe_card_films_sub,
         iconRes = R.drawable.baseline_theaters_24,
@@ -169,6 +353,7 @@ object MissaUniverses {
         id = "documentaries",
         destinationId = R.id.navigation_universe_documentaries,
         titleRes = R.string.universe_documentaries_title,
+        shortTitleRes = R.string.universe_documentaries_title_short,
         descriptionRes = R.string.universe_documentaries_description,
         cardSubtitleRes = R.string.universe_card_documentaries_sub,
         iconRes = R.drawable.ic_missa_documentaries,
@@ -260,10 +445,12 @@ object MissaUniverses {
         directPlayOnClick = true
     )
 
-    val RETRO_GAMES = UniverseDefinition(
-        id = "retro_games",
-        destinationId = R.id.navigation_universe_retro_games,
+    /** Univers Jeux : catalogue game/catalogue.json, jeux téléchargés à la demande (GamesFragment). */
+    val GAMES = UniverseDefinition(
+        id = "games",
+        destinationId = R.id.navigation_universe_games,
         titleRes = R.string.universe_games_title,
+        shortTitleRes = R.string.universe_games_title_short,
         descriptionRes = R.string.universe_games_description,
         cardSubtitleRes = R.string.universe_card_games_sub,
         iconRes = R.drawable.ic_missa_gamepad,
@@ -273,12 +460,12 @@ object MissaUniverses {
 
     /** Primary navigation bar order (Home + 11 content universes). */
     val NAVIGATION_UNIVERSES = listOf(
-        HOME, FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, RETRO_GAMES
+        HOME, FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, GAMES
     )
 
     /** Hub shortcut cards displayed on Home (the 11 dedicated universes). */
     val HUB_SHORTCUTS = listOf(
-        FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, RETRO_GAMES
+        FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, GAMES
     )
 
     fun byId(universeId: String): UniverseDefinition =
@@ -355,10 +542,16 @@ data class RadioStationPreset(
     val isCustom: Boolean = false,
     val logoUrl: String? = null,
     val providerName: String = DIRECT_RADIO_API_NAME,
-    val fallbackUrls: List<String> = emptyList()
+    val fallbackUrls: List<String> = emptyList(),
+    /** Logos de secours, essayés dans l'ordre si [logoUrl] ne se charge pas. */
+    val logoFallbackUrls: List<String> = emptyList()
 ) {
     fun toSearchResponse(): DirectRadioSearchResponse {
-        val resolvedLogo = logoUrl ?: streamUrl.toRadioLogoFallback()
+        val candidates = (listOfNotNull(logoUrl) + logoFallbackUrls)
+            .filter { it.isNotBlank() }
+            .ifEmpty { listOfNotNull(streamUrl.toRadioLogoFallback()) }
+            .distinct()
+        val resolvedLogo = candidates.firstOrNull()
         return DirectRadioSearchResponse(
             name = name,
             url = streamUrl,
@@ -366,7 +559,8 @@ data class RadioStationPreset(
             posterUrl = resolvedLogo,
             genre = genre,
             country = country,
-            logoUrl = resolvedLogo
+            logoUrl = resolvedLogo,
+            logoFallbacks = candidates.drop(1)
         )
     }
 }
@@ -382,7 +576,9 @@ private val genericStreamingCdnHosts = listOf(
     "securenetsystems",
     "radionomy",
     "shoutca.st",
-    "myradiostream"
+    "myradiostream",
+    // Plateforme de webradios : son icône est la même pour toutes ses stations.
+    "laut.fm"
 )
 
 /** Uses a station-provided logo first; maps broadcaster CDNs cleanly and skips generic hosting CDNs. */
@@ -398,7 +594,6 @@ private fun String.toRadioLogoFallback(): String? {
         lower.endsWith("radiofrance.fr") -> "radiofrance.fr"
         lower.contains("bbcmedia.co.uk") -> "bbc.com"
         lower.endsWith("somafm.com") -> "somafm.com"
-        lower.endsWith("laut.fm") -> "laut.fm"
         else -> rawHost
     }
     val encoded = runCatching { java.net.URLEncoder.encode(brandHost, "UTF-8") }.getOrDefault(brandHost)
@@ -427,7 +622,11 @@ data class MusicTrackPreset(
     fun isAlbumOrPlaylist(): Boolean =
         itemKind == MusicItemKind.ALBUM ||
             itemKind == MusicItemKind.PLAYLIST ||
-            streamUrl.startsWith("ytplaylist://", ignoreCase = true)
+            streamUrl.startsWith("ytplaylist://", ignoreCase = true) ||
+            // PODCASTS-01 : une émission est une collection comme un album. Le lecteur déplie
+            // ses épisodes depuis le flux RSS au lieu d'essayer de jouer l'url telle quelle.
+            (itemKind == MusicItemKind.PODCAST &&
+                streamUrl.startsWith(PODCAST_SHOW_URL_PREFIX, ignoreCase = true))
 
     fun displayLabel(): String {
         val cleanArtist = artist.trim()

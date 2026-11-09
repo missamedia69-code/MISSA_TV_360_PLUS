@@ -1,7 +1,5 @@
 package com.lagradost.cloudstream3.syncproviders
 
-import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
-import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.syncproviders.providers.Addic7ed
 import com.lagradost.cloudstream3.syncproviders.providers.AniListApi
@@ -37,17 +35,25 @@ abstract class AccountManager {
         const val ACCOUNT_TOKEN = "auth_tokens"
         const val ACCOUNT_IDS = "auth_ids"
 
+        /**
+         * SECURITE S1 : clé complète d'un secret. Elle est volontairement identique à celle
+         * utilisée quand les jetons vivaient dans rebuild_preference, pour que
+         * [AccountSecretStore] puisse les déplacer sans rien perdre.
+         */
+        private fun secretKey(key: String, prefix: String): String =
+            "$key/${prefix}/${DataStoreHelper.currentAccount}"
+
         fun accounts(prefix: String): Array<AuthData> {
             require(prefix != "NONE")
-            return getKey<Array<AuthData>>(
-                ACCOUNT_TOKEN,
-                "${prefix}/${DataStoreHelper.currentAccount}"
+            return AccountSecretStore.read(
+                secretKey(ACCOUNT_TOKEN, prefix),
+                Array<AuthData>::class.java
             ) ?: arrayOf()
         }
 
         fun updateAccounts(prefix: String, array: Array<AuthData>) {
             require(prefix != "NONE")
-            setKey(ACCOUNT_TOKEN, "${prefix}/${DataStoreHelper.currentAccount}", array)
+            AccountSecretStore.write(secretKey(ACCOUNT_TOKEN, prefix), array)
             synchronized(cachedAccounts) {
                 cachedAccounts[prefix] = array
             }
@@ -55,7 +61,7 @@ abstract class AccountManager {
 
         fun updateAccountsId(prefix: String, id: Int) {
             require(prefix != "NONE")
-            setKey(ACCOUNT_IDS, "${prefix}/${DataStoreHelper.currentAccount}", id)
+            AccountSecretStore.write(secretKey(ACCOUNT_IDS, prefix), id)
             synchronized(cachedAccountIds) {
                 cachedAccountIds[prefix] = id
             }
@@ -79,11 +85,10 @@ abstract class AccountManager {
             for (api in allApis) {
                 ids.put(
                     api.idPrefix,
-                    getKey<Int>(
-                        ACCOUNT_IDS,
-                        "${api.idPrefix}/${DataStoreHelper.currentAccount}",
+                    AccountSecretStore.readInt(
+                        secretKey(ACCOUNT_IDS, api.idPrefix),
                         NONE_ID
-                    ) ?: NONE_ID
+                    )
                 )
             }
             synchronized(cachedAccountIds) {
@@ -98,11 +103,10 @@ abstract class AccountManager {
                 data.put(api.idPrefix, accounts(api.idPrefix))
                 ids.put(
                     api.idPrefix,
-                    getKey<Int>(
-                        ACCOUNT_IDS,
-                        "${api.idPrefix}/${DataStoreHelper.currentAccount}",
+                    AccountSecretStore.readInt(
+                        secretKey(ACCOUNT_IDS, api.idPrefix),
                         NONE_ID
-                    ) ?: NONE_ID
+                    )
                 )
             }
             cachedAccounts = data

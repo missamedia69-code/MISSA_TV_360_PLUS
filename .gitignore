@@ -69,6 +69,8 @@ gen-external-apklibs
 *.nar
 *.ear
 *.zip
+# Univers Jeux : moteur, émulateurs et sources (téléchargés par l'application)
+!game/**/*.zip
 *.tar.gz
 *.rar
 

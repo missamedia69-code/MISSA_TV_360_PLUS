@@ -47,8 +47,8 @@
                     android:focusable="false"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="18dp"
-                    android:paddingEnd="10dp">
+                    android:paddingStart="@dimen/missa_gutter_tv"
+                    android:paddingEnd="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -60,7 +60,7 @@
                         android:shadowRadius="4"
                         android:text="MISSA TV"
                         android:textAppearance="@style/TextAppearance.Missa.RowTitle"
-                        android:textColor="?attr/missaAccentPrimary" />
+                        android:textColor="?attr/missaAccentOnSurface" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -86,9 +86,11 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:clipToPadding="false"
+                        android:fadingEdgeLength="@dimen/missa_top_strip_fade_width"
                         android:fillViewport="false"
                         android:focusable="false"
                         android:overScrollMode="never"
+                        android:requiresFadingEdge="horizontal"
                         android:scrollbars="none">
 
                         <LinearLayout
@@ -97,31 +99,10 @@
                             android:layout_height="match_parent"
                             android:gravity="center_vertical"
                             android:orientation="horizontal"
-                            android:paddingStart="8dp"
+                            android:paddingStart="20dp"
                             android:paddingEnd="24dp" />
                     </HorizontalScrollView>
 
-                    <View
-                        android:id="@+id/missa_top_strip_fade_end"
-                        android:layout_width="@dimen/missa_top_strip_fade_width"
-                        android:layout_height="match_parent"
-                        android:layout_gravity="end"
-                        android:background="@drawable/missa_strip_fade_end"
-                        android:clickable="false"
-                        android:focusable="false"
-                        android:importantForAccessibility="no" />
-
-                    <!-- Left-edge cue appears only after the user scrolls the universe strip. -->
-                    <View
-                        android:id="@+id/missa_top_strip_fade_start"
-                        android:layout_width="@dimen/missa_top_strip_fade_width"
-                        android:layout_height="match_parent"
-                        android:layout_gravity="start"
-                        android:background="@drawable/missa_strip_fade_start"
-                        android:clickable="false"
-                        android:focusable="false"
-                        android:importantForAccessibility="no"
-                        android:visibility="gone" />
                 </FrameLayout>
 
                 <LinearLayout
@@ -131,7 +112,7 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingStart="6dp"
-                    android:paddingEnd="16dp" />
+                    android:paddingEnd="@dimen/missa_gutter_tv" />
             </LinearLayout>
         </LinearLayout>
 

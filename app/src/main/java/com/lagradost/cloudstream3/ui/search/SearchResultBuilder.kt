@@ -8,6 +8,7 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.cardview.widget.CardView
+import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.palette.graphics.Palette
 import androidx.preference.PreferenceManager
@@ -25,6 +26,7 @@ import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectMusicSearchResponse
 import com.lagradost.cloudstream3.ui.universe.DirectRadioSearchResponse
+import com.lagradost.cloudstream3.ui.universe.RadioOrigin
 import com.lagradost.cloudstream3.utils.AppContextUtils.getNameFull
 import com.lagradost.cloudstream3.utils.AppContextUtils.getShortSeasonText
 import com.lagradost.cloudstream3.utils.DataStoreHelper
@@ -59,6 +61,9 @@ object SearchResultBuilder {
     ) {
         val cardView: ImageView = itemView.findViewById(R.id.imageView)
         val cardText: TextView? = itemView.findViewById(R.id.imageText)
+        // AUDIT H8: monogram fallback of a radio card, shown when the station has no
+        // logo or when the logo fails to load.
+        val monogram: TextView? = itemView.findViewById(R.id.radio_monogram)
 
         val textIsDub: TextView? = itemView.findViewById(R.id.text_is_dub)
         val textIsSub: TextView? = itemView.findViewById(R.id.text_is_sub)
@@ -141,16 +146,28 @@ object SearchResultBuilder {
         cardText?.isVisible = showTitle || isDirectRadio || isDirectMusic
         cardView.isVisible = true
         if (isDirectRadio) {
+            // AUDIT H8: one neutral rounded tile for every station, logo inside with a
+            // generous inner margin and never full-bleed. Station logos have every shape
+            // there is - square favicons, wide wordmarks, tiny PNGs - and painting them
+            // straight onto the card made the row look like a set of different objects,
+            // with the two BBC favicons reading as broken images. When a logo is missing
+            // or fails, the station initials are drawn on the same tile: the generic
+            // radio icon was unreadable at row scale and four stations shared it.
             cardView.scaleType = ImageView.ScaleType.FIT_CENTER
-            cardView.setPadding(18.toPx, 12.toPx, 18.toPx, 28.toPx)
-            if (!card.posterUrl.isNullOrEmpty()) {
-                cardView.loadImage(card.posterUrl, card.posterHeaders) {
-                    error { getImageFromDrawable(itemView.context, R.drawable.ic_missa_radio) }
-                }
-            } else {
-                cardView.loadImage(R.drawable.ic_missa_radio)
-            }
+            cardView.setBackgroundResource(R.drawable.missa_radio_logo_tile)
+            cardView.setTag(R.id.missa_radio_logo_key, card.url)
+            applyRadioLogoInsets(cardView)
+            monogram?.text = radioMonogram(card.name)
+            val logos = (listOfNotNull(card.posterUrl) + card.logoFallbacks)
+                .filter { it.isNotBlank() }
+                .distinct()
+            loadRadioLogo(cardView, monogram, card.url, logos, 0, card.posterHeaders)
         } else if (isDirectMusic) {
+            // The tile and the monogram belong to radio cards only, and a card view is
+            // recycled: every other branch has to clear them.
+            cardView.setTag(R.id.missa_radio_logo_key, null)
+            cardView.background = null
+            monogram?.isVisible = false
             if (!card.posterUrl.isNullOrEmpty()) {
                 cardView.scaleType = ImageView.ScaleType.CENTER_CROP
                 cardView.setPadding(0, 0, 0, 0)
@@ -163,6 +180,9 @@ object SearchResultBuilder {
                 cardView.loadImage(R.drawable.ic_missa_music)
             }
         } else {
+            cardView.setTag(R.id.missa_radio_logo_key, null)
+            cardView.background = null
+            monogram?.isVisible = false
             cardView.scaleType = ImageView.ScaleType.CENTER_CROP
             cardView.setPadding(0, 0, 0, 0)
             if (!card.posterUrl.isNullOrEmpty()) {
@@ -262,8 +282,9 @@ object SearchResultBuilder {
 
         when (card) {
             is DirectRadioSearchResponse -> {
-                val iso = card.country.lowercase()
-                val flagEmoji = SubtitleHelper.getFlagFromIso(iso)
+                // AUDIT H7: getFlagFromIso reads the code as a *language*, so "AF" (Africa)
+                // came back as the South African flag. RadioOrigin only flags real countries.
+                val flagEmoji = RadioOrigin.flagFor(card.country)
                 if (!flagEmoji.isNullOrBlank()) {
                     textFlag?.apply {
                         isVisible = true
@@ -383,5 +404,94 @@ object SearchResultBuilder {
         textIsDub?.apply {
             backgroundTintList = ColorStateList.valueOf(context.colorFromAttribute(R.attr.textColor))
         }
+    }
+
+    /**
+     * AUDIT H8: draws the station initials instead of the logo. The logo view keeps the
+     * tile, only its content is cleared, so a station without artwork still gets the
+     * same rounded frame as the others.
+     */
+    /**
+     * Charge le logo d'une station en essayant chaque adresse à tour de rôle : le logo
+     * principal, puis ses logos de secours. Les initiales n'apparaissent que si aucun
+     * ne répond. Si la carte a été recyclée pour une autre station entre-temps, on s'arrête.
+     */
+    private fun loadRadioLogo(
+        logo: ImageView,
+        monogram: TextView?,
+        stationKey: String,
+        candidates: List<String>,
+        index: Int,
+        headers: Map<String, String>?
+    ) {
+        if (logo.getTag(R.id.missa_radio_logo_key) != stationKey) return
+        val url = candidates.getOrNull(index)
+        if (url == null) {
+            logo.setImageDrawable(null)
+            showRadioMonogram(monogram, logo, true)
+            return
+        }
+        showRadioMonogram(monogram, logo, false)
+        logo.loadImage(url, headers) {
+            listener(
+                onSuccess = { _, _ ->
+                    if (logo.getTag(R.id.missa_radio_logo_key) == stationKey) {
+                        showRadioMonogram(monogram, logo, false)
+                    }
+                },
+                onError = { _, _ ->
+                    logo.post { loadRadioLogo(logo, monogram, stationKey, candidates, index + 1, headers) }
+                },
+                onCancel = { /* a recycled card must not flicker to the monogram */ }
+            )
+        }
+    }
+
+    /**
+     * Marges du logo dans la tuile, proportionnelles à la taille de la carte : le logo
+     * occupe environ la moitié de la hauteur (avant : deux tiers), quelle que soit la
+     * taille d'écran. Le bas garde la place du nom de la station.
+     */
+    private fun applyRadioLogoInsets(logo: ImageView) {
+        fun apply(view: View) {
+            if (view.getTag(R.id.missa_radio_logo_key) == null) return // recyclée hors radio
+            val h = view.height
+            val w = view.width
+            if (h <= 0 || w <= 0) return
+            val top = (h * 0.18f).toInt()
+            val bottom = (h * 0.34f).toInt()
+            val side = maxOf((w * 0.20f).toInt(), top)
+            view.setPadding(side, top, side, bottom)
+        }
+        if (logo.width > 0 && logo.height > 0) {
+            apply(logo)
+        } else {
+            logo.setPadding(30.toPx, 20.toPx, 30.toPx, 38.toPx)
+            logo.doOnLayout { apply(it) }
+        }
+    }
+
+    private fun showRadioMonogram(monogram: TextView?, logo: ImageView, showMonogram: Boolean) {
+        monogram?.isVisible = showMonogram
+        if (showMonogram) logo.setImageDrawable(null)
+    }
+
+    /**
+     * AUDIT H8: two or three letters that stand for a station name.
+     * "Radio Balafon 90.3 Douala" -> "RB", "RFI Afrique" -> "RFI", "BBC" -> "BBC".
+     */
+    private fun radioMonogram(name: String): String {
+        val words = name.trim().split(Regex("\\s+")).filter { it.any(Char::isLetterOrDigit) }
+        if (words.isEmpty()) return "?"
+        val first = words[0].trim { !it.isLetterOrDigit() }
+        val acronym = first.filter(Char::isLetterOrDigit)
+        // A station that brands itself with an acronym keeps it whole: RFI, BBC, RTS, CRTV.
+        if (acronym.length in 2..4 && acronym.all(Char::isUpperCase) && first == first.uppercase()) {
+            return acronym
+        }
+        val initials = words.take(2).mapNotNull { word ->
+            word.trim { !it.isLetterOrDigit() }.firstOrNull(Char::isLetterOrDigit)?.uppercaseChar()
+        }.joinToString("")
+        return initials.ifBlank { first.take(2).uppercase() }
     }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Carte radio : identifiant de la station dont le logo est en cours de chargement.
+         Une carte recyclée pour une autre station ne doit pas recevoir le logo de secours
+         de la précédente. -->
+    <item name="missa_radio_logo_key" type="id" />
+</resources>
