@@ -1426,7 +1426,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                         val nowFav = DirectMusicPlayerManager.toggleFavorite(trackKey)
                         Toast.makeText(
                             requireContext(),
-                            if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                            if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_favorite_removed,
                             Toast.LENGTH_SHORT
                         ).show()
                         renderScreen()
@@ -1458,7 +1458,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 val nowFav = viewModel.toggleFavoriteLiveChannel(card.url)
                 Toast.makeText(
                     requireContext(),
-                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_favorite_removed,
                     Toast.LENGTH_SHORT
                 ).show()
                 renderScreen()
@@ -1824,7 +1824,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 val nowFav = DirectMusicPlayerManager.toggleFavorite(trackId)
                 Toast.makeText(
                     requireContext(),
-                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_favorite_removed,
                     Toast.LENGTH_SHORT
                 ).show()
                 renderScreen()

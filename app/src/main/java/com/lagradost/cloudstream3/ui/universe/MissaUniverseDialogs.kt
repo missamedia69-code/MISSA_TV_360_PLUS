@@ -511,7 +511,7 @@ internal object MissaUniverseDialogs {
                 }
                 val delBtn = MissaUiFactory.createPillButton(
                     context = context,
-                    label = context.getString(R.string.universe_retro_delete),
+                    label = context.getString(R.string.delete),
                     selected = false,
                     marginEndDp = 0
                 ) {

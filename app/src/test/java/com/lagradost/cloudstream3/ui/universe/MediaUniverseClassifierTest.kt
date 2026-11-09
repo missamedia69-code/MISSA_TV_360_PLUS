@@ -456,25 +456,12 @@ class MediaUniverseClassifierTest {
     }
 
     @Test
-    fun `retro game player maps each supported console extension to its official Libretro core`() {
-        assertEquals("sameboy_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("gb")?.coreFileName)
-        assertEquals("sameboy_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("GBC")?.coreFileName)
-        assertEquals("fceumm_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("nes")?.coreFileName)
-        assertEquals("snes9x_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("sfc")?.coreFileName)
-        assertEquals("snes9x_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("smc")?.coreFileName)
-        assertEquals("mgba_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("gba")?.coreFileName)
-        assertEquals("genesis_plus_gx_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("md")?.coreFileName)
-        assertEquals("genesis_plus_gx_libretro_android.so", RetroGamePlayerActivity.resolveCoreSpec("sms")?.coreFileName)
-        assertEquals(null, RetroGamePlayerActivity.resolveCoreSpec("iso"))
-    }
-
-    @Test
-    fun `navigation universes cover all 11 content universes plus Home with family separators`() {
-        assertEquals(11, MissaUniverses.HUB_SHORTCUTS.size)
-        assertEquals(12, MissaUniverses.NAVIGATION_UNIVERSES.size)
+    fun `navigation universes cover all 10 content universes plus Home with family separators`() {
+        assertEquals(10, MissaUniverses.HUB_SHORTCUTS.size)
+        assertEquals(11, MissaUniverses.NAVIGATION_UNIVERSES.size)
         val groups = MissaUniverses.NAVIGATION_UNIVERSES.map { it.familyGroup }
-        // [Home(0)] | [Films & Manga, Series, Documentaries, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Music, Podcasts, Radio(3)] | [Games(4)]
-        assertEquals(listOf(0, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 4), groups)
+        // [Home(0)] | [Films & Manga, Series, Documentaries, Shorts, Kids(1)] | [Live TV, Sports(2)] | [Music, Podcasts, Radio(3)]
+        assertEquals(listOf(0, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3), groups)
         assertEquals("documentaries", MissaUniverses.DOCUMENTARIES.id)
         assertEquals("music", MissaUniverses.MUSIC.id)
     }

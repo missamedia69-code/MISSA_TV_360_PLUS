@@ -55,7 +55,6 @@ Mesurés le 2026-11-05 en comptant les entrées des fichiers de préréglages :
 | Enfants | **7** éléments | `MissaKidsProviders.kt` |
 | TV direct | **0** chaîne livrée — l'utilisateur fournit sa playlist M3U | `MissaUniverseDialogs.kt` |
 | Films / Séries / Documentaires | **0** — tout vient des extensions actives | récolte à l'exécution |
-| Jeux rétro | **0** — l'utilisateur dépose ses ROM dans `filesDir/retro-games` | `RetroGamesFragment.kt` |
 
 Ces colonnes ne sont pas le catalogue : ce sont les contenus **embarqués**. Le
 reste dépend de l'appareil, du réseau et des extensions activées.
@@ -94,8 +93,6 @@ Depuis l'audit H10 :
   (`!snapshot.isLoading`) ; pendant le chargement la carte n'affiche rien ;
 - le compte est celui de l'univers **après dédoublonnage**, pas celui de la
   page en cours de chargement ;
-- les jeux rétro n'affichent plus un « 5 jeux » codé en dur mais le nombre de
-  ROM réellement présentes dans `filesDir/retro-games`, et rien si elle est vide ;
 - les préréglages musique et radio, qui ne dépendent pas de la récolte,
   restent affichés en permanence.
 

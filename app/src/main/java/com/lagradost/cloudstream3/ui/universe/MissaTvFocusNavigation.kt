@@ -413,7 +413,7 @@ internal object MissaTvFocusHelper {
 
 /**
  * Column-aligned [GridLayoutManager] for MISSA TV 360 PLUS (`Voir tout` sheet, in-universe
- * search grids, and Retro Games multi-column grids).
+ * and search grids).
  *
  * - Never wraps horizontally across row boundaries (`DPAD_LEFT` at col 0 / `DPAD_RIGHT` at col `N-1`).
  * - Preserves exact `spanIndex` column on `DPAD_UP` / `DPAD_DOWN`, including grids with full-span headers.
@@ -615,7 +615,7 @@ class MissaAlignedGridLayoutManager(
                     ensureGridRowVisible(rv, revealed)
                     return revealed
                 }
-                // Target position was a non-focusable section header row (e.g., Retro Games header):
+                // Target position was a non-focusable section header row (e.g., a section header):
                 // step one more group in the same vertical direction, or escape upward if at group 0.
                 val lookup = spanSizeLookup
                 val spans = spanCount.coerceAtLeast(1)

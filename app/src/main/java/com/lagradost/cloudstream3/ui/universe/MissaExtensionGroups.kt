@@ -44,8 +44,7 @@ object MissaExtensionGroups {
         AssignableGroup("live_tv", R.string.universe_live_tv_title),
         AssignableGroup("sports", R.string.universe_sports_title),
         AssignableGroup("podcasts", R.string.universe_podcasts_title),
-        AssignableGroup("radio", R.string.universe_radio_title),
-        AssignableGroup("retro_games", R.string.universe_games_title)
+        AssignableGroup("radio", R.string.universe_radio_title)
     )
 
     /** Incrémenté à chaque modification : force le rechargement du catalogue (voir computeProviderSignature). */

@@ -446,7 +446,7 @@
     <string name="apk_installer_package_installer">Installateur de paquet</string>
     <string name="plugin">plugins</string>
     <string name="delete_repository_plugins">Cela supprimera également tous les plugins du repository</string>
-    <string name="blank_repo_message">MISSA TV 360 n\'installe aucun site externe par défaut. Ajoutez un dépôt d\'extensions compatibles pour alimenter Films, Séries, TV en direct et Podcasts, ou profitez immédiatement de la Radio et des Jeux rétro.</string>
+    <string name="blank_repo_message">MISSA TV 360 n\'installe aucun site externe par défaut. Ajoutez un dépôt d\'extensions compatibles pour alimenter Films, Séries, TV en direct et Podcasts, ou profitez immédiatement de la Radio.</string>
     <string name="extension_language">Langage</string>
     <string name="enable_skip_op_from_database_des">Afficher les popups skip pour les intro / fins</string>
     <string name="apk_installer_legacy">Ancienne méthode d\'installation</string>
@@ -771,7 +771,7 @@
 
     <!-- MISSA TV 360 PLUS — Traduction française complète (I18N-01 & I18N-02) -->
     <string name="universe_home_title">Accueil</string>
-    <string name="universe_home_description">Cinéma, séries, directs, audio et jeux rétro réunis sur une seule plateforme.</string>
+    <string name="universe_home_description">Cinéma, séries, directs et audio réunis sur une seule plateforme.</string>
     <string name="universe_home_catalogue">Sélection &amp; recommandations</string>
     <!-- AUDIT H7 : origines continentales des radios ; pas de drapeau, uniquement un libellé -->
     <string name="radio_origin_africa">Afrique</string>
@@ -809,9 +809,6 @@
     <string name="missa_ext_group_cancel">Annuler</string>
     <string name="missa_ext_group_whole_extension">Toute l\'extension</string>
     <string name="missa_ext_group_inherit">hérité (%1$s)</string>
-    <string name="universe_games_title">Jeux rétro</string>
-    <string name="universe_games_title_short">Jeux</string>
-    <string name="universe_games_description">Catalogue indépendant de jeux rétro libres, téléchargement dédié et émulation intégrée.</string>
 
     <!-- Eyebrow badges -->
     <string name="universe_eyebrow_home">À LA UNE</string>
@@ -825,7 +822,6 @@
     <string name="universe_eyebrow_music">MUSIQUES À LA DEMANDE</string>
     <string name="universe_eyebrow_podcasts">PODCASTS</string>
     <string name="universe_eyebrow_radio">RADIO</string>
-    <string name="universe_eyebrow_games">JEUX RÉTRO</string>
 
     <string name="universe_card_films_sub">Cinéma, mangas &amp; animes</string>
     <string name="universe_card_series_sub">Saisons &amp; épisodes</string>
@@ -837,7 +833,6 @@
     <string name="universe_card_music_sub">Titres, albums &amp; mixes</string>
     <string name="universe_card_podcasts_sub">Émissions &amp; épisodes</string>
     <string name="universe_card_radio_sub">Écoute directe</string>
-    <string name="universe_card_games_sub">Catalogue &amp; émulation</string>
 
     <string name="universe_hero_watch">Regarder</string>
     <string name="universe_hero_watch_live">Regarder le direct</string>
@@ -849,7 +844,7 @@
     <string name="universe_hero_manage_plugins">Configurer mes sources</string>
     <string name="universe_hero_onboarding_badge">BIENVENUE SUR MISSA TV 360</string>
     <string name="universe_hero_onboarding_title">Votre cinéma, vos directs et vos radios classés par univers</string>
-    <string name="universe_hero_onboarding_plot">MISSA TV 360 rassemble automatiquement les films, séries, courts-métrages, contenus jeunesse, chaînes TV, sports en direct, podcasts et radios de vos extensions. Configurez vos sources en 3 étapes ou explorez immédiatement la Radio et les Jeux rétro.</string>
+    <string name="universe_hero_onboarding_plot">MISSA TV 360 rassemble automatiquement les films, séries, courts-métrages, contenus jeunesse, chaînes TV, sports en direct, podcasts et radios de vos extensions. Configurez vos sources en 3 étapes ou explorez immédiatement la Radio.</string>
 
     <string name="universe_resume_watching_title">Reprendre la lecture</string>
     <string name="universe_resume_listening_title">Reprendre l’écoute</string>
@@ -898,10 +893,6 @@
         <item quantity="one">%d source</item>
         <item quantity="other">%d sources</item>
     </plurals>
-    <plurals name="missa_games_count">
-        <item quantity="one">%d jeu</item>
-        <item quantity="other">%d jeux</item>
-    </plurals>
     <plurals name="missa_tracks_count">
         <item quantity="one">%d piste</item>
         <item quantity="other">%d pistes</item>
@@ -920,7 +911,7 @@
     <string name="missa_data_saver_badge">Éco données</string>
 
     <string name="missa_state_no_plugins_title">Aucune source vidéo configurée</string>
-    <string name="missa_state_no_plugins_desc">Ajoutez un dépôt d’extensions compatibles en 3 étapes rapides pour alimenter Films, Séries, TV en direct et Podcasts, ou profitez tout de suite de la Radio et des Jeux rétro.</string>
+    <string name="missa_state_no_plugins_desc">Ajoutez un dépôt d’extensions compatibles en 3 étapes rapides pour alimenter Films, Séries, TV en direct et Podcasts, ou profitez tout de suite de la Radio.</string>
     <string name="missa_state_no_plugins_cta">Démarrer la configuration</string>
 
     <string name="missa_state_empty_universe_title">Aucun contenu disponible dans « %1$s »</string>
@@ -968,12 +959,12 @@
     <!-- 3-step onboarding wizard (FLOW-01) -->
     <string name="missa_onboarding_step_indicator">Étape %1$d sur 3</string>
     <string name="missa_onboarding_step1_title">Bienvenue sur MISSA TV 360 PLUS</string>
-    <string name="missa_onboarding_step1_desc">Une interface cinéma unifiée pour 11 univers : Films &amp; Mangas, Séries, Documentaires, Courts-métrages, Enfants, TV en direct, Sports, Musiques, Podcasts, Radio directe et Jeux rétro.</string>
+    <string name="missa_onboarding_step1_desc">Une interface cinéma unifiée pour 10 univers : Films &amp; Mangas, Séries, Documentaires, Courts-métrages, Enfants, TV en direct, Sports, Musiques, Podcasts et Radio directe.</string>
     <string name="missa_onboarding_step2_title">Région, Audio &amp; Économie de données</string>
     <string name="missa_onboarding_step2_desc">Personnalisez votre expérience : stations radio d’Afrique, du Cameroun et internationales prêtes dès le premier lancement, et mode Économie de données pour réseaux mobiles.</string>
     <string name="missa_onboarding_data_saver_toggle">Activer le mode Économie de données (images allégées, carrousel fixe)</string>
     <string name="missa_onboarding_step3_title">Connecter vos sources (Extensions)</string>
-    <string name="missa_onboarding_step3_desc">Ouvrez le gestionnaire d’extensions pour ajouter un dépôt ou activer vos sources. Les univers Radio et Jeux rétro fonctionnent immédiatement sans extension.</string>
+    <string name="missa_onboarding_step3_desc">Ouvrez le gestionnaire d’extensions pour ajouter un dépôt ou activer vos sources. L’univers Radio fonctionne immédiatement sans extension.</string>
     <string name="missa_onboarding_open_extensions">Ouvrir le gestionnaire d’extensions</string>
     <string name="missa_onboarding_skip">Passer pour l’instant</string>
     <string name="missa_onboarding_next">Continuer</string>
@@ -1261,94 +1252,6 @@
     <string name="missa_chip_radio_all">Stations</string>
     <string name="universe_radio_m3u_imported">%1$d stations importées depuis la playlist M3U</string>
 
-    <!-- Retro Games Hub & Immersive Overlay Player (GAME-01..05) -->
-    <string name="universe_retro_import">Importer une ROM</string>
-    <string name="universe_retro_refresh">Actualiser</string>
-    <string name="universe_retro_downloads">Portail Homebrew</string>
-    <string name="universe_retro_installed_section">Ma bibliothèque installée</string>
-    <string name="universe_retro_catalog_section">Catalogue libre &amp; Open-Source</string>
-    <string name="universe_retro_title">Jeux rétro</string>
-    <string name="universe_retro_intro">Écosystème rétro indépendant : téléchargez des jeux homebrew libres ou importez vos ROMs personnelles, puis jouez directement dans MISSA TV 360.</string>
-    <string name="universe_retro_empty">Aucun jeu installé pour cette console. Téléchargez un jeu libre ci-dessous ou importez un fichier ROM compatible.</string>
-    <string name="universe_retro_engine_missing">Moteurs Libretro intégrés à la demande (Game Boy / GBC, NES, Super Nintendo, GBA, Mega Drive / Master System). Les autres formats s’ouvrent dans un émulateur externe.</string>
-    <string name="universe_retro_open">Jouer</string>
-    <string name="universe_retro_download">Télécharger</string>
-    <string name="universe_retro_downloading_pct">Téléchargement %1$d%% (%2$s)</string>
-    <string name="universe_retro_downloading_bytes">Téléchargement (%1$s)</string>
-    <string name="universe_retro_cancel_download">Annuler</string>
-    <string name="universe_retro_installed_badge">Installé</string>
-    <string name="universe_retro_builtin_engine_badge">Moteur intégré</string>
-    <string name="universe_retro_external_engine_badge">Émulateur externe</string>
-    <string name="universe_retro_delete">Supprimer</string>
-    <string name="universe_retro_deleted">Jeu retiré de la bibliothèque</string>
-    <string name="universe_retro_file_imported">Jeu prêt dans votre bibliothèque</string>
-    <string name="universe_retro_import_error">Impossible d’importer ou télécharger ce fichier. Vérifiez le format ROM ou la connexion.</string>
-    <string name="universe_retro_catalogue_notice">Jeux homebrew libres et open-source prêts au téléchargement direct.</string>
-    <string name="universe_retro_controller_gamepad">Manette détectée : %1$s</string>
-    <string name="universe_retro_controller_tv">Télécommande Android TV prête (manette Bluetooth/USB recommandée pour les jeux d’action)</string>
-    <string name="universe_retro_controller_touch">Contrôles tactiles superposés prêts (manette Bluetooth compatible)</string>
-    <string name="universe_retro_console_other">Autres consoles</string>
-
-    <!-- Integrated retro player & pause menu -->
-    <string name="universe_retro_download_engine">Installer le moteur d’émulation</string>
-    <string name="universe_retro_engine_downloading">Téléchargement du moteur Libretro…</string>
-    <string name="universe_retro_engine_ready">Moteur prêt. Lancement du jeu…</string>
-    <string name="universe_retro_engine_failed">Impossible d’installer le moteur. Vérifiez la connexion et réessayez.</string>
-    <string name="universe_retro_engine_incompatible">Le moteur intégré nécessite Android 7.0+ (ARM64 / ARMv7 / x86_64). Utilisez un émulateur externe compatible.</string>
-    <string name="universe_retro_loading_game">Chargement de la cartouche…</string>
-    <string name="universe_retro_player_title">MISSA TV 360 · Rétro</string>
-    <string name="universe_retro_pause">Pause</string>
-    <string name="universe_retro_resume">Reprendre la partie</string>
-    <string name="universe_retro_reset_console">Réinitialiser la console</string>
-    <string name="universe_retro_save_state">Sauvegarder l’état</string>
-    <string name="universe_retro_load_state">Charger l’état</string>
-    <string name="universe_retro_state_saved">État de la partie sauvegardé</string>
-    <string name="universe_retro_state_loaded">État de la partie restauré</string>
-    <string name="universe_retro_state_unavailable">Aucun état sauvegardé disponible</string>
-    <string name="universe_retro_toggle_touch">Afficher / masquer les touches</string>
-    <string name="universe_retro_touch_opacity">Opacité des touches</string>
-    <string name="universe_retro_exit">Quitter le jeu</string>
-    <string name="universe_retro_pause_menu_title">Partie en pause</string>
-    <string name="universe_retro_controls">Manette / Télécommande : Croix directionnelle, A/OK, B, X/Select, Y/Start, L1/R1. Retour ou Menu ouvre la Pause.</string>
-    <string name="universe_retro_engine_notice">Émulation Libretro à la demande (SameBoy, FCEUmm, Snes9x, mGBA, Genesis Plus GX) • Aucune ROM commerciale incluse.</string>
-    <string name="universe_retro_player_failed">Le jeu n’a pas pu démarrer avec ce moteur. Vérifiez l’intégrité du fichier ROM.</string>
-    <string name="universe_retro_external_engine">Ouvrir dans un émulateur externe</string>
-
-    <!-- Retro catalog filters, localized cards & immersive player extras -->
-    <string name="universe_retro_filter_all">Toutes les consoles</string>
-    <string name="universe_retro_filter_gb">Game Boy / GBC</string>
-    <string name="universe_retro_filter_nes">NES</string>
-    <string name="universe_retro_filter_snes">Super Nintendo</string>
-    <string name="universe_retro_filter_gba">Game Boy Advance</string>
-    <string name="universe_retro_filter_sega">Mega Drive / SMS</string>
-    <string name="universe_retro_source_code">Code source</string>
-    <string name="universe_retro_delete_confirm">Supprimer « %1$s » de votre bibliothèque installée ?</string>
-    <string name="universe_retro_engine_required_fmt">Moteur d’émulation %1$s requis (téléchargement unique)</string>
-    <string name="universe_retro_install_engine_fmt">Installer le moteur %1$s</string>
-    <string name="universe_retro_player_title_fmt">MISSA TV 360 · %1$s</string>
-    <string name="universe_retro_touch_scale">Taille des touches</string>
-    <string name="universe_retro_touch_opacity_fmt">Opacité des touches : %1$d%%</string>
-    <string name="universe_retro_touch_scale_fmt">Taille des touches : %1$s</string>
-    <string name="universe_retro_auto_resumed">Reprise automatique de la session précédente</string>
-    <string name="universe_retro_quit_confirm">Sauvegarder la session et retourner aux Jeux Rétro ?</string>
-    <string name="universe_retro_dpad_desc">Croix directionnelle 8 directions</string>
-    <string name="universe_retro_button_l">Bouton d’épaule gauche L</string>
-    <string name="universe_retro_button_r">Bouton d’épaule droit R</string>
-    <string name="universe_retro_button_select">Bouton SELECT</string>
-    <string name="universe_retro_button_start">Bouton START</string>
-    <string name="universe_retro_button_x">Bouton d’action X</string>
-    <string name="universe_retro_button_y">Bouton d’action Y</string>
-    <string name="universe_retro_button_a">Bouton d’action A</string>
-    <string name="universe_retro_button_b">Bouton d’action B</string>
+    <string name="universe_favorite_removed">Retiré des favoris</string>
     <string name="missa_a11y_selected">Sélectionné</string>
-    <string name="universe_retro_game_ucity_genre">Gestion &amp; Construction</string>
-    <string name="universe_retro_game_ucity_desc">Jeu open-source complet de construction et de gestion urbaine conçu pour la Game Boy Color.</string>
-    <string name="universe_retro_game_big2small_genre">Puzzle &amp; Réflexion</string>
-    <string name="universe_retro_game_big2small_desc">Guidez éléphant, chèvre et souris vers leurs objectifs à travers des dizaines de niveaux malins.</string>
-    <string name="universe_retro_game_roborun_genre">Action &amp; Plateforme</string>
-    <string name="universe_retro_game_roborun_desc">Jeu d’action et de course rétro rapide développé nativement pour la console 8-bit NES.</string>
-    <string name="universe_retro_game_libbet_genre">Arcade &amp; Labyrinthe</string>
-    <string name="universe_retro_game_libbet_desc">Classique homebrew de Damian Yerrick mêlant déplacements tactiques et physique de rebond.</string>
-    <string name="universe_retro_game_240p_genre">Suite Audio/Vidéo &amp; Manette</string>
-    <string name="universe_retro_game_240p_desc">Suite interactive open-source pour tester l’affichage, les couleurs et la latence manette sur GBA.</string>
 </resources>

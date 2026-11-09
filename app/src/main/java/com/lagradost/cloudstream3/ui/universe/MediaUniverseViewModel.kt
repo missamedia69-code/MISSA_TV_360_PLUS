@@ -371,16 +371,8 @@ class MediaUniverseViewModel : ViewModel() {
                     isSeriesLoadResponse = mergedSeriesLoad
                 )
                 // EXT-GROUPS : le crible trie le contenu parmi les groupes autorisés
-                val structuralUniverses = MissaContentSieve.structuralGroups(
-                    auto = autoUniverses,
-                    title = bestRaw.response.name,
-                    url = bestRaw.response.url,
-                    sectionName = sectionHints.joinToString(" "),
-                    tags = mergedTags,
-                    type = effectiveType ?: bestRaw.response.type
-                )
                 val universes = MissaExtensionGroups.mergeUniverses(
-                    auto = structuralUniverses,
+                    auto = autoUniverses,
                     forcedPerSource = sortedGroup.map { it.raw.forcedUniverses }
                 )
 
@@ -1692,24 +1684,6 @@ class MediaUniverseViewModel : ViewModel() {
         val hubShortcuts = if (universeId == "home" && searchQuery.isBlank()) {
             MissaUniverses.HUB_SHORTCUTS.map { uni ->
                 when (uni.id) {
-                    "retro_games" -> {
-                        // AUDIT H10: the card used to print a hardcoded "5 games". The only
-                        // figure the app can stand behind is the number of ROMs the player
-                        // can actually open, i.e. the ones already in the retro library.
-                        val total = ctx?.let {
-                            File(it.filesDir, "retro-games").listFiles()?.count { file -> file.isFile }
-                        } ?: 0
-                        UniverseHubCardItem(
-                            definition = uni,
-                            itemCount = total,
-                            countBadge = if (total > 0) {
-                                ctx?.resources?.getQuantityString(R.plurals.missa_games_count, total, total)
-                            } else {
-                                null
-                            },
-                            hasLiveNow = false
-                        )
-                    }
                     "music" -> {
                         val total = DirectMusicPlayerManager.allPresetTracks().size
                         val badge = if (total > 0) {
@@ -2296,16 +2270,8 @@ class MediaUniverseViewModel : ViewModel() {
                     isSeriesLoadResponse = seriesLoad
                 )
                 // EXT-GROUPS : on réapplique le choix de l'utilisateur, trié par le crible
-                val structuralUniverses = MissaContentSieve.structuralGroups(
-                    auto = autoUniverses,
-                    title = entry.primary.name,
-                    url = entry.primary.url,
-                    sectionName = sec,
-                    tags = tags,
-                    type = updatedType
-                )
                 val updatedUniverses = MissaExtensionGroups.mergeUniversesForSources(
-                    auto = structuralUniverses,
+                    auto = autoUniverses,
                     sourceApiNames = entry.sources.map { it.apiName }.distinct()
                 )
                 entry.copy(

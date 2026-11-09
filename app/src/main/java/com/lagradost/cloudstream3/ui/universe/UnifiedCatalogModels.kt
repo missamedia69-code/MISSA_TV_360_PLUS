@@ -293,7 +293,7 @@ data class DirectPodcastSearchResponse(
 /**
  * Navigation universe descriptor.
  * [familyGroup] groups related universes visually in the top strip (NAV-01):
- * 0 = Home, 1 = Cinema/VOD, 2 = Live Video, 3 = Audio, 4 = Retro Games.
+ * 0 = Home, 1 = Cinema/VOD, 2 = Live Video, 3 = Audio.
  */
 data class UniverseDefinition(
     val id: String,
@@ -443,26 +443,14 @@ object MissaUniverses {
         directPlayOnClick = true
     )
 
-    val RETRO_GAMES = UniverseDefinition(
-        id = "retro_games",
-        destinationId = R.id.navigation_universe_retro_games,
-        titleRes = R.string.universe_games_title,
-        shortTitleRes = R.string.universe_games_title_short,
-        descriptionRes = R.string.universe_games_description,
-        cardSubtitleRes = R.string.universe_card_games_sub,
-        iconRes = R.drawable.ic_missa_gamepad,
-        eyebrowRes = R.string.universe_eyebrow_games,
-        familyGroup = 4
-    )
-
-    /** Primary navigation bar order (Home + 11 content universes). */
+    /** Primary navigation bar order (Home + 10 content universes). */
     val NAVIGATION_UNIVERSES = listOf(
-        HOME, FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, RETRO_GAMES
+        HOME, FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO
     )
 
-    /** Hub shortcut cards displayed on Home (the 11 dedicated universes). */
+    /** Hub shortcut cards displayed on Home (the 10 dedicated universes). */
     val HUB_SHORTCUTS = listOf(
-        FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO, RETRO_GAMES
+        FILMS, SERIES, DOCUMENTARIES, SHORTS, KIDS, LIVE_TV, SPORTS, MUSIC, PODCASTS, RADIO
     )
 
     fun byId(universeId: String): UniverseDefinition =

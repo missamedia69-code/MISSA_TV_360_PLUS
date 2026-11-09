@@ -58,9 +58,7 @@ class MissaExtensionGroupsTest {
         assertTrue("music" !in ids)
         assertTrue("kids" !in ids)
         assertTrue("home" !in ids)
-        // Jeux rétro est alimenté par les extensions comme les autres : il doit être proposé.
-        assertTrue("retro_games" in ids)
-        assertEquals(9, ids.size)
+        assertEquals(8, ids.size)
         // et rien que des identifiants d'univers qui existent vraiment
         assertTrue(ids.all { id -> MissaUniverses.NAVIGATION_UNIVERSES.any { it.id == id } })
     }
@@ -181,46 +179,6 @@ class MissaExtensionGroupsTest {
         assertEquals(2, entries.size)
         assertEquals(setOf("films"), entries.first { it.primary.type == TvType.Movie }.universes)
         assertEquals(setOf("series"), entries.first { it.primary.type == TvType.TvSeries }.universes)
-    }
-
-    @Test
-    fun `a rom is a retro game and not a movie`() {
-        assertEquals(
-            setOf("retro_games"),
-            MissaContentSieve.structuralGroups(
-                auto = setOf("films"),
-                title = "Super Mario Bros",
-                url = "https://roms.example/mario.nes",
-                type = TvType.Others
-            )
-        )
-    }
-
-    @Test
-    fun `a homebrew section feeds retro games`() {
-        assertEquals(
-            setOf("retro_games"),
-            MissaContentSieve.structuralGroups(
-                auto = setOf("films"),
-                title = "Blobby Volley",
-                url = "https://homebrew.example/blobby",
-                sectionName = "Homebrew",
-                type = TvType.Others
-            )
-        )
-    }
-
-    @Test
-    fun `a movie whose title names a console stays a movie`() {
-        assertEquals(
-            setOf("films"),
-            MissaContentSieve.structuralGroups(
-                auto = setOf("films"),
-                title = "Arcade",
-                url = "https://pack.example/film/arcade",
-                type = TvType.Movie
-            )
-        )
     }
 
     @Test

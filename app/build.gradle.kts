@@ -311,7 +311,6 @@ dependencies {
     implementation(libs.kotlinx.io.core) // Logcat parser
 
     // Embedded Game Boy / Game Boy Color core frontend (cores are downloaded on demand).
-    implementation("dev.kotlinds:libretro-kmp:0.1.2")
 
     implementation(project(":library"))
     implementation(project(":shared"))

@@ -355,7 +355,7 @@ class MissaTvFocusHelperTest {
     fun `tv dims declare the 10 foot scale for sw600dp televisions`() {
         // Qualifier precedence: smallestWidth outranks UI mode, so a values-television overlay
         // alone is shadowed by values-sw600dp on every 720p/1080p/4K TV. The union directory
-        // must exist and must carry the 10-foot hero / gamepad scale.
+        // must exist and must carry the 10-foot hero scale.
         val dimsRoot = java.io.File("src/main/res").takeIf { it.isDirectory }
             ?: java.io.File("app/src/main/res")
         val unionDims = java.io.File(dimsRoot, "values-sw600dp-television/dimens.xml")
@@ -368,11 +368,7 @@ class MissaTvFocusHelperTest {
             "missa_text_screen_title",
             "missa_hero_height",
             "missa_section_horizontal_padding",
-            "missa_hub_card_width",
-            "missa_retro_dpad_size",
-            "missa_retro_action_btn_size",
-            "missa_retro_shoulder_btn_width",
-            "missa_retro_shoulder_btn_height"
+            "missa_hub_card_width"
         )) {
             assertTrue("missing $dimen in values-sw600dp-television/dimens.xml", union.contains(dimen))
         }
@@ -380,10 +376,6 @@ class MissaTvFocusHelperTest {
         assertTrue(
             "TV hero must stay taller than the tablet hero",
             dimenValue(union, "missa_hero_height") > dimenValue(tablet, "missa_hero_height")
-        )
-        assertTrue(
-            "TV gamepad overlay must stay larger than the tablet one",
-            dimenValue(union, "missa_retro_dpad_size") > dimenValue(tablet, "missa_retro_dpad_size")
         )
     }
 

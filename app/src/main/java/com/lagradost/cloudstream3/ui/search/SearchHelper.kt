@@ -36,7 +36,7 @@ object SearchHelper {
                 val trackKey = card.trackId.ifBlank { "music_${card.url.hashCode()}" }
                 val nowFav = DirectMusicPlayerManager.toggleFavorite(trackKey)
                 showToast(
-                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                    if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_favorite_removed,
                     Toast.LENGTH_SHORT
                 )
             } else if (ctx != null) {
@@ -67,7 +67,7 @@ object SearchHelper {
                         ?: "radio_${card.url.hashCode()}"
                     val nowFav = DirectRadioPlayerManager.toggleFavorite(stationKey)
                     showToast(
-                        if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_retro_deleted,
+                        if (nowFav) R.string.universe_radio_favorite_toggle else R.string.universe_favorite_removed,
                         Toast.LENGTH_SHORT
                     )
                 }

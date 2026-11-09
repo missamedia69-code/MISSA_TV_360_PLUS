@@ -47,7 +47,7 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# --- JNI (libretro-kmp, decodeurs) ---
+# --- JNI (decodeurs) ---
 -keepclasseswithmembernames class * {
     native <methods>;
 }
