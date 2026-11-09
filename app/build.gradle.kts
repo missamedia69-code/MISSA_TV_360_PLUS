@@ -185,6 +185,12 @@ android {
     productFlavors {
         create("stable") {
             dimension = "state"
+            // Versions publiques (workflow release.yml) : signées avec la clé MISSA fournie
+            // par les secrets du dépôt, toujours la même, pour que les mises à jour
+            // s'installent par-dessus. Sans clé, rien ne change (clé debug, cf. buildTypes).
+            if (signingConfigs.names.contains("prerelease")) {
+                signingConfig = signingConfigs.getByName("prerelease")
+            }
         }
         create("prerelease") {
             isDefault = true
