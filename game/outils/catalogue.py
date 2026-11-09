@@ -118,6 +118,11 @@ def main():
             erreurs.append(f"{nom}: identifiant en double")
         ids.add(nom)
         completer(jeu, erreurs, nom)
+        if jeu.get("cover"):
+            if os.path.isfile(os.path.join(RACINE, jeu["cover"])):
+                jeu["coverUrl"] = BASE_URL + jeu["cover"]
+            else:
+                erreurs.append(f"{nom}: pochette introuvable ({jeu['cover']})")
         systeme = jeu.get("system")
         if systeme not in systemes:
             erreurs.append(f"{nom}: aucun émulateur pour la console {systeme}")

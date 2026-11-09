@@ -1,10 +1,12 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.InputDevice
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -24,6 +26,9 @@ import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
+import com.lagradost.cloudstream3.utils.ImageLoader.loadImage
+import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
+import com.lagradost.cloudstream3.utils.getImageFromDrawable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -321,6 +326,7 @@ class GamesFragment : Fragment() {
         }
 
         class CardVH(view: View) : RecyclerView.ViewHolder(view) {
+            private val artwork: ImageView = view.findViewById(R.id.game_card_artwork)
             private val title: TextView = view.findViewById(R.id.game_card_title)
             private val systemBadge: TextView = view.findViewById(R.id.game_card_system_badge)
             private val metaBadge: TextView = view.findViewById(R.id.game_card_meta_badge)
@@ -333,6 +339,7 @@ class GamesFragment : Fragment() {
 
             fun bind(card: GameCard, onPrimary: (GameCard) -> Unit, onSecondary: (GameCard) -> Unit) {
                 val g = card.game
+                bindArtwork(g.coverUrl)
                 title.text = g.title
                 systemBadge.text = g.platformLabel
                 metaBadge.text = listOf(g.genre, g.author, formatBytes(g.pkg.bytes)).filter { it.isNotBlank() }.joinToString(" • ")
@@ -341,6 +348,28 @@ class GamesFragment : Fragment() {
                 secondaryBtn.setText(if (card.installed) R.string.delete else R.string.universe_games_info_button)
                 secondaryBtn.setOnClickListener { onSecondary(card) }
                 bindState(card, onPrimary)
+            }
+
+            /** Pochette en plein cadre si le jeu en a une, sinon l'icône manette teintée. */
+            private fun bindArtwork(coverUrl: String?) {
+                val lp = artwork.layoutParams
+                if (coverUrl != null) {
+                    lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+                    lp.height = ViewGroup.LayoutParams.MATCH_PARENT
+                    artwork.imageTintList = null
+                    artwork.scaleType = ImageView.ScaleType.CENTER_CROP
+                    artwork.loadImage(coverUrl) {
+                        error { getImageFromDrawable(artwork.context, R.drawable.ic_missa_gamepad) }
+                    }
+                } else {
+                    val size = (32 * artwork.resources.displayMetrics.density).toInt()
+                    lp.width = size
+                    lp.height = size
+                    artwork.imageTintList = ColorStateList.valueOf(artwork.context.colorFromAttribute(R.attr.missaAccentPrimary))
+                    artwork.scaleType = ImageView.ScaleType.FIT_CENTER
+                    artwork.setImageResource(R.drawable.ic_missa_gamepad)
+                }
+                artwork.layoutParams = lp
             }
 
             fun bindState(card: GameCard, onPrimary: (GameCard) -> Unit) {

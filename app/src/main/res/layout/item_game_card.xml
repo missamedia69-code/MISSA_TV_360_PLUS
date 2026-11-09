@@ -26,8 +26,8 @@
             android:orientation="horizontal">
 
             <FrameLayout
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
                 android:background="@drawable/missa_universe_card_bg">
 
                 <ImageView

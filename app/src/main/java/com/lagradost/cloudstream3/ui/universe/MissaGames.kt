@@ -72,7 +72,9 @@ object MissaGames {
         val fileName: String,
         val pkg: Package,
         val licence: String,
-        val sourceUrl: String
+        val sourceUrl: String,
+        /** Pochette (HTTPS), ou null : la carte garde alors l'icône manette. */
+        val coverUrl: String? = null
     )
 
     data class Catalogue(
@@ -176,7 +178,8 @@ object MissaGames {
                         fileName = fileName,
                         pkg = pkg,
                         licence = o.optString("licence"),
-                        sourceUrl = o.optString("sourceUrl")
+                        sourceUrl = o.optString("sourceUrl"),
+                        coverUrl = o.optString("coverUrl").trim().takeIf { it.startsWith("https://") }
                     )
                 )
             }
