@@ -1684,6 +1684,20 @@ class MediaUniverseViewModel : ViewModel() {
         val hubShortcuts = if (universeId == "home" && searchQuery.isBlank()) {
             MissaUniverses.HUB_SHORTCUTS.map { uni ->
                 when (uni.id) {
+                    "games" -> {
+                        // Nombre de jeux du dernier catalogue lu ; rien tant qu'il n'a jamais été lu.
+                        val total = ctx?.let { MissaGames.cachedCatalogue(it)?.games?.size } ?: 0
+                        UniverseHubCardItem(
+                            definition = uni,
+                            itemCount = total,
+                            countBadge = if (total > 0) {
+                                ctx?.resources?.getQuantityString(R.plurals.missa_games_count, total, total)
+                            } else {
+                                null
+                            },
+                            hasLiveNow = false
+                        )
+                    }
                     "music" -> {
                         val total = DirectMusicPlayerManager.allPresetTracks().size
                         val badge = if (total > 0) {

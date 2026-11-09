@@ -200,6 +200,7 @@ import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
 import com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment
 import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
+import com.lagradost.cloudstream3.ui.universe.GamesFragment
 import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
 import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
 import com.lagradost.cloudstream3.ui.universe.MissaUniverseDialogs
@@ -648,6 +649,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         val currentFragment = navHost?.childFragmentManager?.primaryNavigationFragment
         return when (currentFragment) {
             is MediaUniverseFragment -> currentFragment.requestPrimaryContentFocus(sourceView)
+            is GamesFragment -> currentFragment.requestPrimaryContentFocus()
             else -> navHostView?.requestFocus() == true
         }
     }
@@ -891,6 +893,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
         when (val fragment = navHost?.childFragmentManager?.primaryNavigationFragment) {
             is MediaUniverseFragment -> fragment.requestPrimaryContentFocus()
+            is GamesFragment -> fragment.requestPrimaryContentFocus()
         }
     }
 
@@ -948,7 +951,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         var previousFamilyGroup: Int? = null
 
         universeNavigationEntries.forEach { entry ->
-            // Family separator between [Accueil] | [Films..Enfants] | [TV Sports] | [Podcasts Radio] (NAV-01)
+            // Family separator between [Accueil] | [Films..Enfants] | [TV Sports] | [Podcasts Radio] | [Jeux] (NAV-01)
             if (previousFamilyGroup != null && previousFamilyGroup != entry.familyGroup) {
                 universeContainer.addView(MissaUiFactory.createStripFamilyDivider(this))
             }

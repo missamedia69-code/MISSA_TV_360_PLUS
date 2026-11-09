@@ -10,8 +10,8 @@
     "sourceArchive": "game/sources/emulatorjs-4.2.3-source.zip",
     "fileName": "emulatorjs-4.2.3.zip",
     "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/moteur/emulatorjs-4.2.3.zip",
-    "bytes": 200612,
-    "sha256": "4e58151f6ed38f73cb17970a13c2b40c12f4c575e9d5d4532feb1bce91f5fcfa"
+    "bytes": 200646,
+    "sha256": "a534699677dafa9a8d7e8fb32193a1a4dc9685d810ac0dfb2394d4f59d5d5f6b"
   },
   "emulateurs": [
     {

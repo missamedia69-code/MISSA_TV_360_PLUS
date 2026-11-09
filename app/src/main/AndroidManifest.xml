@@ -157,6 +157,14 @@
 
         Not exported to prevent bypassing the AccountSelectActivity
         -->
+        <!-- Univers Jeux : écran de jeu plein écran (WebView sur les fichiers locaux) -->
+        <activity
+            android:name=".ui.universe.GamePlayerActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"

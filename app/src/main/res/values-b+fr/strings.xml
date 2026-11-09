@@ -959,7 +959,7 @@
     <!-- 3-step onboarding wizard (FLOW-01) -->
     <string name="missa_onboarding_step_indicator">Étape %1$d sur 3</string>
     <string name="missa_onboarding_step1_title">Bienvenue sur MISSA TV 360 PLUS</string>
-    <string name="missa_onboarding_step1_desc">Une interface cinéma unifiée pour 10 univers : Films &amp; Mangas, Séries, Documentaires, Courts-métrages, Enfants, TV en direct, Sports, Musiques, Podcasts et Radio directe.</string>
+    <string name="missa_onboarding_step1_desc">Une interface cinéma unifiée pour 11 univers : Films &amp; Mangas, Séries, Documentaires, Courts-métrages, Enfants, TV en direct, Sports, Musiques, Podcasts, Radio directe et Jeux.</string>
     <string name="missa_onboarding_step2_title">Région, Audio &amp; Économie de données</string>
     <string name="missa_onboarding_step2_desc">Personnalisez votre expérience : stations radio d’Afrique, du Cameroun et internationales prêtes dès le premier lancement, et mode Économie de données pour réseaux mobiles.</string>
     <string name="missa_onboarding_data_saver_toggle">Activer le mode Économie de données (images allégées, carrousel fixe)</string>
@@ -1254,4 +1254,48 @@
 
     <string name="universe_favorite_removed">Retiré des favoris</string>
     <string name="missa_a11y_selected">Sélectionné</string>
+
+    <!-- Univers Jeux (game/catalogue.json, EmulatorJS en WebView) -->
+    <string name="universe_games_title">Jeux</string>
+    <string name="universe_games_title_short">Jeux</string>
+    <string name="universe_games_description">Jeux rétro libres, téléchargés à la demande et joués hors ligne.</string>
+    <string name="universe_card_games_sub">NES, Game Boy et plus</string>
+    <string name="universe_eyebrow_games">JEUX</string>
+    <string name="universe_games_intro">Téléchargez un jeu en un appui : l’émulateur de sa console vient avec. Ensuite, jouez hors ligne.</string>
+    <string name="universe_games_refresh">Actualiser</string>
+    <string name="universe_games_filter_all">Tous</string>
+    <string name="universe_games_unavailable">Le catalogue des jeux n’est pas encore disponible. Vérifiez la connexion puis actualisez.</string>
+    <string name="universe_games_ready">%1$s est prêt à jouer</string>
+    <string name="universe_games_download_error">Le téléchargement a échoué. Vérifiez la connexion et réessayez.</string>
+    <string name="universe_games_delete_confirm">Retirer ce jeu de l’appareil ? Vous pourrez le retélécharger à tout moment.</string>
+    <string name="universe_games_info_button">Infos</string>
+    <string name="universe_games_info">Auteur : %1$s
+Console : %2$s
+Licence : %3$s
+Émulateur : %4$s (%5$s)
+Source : %6$s</string>
+    <string name="universe_games_controller_gamepad">Manette prête : %1$s</string>
+    <string name="universe_games_controller_tv">Télécommande prête (manette conseillée pour les jeux d’action)</string>
+    <string name="universe_games_controller_touch">Commandes tactiles à l’écran</string>
+    <string name="universe_games_step_engine">Installation du moteur de jeu… %1$d %%</string>
+    <string name="universe_games_step_emulator">Installation de l’émulateur de la console… %1$d %%</string>
+    <string name="universe_games_step_game">Téléchargement du jeu… %1$d %%</string>
+    <string name="universe_games_cancel">Annuler</string>
+    <string name="universe_games_play">Jouer</string>
+    <string name="universe_games_download">Télécharger (%1$s)</string>
+    <string name="universe_games_loading">Chargement de %1$s…</string>
+    <string name="universe_games_hint_tv">OK : A · Retour : B · Retour maintenu : menu</string>
+    <string name="universe_games_hint_touch">Retour : menu pause</string>
+    <string name="universe_games_menu_title">Pause</string>
+    <string name="universe_games_menu_resume">Reprendre</string>
+    <string name="universe_games_menu_save">Sauvegarder la partie</string>
+    <string name="universe_games_menu_load">Charger la sauvegarde</string>
+    <string name="universe_games_menu_start">Appuyer sur START</string>
+    <string name="universe_games_menu_select">Appuyer sur SELECT</string>
+    <string name="universe_games_menu_restart">Recommencer</string>
+    <string name="universe_games_menu_quit">Quitter le jeu</string>
+    <plurals name="missa_games_count">
+        <item quantity="one">%d jeu</item>
+        <item quantity="other">%d jeux</item>
+    </plurals>
 </resources>

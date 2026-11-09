@@ -1003,7 +1003,7 @@
     <!-- 3-step onboarding wizard (FLOW-01) -->
     <string name="missa_onboarding_step_indicator">Step %1$d of 3</string>
     <string name="missa_onboarding_step1_title">Welcome to MISSA TV 360 PLUS</string>
-    <string name="missa_onboarding_step1_desc">One cinema-grade interface for 10 media universes: Movies &amp; Mangas, Series, Documentaries, Shorts, Kids, Live TV, Sports, Music, Podcasts and Direct Radio.</string>
+    <string name="missa_onboarding_step1_desc">One cinema-grade interface for 11 media universes: Movies &amp; Mangas, Series, Documentaries, Shorts, Kids, Live TV, Sports, Music, Podcasts, Direct Radio and Games.</string>
     <string name="missa_onboarding_step2_title">Region, Audio &amp; Data Preferences</string>
     <string name="missa_onboarding_step2_desc">Optimize your experience: highlight African &amp; international radio presets, and optionally enable Data Saver on mobile networks.</string>
     <string name="missa_onboarding_data_saver_toggle">Enable Data Saver (lighter images, paused hero auto-play)</string>
@@ -1298,4 +1298,48 @@
 
     <string name="universe_favorite_removed">Removed from favorites</string>
     <string name="missa_a11y_selected">Selected</string>
+
+    <!-- Univers Jeux (game/catalogue.json, EmulatorJS en WebView) -->
+    <string name="universe_games_title">Games</string>
+    <string name="universe_games_title_short">Games</string>
+    <string name="universe_games_description">Free retro games, downloaded on demand and played offline.</string>
+    <string name="universe_card_games_sub">NES, Game Boy and more</string>
+    <string name="universe_eyebrow_games">GAMES</string>
+    <string name="universe_games_intro">Download a game in one tap: the emulator for its console comes with it. Then play offline.</string>
+    <string name="universe_games_refresh">Refresh</string>
+    <string name="universe_games_filter_all">All</string>
+    <string name="universe_games_unavailable">The games catalogue is not available yet. Check your connection and refresh.</string>
+    <string name="universe_games_ready">%1$s is ready to play</string>
+    <string name="universe_games_download_error">Download failed. Check your connection and try again.</string>
+    <string name="universe_games_delete_confirm">Remove this game from the device? You can download it again at any time.</string>
+    <string name="universe_games_info_button">Info</string>
+    <string name="universe_games_info">Author: %1$s
+Console: %2$s
+Licence: %3$s
+Emulator: %4$s (%5$s)
+Source: %6$s</string>
+    <string name="universe_games_controller_gamepad">Controller ready: %1$s</string>
+    <string name="universe_games_controller_tv">Remote ready (a controller is better for action games)</string>
+    <string name="universe_games_controller_touch">On-screen controls</string>
+    <string name="universe_games_step_engine">Installing the game engine… %1$d%%</string>
+    <string name="universe_games_step_emulator">Installing the console emulator… %1$d%%</string>
+    <string name="universe_games_step_game">Downloading the game… %1$d%%</string>
+    <string name="universe_games_cancel">Cancel</string>
+    <string name="universe_games_play">Play</string>
+    <string name="universe_games_download">Download (%1$s)</string>
+    <string name="universe_games_loading">Loading %1$s…</string>
+    <string name="universe_games_hint_tv">OK: A · Back: B · Hold Back: menu</string>
+    <string name="universe_games_hint_touch">Back: pause menu</string>
+    <string name="universe_games_menu_title">Pause</string>
+    <string name="universe_games_menu_resume">Resume</string>
+    <string name="universe_games_menu_save">Save game</string>
+    <string name="universe_games_menu_load">Load saved game</string>
+    <string name="universe_games_menu_start">Press START</string>
+    <string name="universe_games_menu_select">Press SELECT</string>
+    <string name="universe_games_menu_restart">Restart</string>
+    <string name="universe_games_menu_quit">Quit the game</string>
+    <plurals name="missa_games_count">
+        <item quantity="one">%d game</item>
+        <item quantity="other">%d games</item>
+    </plurals>
 </resources>
