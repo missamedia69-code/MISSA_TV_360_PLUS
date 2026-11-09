@@ -12,7 +12,7 @@ plus lentement — c'est tout l'objet de A1).
 
 ## Installer les deux versions
 
-Le paquet de la variante release est `com.lagradost.cloudstream3.prerelease`.
+Le paquet de la variante release est `com.missatv.app.prerelease`.
 
 ```bash
 # 1. AVANT : le code tel qu'il était au commit de référence 97a4869
@@ -20,7 +20,7 @@ git worktree add ../MISSA_AVANT 97a4869
 cd ../MISSA_AVANT && ./gradlew :app:assemblePrereleaseRelease
 adb install -r app/build/outputs/apk/prerelease/release/app-prerelease-release.apk
 # -> mesurer, noter les chiffres, puis désinstaller
-adb uninstall com.lagradost.cloudstream3.prerelease
+adb uninstall com.missatv.app.prerelease
 
 # 2. APRÈS : la branche courante
 cd ../MISSA_TV_360_PLUS && ./gradlew :app:assemblePrereleaseRelease
@@ -35,8 +35,8 @@ Les APK sont aussi publiés par la CI (`missa-tv-360-prerelease-release`), conse
 ### 1. Démarrage à froid
 
 ```bash
-adb shell am force-stop com.lagradost.cloudstream3.prerelease
-adb shell am start -W -n com.lagradost.cloudstream3.prerelease/.ui.account.AccountSelectActivity2
+adb shell am force-stop com.missatv.app.prerelease
+adb shell am start -W -n com.missatv.app.prerelease/.ui.account.AccountSelectActivity2
 ```
 
 → relever `TotalTime` (ms). Refaire **3 fois** et garder la médiane : la première mesure
@@ -48,9 +48,9 @@ Ouvrir l'accueil, puis **défiler lentement sur toute la page** (et recommencer 
 Films, Musiques, Enfants) :
 
 ```bash
-adb shell dumpsys gfxinfo com.lagradost.cloudstream3.prerelease reset   # avant de défiler
+adb shell dumpsys gfxinfo com.missatv.app.prerelease reset   # avant de défiler
 # ... défiler ...
-adb shell dumpsys gfxinfo com.lagradost.cloudstream3.prerelease
+adb shell dumpsys gfxinfo com.missatv.app.prerelease
 ```
 
 → relever **Janky frames** (le pourcentage) et le nombre d'images à plus de 8 ms.
@@ -67,7 +67,7 @@ parlante** : les actions A2, A3, A4 et A5 visent précisément à les faire disp
 ### 4. Mémoire
 
 ```bash
-adb shell dumpsys meminfo com.lagradost.cloudstream3.prerelease
+adb shell dumpsys meminfo com.missatv.app.prerelease
 ```
 
 → relever `TOTAL PSS` après avoir parcouru les 9 univers (les catalogues Radio, Musique et
