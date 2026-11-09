@@ -1,0 +1,46 @@
+name: Catalogue des jeux rétro
+
+# Le catalogue que lit l'application (`retro-catalog.json`) est fabriqué à partir du
+# contenu de `games/`. Dès qu'un jeu est déposé — fichier ROM, pochette ou fiche de
+# description — on le reconstruit et on le dépose, sans rien faire à la main.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "games/**"
+      - "tools/build_retro_catalog.py"
+      - "tools/retro-catalog-upstream.json"
+      - ".github/workflows/missa-retro-catalog.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  catalogue:
+    name: Reconstruire retro-catalog.json
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer les sources
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Reconstruire le catalogue
+        run: python3 tools/build_retro_catalog.py
+
+      - name: Déposer le catalogue s'il a changé
+        run: |
+          set -e
+          if git diff --quiet -- retro-catalog.json; then
+            echo "Catalogue inchangé, rien à déposer."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add retro-catalog.json
+          git commit -m "jeux: catalogue régénéré depuis games/"
+          git push
