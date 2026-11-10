@@ -77,9 +77,11 @@ fun Modifier.focusOutline(
 @Composable
 fun Modifier.whiteOutline(hasFocus: Boolean, shape: Shape = RoundedShape()): Modifier {
     return if (hasFocus) {
+        // Même curseur vert que les écrans Android (MainActivity.TvFocus), pour que la sélection
+        // à la télécommande ait la même couleur partout, du choix du compte aux réglages.
         this.border(
             width = 3.dp,
-            color = CloudStreamPalette.Primary,
+            color = CloudStreamPalette.NavigationGreen,
             shape = shape
         )
     } else {

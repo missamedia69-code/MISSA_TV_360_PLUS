@@ -33,6 +33,8 @@ internal object CloudStreamPalette {
     val Primary = Color(0xFFF5BB00)
     val PrimaryDark = Color(0xFF725900)
     val AccentGreen = Color(0xFF48E484)
+    /** Curseur de navigation (télécommande) : le même vert que le cadre des écrans Android (missaGreenNavigation). */
+    val NavigationGreen = Color(0xFF2FD37A)
     val AccentLive = Color(0xFFE53935)
     val OnAccentPrimary = Color(0xFF141414)
     val SurfaceCardDark = Color(0xFF191B22)

@@ -1305,8 +1305,9 @@
     <string name="universe_games_description">Free retro games, downloaded on demand and played offline.</string>
     <string name="universe_card_games_sub">NES, Game Boy and more</string>
     <string name="universe_eyebrow_games">GAMES</string>
-    <string name="universe_games_intro">Download a game in one tap: the emulator for its console comes with it. Then play offline.</string>
+    <string name="universe_games_intro">Tap a game to download or play it · long press: options</string>
     <string name="universe_games_intro_tv">OK: play or download · Hold OK: options (info, remove)</string>
+    <string name="universe_games_tile_progress">%1$d%%</string>
     <string name="universe_games_refresh">Refresh</string>
     <string name="universe_games_filter_all">All</string>
     <string name="universe_games_unavailable">The games catalogue is not available yet. Check your connection and refresh.</string>

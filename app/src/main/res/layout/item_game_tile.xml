@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Tuile compacte de l'univers Jeux : pochette carrée, titre, une ligne d'état.
+    Toute la tuile reçoit le sélecteur (le cadre vert est dessiné par MainActivity, comme
+    dans les autres univers). Appui / OK = action principale, appui long = options.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/game_tile_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    android:background="@drawable/missa_universe_card_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical"
+    android:padding="5dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <FrameLayout
+            android:id="@+id/game_tile_art_box"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="?attr/missaSurfaceElevated"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/game_tile_artwork"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="centerCrop"
+                tools:src="@drawable/ic_missa_gamepad" />
+
+            <TextView
+                android:id="@+id/game_tile_system"
+                style="@style/TextAppearance.Missa.Badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|start"
+                android:layout_margin="4dp"
+                android:background="@drawable/missa_eyebrow_pill_bg"
+                android:paddingStart="6dp"
+                android:paddingTop="1dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="1dp"
+                android:textColor="?attr/missaAccentPrimary"
+                android:textSize="10sp"
+                tools:text="NES" />
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/game_tile_progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:visibility="gone"
+                app:indicatorColor="?attr/missaAccentPrimary"
+                app:trackColor="?attr/missaStrokeSubtle"
+                app:trackThickness="4dp"
+                tools:visibility="visible" />
+        </FrameLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <TextView
+        android:id="@+id/game_tile_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?attr/textColor"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        tools:text="Double Action Blaster Guys" />
+
+    <TextView
+        android:id="@+id/game_tile_state"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?attr/grayTextColor"
+        android:textSize="11sp"
+        tools:text="▶ Jouer" />
+</LinearLayout>

@@ -16,12 +16,10 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
@@ -84,25 +82,27 @@ class GamesFragment : Fragment() {
         recyclerView = view.findViewById(R.id.games_recycler)
 
         tvMode = isLayout(TV or EMULATOR)
-        if (tvMode) view.findViewById<TextView>(R.id.games_intro).setText(R.string.universe_games_intro_tv)
+        view.findViewById<TextView>(R.id.games_intro).setText(
+            if (tvMode) R.string.universe_games_intro_tv else R.string.universe_games_intro
+        )
         listAdapter = GamesAdapter(
-            tvMode = tvMode,
             onPrimary = { card -> onPrimaryAction(card) },
             onSecondary = { card -> onSecondaryAction(card) }
         )
-        val isTvOrTablet = isLayout(TV or EMULATOR) || resources.configuration.smallestScreenWidthDp >= 600
-        recyclerView.layoutManager = if (isTvOrTablet) {
-            MissaAlignedGridLayoutManager(
-                context = requireContext(),
-                spanCount = 2,
-                trapBottomEdge = true,
-                leftBorderEscapeProvider = { view.rootView?.findViewById(R.id.nav_rail_view) },
-                // Haut depuis la première rangée : retour au filtre de console sélectionné.
-                topBorderEscapeProvider = { filterButtons[selectedSystem] ?: refreshButton }
-            )
-        } else {
-            LinearLayoutManager(requireContext())
-        }
+        // Petites tuiles : autant de colonnes que la largeur le permet (environ 130 dp par jeu
+        // sur TV, 110 dp sur téléphone), soit 6 à 7 jeux par rangée sur un téléviseur.
+        val widthDp = resources.configuration.screenWidthDp
+        val spans = (widthDp / (if (tvMode) 130 else 110)).coerceIn(3, 8)
+        recyclerView.layoutManager = MissaAlignedGridLayoutManager(
+            context = requireContext(),
+            spanCount = spans,
+            trapBottomEdge = true,
+            leftBorderEscapeProvider = { view.rootView?.findViewById(R.id.nav_rail_view) },
+            // Haut depuis la première rangée : retour au filtre de console sélectionné.
+            topBorderEscapeProvider = { filterButtons[selectedSystem] ?: refreshButton },
+            instantReveal = true
+        )
+        recyclerView.setHasFixedSize(true)
         recyclerView.itemAnimator = null
         recyclerView.adapter = listAdapter
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -139,9 +139,7 @@ class GamesFragment : Fragment() {
     /** Appelé par MainActivity pour poser le sélecteur dans le contenu (navigation TV). */
     fun requestPrimaryContentFocus(): Boolean {
         if (!isAdded || !::recyclerView.isInitialized) return false
-        val first = recyclerView.getChildAt(0)
-        val target = if (tvMode) first else first?.findViewById(R.id.game_card_primary_btn)
-        if (target?.requestFocus() == true) return true
+        if (recyclerView.getChildAt(0)?.requestFocus() == true) return true
         return refreshButton.requestFocus()
     }
 
@@ -345,19 +343,18 @@ class GamesFragment : Fragment() {
     // ------------------------------------------------------------------------- Liste
 
     private class GamesAdapter(
-        private val tvMode: Boolean,
         private val onPrimary: (GameCard) -> Unit,
         private val onSecondary: (GameCard) -> Unit
-    ) : ListAdapter<GameCard, GamesAdapter.CardVH>(DIFF) {
+    ) : ListAdapter<GameCard, GamesAdapter.TileVH>(DIFF) {
 
         companion object {
             private val DIFF = object : DiffUtil.ItemCallback<GameCard>() {
                 override fun areItemsTheSame(oldItem: GameCard, newItem: GameCard) = oldItem.game.id == newItem.game.id
                 override fun areContentsTheSame(oldItem: GameCard, newItem: GameCard) = oldItem == newItem
-                // Seule la progression change : on met à jour la barre sans redessiner la carte,
-                // pour que le sélecteur ne saute pas pendant un téléchargement.
+                // Seul l'état change : on met à jour la ligne d'état et la barre sans recharger
+                // la pochette, pour que le sélecteur ne saute pas pendant un téléchargement.
                 override fun getChangePayload(oldItem: GameCard, newItem: GameCard): Any? =
-                    if (oldItem.game == newItem.game && oldItem.installed == newItem.installed) "state" else null
+                    if (oldItem.game == newItem.game) "state" else null
             }
 
             fun formatBytes(bytes: Long): String {
@@ -368,131 +365,90 @@ class GamesFragment : Fragment() {
             }
         }
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CardVH =
-            CardVH(LayoutInflater.from(parent.context).inflate(R.layout.item_game_card, parent, false), tvMode, onPrimary, onSecondary)
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TileVH =
+            TileVH(LayoutInflater.from(parent.context).inflate(R.layout.item_game_tile, parent, false), onPrimary, onSecondary)
 
-        override fun onBindViewHolder(holder: CardVH, position: Int) = holder.bind(getItem(position), onPrimary, onSecondary)
+        override fun onBindViewHolder(holder: TileVH, position: Int) = holder.bind(getItem(position))
 
-        override fun onBindViewHolder(holder: CardVH, position: Int, payloads: MutableList<Any>) {
-            if (payloads.isNotEmpty()) holder.bindState(getItem(position), onPrimary)
-            else onBindViewHolder(holder, position)
+        override fun onBindViewHolder(holder: TileVH, position: Int, payloads: MutableList<Any>) {
+            if (payloads.isNotEmpty()) holder.bindState(getItem(position)) else holder.bind(getItem(position))
         }
 
         /**
-         * Sur TV, la **carte entière** reçoit le sélecteur (cadre vert), comme dans les autres
-         * univers : la grille passe de carte en carte, OK lance l'action principale (jouer,
-         * télécharger, annuler) et un appui long sur OK ou la touche Menu ouvre les options.
-         * Les boutons de la carte restent visibles comme indication mais ne prennent pas le focus.
-         * Sur téléphone et tablette tactile, les deux boutons fonctionnent normalement.
+         * Une tuile = un jeu. Appui / OK : jouer, télécharger ou annuler. Appui long (OK maintenu)
+         * ou touche Menu : options (infos, supprimer). Le cadre vert du sélecteur TV est dessiné
+         * par MainActivity, comme dans les autres univers.
          */
-        class CardVH(
+        class TileVH(
             view: View,
-            private val tvMode: Boolean,
             onPrimary: (GameCard) -> Unit,
             onSecondary: (GameCard) -> Unit
         ) : RecyclerView.ViewHolder(view) {
             private var current: GameCard? = null
-            private val cardView = view as MaterialCardView
-            private val artwork: ImageView = view.findViewById(R.id.game_card_artwork)
-            private val title: TextView = view.findViewById(R.id.game_card_title)
-            private val systemBadge: TextView = view.findViewById(R.id.game_card_system_badge)
-            private val metaBadge: TextView = view.findViewById(R.id.game_card_meta_badge)
-            private val description: TextView = view.findViewById(R.id.game_card_description)
-            private val progressGroup: View = view.findViewById(R.id.game_card_progress_group)
-            private val progressBar: LinearProgressIndicator = view.findViewById(R.id.game_card_progress_bar)
-            private val progressText: TextView = view.findViewById(R.id.game_card_progress_text)
-            private val primaryBtn: MaterialButton = view.findViewById(R.id.game_card_primary_btn)
-            private val secondaryBtn: MaterialButton = view.findViewById(R.id.game_card_secondary_btn)
+            private val artwork: ImageView = view.findViewById(R.id.game_tile_artwork)
+            private val system: TextView = view.findViewById(R.id.game_tile_system)
+            private val progressBar: LinearProgressIndicator = view.findViewById(R.id.game_tile_progress)
+            private val title: TextView = view.findViewById(R.id.game_tile_title)
+            private val state: TextView = view.findViewById(R.id.game_tile_state)
 
             init {
-                if (tvMode) {
-                    primaryBtn.isFocusable = false
-                    secondaryBtn.isFocusable = false
-                    secondaryBtn.isVisible = false
-                    cardView.isFocusable = true
-                    cardView.isClickable = true
-                    cardView.setOnClickListener { current?.let(onPrimary) }
-                    cardView.setOnLongClickListener { current?.let(onSecondary); true }
-                    cardView.setOnKeyListener { _, keyCode, event ->
-                        if (keyCode == KeyEvent.KEYCODE_MENU && event.action == KeyEvent.ACTION_UP) {
-                            current?.let(onSecondary)
-                            true
-                        } else {
-                            false
-                        }
+                view.setOnClickListener { current?.let(onPrimary) }
+                view.setOnLongClickListener { current?.let(onSecondary); true }
+                view.setOnKeyListener { _, keyCode, event ->
+                    if (keyCode == KeyEvent.KEYCODE_MENU && event.action == KeyEvent.ACTION_UP) {
+                        current?.let(onSecondary)
+                        true
+                    } else {
+                        false
                     }
-                    cardView.setOnFocusChangeListener { _, hasFocus -> styleFocus(hasFocus) }
-                    styleFocus(false)
                 }
             }
 
-            private fun styleFocus(focused: Boolean) {
-                val ctx = cardView.context
-                val density = ctx.resources.displayMetrics.density
-                cardView.strokeColor = ctx.colorFromAttribute(if (focused) R.attr.missaAccentNavigation else R.attr.missaStrokeSubtle)
-                cardView.strokeWidth = ((if (focused) 3 else 1) * density).toInt()
-                cardView.setCardBackgroundColor(ctx.colorFromAttribute(if (focused) R.attr.missaSurfaceFocused else R.attr.missaSurfaceCard))
-            }
-
-            fun bind(card: GameCard, onPrimary: (GameCard) -> Unit, onSecondary: (GameCard) -> Unit) {
+            fun bind(card: GameCard) {
                 current = card
                 val g = card.game
                 bindArtwork(g.coverUrl)
+                system.text = when (g.system) {
+                    "gb" -> if (g.fileName.endsWith(".gbc", ignoreCase = true)) "GBC" else "GB"
+                    else -> g.system.uppercase(Locale.ROOT)
+                }
                 title.text = g.title
-                systemBadge.text = g.platformLabel
-                metaBadge.text = listOf(g.genre, g.author, formatBytes(g.pkg.bytes)).filter { it.isNotBlank() }.joinToString(" • ")
-                description.text = g.description
-                description.isVisible = g.description.isNotBlank()
-                secondaryBtn.setText(if (card.installed) R.string.delete else R.string.universe_games_info_button)
-                secondaryBtn.setOnClickListener { onSecondary(card) }
-                bindState(card, onPrimary)
+                itemView.contentDescription = "${g.title}, ${g.platformLabel}"
+                bindState(card)
             }
 
-            /** Pochette en plein cadre si le jeu en a une, sinon l'icône manette teintée. */
+            /** Pochette en plein cadre si le jeu en a une, sinon l'icône manette au centre. */
             private fun bindArtwork(coverUrl: String?) {
-                val lp = artwork.layoutParams
                 if (coverUrl != null) {
-                    lp.width = ViewGroup.LayoutParams.MATCH_PARENT
-                    lp.height = ViewGroup.LayoutParams.MATCH_PARENT
                     artwork.imageTintList = null
                     artwork.scaleType = ImageView.ScaleType.CENTER_CROP
+                    artwork.setPadding(0, 0, 0, 0)
                     artwork.loadImage(coverUrl) {
                         error { getImageFromDrawable(artwork.context, R.drawable.ic_missa_gamepad) }
                     }
                 } else {
-                    val size = (32 * artwork.resources.displayMetrics.density).toInt()
-                    lp.width = size
-                    lp.height = size
+                    val pad = (artwork.resources.displayMetrics.density * 22).toInt()
+                    artwork.setPadding(pad, pad, pad, pad)
                     artwork.imageTintList = ColorStateList.valueOf(artwork.context.colorFromAttribute(R.attr.missaAccentPrimary))
                     artwork.scaleType = ImageView.ScaleType.FIT_CENTER
                     artwork.setImageResource(R.drawable.ic_missa_gamepad)
                 }
-                artwork.layoutParams = lp
             }
 
-            fun bindState(card: GameCard, onPrimary: (GameCard) -> Unit) {
+            fun bindState(card: GameCard) {
                 current = card
                 val ctx = itemView.context
                 val p = card.progress
-                progressGroup.isVisible = p != null
-                if (p != null) {
-                    progressBar.isIndeterminate = p.totalBytes <= 0
-                    progressBar.setProgressCompat(p.percent, true)
-                    progressText.text = ctx.getString(
-                        when (p.step) {
-                            MissaGames.Step.ENGINE -> R.string.universe_games_step_engine
-                            MissaGames.Step.EMULATOR -> R.string.universe_games_step_emulator
-                            MissaGames.Step.GAME -> R.string.universe_games_step_game
-                        },
-                        p.percent
-                    )
-                }
-                primaryBtn.text = when {
-                    p != null -> ctx.getString(R.string.universe_games_cancel)
+                progressBar.isVisible = p != null
+                if (p != null) progressBar.setProgressCompat(p.percent, false)
+                state.text = when {
+                    p != null -> ctx.getString(R.string.universe_games_tile_progress, p.percent)
                     card.installed -> ctx.getString(R.string.universe_games_play)
-                    else -> ctx.getString(R.string.universe_games_download, formatBytes(card.downloadBytes))
+                    else -> formatBytes(card.downloadBytes)
                 }
-                primaryBtn.setOnClickListener { onPrimary(card) }
+                state.setTextColor(
+                    ctx.colorFromAttribute(if (card.installed || p != null) R.attr.missaAccentPrimary else R.attr.grayTextColor)
+                )
             }
         }
     }

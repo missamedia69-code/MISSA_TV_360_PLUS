@@ -200,6 +200,7 @@ import com.lagradost.cloudstream3.ui.universe.DirectMusicPlayerManager
 import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
 import com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment
 import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
+import com.lagradost.cloudstream3.ui.MissaWindowFocusRing
 import com.lagradost.cloudstream3.ui.universe.GamesFragment
 import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
 import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
@@ -1370,6 +1371,26 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }
     }
 
+    /**
+     * NAV-AUDIT : quand une fenêtre (dialogue, feuille du bas, onboarding) s'ouvre par-dessus,
+     * la sélection part dans cette fenêtre. Le cadre vert de l'écran principal restait figé
+     * derrière : on le cache, et on pose un cadre dans la fenêtre ouverte. Il revient sur
+     * l'élément sélectionné à la fermeture.
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!isLayout(TV or EMULATOR)) return
+        val outline = TvFocus.focusOutline.get() ?: return
+        if (hasFocus) {
+            TvFocus.updateFocusView(currentFocus ?: TvFocus.lastFocus.get(), same = true)
+        } else {
+            outline.isVisible = false
+            val decor = window.decorView
+            // La fenêtre du dialogue reçoit le focus juste après : on la cherche au tour suivant.
+            decor.postDelayed({ MissaWindowFocusRing.attachToFocusedWindows(decor) }, 80)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // AUDIT H3: the application language can change while the Activity is alive (setup
@@ -1892,6 +1913,26 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             return false
         }
 
+        private val focusOnlyCache = java.util.WeakHashMap<android.graphics.drawable.Drawable.ConstantState, Boolean>()
+
+        /**
+         * Vrai pour un sélecteur qui ne dessine rien hors focus (outline_drawable et ses variantes) :
+         * c'est un ancien contour de focus, que le cadre vert remplace. Un fond à états qui a un
+         * aspect normal (pastille, bouton du lecteur…) n'est pas concerné.
+         */
+        private fun isFocusOnlyOutline(drawable: android.graphics.drawable.Drawable?): Boolean {
+            if (drawable !is android.graphics.drawable.StateListDrawable) return false
+            val state = drawable.constantState ?: return false
+            focusOnlyCache[state]?.let { return it }
+            val copy = state.newDrawable()?.mutate() as? android.graphics.drawable.StateListDrawable
+            val result = copy != null && run {
+                copy.state = IntArray(0)
+                copy.current == null
+            }
+            focusOnlyCache[state] = result
+            return result
+        }
+
         /** PERF : le style (couleur/épaisseur/rayon) ne change que si la cible change. */
         private var lastStyledTarget: WeakReference<View> = WeakReference(null)
 
@@ -1948,15 +1989,16 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
             focusOutline.isVisible = visible
 
             if (visible && newFocus != null) {
-                // Prevent duplicate foreground/background focus rings (e.g. @drawable/outline_drawable) inside MainActivity
+                // Prevent duplicate foreground/background focus rings (e.g. @drawable/outline_drawable) inside MainActivity.
+                // NAV-AUDIT : on ne retire que les sélecteurs « contour de focus » (rien à l'état normal).
+                // Avant, tout fond à états était effacé au premier passage du curseur : un bouton ou une
+                // pastille perdait pour de bon son fond et sa couleur « sélectionné ».
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
-                    newFocus.foreground is android.graphics.drawable.StateListDrawable
+                    isFocusOnlyOutline(newFocus.foreground)
                 ) {
                     newFocus.foreground = null
                 }
-                if (newFocus !is MaterialButton &&
-                    newFocus.background is android.graphics.drawable.StateListDrawable
-                ) {
+                if (newFocus !is MaterialButton && isFocusOnlyOutline(newFocus.background)) {
                     newFocus.background = null
                 }
                 applyDynamicFocusOutlineStyle(focusOutline, newFocus)

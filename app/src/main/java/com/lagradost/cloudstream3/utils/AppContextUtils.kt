@@ -858,12 +858,33 @@ object AppContextUtils {
     /**
      * Sets the focus to the negative button when in TV and Emulator layout.
      **/
+    /**
+     * Pose le curseur de la télécommande au bon endroit à l'ouverture d'un dialogue (TV).
+     *
+     * NAV-AUDIT : avant, le curseur allait toujours sur le bouton [buttonFocus] (« Annuler » par
+     * défaut). Dans un menu en liste, il partait donc sur « Annuler », tout en bas, au lieu du
+     * premier choix ; et dans un dialogue sans boutons standard (onboarding, vues personnalisées),
+     * il visait un bouton caché, si bien qu'Android le posait au hasard sur le premier élément.
+     *
+     *  1. une liste de choix : premier choix ;
+     *  2. sinon le bouton demandé s'il est visible, à défaut le bouton « OK » visible ;
+     *  3. sinon on laisse le dialogue choisir (il peut avoir posé le focus lui-même).
+     */
     fun AlertDialog.setDefaultFocus(buttonFocus: Int = DialogInterface.BUTTON_NEGATIVE) {
         if (!Globals.isLayout(Globals.TV or Globals.EMULATOR)) return
-        this.getButton(buttonFocus).run {
-            isFocusableInTouchMode = true
-            requestFocus()
+        val list = listView
+        if (list != null && (list.adapter?.count ?: 0) > 0) {
+            list.post {
+                list.requestFocus()
+                list.setSelection(0)
+            }
+            return
         }
+        val button = getButton(buttonFocus)?.takeIf { it.visibility == View.VISIBLE }
+            ?: getButton(DialogInterface.BUTTON_POSITIVE)?.takeIf { it.visibility == View.VISIBLE }
+            ?: return
+        button.isFocusableInTouchMode = true
+        button.requestFocus()
     }
 
     fun Context.isUsingMobileData(): Boolean {
