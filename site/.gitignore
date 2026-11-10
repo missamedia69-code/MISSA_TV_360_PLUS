@@ -1,0 +1,3 @@
+# Le .gitignore racine ignore tous les dossiers « captures/ » (Android Studio).
+# Les captures d'écran du site doivent, elles, être versionnées.
+!/assets/captures/
