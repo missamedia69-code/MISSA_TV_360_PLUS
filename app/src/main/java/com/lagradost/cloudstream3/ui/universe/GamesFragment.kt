@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.ui.universe
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.InputDevice
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,6 +21,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.R
@@ -56,6 +58,10 @@ class GamesFragment : Fragment() {
     private val filterButtons = LinkedHashMap<String, MaterialButton>()
     private val jobs = HashMap<String, Job>()
     private val progress = HashMap<String, MissaGames.Progress>()
+    /** État d'installation de chaque jeu (installé, octets restant à télécharger), recalculé
+     *  seulement quand il change : pas de lecture de fichiers à chaque tick de progression. */
+    private val installState = HashMap<String, Pair<Boolean, Long>>()
+    private var tvMode = false
 
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var controllerBadge: TextView
@@ -77,7 +83,10 @@ class GamesFragment : Fragment() {
         statusView = view.findViewById(R.id.games_status)
         recyclerView = view.findViewById(R.id.games_recycler)
 
+        tvMode = isLayout(TV or EMULATOR)
+        if (tvMode) view.findViewById<TextView>(R.id.games_intro).setText(R.string.universe_games_intro_tv)
         listAdapter = GamesAdapter(
+            tvMode = tvMode,
             onPrimary = { card -> onPrimaryAction(card) },
             onSecondary = { card -> onSecondaryAction(card) }
         )
@@ -87,7 +96,9 @@ class GamesFragment : Fragment() {
                 context = requireContext(),
                 spanCount = 2,
                 trapBottomEdge = true,
-                leftBorderEscapeProvider = { view.rootView?.findViewById(R.id.nav_rail_view) }
+                leftBorderEscapeProvider = { view.rootView?.findViewById(R.id.nav_rail_view) },
+                // Haut depuis la première rangée : retour au filtre de console sélectionné.
+                topBorderEscapeProvider = { filterButtons[selectedSystem] ?: refreshButton }
             )
         } else {
             LinearLayoutManager(requireContext())
@@ -106,6 +117,7 @@ class GamesFragment : Fragment() {
 
         catalogue = MissaGames.cachedCatalogue(requireContext())
         buildFilters()
+        recomputeStates()
         render()
         refresh(force = false)
     }
@@ -113,6 +125,7 @@ class GamesFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         updateControllerBadge()
+        recomputeStates() // un jeu a pu être supprimé ou installé ailleurs
         render()
     }
 
@@ -127,7 +140,8 @@ class GamesFragment : Fragment() {
     fun requestPrimaryContentFocus(): Boolean {
         if (!isAdded || !::recyclerView.isInitialized) return false
         val first = recyclerView.getChildAt(0)
-        if (first?.findViewById<View>(R.id.game_card_primary_btn)?.requestFocus() == true) return true
+        val target = if (tvMode) first else first?.findViewById(R.id.game_card_primary_btn)
+        if (target?.requestFocus() == true) return true
         return refreshButton.requestFocus()
     }
 
@@ -140,6 +154,7 @@ class GamesFragment : Fragment() {
             swipeRefresh.isRefreshing = false
             if (fresh != null) catalogue = fresh
             buildFilters()
+            recomputeStates()
             render()
         }
     }
@@ -168,9 +183,20 @@ class GamesFragment : Fragment() {
         }
     }
 
+    private fun recomputeStates() {
+        val ctx = context ?: return
+        val cat = catalogue ?: return
+        installState.clear()
+        cat.games.forEach { game ->
+            val plan = MissaGames.planInstall(ctx, cat, game)
+            val bytes = (if (plan.engine) cat.engine.bytes else 0L) +
+                (plan.emulator?.pkg?.bytes ?: 0L) + (if (plan.game) game.pkg.bytes else 0L)
+            installState[game.id] = plan.isEmpty to bytes
+        }
+    }
+
     private fun render() {
         if (!isAdded || !::listAdapter.isInitialized) return
-        val ctx = requireContext()
         val cat = catalogue
         if (cat == null) {
             statusView.isVisible = true
@@ -182,13 +208,11 @@ class GamesFragment : Fragment() {
         val cards = cat.games
             .filter { selectedSystem == "all" || it.system == selectedSystem }
             .map { game ->
-                val plan = MissaGames.planInstall(ctx, cat, game)
-                val bytes = (if (plan.engine) cat.engine.bytes else 0L) +
-                    (plan.emulator?.pkg?.bytes ?: 0L) + (if (plan.game) game.pkg.bytes else 0L)
-                GameCard(game, plan.isEmpty, progress[game.id], bytes)
+                val (installed, bytes) = installState[game.id] ?: (false to game.pkg.bytes)
+                GameCard(game, installed, progress[game.id], bytes)
             }
-            // Les jeux déjà installés d'abord : ils se lancent tout de suite.
-            .sortedWith(compareByDescending<GameCard> { it.installed }.thenBy { it.game.title.lowercase(Locale.ROOT) })
+        // Ordre fixe (celui du catalogue) : une carte ne change jamais de place quand son jeu
+        // s'installe, sinon le sélecteur suivrait la carte et sauterait ailleurs dans la grille.
         listAdapter.submitList(cards)
     }
 
@@ -220,16 +244,21 @@ class GamesFragment : Fragment() {
                 jobs.remove(game.id)
                 progress.remove(game.id)
                 if (!isAdded) return@launch
+                recomputeStates()
                 render()
                 Toast.makeText(ctx, getString(R.string.universe_games_ready, game.title), Toast.LENGTH_SHORT).show()
             } catch (_: CancellationException) {
                 jobs.remove(game.id)
                 progress.remove(game.id)
-                if (isAdded) render()
+                if (isAdded) {
+                    recomputeStates()
+                    render()
+                }
             } catch (_: Throwable) {
                 jobs.remove(game.id)
                 progress.remove(game.id)
                 if (!isAdded) return@launch
+                recomputeStates()
                 render()
                 Toast.makeText(ctx, R.string.universe_games_download_error, Toast.LENGTH_LONG).show()
             }
@@ -243,34 +272,57 @@ class GamesFragment : Fragment() {
         render()
     }
 
-    /** Bouton secondaire : supprimer un jeu installé, sinon afficher ses informations. */
+    /**
+     * Options d'un jeu (bouton « Infos » / « Supprimer » sur téléphone, appui long sur OK ou
+     * touche Menu sur TV) : une liste navigable à la télécommande.
+     */
     private fun onSecondaryAction(card: GameCard) {
         val ctx = context ?: return
-        if (card.installed) {
-            AlertDialog.Builder(ctx)
-                .setTitle(card.game.title)
-                .setMessage(R.string.universe_games_delete_confirm)
-                .setPositiveButton(R.string.delete) { _, _ ->
-                    MissaGames.deleteGame(ctx, card.game)
-                    render()
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-        } else {
-            val g = card.game
-            val emulator = catalogue?.emulatorFor(g)
-            AlertDialog.Builder(ctx)
-                .setTitle(g.title)
-                .setMessage(
-                    getString(
-                        R.string.universe_games_info,
-                        g.author, g.platformLabel, g.licence,
-                        emulator?.core.orEmpty(), emulator?.licence.orEmpty(), g.sourceUrl
-                    )
-                )
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+        val g = card.game
+        val downloading = jobs.containsKey(g.id)
+        val options = buildList<Pair<String, () -> Unit>> {
+            when {
+                downloading -> add(getString(R.string.universe_games_cancel) to { cancelInstall(g) })
+                card.installed -> add(getString(R.string.universe_games_play) to { onPrimaryAction(card) })
+                else -> add(getString(R.string.universe_games_download, GamesAdapter.formatBytes(card.downloadBytes)) to { onPrimaryAction(card) })
+            }
+            add(getString(R.string.universe_games_info_button) to { showInfo(g) })
+            if (card.installed && !downloading) add(getString(R.string.delete) to { confirmDelete(g) })
         }
+        AlertDialog.Builder(ctx)
+            .setTitle(g.title)
+            .setItems(options.map { it.first }.toTypedArray()) { _, which -> options[which].second() }
+            .show()
+    }
+
+    private fun showInfo(g: MissaGames.Game) {
+        val ctx = context ?: return
+        val emulator = catalogue?.emulatorFor(g)
+        AlertDialog.Builder(ctx)
+            .setTitle(g.title)
+            .setMessage(
+                getString(
+                    R.string.universe_games_info,
+                    g.author, g.platformLabel, g.licence,
+                    emulator?.core.orEmpty(), emulator?.licence.orEmpty(), g.sourceUrl
+                )
+            )
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun confirmDelete(g: MissaGames.Game) {
+        val ctx = context ?: return
+        AlertDialog.Builder(ctx)
+            .setTitle(g.title)
+            .setMessage(R.string.universe_games_delete_confirm)
+            .setPositiveButton(R.string.delete) { _, _ ->
+                MissaGames.deleteGame(ctx, g)
+                recomputeStates()
+                render()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun updateControllerBadge() {
@@ -293,6 +345,7 @@ class GamesFragment : Fragment() {
     // ------------------------------------------------------------------------- Liste
 
     private class GamesAdapter(
+        private val tvMode: Boolean,
         private val onPrimary: (GameCard) -> Unit,
         private val onSecondary: (GameCard) -> Unit
     ) : ListAdapter<GameCard, GamesAdapter.CardVH>(DIFF) {
@@ -316,7 +369,7 @@ class GamesFragment : Fragment() {
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CardVH =
-            CardVH(LayoutInflater.from(parent.context).inflate(R.layout.item_game_card, parent, false))
+            CardVH(LayoutInflater.from(parent.context).inflate(R.layout.item_game_card, parent, false), tvMode, onPrimary, onSecondary)
 
         override fun onBindViewHolder(holder: CardVH, position: Int) = holder.bind(getItem(position), onPrimary, onSecondary)
 
@@ -325,7 +378,21 @@ class GamesFragment : Fragment() {
             else onBindViewHolder(holder, position)
         }
 
-        class CardVH(view: View) : RecyclerView.ViewHolder(view) {
+        /**
+         * Sur TV, la **carte entière** reçoit le sélecteur (cadre vert), comme dans les autres
+         * univers : la grille passe de carte en carte, OK lance l'action principale (jouer,
+         * télécharger, annuler) et un appui long sur OK ou la touche Menu ouvre les options.
+         * Les boutons de la carte restent visibles comme indication mais ne prennent pas le focus.
+         * Sur téléphone et tablette tactile, les deux boutons fonctionnent normalement.
+         */
+        class CardVH(
+            view: View,
+            private val tvMode: Boolean,
+            onPrimary: (GameCard) -> Unit,
+            onSecondary: (GameCard) -> Unit
+        ) : RecyclerView.ViewHolder(view) {
+            private var current: GameCard? = null
+            private val cardView = view as MaterialCardView
             private val artwork: ImageView = view.findViewById(R.id.game_card_artwork)
             private val title: TextView = view.findViewById(R.id.game_card_title)
             private val systemBadge: TextView = view.findViewById(R.id.game_card_system_badge)
@@ -337,7 +404,38 @@ class GamesFragment : Fragment() {
             private val primaryBtn: MaterialButton = view.findViewById(R.id.game_card_primary_btn)
             private val secondaryBtn: MaterialButton = view.findViewById(R.id.game_card_secondary_btn)
 
+            init {
+                if (tvMode) {
+                    primaryBtn.isFocusable = false
+                    secondaryBtn.isFocusable = false
+                    secondaryBtn.isVisible = false
+                    cardView.isFocusable = true
+                    cardView.isClickable = true
+                    cardView.setOnClickListener { current?.let(onPrimary) }
+                    cardView.setOnLongClickListener { current?.let(onSecondary); true }
+                    cardView.setOnKeyListener { _, keyCode, event ->
+                        if (keyCode == KeyEvent.KEYCODE_MENU && event.action == KeyEvent.ACTION_UP) {
+                            current?.let(onSecondary)
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    cardView.setOnFocusChangeListener { _, hasFocus -> styleFocus(hasFocus) }
+                    styleFocus(false)
+                }
+            }
+
+            private fun styleFocus(focused: Boolean) {
+                val ctx = cardView.context
+                val density = ctx.resources.displayMetrics.density
+                cardView.strokeColor = ctx.colorFromAttribute(if (focused) R.attr.missaAccentNavigation else R.attr.missaStrokeSubtle)
+                cardView.strokeWidth = ((if (focused) 3 else 1) * density).toInt()
+                cardView.setCardBackgroundColor(ctx.colorFromAttribute(if (focused) R.attr.missaSurfaceFocused else R.attr.missaSurfaceCard))
+            }
+
             fun bind(card: GameCard, onPrimary: (GameCard) -> Unit, onSecondary: (GameCard) -> Unit) {
+                current = card
                 val g = card.game
                 bindArtwork(g.coverUrl)
                 title.text = g.title
@@ -373,6 +471,7 @@ class GamesFragment : Fragment() {
             }
 
             fun bindState(card: GameCard, onPrimary: (GameCard) -> Unit) {
+                current = card
                 val ctx = itemView.context
                 val p = card.progress
                 progressGroup.isVisible = p != null
