@@ -20,7 +20,11 @@
     .state { display:inline-block; padding:4px 10px; border-radius:999px; font-size:.85rem; font-weight:600; background:#223; }
     .state.ok { background:rgba(47,211,122,.15); color:var(--green); }
     .state.ko { background:rgba(255,107,107,.15); color:var(--red); }
-    .plans { display:grid; gap:12px; grid-template-columns:1fr 1fr; margin-top:12px; }
+    .mgrid { display:grid; gap:8px; grid-template-columns:repeat(9,1fr); margin:6px 0 12px; }
+    .mgrid button { padding:10px 0; font-weight:700; }
+    .mgrid button[aria-pressed="true"] { background:var(--green); color:#04130a; border-color:var(--green); }
+    .pay { margin-top:12px; }
+    @media (max-width:420px) { .mgrid { grid-template-columns:repeat(5,1fr); } }
     button, .btn { font:inherit; cursor:pointer; border-radius:12px; border:1px solid var(--line); background:#1b2430; color:var(--text); padding:14px; width:100%; }
     button:focus-visible, input:focus-visible { outline:3px solid var(--green); outline-offset:2px; }
     .plan { text-align:left; }
@@ -63,10 +67,12 @@
     <div class="card" id="payCard">
       <strong data-t="choose">Choisissez votre formule</strong>
       <div class="muted" data-t="choose2">2 appareils par abonnement · Mobile Money ou carte</div>
-      <div class="plans">
-        <button class="plan" data-plan="month"><span data-t="month">1 mois</span><b id="pMonth">1 000 FCFA</b></button>
-        <button class="plan best" data-plan="year"><span data-t="year">1 an</span><b id="pYear">10 000 FCFA</b><small data-t="save">2 mois offerts</small></button>
+      <div class="months" role="group" aria-labelledby="monthsLabel">
+        <div class="muted" id="monthsLabel" data-t="months">Nombre de mois</div>
+        <div class="mgrid" id="mgrid"></div>
       </div>
+      <button class="plan pay" id="payMonths"><span id="mLabel"></span><b id="mPrice"></b></button>
+      <button class="plan best pay" data-plan="year" id="payYear"><span data-t="year">1 an</span><b id="pYear">10 000 FCFA</b><small data-t="save">12 mois pour le prix de 10</small></button>
       <div class="msg" id="payMsg"></div>
       <small data-t="secure">Le paiement se fait sur la page sécurisée de KPay. L'application se débloque toute seule quelques secondes après le paiement.</small>
     </div>
@@ -92,7 +98,9 @@
     device: ["Appareil", "Device"],
     choose: ["Choisissez votre formule", "Choose your plan"],
     choose2: ["2 appareils par abonnement · Mobile Money ou carte", "2 devices per subscription · Mobile Money or card"],
-    month: ["1 mois", "1 month"], year: ["1 an", "1 year"], save: ["2 mois offerts", "2 months free"],
+    months: ["Nombre de mois", "Number of months"], year: ["1 an", "1 year"],
+    save: ["12 mois pour le prix de 10", "12 months for the price of 10"],
+    pay: ["Payer ", "Pay "], mo1: ["1 mois", "1 month"], moN: [" mois", " months"],
     secure: ["Le paiement se fait sur la page sécurisée de KPay. L'application se débloque toute seule quelques secondes après le paiement.",
              "Payment happens on KPay's secure page. The app unlocks by itself a few seconds after payment."],
     linkTitle: ["J'ai déjà un abonnement sur un autre appareil", "I already have a subscription on another device"],
@@ -143,7 +151,7 @@
       st.className = "state " + (d.state === "active" || d.state === "trial" ? "ok" : "ko");
       $("stateDetail").textContent = d.state === "active" ? t("until") + fmtDate(d.expiresAt)
         : d.state === "trial" ? t("until") + new Date(d.trialEndsAt).toLocaleString(en ? "en-GB" : "fr-FR") : "";
-      if (d.plans) { $("pMonth").textContent = money(d.plans.month); $("pYear").textContent = money(d.plans.year); }
+      if (d.plans) { plans = d.plans; $("pYear").textContent = money(d.plans.year); selectMonths(months); }
       if (!d.paymentsReady) msg("payMsg", t("notReady"), "err");
       if (back) {
         var s = (params.get("status") || "").toUpperCase();
@@ -156,7 +164,25 @@
   function startPoll() { if (!poll) { var n = 0; poll = setInterval(function () { if (++n > 60) stopPoll(); load(); }, 5000); } }
   function stopPoll() { if (poll) { clearInterval(poll); poll = null; } }
 
-  document.querySelectorAll(".plan").forEach(function (b) {
+  // 1 à 9 mois ; au-delà, c'est la formule 1 an.
+  var plans = null, months = 1;
+  function selectMonths(n) {
+    months = n;
+    document.querySelectorAll("#mgrid button").forEach(function (b) { b.setAttribute("aria-pressed", String(+b.textContent === n)); });
+    $("mLabel").textContent = t("pay") + (n === 1 ? t("mo1") : n + t("moN"));
+    $("mPrice").textContent = plans && plans["m" + n] ? money(plans["m" + n]) : (n * 1000).toLocaleString("fr-FR") + " FCFA";
+    $("payMonths").setAttribute("data-plan", "m" + n);
+  }
+  for (var m = 1; m <= 9; m++) {
+    (function (n) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = n;
+      b.addEventListener("click", function () { selectMonths(n); });
+      $("mgrid").appendChild(b);
+    })(m);
+  }
+  selectMonths(1);
+
+  document.querySelectorAll(".pay").forEach(function (b) {
     b.addEventListener("click", function () {
       msg("payMsg", t("redirect"));
       api("pay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code, plan: b.getAttribute("data-plan") }) })

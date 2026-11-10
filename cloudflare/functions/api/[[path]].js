@@ -5,7 +5,7 @@
 //   - essai gratuit de 24 h, compté par le serveur depuis le premier contact de l'appareil
 //     (réinstaller l'appli ne relance pas l'essai) ;
 //   - à la fin de l'essai : blocage immédiat, il faut payer pour activer ;
-//   - abonnement : 1 000 FCFA / 30 jours ou 10 000 FCFA / 365 jours, 2 appareils ;
+//   - abonnement : 1 à 9 mois à 1 000 FCFA le mois, ou 1 an à 10 000 FCFA ; 2 appareils ;
 //   - quand l'abonnement expire : 1 jour de grâce, puis blocage.
 //
 // Variables (Cloudflare Pages → Settings → Variables and secrets, ou workflow) :
@@ -23,10 +23,14 @@ const MAX_DEVICES = 2;
 const DEVICE_STALE_MS = 30 * DAY;
 const KPAY_BASE = "https://admin.kpay.site/api/v1";
 
-const PLANS = {
-  month: { amount: 1000, currency: "XAF", days: 30, label: "1 mois" },
-  year: { amount: 10000, currency: "XAF", days: 365, label: "1 an" },
-};
+// De 1 à 9 mois : 1 000 FCFA par mois (30 jours). Au-delà, c'est l'année : 10 000 FCFA
+// pour 365 jours (le prix de 10 mois pour 12).
+const MONTH_PRICE = 1000;
+const PLANS = { year: { amount: 10000, currency: "XAF", days: 365, label: "1 an" } };
+for (let m = 1; m <= 9; m++) {
+  PLANS["m" + m] = { amount: MONTH_PRICE * m, currency: "XAF", days: 30 * m, label: m === 1 ? "1 mois" : `${m} mois` };
+}
+PLANS.month = PLANS.m1; // ancien nom de la formule 1 mois
 
 const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
@@ -130,7 +134,7 @@ async function codeInfo(request, env) {
     expiresAt: st.expiresAt,
     trialEndsAt: st.trialEndsAt,
     paymentsReady: !!(env.KPAY_API_KEY && env.KPAY_SECRET_KEY),
-    plans: Object.fromEntries(Object.entries(PLANS).map(([k, p]) => [k, {
+    plans: Object.fromEntries(Object.entries(PLANS).filter(([k]) => k !== "month").map(([k, p]) => [k, {
       amount: p.amount, currency: p.currency, days: p.days,
     }])),
   });
@@ -140,7 +144,7 @@ async function codeInfo(request, env) {
 async function pay(request, env) {
   const body = await readJson(request);
   const code = normCode(body.code);
-  const plan = PLANS[body.plan];
+  const plan = Object.prototype.hasOwnProperty.call(PLANS, body.plan) ? PLANS[body.plan] : null;
   if (!code || !plan) return json({ error: "bad_request" }, 400);
   if (!env.KPAY_API_KEY || !env.KPAY_SECRET_KEY) return json({ error: "payments_not_configured" }, 503);
   const device = await env.DB.prepare("SELECT id FROM devices WHERE code = ?").bind(code).first();
@@ -251,7 +255,7 @@ async function reconcilePending(env, deviceId, now) {
 async function applyCompleted(env, externalId, amount, reference) {
   const payment = await env.DB.prepare("SELECT * FROM payments WHERE external_id = ?").bind(externalId).first();
   if (!payment) return;
-  const plan = PLANS[payment.plan];
+  const plan = Object.prototype.hasOwnProperty.call(PLANS, payment.plan) ? PLANS[payment.plan] : null;
   if (!plan) return;
   // Le montant est fixé par ce serveur à la création (le client ne peut pas le changer sur
   // la page KPay). En Mobile Money hors zone XAF/XOF, KPay peut le convertir dans la devise

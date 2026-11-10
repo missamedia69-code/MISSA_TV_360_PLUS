@@ -1351,7 +1351,7 @@ Source: %6$s</string>
     <string name="missa_activation_offline">Connect to the Internet so the app can check your access.</string>
     <string name="missa_activation_grace">Your subscription has expired. Renew it today to avoid interruption.</string>
     <string name="missa_activation_your_code">Your device code</string>
-    <string name="missa_activation_plans">1,000 FCFA / month or 10,000 FCFA / year · 2 devices · Mobile Money or card</string>
+    <string name="missa_activation_plans">1 to 9 months at 1,000 FCFA per month, or 1 year for 10,000 FCFA · 2 devices · Mobile Money or card</string>
     <string name="missa_activation_scan">Scan with your phone, or open %1$s and enter the code</string>
     <string name="missa_activation_qr_desc">QR code to the payment page</string>
     <string name="missa_activation_pay">Pay and activate</string>

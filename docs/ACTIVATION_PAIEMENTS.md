@@ -10,8 +10,10 @@
    - sur **TV**, un QR code à scanner avec le téléphone ;
    - sur **téléphone / tablette**, un bouton « Payer et activer ».
    Les deux ouvrent `https://missatv.pages.dev/activer/?code=…`.
-3. **Paiement** : 1 000 FCFA / 30 jours ou 10 000 FCFA / 365 jours, sur la page sécurisée
-   de KPay (Mobile Money des pays couverts par KPay, ou carte).
+3. **Paiement** : de **1 à 9 mois** à 1 000 FCFA le mois (30 jours par mois payé), ou
+   **1 an** (365 jours) pour 10 000 FCFA ; au-delà de 9 mois, c'est la formule 1 an. Le
+   client paie sur la page sécurisée de KPay (Mobile Money des pays couverts par KPay, ou
+   carte). Un nouveau paiement s'ajoute à la date de fin de l'abonnement en cours.
 4. **Activation automatique** : KPay prévient le serveur (notification signée), l'écran de
    blocage vérifie toutes les 5 s et se ferme tout seul.
 5. **2 appareils par abonnement** : sur la page « Activer » du 2ᵉ appareil, rubrique
