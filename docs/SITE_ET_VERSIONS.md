@@ -24,6 +24,24 @@ Deux workflows s'en chargent :
 3. Fusionnez la branche sur `main` : le site est publié quelques minutes plus tard.
    Vous pouvez aussi le relancer depuis l'onglet **Actions → Site vitrine → Run workflow**.
 
+## 1 bis. Publier aussi sur Cloudflare (recommandé)
+
+Certains opérateurs bloquent les adresses `github.io`. Le workflow
+`.github/workflows/site-cloudflare.yml` publie le même site sur Cloudflare Pages, à l'adresse
+`https://missatv.pages.dev` (Cloudflare peut ajouter un suffixe si le nom est déjà pris).
+
+1. Sur **https://dash.cloudflare.com/profile/api-tokens** : **Create Token**, modèle
+   **« Edit Cloudflare Workers »**, **Use template**. Dans **Permissions**, cliquez
+   **+ Add more** et ajoutez deux lignes : **Account → Cloudflare Pages → Edit** et
+   **Account → D1 → Edit** (D1 servira au serveur des paiements). Puis **Continue to
+   summary** et **Create Token**.
+2. Dans GitHub, **Settings → Secrets and variables → Actions → New repository secret** :
+   - `CLOUDFLARE_API_TOKEN` : la clé créée ;
+   - `CLOUDFLARE_ACCOUNT_ID` : l'identifiant du compte (visible dans l'adresse du tableau de
+     bord Cloudflare, `dash.cloudflare.com/<identifiant>/…`).
+3. Onglet **Actions → Site vitrine (Cloudflare Pages) → Run workflow**. Ensuite, chaque
+   modification de `site/` sur `main` est publiée automatiquement.
+
 ## 2. Créer la clé de signature (une seule fois)
 
 Android n'accepte une mise à jour que si elle est signée avec **la même clé** que la
