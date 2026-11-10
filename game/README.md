@@ -15,38 +15,21 @@ reste légère. Rien n'est inclus dans l'APK.
 
 ## Contenu
 
+Le catalogue est **vide** : l'univers Jeux a été remis à zéro pour accueillir les futurs
+jeux de MISSA TV. L'écran Jeux et le lecteur de l'application restent en place.
+
 | Dossier | Contenu |
 |---|---|
 | `moteur/` | EmulatorJS 4.2.3 (GPL-3.0) et `lanceur.html`, la page qui démarre un jeu |
-| `emulateurs/` | un paquet par console : NES (FCEUmm, GPL-2.0), Game Boy / Color (Gambatte, GPL-2.0), Game Boy Advance (mGBA, MPL-2.0) |
-| `roms/` | les jeux, par console |
 | `licences/` | le texte de chaque licence |
-| `sources/` | le code source exact des éléments sous GPL (moteur, émulateurs, jeux) |
+| `sources/` | le code source exact des éléments sous GPL |
 | `outils/catalogue.py` | met à jour et vérifie `catalogue.json` |
 
-**Pas de Super Nintendo ni de Mega Drive pour l'instant :** les émulateurs proposés par
-EmulatorJS pour ces consoles (Snes9x, Genesis Plus GX, PicoDrive) interdisent l'usage
-commercial, et MISSA TV est une application payante.
+Pour ajouter un jeu sur console, il faudra remettre l'émulateur correspondant dans
+`emulateurs/` (consoles possibles : `nes`, `gb`, `gba` ; jamais Snes9x, Genesis Plus GX
+ou PicoDrive, interdits en usage commercial).
 
-## Jeux
-
-Uniquement des jeux homebrew dont la licence autorise la redistribution, y compris
-commerciale. **Aucune ROM commerciale** (Nintendo, Sega, Konami…), même ancienne.
-
-| Jeu | Console | Auteur | Licence |
-|---|---|---|---|
-| 2048 | Game Boy | Sanqui | Zlib |
-| Adjustris | Game Boy | tbsp | CC0 |
-| Big2Small | Game Boy | Matthew Steele | GPL-3.0+ |
-| Geometrix | Game Boy | Antonio Niño Díaz | GPL-3.0+ |
-| Libbet & the Magic Floor | Game Boy | Damian Yerrick | Zlib |
-| µCity | Game Boy Color | Antonio Niño Díaz | GPL-3.0+ |
-| Concentration Room | NES | Damian Yerrick | GPL-3.0+ |
-| Double Action Blaster Guys | NES | NovaSquirrel | Zlib |
-| RoboRun NES | NES | HeavenHM | GPL-3.0 |
-| Thwaite | NES | Damian Yerrick | GPL-3.0+ |
-
-Les ROM sont les fichiers publiés par leurs auteurs, sans modification.
+**Aucune ROM commerciale** (Nintendo, Sega, Konami, SNK…), même ancienne.
 
 ## Ajouter un jeu
 

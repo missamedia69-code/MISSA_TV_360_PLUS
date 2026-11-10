@@ -202,7 +202,9 @@ class GamesFragment : Fragment() {
             listAdapter.submitList(emptyList())
             return
         }
-        statusView.isVisible = false
+        // Catalogue vide : on l'annonce au lieu d'afficher une grille vide.
+        statusView.isVisible = cat.games.isEmpty()
+        if (cat.games.isEmpty()) statusView.setText(R.string.universe_games_empty)
         val cards = cat.games
             .filter { selectedSystem == "all" || it.system == selectedSystem }
             .map { game ->

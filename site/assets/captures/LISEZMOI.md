@@ -5,7 +5,7 @@ générées par `outils-site/generer_accueil.py`) :
 
 | Fichier | Contenu |
 |---|---|
-| `tv-jeux.webp` | univers Jeux sur Android TV |
+
 | `tv-radio.webp` | univers Radio (bandeau et rangée de stations floutés) |
 | `tv-musique.webp` | lecteur musical (rangée de vignettes floutée) |
 | `tv-podcasts.webp` | univers Podcasts (bandeau et rangée floutés) |
