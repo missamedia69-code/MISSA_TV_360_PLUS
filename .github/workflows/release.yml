@@ -117,7 +117,7 @@ jobs:
           body: |
             ## Installer
             Téléchargez **${{ env.APK_NAME }}** ci-dessous, ou depuis le site :
-            https://missamedia69-code.github.io/MISSA_TV_360_PLUS/
+            https://missatv.pages.dev/
 
             Pour vérifier le fichier, comparez son empreinte SHA-256 avec celle du fichier
             `${{ env.APK_NAME }}.sha256`.
