@@ -61,7 +61,7 @@ curl -X POST https://missatv.pages.dev/api/admin/grant -H "Authorization: Bearer
 
 ## Avant d'activer le blocage
 
-- Mettre à jour la politique de confidentialité (FR et EN) : l'application envoie
+- Relire la politique de confidentialité (FR et EN, section « Essai et abonnement ») : l'application envoie
   désormais au serveur une empreinte de l'appareil et son modèle, et le serveur garde les
   paiements (référence KPay, montant, date).
 - Ajouter les conditions d'abonnement (prix, durée, 2 appareils, pas de remboursement ou
