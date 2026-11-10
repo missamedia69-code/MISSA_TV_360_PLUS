@@ -3,26 +3,6 @@
 // et afficher son numéro, sa taille et sa date. Sans réponse de GitHub (hors ligne, limite
 // de requêtes), les boutons gardent leur lien vers la page « dernière version » : rien ne casse.
 
-// Emplacements de captures (assets/captures/) : seules les captures déclarées dans
-// assets/captures/captures.js sont chargées. Les autres emplacements, ou une capture qui ne
-// se charge pas, gardent le visuel de repli prévu dans le cadre. Jamais d'image cassée.
-(function () {
-  "use strict";
-  var list = window.MISSA_CAPTURES || [];
-  var base = document.documentElement.lang.toLowerCase().indexOf("en") === 0 ? "../" : "";
-  var shots = document.querySelectorAll("img[data-shot]");
-  function drop() {
-    if (this.parentNode) this.parentNode.removeChild(this);
-  }
-  for (var i = 0; i < shots.length; i++) {
-    var img = shots[i];
-    var file = img.getAttribute("data-shot");
-    if (list.indexOf(file) === -1) continue;
-    img.addEventListener("error", drop);
-    img.src = base + "assets/captures/" + file;
-  }
-})();
-
 (function () {
   "use strict";
 
@@ -69,6 +49,8 @@
         var btn = document.getElementById(id);
         if (btn) btn.href = apk.browser_download_url;
       });
+      var more = document.querySelectorAll("a[data-apk]");
+      for (var j = 0; j < more.length; j++) more[j].href = apk.browser_download_url;
 
       var meta = document.getElementById("release-meta");
       if (meta) {
