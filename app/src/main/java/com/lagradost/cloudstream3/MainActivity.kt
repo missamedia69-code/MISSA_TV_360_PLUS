@@ -201,6 +201,7 @@ import com.lagradost.cloudstream3.ui.universe.DirectRadioPlayerManager
 import com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment
 import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
 import com.lagradost.cloudstream3.ui.MissaWindowFocusRing
+import com.lagradost.cloudstream3.ui.activation.MissaLicenceGate
 import com.lagradost.cloudstream3.ui.universe.GamesFragment
 import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
 import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
@@ -1403,6 +1404,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }
         afterPluginsLoadedEvent += ::onAllPluginsLoaded
         setActivityInstance(this)
+        MissaLicenceGate.onResume(this)
         try {
             if (isCastApiAvailable()) {
                 mSessionManager?.addSessionManagerListener(mSessionManagerListener)
@@ -1414,6 +1416,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
     override fun onPause() {
         super.onPause()
+        MissaLicenceGate.onPause()
 
         // Start any delayed updates
         if (ApkInstaller.delayedInstaller?.startInstallation() == true) {

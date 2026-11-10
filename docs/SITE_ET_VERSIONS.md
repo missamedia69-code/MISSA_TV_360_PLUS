@@ -122,10 +122,36 @@ Le site est fait de fichiers simples, sans outil de construction :
 - `site/mentions-legales.html`, `site/confidentialite.html`, `site/contact.html` et leurs
   équivalents dans `site/en/` : les pages légales et le contact ;
 - `site/style.css` (apparence, commune à toutes les pages) et `site/app.js` (lecture de la
-  dernière version, dans la langue de la page).
+  dernière version, dans la langue de la page, et affichage des captures d'écran) ;
+- `site/assets/` : logo, icônes et images, au format WebP quand c'est possible.
 
 Ouvrez `site/index.html` dans un navigateur pour le prévisualiser. Quand vous modifiez un
 texte, pensez à faire la même modification dans l'autre langue.
+
+Le site n'utilise que des polices système et aucun service tiers (pas de police en ligne,
+pas de bibliothèque externe, pas de mesure d'audience). Seul appel externe : l'API publique
+de GitHub, pour la dernière version.
+
+### Captures d'écran
+
+La page d'accueil prévoit des emplacements pour de vraies captures de l'application, dans
+des cadres de TV et de téléphone : `tv-accueil.webp`, `tv-films.webp`, `tv-jeux.webp`,
+`tv-enfants.webp`, `tel-accueil.webp`, `tel-films.webp` et `tel-jeux.webp`. Tant qu'une
+capture manque, son cadre affiche un visuel de repli discret.
+
+Pour en ajouter une : déposez le fichier dans `site/assets/captures/`, puis ajoutez son nom
+dans `site/assets/captures/captures.js`. Tailles, règles de contenu (aucune marque, aucun
+film ni aucune chaîne réels) et commandes utiles : voir `site/assets/captures/LISEZMOI.md`.
+
+Le `.gitignore` principal ignore les dossiers `captures/` d'Android Studio ;
+`site/.gitignore` fait une exception pour que les captures du site soient bien versionnées.
+
+### Tarifs
+
+La section « Tarifs » de la page d'accueil (essai gratuit 24 h, 1 000 FCFA par mois ou
+10 000 FCFA par an, 2 appareils, paiement Mobile Money ou carte via KPay) doit rester
+identique en français et en anglais. Si les prix changent, modifiez aussi la question
+« Combien coûte l'application ? » de la FAQ.
 
 La politique de confidentialité décrit ce que fait l'application **aujourd'hui** (aucune
 donnée envoyée à l'éditeur, liste des services contactés). Si l'application change, par

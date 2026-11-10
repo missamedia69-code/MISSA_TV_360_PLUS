@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/primaryBlackBackground"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/activation_title"
+            style="@style/TextAppearance.Missa.ScreenTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/missa_activation_title" />
+
+        <TextView
+            android:id="@+id/activation_message"
+            style="@style/TextAppearance.Missa.Body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:maxWidth="560dp"
+            android:text="@string/missa_activation_trial_over" />
+
+        <ImageView
+            android:id="@+id/activation_qr"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_marginTop="20dp"
+            android:background="@android:color/white"
+            android:contentDescription="@string/missa_activation_qr_desc"
+            android:padding="8dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/activation_qr_hint"
+            style="@style/TextAppearance.Missa.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:visibility="gone" />
+
+        <TextView
+            style="@style/TextAppearance.Missa.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/missa_activation_your_code" />
+
+        <TextView
+            android:id="@+id/activation_code"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.08"
+            android:textColor="?attr/missaAccentNavigation"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            style="@style/TextAppearance.Missa.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:maxWidth="560dp"
+            android:text="@string/missa_activation_plans" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/activation_pay"
+            style="@style/Widget.Missa.Button.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/missa_activation_pay"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/activation_check"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:text="@string/missa_activation_check" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/activation_quit"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/missa_activation_quit" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/activation_status"
+            style="@style/TextAppearance.Missa.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center" />
+    </LinearLayout>
+</ScrollView>
