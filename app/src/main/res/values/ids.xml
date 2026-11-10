@@ -4,4 +4,6 @@
          Une carte recyclée pour une autre station ne doit pas recevoir le logo de secours
          de la précédente. -->
     <item name="missa_radio_logo_key" type="id" />
+    <!-- Fenêtre (dialogue) qui a déjà son curseur vert : MissaWindowFocusRing ne le pose qu'une fois. -->
+    <item name="missa_window_focus_ring" type="id" />
 </resources>

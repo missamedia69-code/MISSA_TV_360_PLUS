@@ -94,6 +94,11 @@ internal object MissaUniverseDialogs {
             backBtn.isVisible = step > 1
             dataSaverSwitch.isVisible = step == 2
             openExtensionsBtn.isVisible = step == 3
+            // NAV-AUDIT : le bouton qui avait le curseur peut disparaître en changeant d'étape
+            // (« Précédent » à l'étape 1) : le curseur partait alors au hasard. On le remet sur
+            // « Suivant », l'action la plus probable.
+            val focused = view.findFocus()
+            if (focused == null || !focused.isShown) nextBtn.post { nextBtn.requestFocus() }
 
             when (step) {
                 1 -> {
@@ -141,10 +146,26 @@ internal object MissaUniverseDialogs {
             onOpenExtensions()
         }
 
+        // Retour de la télécommande : étape précédente ; à la première étape, Retour ferme
+        // l'assistant comme avant (il se rouvrira au prochain lancement).
+        dialog.onBackPressedDispatcher.addCallback(object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (step > 1) {
+                    step--
+                    renderStep()
+                } else {
+                    isEnabled = false
+                    dialog.onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+
         renderStep()
         dialog.show()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        dialog.setDefaultFocus()
+        // NAV-AUDIT : le curseur commence sur « Suivant », et non sur « Passer » (premier bouton
+        // de la fenêtre), qu'un simple OK déclenchait en sautant tout l'onboarding.
+        nextBtn.post { nextBtn.requestFocus() }
     }
 
     // --- 2. Multi-Source Checkbox + Search Filter Sheet (HOME-08) ---
@@ -597,7 +618,8 @@ internal object MissaUniverseDialogs {
 
         CoroutineScope(Dispatchers.Main).launch { populateCustomList() }
         dialog.show()
-        dialog.setDefaultFocus()
+        // Sur TV, on commence par le premier champ à remplir, pas par « Annuler ».
+        nameInput.post { nameInput.requestFocus() }
     }
 
     // --- 6. Parental 4-Digit PIN Lock / Unlock Dialog (TRUST-01) ---
@@ -666,7 +688,8 @@ internal object MissaUniverseDialogs {
             }
         }
         dialog.show()
-        dialog.setDefaultFocus()
+        // Le curseur arrive sur le champ du code : OK ouvre le clavier.
+        pinInput.post { pinInput.requestFocus() }
     }
 
     // --- 7. Source Switcher Sheet for Multi-Source Cards (HOME-12) ---
