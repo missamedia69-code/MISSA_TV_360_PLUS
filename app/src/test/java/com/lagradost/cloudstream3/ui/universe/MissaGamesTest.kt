@@ -125,8 +125,8 @@ class MissaGamesTest {
             .firstOrNull { it.isFile } ?: return
         val cat = MissaGames.parseCatalogue(file.readText())
         assertNotNull(cat)
-        assertTrue(cat!!.games.isNotEmpty())
-        assertTrue(cat.games.all { cat.emulatorFor(it) != null })
+        // Le catalogue peut être vide (univers Jeux remis à zéro), mais il reste lisible.
+        assertTrue(cat!!.games.all { cat.emulatorFor(it) != null })
         assertTrue(cat.engine.url.startsWith("https://raw.githubusercontent.com/missamedia69-code/"))
         // Pas d'émulateur dont la licence interdit l'usage commercial.
         assertTrue(cat.emulators.values.none { it.core in setOf("snes9x", "genesis_plus_gx", "picodrive") })

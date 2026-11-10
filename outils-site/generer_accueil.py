@@ -21,17 +21,16 @@ L = {
  "fr": dict(
   lang="fr", base="", other="en/", other_label="EN", other_title="English version",
   title="MISSA TV 360 PLUS — L'application Android et Android TV",
-  desc="MISSA TV 360 PLUS : une application claire pour téléphone, tablette et Android TV, pensée pour la télécommande. Radios et podcasts intégrés, jeux rétro hors ligne. Essai gratuit 24 h.",
+  desc="MISSA TV 360 PLUS : une application claire pour téléphone, tablette et Android TV, pensée pour la télécommande. Radios et podcasts intégrés, contrôle parental. Essai gratuit 24 h.",
   skip="Aller au contenu", tabs_label="Sections du site", download="Télécharger",
   tabs=[("accueil","Accueil"),("univers","Univers"),("captures","Aperçu"),("tarifs","Tarifs"),("installer","Installer"),("faq","Questions")],
   aliases={"telecharger":"accueil","contenu":"accueil"},
   eyebrow="Essai gratuit 24 h", devices="Téléphone · Tablette · Android TV",
   h1a="Tout votre divertissement,", h1b="une seule application.",
-  lead="Une interface claire, rangée en univers et pensée pour la télécommande. Radios et podcasts intégrés, jeux rétro hors ligne, contrôle parental.",
+  lead="Une interface claire, rangée en univers et pensée pour la télécommande. Radios et podcasts intégrés, musique, contrôle parental, et bientôt des jeux.",
   dl="Télécharger l'APK", how="Comment l'installer", meta="Android 6 et plus · Téléphone, tablette et TV",
   points=["Navigation à la télécommande","2 appareils par abonnement","Sans publicité"],
-  shots=[("tv-jeux.webp","Jeux","L'univers Jeux sur Android TV : des tuiles de jeux rétro à télécharger et à jouer hors ligne"),
-         ("tv-radio.webp","Radio","L'univers Radio sur Android TV : filtres par région et lecteur Écoute Radio Directe"),
+  shots=[("tv-radio.webp","Radio","L'univers Radio sur Android TV : filtres par région et lecteur Écoute Radio Directe"),
          ("tv-musique.webp","Musique","Le lecteur musical de l'application sur Android TV"),
          ("tv-podcasts.webp","Podcasts","L'univers Podcasts sur Android TV : filtres et recherche")],
   shot_note="Captures réelles de l'application sur Android TV. Les logos et visages de tiers sont floutés.",
@@ -40,7 +39,7 @@ L = {
   families=[("y","Vidéo",["Films &amp; Mangas","Séries","Documentaires","Courts-métrages","Enfants <small>code parental</small>"]),
             ("g","Audio",["Musiques","Podcasts <small>intégrés</small>","Radio directe <small>intégrée</small>"]),
             ("n","Direct",["TV en direct","Sports"]),
-            ("g","Jeux",["Jeux rétro <small>hors ligne</small>"])],
+            ("g","Jeux",["Jeux MISSA <small>bientôt</small>"])],
   u_note="MISSA TV 360 PLUS est un lecteur : il ne fournit aucune source ni extension et ne contient aucun film, série ou chaîne. Les univers vidéo et direct affichent les contenus des sources que vous ajoutez vous-même.",
   feats=[("Pensée pour la télécommande","Un sélecteur vert toujours visible, et Retour revient là où vous étiez."),
          ("Radio et podcasts immédiats","Des stations et podcasts d'Afrique et du monde, sans rien configurer."),
@@ -62,7 +61,7 @@ L = {
   f_title="Questions fréquentes",
   faq=[("Combien coûte l'application ?","Vous l'essayez gratuitement pendant 24 heures. Ensuite, l'abonnement coûte 1 000 FCFA par mois (de 1 à 9 mois) ou 10 000 FCFA pour un an, pour 2 appareils, payable par Mobile Money ou carte via KPay."),
        ("Comment j'active l'application ?","À la fin de l'essai, l'application affiche un code et, sur TV, un QR code. Scannez-le ou ouvrez missatv.pages.dev/activer, choisissez la durée et payez : l'application se débloque toute seule en quelques secondes."),
-       ("D'où viennent les films et les séries ?","MISSA TV 360 PLUS n'héberge et ne fournit aucun film, série ni chaîne, ni aucune source ou extension. Les univers vidéo se remplissent avec les extensions que vous choisissez d'ajouter, sous votre seule responsabilité. Radios, podcasts et jeux fonctionnent tout de suite."),
+       ("D'où viennent les films et les séries ?","MISSA TV 360 PLUS n'héberge et ne fournit aucun film, série ni chaîne, ni aucune source ou extension. Les univers vidéo se remplissent avec les extensions que vous choisissez d'ajouter, sous votre seule responsabilité. Radios et podcasts fonctionnent tout de suite."),
        ("Android affiche « application inconnue », est-ce normal ?","Oui : Android l'affiche pour toute application installée hors du Play Store. Téléchargez-la uniquement depuis ce site ou la page GitHub officielle."),
        ("Quels appareils sont compatibles ?","Téléphones, tablettes, Android TV, box Android et Fire TV sous Android 6 ou plus récent.")],
   foot="L'application de divertissement pour téléphone, tablette et Android TV.",
@@ -73,17 +72,16 @@ L = {
  "en": dict(
   lang="en", base="../", other="../", other_label="FR", other_title="Version française",
   title="MISSA TV 360 PLUS — The Android and Android TV app",
-  desc="MISSA TV 360 PLUS: a clear app for phones, tablets and Android TV, built for the remote. Built-in radio and podcasts, offline retro games. 24-hour free trial.",
+  desc="MISSA TV 360 PLUS: a clear app for phones, tablets and Android TV, built for the remote. Built-in radio and podcasts, parental control. 24-hour free trial.",
   skip="Skip to content", tabs_label="Site sections", download="Download",
   tabs=[("home","Home"),("universes","Universes"),("preview","Preview"),("pricing","Pricing"),("install","Install"),("faq","FAQ")],
   aliases={"download":"home","content":"home"},
   eyebrow="24-hour free trial", devices="Phone · Tablet · Android TV",
   h1a="All your entertainment,", h1b="one single app.",
-  lead="A clear interface, organised in universes and built for the remote. Built-in radio and podcasts, offline retro games, parental control.",
+  lead="A clear interface, organised in universes and built for the remote. Built-in radio and podcasts, music, parental control, and games coming soon.",
   dl="Download the APK", how="How to install", meta="Android 6 and later · Phone, tablet and TV",
   points=["Remote-friendly navigation","2 devices per subscription","No ads"],
-  shots=[("tv-jeux.webp","Games","The Games universe on Android TV: retro game tiles to download and play offline"),
-         ("tv-radio.webp","Radio","The Radio universe on Android TV: region filters and the live radio player"),
+  shots=[("tv-radio.webp","Radio","The Radio universe on Android TV: region filters and the live radio player"),
          ("tv-musique.webp","Music","The app's music player on Android TV"),
          ("tv-podcasts.webp","Podcasts","The Podcasts universe on Android TV: filters and search")],
   shot_note="Real screenshots of the app on Android TV. Third-party logos and faces are blurred.",
@@ -92,7 +90,7 @@ L = {
   families=[("y","Video",["Movies &amp; Manga","Series","Documentaries","Short films","Kids <small>parental PIN</small>"]),
             ("g","Audio",["Music","Podcasts <small>built in</small>","Live radio <small>built in</small>"]),
             ("n","Live",["Live TV","Sports"]),
-            ("g","Games",["Retro games <small>offline</small>"])],
+            ("g","Games",["MISSA games <small>coming soon</small>"])],
   u_note="MISSA TV 360 PLUS is a player: it provides no sources or extensions and contains no movies, series or channels. Video and live universes show content from the sources you add yourself.",
   feats=[("Built for the remote","A green selector always visible, and Back returns where you were."),
          ("Instant radio and podcasts","Stations and podcasts from Africa and the world, nothing to set up."),
@@ -114,7 +112,7 @@ L = {
   f_title="Frequently asked questions",
   faq=[("How much does the app cost?","Try it free for 24 hours. Then the subscription costs 1,000 FCFA per month (1 to 9 months) or 10,000 FCFA for a year, for 2 devices, payable by Mobile Money or card via KPay."),
        ("How do I activate the app?","When the trial ends, the app shows a code and, on TV, a QR code. Scan it or open missatv.pages.dev/activer, pick a duration and pay: the app unlocks by itself within seconds."),
-       ("Where do movies and series come from?","MISSA TV 360 PLUS hosts and provides no movies, series or channels, and no sources or extensions. Video universes fill up with the extensions you choose to add, at your own responsibility. Radio, podcasts and games work right away."),
+       ("Where do movies and series come from?","MISSA TV 360 PLUS hosts and provides no movies, series or channels, and no sources or extensions. Video universes fill up with the extensions you choose to add, at your own responsibility. Radio and podcasts work right away."),
        ("Android says “unknown app”, is that normal?","Yes: Android shows it for any app installed outside the Play Store. Only download it from this site or the official GitHub page."),
        ("Which devices are supported?","Phones, tablets, Android TV, Android boxes and Fire TV running Android 6 or later.")],
   foot="The entertainment app for phones, tablets and Android TV.",
@@ -143,7 +141,7 @@ def page(t):
   <meta property="og:title" content="MISSA TV 360 PLUS">
   <meta property="og:description" content="{t["desc"]}">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://missatv.pages.dev/assets/captures/tv-jeux.webp">
+  <meta property="og:image" content="https://missatv.pages.dev/assets/captures/tv-radio.webp">
   <link rel="icon" type="image/png" href="{b}assets/favicon.png">
   <link rel="apple-touch-icon" href="{b}assets/apple-touch-icon.png">
   <link rel="stylesheet" href="{b}accueil.css">

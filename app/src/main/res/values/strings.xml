@@ -1362,4 +1362,5 @@ Source: %6$s</string>
     <string name="missa_activation_not_yet">Payment not received yet. It can take up to a minute.</string>
     <string name="missa_activation_no_network">No connection to the server. Check your Internet connection.</string>
     <string name="missa_activation_unlocked">MISSA TV 360 PLUS is activated. Enjoy!</string>
+    <string name="universe_games_empty">New games are on the way. Come back soon!</string>
 </resources>
