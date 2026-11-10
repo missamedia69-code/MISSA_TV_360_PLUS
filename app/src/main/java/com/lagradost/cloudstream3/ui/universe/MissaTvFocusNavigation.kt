@@ -468,8 +468,36 @@ class MissaAlignedGridLayoutManager(
     spanCount: Int,
     var trapBottomEdge: Boolean = false,
     var leftBorderEscapeProvider: (() -> View?)? = null,
-    var topBorderEscapeProvider: ((View) -> View?)? = null
+    var topBorderEscapeProvider: ((View) -> View?)? = null,
+    /**
+     * Révéler la tuile focalisée par un défilement immédiat, et seulement si elle dépasse.
+     * Par défaut, RecyclerView anime un défilement en plus de celui déjà fait par la
+     * recherche de focus : les deux se superposent et la grille « saccade ».
+     */
+    var instantReveal: Boolean = false
 ) : GridLayoutManager(context, spanCount) {
+
+    override fun requestChildRectangleOnScreen(
+        parent: RecyclerView,
+        child: View,
+        rect: Rect,
+        immediate: Boolean,
+        focusedChildVisible: Boolean
+    ): Boolean {
+        if (!instantReveal) return super.requestChildRectangleOnScreen(parent, child, rect, immediate, focusedChildVisible)
+        val top = parent.paddingTop
+        val bottom = parent.height - parent.paddingBottom
+        val childTop = getDecoratedTop(child)
+        val childBottom = getDecoratedBottom(child)
+        val dy = when {
+            childTop < top -> childTop - top
+            childBottom > bottom -> childBottom - bottom
+            else -> 0
+        }
+        if (dy == 0) return false
+        parent.scrollBy(0, dy)
+        return true
+    }
 
     private var attachedRecyclerView: RecyclerView? = null
 
