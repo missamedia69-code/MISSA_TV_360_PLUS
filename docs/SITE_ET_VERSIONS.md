@@ -1,9 +1,12 @@
 # Site vitrine et publication des versions
 
 Le site de présentation et de téléchargement est dans `site/`. Il est hébergé
-gratuitement par GitHub Pages :
+gratuitement, sur Cloudflare Pages et sur GitHub Pages :
 
-> https://missamedia69-code.github.io/MISSA_TV_360_PLUS/
+> **https://missatv.pages.dev** (Cloudflare Pages, adresse principale)
+>
+> https://missamedia69-code.github.io/MISSA_TV_360_PLUS/ (GitHub Pages, copie de secours :
+> certains opérateurs bloquent les adresses `github.io`)
 
 Son bouton « Télécharger l'APK » pointe toujours vers l'APK de la **dernière version**
 publiée dans GitHub Releases.
