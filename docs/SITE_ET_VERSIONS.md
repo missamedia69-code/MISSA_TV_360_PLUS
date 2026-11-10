@@ -104,15 +104,11 @@ calcule son empreinte SHA-256 et crée la version GitHub avec deux fichiers :
 `MISSA-TV-360-PLUS.apk` et `MISSA-TV-360-PLUS.apk.sha256`. Le site affiche aussitôt le
 nouveau numéro, la taille et la date.
 
-## Avant la mise en ligne : informations à compléter
+## Coordonnées affichées
 
-Les pages légales contiennent des champs surlignés en jaune `[à compléter : …]`.
-Remplacez-les par vos informations, en français et en anglais :
-
-| Page française | Page anglaise | À compléter |
-|---|---|---|
-| `site/mentions-legales.html` | `site/en/legal-notice.html` | nom ou raison sociale, ville et pays, directeur de la publication |
-| `site/contact.html` | `site/en/contact.html` | e-mail de contact, numéro WhatsApp (ou supprimer ce bloc) |
+Les pages Contact et Mentions légales (FR et EN) affichent l'e-mail et le WhatsApp de
+contact. Si vous les changez, modifiez les quatre fichiers : `site/contact.html`,
+`site/en/contact.html`, `site/mentions-legales.html`, `site/en/legal-notice.html`.
 
 ## Modifier le site
 
