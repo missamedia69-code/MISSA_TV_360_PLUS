@@ -4,491 +4,164 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MISSA TV 360 PLUS — L'application Android et Android TV</title>
-  <meta name="description" content="MISSA TV 360 PLUS : une application claire pour téléphone, tablette et Android TV. Onze univers, une navigation pensée pour la télécommande, radios et podcasts gratuits intégrés. Essai gratuit 24 h.">
-  <meta name="theme-color" content="#0a0c11">
-  <link rel="alternate" hreflang="fr" href="./">
-  <link rel="alternate" hreflang="en" href="en/">
+  <meta name="description" content="MISSA TV 360 PLUS : une application claire pour téléphone, tablette et Android TV, pensée pour la télécommande. Radios et podcasts intégrés, jeux rétro hors ligne. Essai gratuit 24 h.">
+  <meta name="theme-color" content="#050608">
+  <link rel="alternate" hreflang="fr" href="https://missatv.pages.dev/">
+  <link rel="alternate" hreflang="en" href="https://missatv.pages.dev/en/">
   <meta property="og:title" content="MISSA TV 360 PLUS">
-  <meta property="og:description" content="Une application claire pour téléphone, tablette et Android TV, pensée pour la télécommande. Essai gratuit 24 h.">
+  <meta property="og:description" content="MISSA TV 360 PLUS : une application claire pour téléphone, tablette et Android TV, pensée pour la télécommande. Radios et podcasts intégrés, jeux rétro hors ligne. Essai gratuit 24 h.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://missatv.pages.dev/assets/logo-256.png">
+  <meta property="og:image" content="https://missatv.pages.dev/assets/captures/tv-jeux.webp">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="accueil.css">
+  <script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
-<a class="skip-link" href="#contenu">Aller au contenu</a>
+<a class="skip" href="#p-accueil">Aller au contenu</a>
+<div class="glow" aria-hidden="true"></div>
 
-<header class="topbar">
-  <div class="wrap topbar-inner">
-    <a class="brand" href="./" aria-label="MISSA TV 360 PLUS, accueil">
-      <img src="assets/favicon.png" alt="" width="34" height="34">
-      <span>MISSA TV <span class="brand-badge">360</span><span class="brand-text-long"> PLUS</span></span>
-    </a>
-    <nav class="topnav" aria-label="Sections de la page">
-      <a href="#univers">Univers</a>
-      <a href="#captures">Aperçu</a>
-      <a href="#tarifs">Tarifs</a>
-      <a href="#installer">Installer</a>
-      <a href="#faq">Questions</a>
-    </nav>
-    <div class="topbar-actions">
-      <a class="lang-switch" href="en/" hreflang="en" lang="en" title="English version"><span aria-hidden="true">EN</span><span class="sr-only">English version</span></a>
-      <a class="btn btn-primary btn-small" href="#telecharger">Télécharger</a>
-    </div>
+<header class="bar">
+  <a class="logo" href="./" aria-label="MISSA TV 360 PLUS">
+    <img src="assets/favicon.png" alt="" width="36" height="36">
+    <span>MISSA TV <b>360+</b></span>
+  </a>
+  <nav class="tabs" role="tablist" aria-label="Sections du site">
+    <a class="tab" role="tab" id="t-accueil" href="#accueil" aria-controls="p-accueil" aria-selected="true" data-i="0">Accueil</a>
+    <a class="tab" role="tab" id="t-univers" href="#univers" aria-controls="p-univers" aria-selected="false" data-i="1">Univers</a>
+    <a class="tab" role="tab" id="t-captures" href="#captures" aria-controls="p-captures" aria-selected="false" data-i="2">Aperçu</a>
+    <a class="tab" role="tab" id="t-tarifs" href="#tarifs" aria-controls="p-tarifs" aria-selected="false" data-i="3">Tarifs</a>
+    <a class="tab" role="tab" id="t-installer" href="#installer" aria-controls="p-installer" aria-selected="false" data-i="4">Installer</a>
+    <a class="tab" role="tab" id="t-faq" href="#faq" aria-controls="p-faq" aria-selected="false" data-i="5">Questions</a>
+    <span class="tab-ink" aria-hidden="true"></span>
+  </nav>
+  <div class="bar-end">
+    <a class="lang" href="en/" hreflang="en" title="English version">EN</a>
+    <a class="btn btn-g btn-sm" href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest" data-apk>Télécharger</a>
   </div>
 </header>
 
-<main id="contenu">
+<main class="stage" data-aliases='{"telecharger": "accueil", "contenu": "accueil"}'>
 
-  <!-- Accroche -->
-  <section class="hero">
-    <div class="wrap hero-inner">
-      <div class="hero-text">
-        <p class="eyebrow"><span class="pill">Essai gratuit 24 h</span> Téléphone · Tablette · Android TV</p>
-        <h1>Tout votre divertissement, <span class="accent">une seule application.</span></h1>
-        <p class="lead">
-          Une interface claire, rangée en onze univers et pensée pour la télécommande.
-          Radios et podcasts gratuits intégrés, jeux rétro hors ligne, contrôle parental.
-        </p>
-        <div class="cta-row" id="telecharger">
-          <a class="btn btn-primary" id="download-btn"
-             href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
-            Télécharger l'APK
-          </a>
-          <a class="btn btn-ghost" href="#installer">Comment l'installer</a>
-        </div>
-        <p class="release-meta" id="release-meta" aria-live="polite">Android 6 et plus · Téléphone, tablette et TV</p>
-        <ul class="hero-points">
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Navigation à la télécommande</li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>2 appareils par abonnement</li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Sans publicité</li>
-        </ul>
+  <section class="panel panel-home is-active" id="p-accueil" role="tabpanel" aria-labelledby="t-accueil">
+    <div class="home-card y-card">
+      <p class="eyebrow"><span class="chip-g">Essai gratuit 24 h</span><span>Téléphone · Tablette · Android TV</span></p>
+      <h1>Tout votre divertissement,<br><span>une seule application.</span></h1>
+      <p class="lead">Une interface claire, rangée en univers et pensée pour la télécommande. Radios et podcasts intégrés, jeux rétro hors ligne, contrôle parental.</p>
+      <div class="cta">
+        <a class="btn btn-k" id="download-btn" href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest">Télécharger l'APK</a>
+        <a class="btn btn-line" href="#installer">Comment l'installer</a>
       </div>
-
-      <div class="hero-visual">
-        <div class="tv">
-          <div class="screen">
-            <img data-shot="tv-accueil.webp" width="1920" height="1080"
-                 alt="Écran d'accueil de MISSA TV 360 PLUS sur Android TV">
-            <div class="screen-fallback" aria-hidden="true">
-              <img class="logo" src="assets/logo-256.webp" alt="" width="256" height="256">
-            </div>
-          </div>
-        </div>
-        <div class="phone">
-          <div class="screen">
-            <img data-shot="tel-accueil.webp" width="1080" height="2340"
-                 alt="Écran d'accueil de MISSA TV 360 PLUS sur téléphone">
-            <div class="screen-fallback" aria-hidden="true">
-              <img class="logo" src="assets/logo-256.webp" alt="" width="256" height="256">
-            </div>
-          </div>
-        </div>
+      <p class="meta" id="release-meta" aria-live="polite">Android 6 et plus · Téléphone, tablette et TV</p>
+    </div>
+    <div class="home-side">
+      <div class="tv" data-carousel>
+        <img class="tv-shot on" src="assets/captures/tv-jeux.webp" alt="L'univers Jeux sur Android TV : des tuiles de jeux rétro à télécharger et à jouer hors ligne" width="1304" height="786">
+        <img class="tv-shot" src="assets/captures/tv-radio.webp" alt="L'univers Radio sur Android TV : filtres par région et lecteur Écoute Radio Directe" width="1304" height="786" loading="lazy">
+        <img class="tv-shot" src="assets/captures/tv-musique.webp" alt="Le lecteur musical de l'application sur Android TV" width="1304" height="786" loading="lazy">
+        <img class="tv-shot" src="assets/captures/tv-podcasts.webp" alt="L'univers Podcasts sur Android TV : filtres et recherche" width="1304" height="786" loading="lazy">
       </div>
+      <ul class="points">
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Navigation à la télécommande</li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>2 appareils par abonnement</li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Sans publicité</li>
+      </ul>
+    </div>
+    <div class="feats">
+      <article class="feat feat-g"><h2>Pensée pour la télécommande</h2><p>Un sélecteur vert toujours visible, et Retour revient là où vous étiez.</p></article>
+      <article class="feat feat-y"><h2>Radio et podcasts immédiats</h2><p>Des stations et podcasts d'Afrique et du monde, sans rien configurer.</p></article>
+      <article class="feat feat-n"><h2>Espace Enfants protégé</h2><p>Un code parental garde les plus jeunes dans leur univers.</p></article>
     </div>
   </section>
 
-  <!-- Points forts -->
-  <section class="section" aria-labelledby="atouts-titre">
-    <div class="wrap">
-      <div class="section-head">
-        <span class="kicker">Pourquoi MISSA TV</span>
-        <h2 id="atouts-titre">Simple au salon, léger dans la poche</h2>
-        <p class="section-lead">Une seule application pour le téléphone, la tablette et la télévision, avec la même logique partout.</p>
+  <section class="panel" id="p-univers" role="tabpanel" aria-labelledby="t-univers">
+    <div class="head"><h2>Tout est rangé, rien à chercher</h2><p>Chaque univers a sa place, comme dans l'application : vous savez toujours où vous êtes.</p></div>
+    <div class="fams">
+      <section class="fam fam-y"><h3>Vidéo</h3><ul><li>Films &amp; Mangas</li><li>Séries</li><li>Documentaires</li><li>Courts-métrages</li><li>Enfants <small>code parental</small></li></ul></section>
+      <section class="fam fam-g"><h3>Audio</h3><ul><li>Musiques</li><li>Podcasts <small>intégrés</small></li><li>Radio directe <small>intégrée</small></li></ul></section>
+      <section class="fam fam-n"><h3>Direct</h3><ul><li>TV en direct</li><li>Sports</li></ul></section>
+      <section class="fam fam-g"><h3>Jeux</h3><ul><li>Jeux rétro <small>hors ligne</small></li></ul></section>
+    </div>
+    <p class="note">MISSA TV 360 PLUS est un lecteur : il ne fournit aucune source ni extension et ne contient aucun film, série ou chaîne. Les univers vidéo et direct affichent les contenus des sources que vous ajoutez vous-même.</p>
+  </section>
+
+  <section class="panel" id="p-captures" role="tabpanel" aria-labelledby="t-captures">
+    <div class="head"><h2>Sur votre TV, comme dans l'application</h2><p>Choisissez un univers pour le voir.</p></div>
+    <div class="viewer">
+      <div class="picks" role="group">
+        <button type="button" class="pick on" data-shot="0" aria-pressed="true">Jeux</button>
+        <button type="button" class="pick" data-shot="1" aria-pressed="false">Radio</button>
+        <button type="button" class="pick" data-shot="2" aria-pressed="false">Musique</button>
+        <button type="button" class="pick" data-shot="3" aria-pressed="false">Podcasts</button>
       </div>
-      <div class="features">
-        <article class="feature u-green">
-          <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="5"/><circle cx="12" cy="8" r="2"/><path d="M12 14v.01M12 17v.01"/></svg></span>
-          <h3>Pensée pour la télécommande</h3>
-          <p>Un sélecteur vert toujours visible, des rangées alignées, un retour qui revient là où vous étiez.</p>
-        </article>
-        <article class="feature u-blue">
-          <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2"/><circle cx="8" cy="14" r="2.5"/><path d="M14 12h4M14 16h4M7 8l10-5"/></svg></span>
-          <h3>Radio et podcasts immédiats</h3>
-          <p>Des stations d'Afrique et du monde et des podcasts gratuits, sans rien configurer. L'Afrique et le Cameroun d'abord.</p>
-        </article>
-        <article class="feature u-amber">
-          <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
-          <h3>Un espace Enfants protégé</h3>
-          <p>L'univers Enfants a son propre code parental : les plus jeunes restent dans leur espace.</p>
-        </article>
-        <article class="feature u-violet">
-          <span class="f-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span>
-          <h3>Légère et sans publicité</h3>
-          <p>Aucune publicité, un démarrage rapide et un économiseur de données pour les connexions mobiles.</p>
-        </article>
+      <div class="tv tv-big" data-viewer>
+        <img class="tv-shot on" src="assets/captures/tv-jeux.webp" alt="L'univers Jeux sur Android TV : des tuiles de jeux rétro à télécharger et à jouer hors ligne" width="1304" height="786" loading="lazy">
+        <img class="tv-shot" src="assets/captures/tv-radio.webp" alt="L'univers Radio sur Android TV : filtres par région et lecteur Écoute Radio Directe" width="1304" height="786" loading="lazy">
+        <img class="tv-shot" src="assets/captures/tv-musique.webp" alt="Le lecteur musical de l'application sur Android TV" width="1304" height="786" loading="lazy">
+        <img class="tv-shot" src="assets/captures/tv-podcasts.webp" alt="L'univers Podcasts sur Android TV : filtres et recherche" width="1304" height="786" loading="lazy">
+        <button type="button" class="nav nav-prev" aria-label="Capture précédente">‹</button>
+        <button type="button" class="nav nav-next" aria-label="Capture suivante">›</button>
       </div>
+      <p class="note">Captures réelles de l'application sur Android TV. Les logos et visages de tiers sont floutés.</p>
     </div>
   </section>
 
-  <!-- Univers -->
-  <section class="section alt" id="univers" aria-labelledby="univers-titre">
-    <div class="wrap">
-      <div class="section-head">
-        <span class="kicker">Onze univers</span>
-        <h2 id="univers-titre">Tout est rangé, rien à chercher</h2>
-        <p class="section-lead">Chaque univers a sa couleur, comme dans l'application : vous savez toujours où vous êtes.</p>
-      </div>
-      <div class="universes">
-        <section class="family u-amber" aria-label="Vidéo">
-          <p class="family-tag"><span class="dot" aria-hidden="true"></span>Vidéo</p>
-          <ul>
-            <li>Films &amp; Mangas</li>
-            <li>Séries</li>
-            <li>Documentaires</li>
-            <li>Courts-métrages</li>
-            <li>Enfants <small>avec code parental</small></li>
-          </ul>
-        </section>
-        <section class="family u-green" aria-label="Direct">
-          <p class="family-tag"><span class="dot" aria-hidden="true"></span>Direct</p>
-          <ul>
-            <li>TV en direct</li>
-            <li>Sports</li>
-          </ul>
-        </section>
-        <section class="family u-blue" aria-label="Audio">
-          <p class="family-tag"><span class="dot" aria-hidden="true"></span>Audio</p>
-          <ul>
-            <li>Musiques</li>
-            <li>Podcasts <small>gratuits, intégrés</small></li>
-            <li>Radio directe <small>gratuite, intégrée</small></li>
-          </ul>
-        </section>
-        <section class="family u-violet" aria-label="Jeux">
-          <p class="family-tag"><span class="dot" aria-hidden="true"></span>Jeux</p>
-          <ul>
-            <li>Jeux vidéo <small>jeux rétro, hors ligne</small></li>
-          </ul>
-        </section>
-      </div>
-      <p class="universes-note">
-        MISSA TV 360 PLUS est un lecteur : il ne fournit aucune source ni extension, et ne contient
-        aucun film, série ou chaîne. Les univers vidéo et direct affichent les contenus des sources
-        que vous ajoutez vous-même.
-      </p>
+  <section class="panel" id="p-tarifs" role="tabpanel" aria-labelledby="t-tarifs">
+    <div class="head"><h2>Essayez d'abord, abonnez-vous ensuite</h2><p>Un abonnement valable sur 2 appareils, par exemple votre téléphone et votre TV.</p></div>
+    <div class="plans">
+      <article class="plan plan-n">
+        <h3>Essai</h3><p class="pdesc">Pour découvrir l'application.</p>
+        <p class="price"><b>Gratuit</b> <span>pendant 24 h</span></p>
+        <ul><li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Toutes les fonctions</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Téléphone, tablette ou TV</li></ul>
+        <a class="btn btn-line" href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest" data-apk>Commencer l'essai</a>
+      </article>
+      <article class="plan plan-g">
+        <h3>De 1 à 9 mois</h3><p class="pdesc">Payez le nombre de mois voulu.</p>
+        <p class="price"><b>1&nbsp;000</b> <span>FCFA / mois</span></p>
+        <ul><li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>2 appareils</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Mises à jour incluses</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Mobile Money ou carte</li></ul>
+        <a class="btn btn-line" href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest" data-apk>Commencer l'essai</a>
+      </article>
+      <article class="plan plan-y"><span class="badge">Le plus avantageux</span>
+        <h3>1 an</h3><p class="pdesc">12 mois pour le prix de 10.</p>
+        <p class="price"><b>10&nbsp;000</b> <span>FCFA / an</span></p>
+        <ul><li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>2 appareils</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Mises à jour incluses</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Mobile Money ou carte</li></ul>
+        <a class="btn btn-k" href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest" data-apk>Commencer l'essai</a>
+      </article>
     </div>
+    <p class="note">Au-delà de 9 mois, c'est la formule 1 an qui s'applique. L'abonnement donne accès aux fonctions de l'application : il ne comprend aucun film, série ni chaîne.</p>
   </section>
 
-  <!-- Extraits réels -->
-  <section class="section" aria-labelledby="tele-titre">
-    <div class="wrap">
-      <div class="detail wide">
-        <div class="detail-text">
-          <div>
-            <span class="kicker">Au salon</span>
-            <h2 id="tele-titre">Le sélecteur vert vous guide</h2>
-            <p>Sur la TV, tout se fait avec les flèches et la touche OK. Le cadre vert montre toujours l'élément sélectionné.</p>
-          </div>
-          <ul>
-            <li>Barre des univers toujours accessible en haut de l'écran</li>
-            <li>Recherche, dossiers, téléchargements et réglages à portée de main</li>
-            <li>Le bouton Retour revient exactement là où vous étiez</li>
-          </ul>
-        </div>
-        <figure class="excerpt">
-          <img src="assets/extrait-navigation.webp" width="1279" height="82" loading="lazy"
-               alt="Barre de navigation de l'application sur Android TV : le cadre vert entoure l'univers sélectionné, à côté des boutons recherche, dossiers, téléchargements et réglages">
-          <figcaption>Extrait réel de l'interface TV (affichée ici en anglais).</figcaption>
-        </figure>
-      </div>
-      <div class="detail reverse">
-        <div class="detail-text">
-          <span class="kicker">Radio directe</span>
-          <h2>Écouter tout de suite</h2>
-          <p>Choisissez une station, l'écoute démarre aussitôt. Les stations d'Afrique et du Cameroun sont proposées en premier, et vous pouvez ajouter vos propres flux.</p>
-        </div>
-        <figure class="excerpt">
-          <img src="assets/extrait-radio.webp" width="1220" height="280" loading="lazy"
-               alt="Lecteur Écoute Radio Directe de l'application, avec les boutons précédent, lecture et suivant, et la rangée Afrique et Cameroun">
-          <figcaption>Extrait réel de l'univers Radio directe.</figcaption>
-        </figure>
-      </div>
+  <section class="panel" id="p-installer" role="tabpanel" aria-labelledby="t-installer">
+    <div class="head"><h2>Installée en quelques minutes</h2><p>Directement depuis ce site, sur tous les appareils Android.</p></div>
+    <div class="steps">
+      <article class="step-card g-card"><h3>Téléphone ou tablette</h3><ol><li>Appuyez sur <strong>Télécharger l'APK</strong> depuis votre appareil.</li><li>Ouvrez le fichier téléchargé.</li><li>Si Android le demande, autorisez votre navigateur à <strong>installer des applications inconnues</strong>.</li><li>Appuyez sur <strong>Installer</strong>. C'est prêt.</li></ol></article>
+      <article class="step-card n-card"><h3>Android TV, box ou Fire TV</h3><ol><li>Installez l'application gratuite <strong>Downloader</strong> depuis la boutique de la TV.</li><li>Dans Downloader, saisissez l'adresse :<br><code id="site-url">missatv.pages.dev</code></li><li>Sélectionnez <strong>Télécharger l'APK</strong> avec la télécommande.</li><li>Autorisez Downloader à installer des applications inconnues, puis <strong>Installer</strong>.</li></ol></article>
     </div>
+    <div class="cta center">
+      <a class="btn btn-y" id="download-btn-2" href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest">Télécharger l'APK</a>
+    </div>
+    <p class="note">Les mises à jour s'installent par-dessus l'ancienne version : vos favoris et réglages sont conservés.</p>
   </section>
 
-  <!-- Captures -->
-  <section class="section alt" id="captures" aria-labelledby="apercu-titre">
-    <div class="wrap">
-      <div class="section-head center">
-        <span class="kicker">Aperçu</span>
-        <h2 id="apercu-titre">Sur la TV comme sur le téléphone</h2>
-        <p class="section-lead">La même application s'adapte à l'écran : grandes tuiles pour la télécommande, interface tactile sur mobile.</p>
-      </div>
-      <div class="gallery-tv">
-        <figure class="shot">
-          <div class="tv">
-            <div class="screen u-amber">
-              <img data-shot="tv-films.webp" width="1920" height="1080" loading="lazy"
-                   alt="Univers Films sur Android TV">
-              <div class="screen-fallback" aria-hidden="true">
-                <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
-                <span class="label">Univers Films</span>
-                <span class="soon">Capture à venir</span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Films &amp; Séries</strong>De grandes affiches, faciles à parcourir.</figcaption>
-        </figure>
-        <figure class="shot">
-          <div class="tv">
-            <div class="screen u-violet">
-              <img data-shot="tv-jeux.webp" width="1920" height="1080" loading="lazy"
-                   alt="Univers Jeux sur Android TV">
-              <div class="screen-fallback" aria-hidden="true">
-                <span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3M15 12h.01M18 13h.01"/></svg></span>
-                <span class="label">Univers Jeux</span>
-                <span class="soon">Capture à venir</span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Jeux</strong>Des jeux rétro, jouables hors ligne.</figcaption>
-        </figure>
-        <figure class="shot">
-          <div class="tv">
-            <div class="screen u-amber">
-              <img data-shot="tv-enfants.webp" width="1920" height="1080" loading="lazy"
-                   alt="Univers Enfants et code parental sur Android TV">
-              <div class="screen-fallback" aria-hidden="true">
-                <span class="icon"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
-                <span class="label">Univers Enfants</span>
-                <span class="soon">Capture à venir</span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Enfants</strong>Un espace protégé par code parental.</figcaption>
-        </figure>
-      </div>
-      <div class="gallery-phone">
-        <figure class="shot">
-          <div class="phone">
-            <div class="screen u-amber">
-              <img data-shot="tel-films.webp" width="1080" height="2340" loading="lazy"
-                   alt="Univers Films sur téléphone">
-              <div class="screen-fallback" aria-hidden="true">
-                <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
-                <span class="label">Films</span>
-                <span class="soon">Capture à venir</span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Films sur téléphone</strong>Tout au bout du pouce.</figcaption>
-        </figure>
-        <figure class="shot">
-          <div class="phone">
-            <div class="screen u-violet">
-              <img data-shot="tel-jeux.webp" width="1080" height="2340" loading="lazy"
-                   alt="Univers Jeux sur téléphone">
-              <div class="screen-fallback" aria-hidden="true">
-                <span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3M15 12h.01M18 13h.01"/></svg></span>
-                <span class="label">Jeux</span>
-                <span class="soon">Capture à venir</span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Jeux sur téléphone</strong>Jouez partout, même hors ligne.</figcaption>
-        </figure>
-      </div>
+  <section class="panel" id="p-faq" role="tabpanel" aria-labelledby="t-faq">
+    <div class="head"><h2>Questions fréquentes</h2></div>
+    <div class="faq">
+      <details><summary>Combien coûte l'application ?</summary><p>Vous l'essayez gratuitement pendant 24 heures. Ensuite, l'abonnement coûte 1 000 FCFA par mois (de 1 à 9 mois) ou 10 000 FCFA pour un an, pour 2 appareils, payable par Mobile Money ou carte via KPay.</p></details>
+      <details><summary>Comment j'active l'application ?</summary><p>À la fin de l'essai, l'application affiche un code et, sur TV, un QR code. Scannez-le ou ouvrez missatv.pages.dev/activer, choisissez la durée et payez : l'application se débloque toute seule en quelques secondes.</p></details>
+      <details><summary>D'où viennent les films et les séries ?</summary><p>MISSA TV 360 PLUS n'héberge et ne fournit aucun film, série ni chaîne, ni aucune source ou extension. Les univers vidéo se remplissent avec les extensions que vous choisissez d'ajouter, sous votre seule responsabilité. Radios, podcasts et jeux fonctionnent tout de suite.</p></details>
+      <details><summary>Android affiche « application inconnue », est-ce normal ?</summary><p>Oui : Android l'affiche pour toute application installée hors du Play Store. Téléchargez-la uniquement depuis ce site ou la page GitHub officielle.</p></details>
+      <details><summary>Quels appareils sont compatibles ?</summary><p>Téléphones, tablettes, Android TV, box Android et Fire TV sous Android 6 ou plus récent.</p></details>
     </div>
   </section>
-
-  <!-- Tarifs -->
-  <section class="section" id="tarifs" aria-labelledby="tarifs-titre">
-    <div class="wrap">
-      <div class="section-head center">
-        <span class="kicker">Tarifs</span>
-        <h2 id="tarifs-titre">Essayez d'abord, abonnez-vous ensuite</h2>
-        <p class="section-lead">Un abonnement simple, valable sur 2 appareils : par exemple votre téléphone et votre TV.</p>
-      </div>
-      <div class="pricing">
-        <article class="plan">
-          <h3>Essai</h3>
-          <p class="plan-desc">Pour découvrir l'application chez vous.</p>
-          <p class="price"><span class="amount">Gratuit</span><span class="per">pendant 24 h</span></p>
-          <ul>
-            <li>Toutes les fonctions de l'application</li>
-            <li>Sur téléphone, tablette ou TV</li>
-          </ul>
-          <a class="btn btn-ghost btn-block" href="#telecharger">Télécharger l'APK</a>
-        </article>
-        <article class="plan">
-          <h3>Mensuel</h3>
-          <p class="plan-desc">Payez de 1 à 9 mois, au choix.</p>
-          <p class="price"><span class="amount">1&nbsp;000</span><span class="per">FCFA / mois</span></p>
-          <ul>
-            <li>2 appareils par abonnement</li>
-            <li>Mises à jour incluses</li>
-            <li>Mobile Money ou carte</li>
-          </ul>
-          <a class="btn btn-ghost btn-block" href="#telecharger">Commencer l'essai</a>
-        </article>
-        <article class="plan featured">
-          <span class="plan-badge">Le plus avantageux</span>
-          <h3>Annuel</h3>
-          <p class="plan-desc">12 mois pour le prix de 10.</p>
-          <p class="price"><span class="amount">10&nbsp;000</span><span class="per">FCFA / an</span></p>
-          <ul>
-            <li>2 appareils par abonnement</li>
-            <li>Mises à jour incluses</li>
-            <li>Mobile Money ou carte</li>
-          </ul>
-          <a class="btn btn-primary btn-block" href="#telecharger">Commencer l'essai</a>
-        </article>
-      </div>
-      <div class="pay-note">
-        <span>Paiement sécurisé via KPay :</span>
-        <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Mobile Money</span>
-        <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Carte bancaire</span>
-      </div>
-      <p class="fine-print">L'abonnement donne accès aux fonctions de l'application. Il ne comprend aucun film, série ni chaîne.</p>
-    </div>
-  </section>
-
-  <!-- Installation -->
-  <section class="section alt" id="installer" aria-labelledby="installer-titre">
-    <div class="wrap">
-      <div class="section-head">
-        <span class="kicker">Installation</span>
-        <h2 id="installer-titre">Installée en quelques minutes</h2>
-        <p class="section-lead">L'application s'installe directement depuis ce site, sur tous les appareils Android.</p>
-      </div>
-      <div class="install">
-        <article class="steps">
-          <div class="steps-head">
-            <span class="f-icon u-green" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
-            <h3>Sur téléphone ou tablette</h3>
-          </div>
-          <ol>
-            <li>Appuyez sur <strong>Télécharger l'APK</strong> depuis votre appareil.</li>
-            <li>Ouvrez le fichier téléchargé.</li>
-            <li>Si Android le demande, autorisez votre navigateur à <strong>installer des applications inconnues</strong>, puis revenez en arrière.</li>
-            <li>Appuyez sur <strong>Installer</strong>. C'est prêt.</li>
-          </ol>
-        </article>
-        <article class="steps">
-          <div class="steps-head">
-            <span class="f-icon u-green" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
-            <h3>Sur Android TV, box ou Fire TV</h3>
-          </div>
-          <ol>
-            <li>Installez l'application gratuite <strong>Downloader</strong> depuis la boutique de votre TV.</li>
-            <li>Dans Downloader, saisissez l'adresse de cette page :<br>
-              <code id="site-url">missatv.pages.dev</code></li>
-            <li>Sélectionnez <strong>Télécharger l'APK</strong> avec la télécommande.</li>
-            <li>Autorisez Downloader à installer des applications inconnues, puis <strong>Installer</strong>.</li>
-          </ol>
-        </article>
-      </div>
-      <p class="note">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/></svg>
-        Les mises à jour s'installent par-dessus l'ancienne version : vos favoris et réglages sont conservés.
-      </p>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section class="section" id="faq" aria-labelledby="faq-titre">
-    <div class="wrap narrow">
-      <div class="section-head center">
-        <span class="kicker">Questions</span>
-        <h2 id="faq-titre">Questions fréquentes</h2>
-      </div>
-      <div class="faq">
-        <details>
-          <summary>Combien coûte l'application ?</summary>
-          <p>
-            Vous pouvez l'essayer gratuitement pendant 24 heures. Ensuite, l'abonnement coûte
-            1 000 FCFA par mois ou 10 000 FCFA par an, pour 2 appareils, payable par Mobile Money
-            ou carte via KPay. Le code source reste public, sous licence GPL-3.0.
-          </p>
-        </details>
-        <details>
-          <summary>D'où viennent les films et les séries ?</summary>
-          <p>
-            MISSA TV 360 PLUS n'héberge et ne fournit aucun film, série ni chaîne, ni aucune source
-            ou extension. Les univers vidéo se remplissent avec les extensions que vous choisissez
-            d'ajouter, sous votre seule responsabilité. Les radios et les podcasts gratuits
-            fonctionnent tout de suite, sans extension.
-          </p>
-        </details>
-        <details>
-          <summary>Pourquoi l'application n'est-elle pas sur le Play Store ?</summary>
-          <p>
-            Elle est distribuée directement depuis GitHub. Le fichier téléchargé est construit
-            automatiquement à partir du code public, et vous pouvez vérifier son empreinte SHA-256
-            sur la page de la version.
-          </p>
-        </details>
-        <details>
-          <summary>Android affiche « application inconnue », est-ce normal ?</summary>
-          <p>
-            Oui : Android l'affiche pour toute application installée hors du Play Store.
-            Téléchargez-la uniquement depuis cette page ou depuis la page GitHub officielle.
-          </p>
-        </details>
-        <details>
-          <summary>Quels appareils sont compatibles ?</summary>
-          <p>Les téléphones, tablettes, Android TV, box Android et Fire TV sous Android 6 ou plus récent.</p>
-        </details>
-      </div>
-    </div>
-  </section>
-
-  <!-- Dernier appel -->
-  <section class="final" aria-labelledby="final-titre">
-    <div class="wrap">
-      <div class="final-card">
-        <div>
-          <h2 id="final-titre">Prêt à essayer&nbsp;?</h2>
-          <p>24 heures d'essai gratuit, sur votre téléphone ou votre TV.</p>
-        </div>
-        <a class="btn btn-primary" id="download-btn-2"
-           href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
-          Télécharger l'APK
-        </a>
-      </div>
-    </div>
-  </section>
-
 </main>
 
-<footer class="footer">
-  <div class="wrap">
-    <div class="footer-grid">
-      <div class="footer-about">
-        <a class="brand" href="./">
-          <img src="assets/favicon.png" alt="" width="34" height="34">
-          <span>MISSA TV <span class="brand-badge">360</span> PLUS</span>
-        </a>
-        <p>L'application de divertissement pour téléphone, tablette et Android TV, pensée pour la télécommande.</p>
-      </div>
-      <nav aria-label="Informations">
-        <h2>Informations</h2>
-        <ul>
-          <li><a href="mentions-legales.html">Mentions légales</a></li>
-          <li><a href="confidentialite.html">Confidentialité</a></li>
-          <li><a href="contact.html">Contact</a></li>
-        </ul>
-      </nav>
-      <nav aria-label="Projet">
-        <h2>Projet</h2>
-        <ul>
-          <li><a href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS">Code source</a></li>
-          <li><a href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases">Toutes les versions</a></li>
-          <li><a href="en/" hreflang="en" lang="en">English</a></li>
-        </ul>
-      </nav>
-    </div>
-    <div class="footer-bottom">
-      <p>MISSA TV 360 PLUS · Logiciel libre sous licence <a href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/blob/main/LICENSE">GPL-3.0</a>, basé sur <a href="https://github.com/recloudstream/cloudstream">CloudStream</a>.</p>
-    </div>
-  </div>
+<footer class="foot">
+  <p>L'application de divertissement pour téléphone, tablette et Android TV.</p>
+  <nav><a href="mentions-legales.html">Mentions légales</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="contact.html">Contact</a> · <a href="activer/">Activer mon appareil</a></nav>
+  <p class="small">MISSA TV 360 PLUS · Logiciel libre sous licence <a href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/blob/main/LICENSE">GPL-3.0</a>, basé sur <a href="https://github.com/recloudstream/cloudstream">CloudStream</a>.</p>
 </footer>
 
-<script src="assets/captures/captures.js" defer></script>
 <script src="app.js" defer></script>
+<script src="accueil.js" defer></script>
 </body>
 </html>
