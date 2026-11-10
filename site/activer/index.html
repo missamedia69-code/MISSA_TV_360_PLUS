@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Activer MISSA TV 360 PLUS</title>
+  <style>
+    :root { --bg:#0b0f14; --card:#141b23; --line:#243040; --text:#eef3f8; --muted:#9aa8b6; --green:#2FD37A; --red:#ff6b6b; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+      font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; display:flex; justify-content:center; padding:24px 16px; }
+    main { width:100%; max-width:520px; }
+    h1 { font-size:1.5rem; margin:8px 0 4px; }
+    .brand { color:var(--muted); font-weight:600; letter-spacing:.04em; text-decoration:none; }
+    .brand strong { color:var(--green); }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-top:16px; }
+    .muted { color:var(--muted); }
+    .code { font:700 1.3rem/1 ui-monospace,Menlo,Consolas,monospace; letter-spacing:.06em; }
+    .state { display:inline-block; padding:4px 10px; border-radius:999px; font-size:.85rem; font-weight:600; background:#223; }
+    .state.ok { background:rgba(47,211,122,.15); color:var(--green); }
+    .state.ko { background:rgba(255,107,107,.15); color:var(--red); }
+    .plans { display:grid; gap:12px; grid-template-columns:1fr 1fr; margin-top:12px; }
+    button, .btn { font:inherit; cursor:pointer; border-radius:12px; border:1px solid var(--line); background:#1b2430; color:var(--text); padding:14px; width:100%; }
+    button:focus-visible, input:focus-visible { outline:3px solid var(--green); outline-offset:2px; }
+    .plan { text-align:left; }
+    .plan b { display:block; font-size:1.25rem; }
+    .plan.best { border-color:var(--green); }
+    .primary { background:var(--green); color:#04130a; border:0; font-weight:700; }
+    input { font:inherit; width:100%; padding:12px; border-radius:12px; border:1px solid var(--line); background:#0f151c; color:var(--text); text-transform:uppercase; }
+    .row { display:flex; gap:8px; margin-top:8px; }
+    .row button { width:auto; white-space:nowrap; }
+    .msg { margin-top:12px; min-height:1.5em; }
+    .msg.err { color:var(--red); }
+    .msg.ok { color:var(--green); }
+    details summary { cursor:pointer; color:var(--muted); }
+    [hidden] { display:none !important; }
+    small { color:var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <a class="brand" href="/">MISSA TV <strong>360</strong> PLUS</a>
+  <h1 data-t="title">Activer l'application</h1>
+
+  <!-- Saisie du code (si la page est ouverte sans code) -->
+  <section class="card" id="ask" hidden>
+    <label for="codeInput" data-t="askLabel">Code affiché dans l'application</label>
+    <div class="row">
+      <input id="codeInput" placeholder="MISSA-XXXXXX" autocomplete="off" maxlength="12">
+      <button id="codeGo" class="primary" data-t="continue">Continuer</button>
+    </div>
+    <div class="msg" id="askMsg"></div>
+  </section>
+
+  <section id="main" hidden>
+    <div class="card">
+      <div class="muted" data-t="device">Appareil</div>
+      <div class="code" id="code"></div>
+      <p><span class="state" id="state"></span> <span class="muted" id="stateDetail"></span></p>
+    </div>
+
+    <div class="card" id="payCard">
+      <strong data-t="choose">Choisissez votre formule</strong>
+      <div class="muted" data-t="choose2">2 appareils par abonnement · Mobile Money ou carte</div>
+      <div class="plans">
+        <button class="plan" data-plan="month"><span data-t="month">1 mois</span><b id="pMonth">1 000 FCFA</b></button>
+        <button class="plan best" data-plan="year"><span data-t="year">1 an</span><b id="pYear">10 000 FCFA</b><small data-t="save">2 mois offerts</small></button>
+      </div>
+      <div class="msg" id="payMsg"></div>
+      <small data-t="secure">Le paiement se fait sur la page sécurisée de KPay. L'application se débloque toute seule quelques secondes après le paiement.</small>
+    </div>
+
+    <details class="card" id="linkCard">
+      <summary data-t="linkTitle">J'ai déjà un abonnement sur un autre appareil</summary>
+      <p class="muted" data-t="linkHelp">Entrez le code de l'appareil qui a payé (visible sur cette page quand vous l'ouvrez depuis cet appareil). Un abonnement couvre 2 appareils.</p>
+      <div class="row">
+        <input id="ownerInput" placeholder="MISSA-XXXXXX" autocomplete="off" maxlength="12">
+        <button id="linkGo" data-t="link">Associer</button>
+      </div>
+      <div class="msg" id="linkMsg"></div>
+    </details>
+  </section>
+</main>
+<script>
+(function () {
+  var en = !/^fr/i.test(navigator.language || "fr");
+  var T = {
+    title: ["Activer l'application", "Activate the app"],
+    askLabel: ["Code affiché dans l'application", "Code shown in the app"],
+    continue: ["Continuer", "Continue"],
+    device: ["Appareil", "Device"],
+    choose: ["Choisissez votre formule", "Choose your plan"],
+    choose2: ["2 appareils par abonnement · Mobile Money ou carte", "2 devices per subscription · Mobile Money or card"],
+    month: ["1 mois", "1 month"], year: ["1 an", "1 year"], save: ["2 mois offerts", "2 months free"],
+    secure: ["Le paiement se fait sur la page sécurisée de KPay. L'application se débloque toute seule quelques secondes après le paiement.",
+             "Payment happens on KPay's secure page. The app unlocks by itself a few seconds after payment."],
+    linkTitle: ["J'ai déjà un abonnement sur un autre appareil", "I already have a subscription on another device"],
+    linkHelp: ["Entrez le code de l'appareil qui a payé (visible sur cette page quand vous l'ouvrez depuis cet appareil). Un abonnement couvre 2 appareils.",
+               "Enter the code of the device that paid (shown on this page when opened from that device). One subscription covers 2 devices."],
+    link: ["Associer", "Link"],
+    trial: ["Essai gratuit", "Free trial"], active: ["Abonnement actif", "Active subscription"],
+    grace: ["Abonnement expiré (délai de grâce)", "Subscription expired (grace period)"], blocked: ["À activer", "Needs activation"],
+    until: ["jusqu'au ", "until "],
+    badCode: ["Code inconnu. Vérifiez le code affiché dans l'application.", "Unknown code. Check the code shown in the app."],
+    net: ["Connexion impossible. Réessayez.", "Connection failed. Please try again."],
+    notReady: ["Le paiement en ligne n'est pas encore ouvert. Contactez-nous.", "Online payment is not open yet. Please contact us."],
+    kpay: ["Le service de paiement ne répond pas. Réessayez dans un instant.", "The payment service is not responding. Try again shortly."],
+    redirect: ["Ouverture de la page de paiement…", "Opening the payment page…"],
+    waiting: ["Paiement reçu ? Vérification en cours… Cette page se met à jour toute seule.", "Payment done? Checking… This page updates by itself."],
+    done: ["C'est activé ! Vous pouvez revenir à l'application.", "Activated! You can go back to the app."],
+    failed: ["Le paiement n'a pas abouti. Vous pouvez réessayer.", "The payment did not go through. You can try again."],
+    linked: ["Appareil associé. Revenez à l'application.", "Device linked. Go back to the app."],
+    noSub: ["Cet appareil n'a pas d'abonnement actif.", "That device has no active subscription."],
+    tooMany: ["Cet abonnement est déjà utilisé sur 2 appareils.", "This subscription is already used on 2 devices."]
+  };
+  function t(k) { return T[k][en ? 1 : 0]; }
+  if (en) document.documentElement.lang = "en";
+  document.querySelectorAll("[data-t]").forEach(function (el) { el.textContent = t(el.getAttribute("data-t")); });
+  var $ = function (id) { return document.getElementById(id); };
+  function msg(id, text, cls) { var el = $(id); el.textContent = text || ""; el.className = "msg" + (cls ? " " + cls : ""); }
+  function fmtDate(ms) { return new Date(ms).toLocaleDateString(en ? "en-GB" : "fr-FR", { day: "numeric", month: "long", year: "numeric" }); }
+  function money(p) { return p.amount.toLocaleString("fr-FR") + (p.currency === "XAF" ? " FCFA" : " " + p.currency); }
+
+  var params = new URLSearchParams(location.search);
+  var code = (params.get("code") || "").toUpperCase();
+  var back = params.get("retour") === "1";
+  var poll = null;
+
+  function api(path, opts) {
+    return fetch("/api/" + path, opts).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { j._status = r.status; return j; });
+    });
+  }
+
+  function load() {
+    return api("code?code=" + encodeURIComponent(code)).then(function (d) {
+      if (d._status === 404 || d._status === 400) { $("main").hidden = true; $("ask").hidden = false; msg("askMsg", t("badCode"), "err"); return; }
+      if (d._status !== 200) { msg("payMsg", t("net"), "err"); return; }
+      $("ask").hidden = true; $("main").hidden = false;
+      $("code").textContent = d.code;
+      var st = $("state"); st.textContent = t(d.state);
+      st.className = "state " + (d.state === "active" || d.state === "trial" ? "ok" : "ko");
+      $("stateDetail").textContent = d.state === "active" ? t("until") + fmtDate(d.expiresAt)
+        : d.state === "trial" ? t("until") + new Date(d.trialEndsAt).toLocaleString(en ? "en-GB" : "fr-FR") : "";
+      if (d.plans) { $("pMonth").textContent = money(d.plans.month); $("pYear").textContent = money(d.plans.year); }
+      if (!d.paymentsReady) msg("payMsg", t("notReady"), "err");
+      if (back) {
+        var s = (params.get("status") || "").toUpperCase();
+        if (d.state === "active") { msg("payMsg", t("done"), "ok"); stopPoll(); }
+        else if (s === "FAILED" || s === "CANCELLED") { msg("payMsg", t("failed"), "err"); }
+        else { msg("payMsg", t("waiting")); startPoll(); }
+      }
+    }).catch(function () { msg("payMsg", t("net"), "err"); });
+  }
+  function startPoll() { if (!poll) { var n = 0; poll = setInterval(function () { if (++n > 60) stopPoll(); load(); }, 5000); } }
+  function stopPoll() { if (poll) { clearInterval(poll); poll = null; } }
+
+  document.querySelectorAll(".plan").forEach(function (b) {
+    b.addEventListener("click", function () {
+      msg("payMsg", t("redirect"));
+      api("pay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code, plan: b.getAttribute("data-plan") }) })
+        .then(function (d) {
+          if (d.gatewayUrl) { location.href = d.gatewayUrl; return; }
+          msg("payMsg", d.error === "payments_not_configured" ? t("notReady") : d.error === "unknown_code" ? t("badCode") : t("kpay"), "err");
+        }).catch(function () { msg("payMsg", t("net"), "err"); });
+    });
+  });
+
+  $("linkGo").addEventListener("click", function () {
+    api("link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code, ownerCode: $("ownerInput").value }) })
+      .then(function (d) {
+        if (d.ok) { msg("linkMsg", t("linked"), "ok"); load(); return; }
+        msg("linkMsg", d.error === "too_many_devices" ? t("tooMany") : d.error === "no_subscription" ? t("noSub") : d.error === "unknown_code" || d.error === "bad_request" ? t("badCode") : t("net"), "err");
+      }).catch(function () { msg("linkMsg", t("net"), "err"); });
+  });
+
+  function go() {
+    var v = $("codeInput").value.trim().toUpperCase();
+    if (!v) return;
+    location.search = "?code=" + encodeURIComponent(v);
+  }
+  $("codeGo").addEventListener("click", go);
+  $("codeInput").addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+
+  if (code) load(); else { $("ask").hidden = false; }
+})();
+</script>
+</body>
+</html>

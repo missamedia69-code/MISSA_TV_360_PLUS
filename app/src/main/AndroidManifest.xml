@@ -159,6 +159,13 @@
         -->
         <!-- Univers Jeux : écran de jeu plein écran (WebView sur les fichiers locaux) -->
         <activity
+            android:name=".ui.activation.MissaActivationActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/AppTheme" />
+
+        <activity
             android:name=".ui.universe.GamePlayerActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
             android:exported="false"

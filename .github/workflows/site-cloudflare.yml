@@ -4,6 +4,13 @@ name: Site vitrine (Cloudflare Pages)
 # Pages : certains opérateurs bloquent les adresses github.io, Cloudflare passe partout et a
 # des serveurs en Afrique.
 #
+# Publie aussi l'API d'activation (cloudflare/functions, adresse /api/...) et sa base D1
+# « missatv » (créée automatiquement, tables dans cloudflare/schema.sql).
+# Paiements KPay, secrets facultatifs du dépôt, recopiés sur Cloudflare à chaque publication :
+#   KPAY_API_KEY, KPAY_SECRET_KEY, KPAY_WEBHOOK_SECRET, MISSA_ADMIN_TOKEN
+# Variable du dépôt (onglet Variables) : MISSA_LICENCE_ENFORCED = 1 pour activer le blocage
+# après l'essai de 24 h dans l'application. Sans elle, l'application reste libre.
+#
 # Prérequis, une seule fois (voir docs/SITE_ET_VERSIONS.md) : deux secrets du dépôt
 #   CLOUDFLARE_API_TOKEN   clé « Edit Cloudflare Workers » + permissions Cloudflare Pages et D1 (Edit)
 #   CLOUDFLARE_ACCOUNT_ID  identifiant du compte Cloudflare
@@ -15,6 +22,7 @@ on:
       - main
     paths:
       - 'site/**'
+      - 'cloudflare/**'
       - '.github/workflows/site-cloudflare.yml'
   workflow_dispatch:
 
@@ -67,11 +75,52 @@ jobs:
             npx --yes wrangler@3 pages project create "$PROJECT" --production-branch=main
           fi
 
+      - name: Base de données D1
+        if: steps.secrets.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB_ID=$(npx --yes wrangler@3 d1 list --json | jq -r '.[] | select(.name=="missatv") | .uuid' | head -n 1)
+          if [[ -z "$DB_ID" ]]; then
+            npx --yes wrangler@3 d1 create missatv
+            DB_ID=$(npx --yes wrangler@3 d1 list --json | jq -r '.[] | select(.name=="missatv") | .uuid' | head -n 1)
+          fi
+          if [[ -z "$DB_ID" ]]; then
+            echo "::error::Impossible de créer ou de trouver la base D1 missatv (permission D1 Edit de la clé ?)"
+            exit 1
+          fi
+          sed -i "s/DATABASE_ID/$DB_ID/" cloudflare/wrangler.toml
+          npx --yes wrangler@3 d1 execute missatv --remote --file=cloudflare/schema.sql
+
+      - name: Secrets de paiement
+        if: steps.secrets.outputs.ready == 'true'
+        shell: bash
+        env:
+          KPAY_API_KEY: ${{ secrets.KPAY_API_KEY }}
+          KPAY_SECRET_KEY: ${{ secrets.KPAY_SECRET_KEY }}
+          KPAY_WEBHOOK_SECRET: ${{ secrets.KPAY_WEBHOOK_SECRET }}
+          ADMIN_TOKEN: ${{ secrets.MISSA_ADMIN_TOKEN }}
+          LICENCE_ENFORCED: ${{ vars.MISSA_LICENCE_ENFORCED }}
+        run: |
+          set -euo pipefail
+          for NAME in KPAY_API_KEY KPAY_SECRET_KEY KPAY_WEBHOOK_SECRET ADMIN_TOKEN LICENCE_ENFORCED; do
+            VALUE="${!NAME:-}"
+            if [[ -n "$VALUE" ]]; then
+              printf '%s' "$VALUE" | npx --yes wrangler@3 pages secret put "$NAME" --project-name="$PROJECT" >/dev/null
+              echo "$NAME : envoyé"
+            else
+              echo "$NAME : absent (ignoré)"
+            fi
+          done
+
       - name: Publier
         if: steps.secrets.outputs.ready == 'true'
         shell: bash
         run: |
-          npx --yes wrangler@3 pages deploy site --project-name="$PROJECT" --branch=main --commit-dirty=true | tee deploy.log
+          cp -r site cloudflare/public
+          cd cloudflare
+          npx --yes wrangler@3 pages deploy --project-name="$PROJECT" --branch=main --commit-dirty=true | tee ../deploy.log
+          cd ..
           URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pages\.dev' deploy.log | tail -n 1)
           echo "### Site publié sur Cloudflare" >> "$GITHUB_STEP_SUMMARY"
           echo "Adresse : https://$PROJECT.pages.dev (version : $URL)" >> "$GITHUB_STEP_SUMMARY"
