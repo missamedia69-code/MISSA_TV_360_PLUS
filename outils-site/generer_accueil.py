@@ -4,6 +4,17 @@
 import sys
 ROOT = sys.argv[1]
 REL = "https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest"
+ICON = {
+ "remote": '<path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><circle cx="12" cy="9" r="2.5"/><path d="M10 15h4M10 18h4"/>',
+ "radio": '<path d="M4 9h16v11H4z"/><path d="M8 9l9-5"/><circle cx="15" cy="14.5" r="2.5"/><path d="M7 13h3M7 16h3"/>',
+ "shield": '<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+ "film": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4"/>',
+ "music": '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+ "live": '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 3l4 3 4-3"/><circle cx="12" cy="12" r="2"/>',
+ "game": '<path d="M6 8h12a4 4 0 0 1 4 4v1a4 4 0 0 1-7 2.6L14 15h-4l-1 .6A4 4 0 0 1 2 13v-1a4 4 0 0 1 4-4z"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="16" cy="12" r=".8"/><circle cx="18" cy="13.5" r=".8"/>',
+}
+def icon(k):
+    return f'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">{ICON[k]}</svg>'
 CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>'
 
 L = {
@@ -165,28 +176,30 @@ def page(t):
     shots = t["shots"]
     a(f'''
   <section class="panel panel-home is-active" id="p-{tid[0]}" role="tabpanel" aria-labelledby="t-{tid[0]}">
-    <div class="home-card y-card">
+    <div class="hero-copy">
       <p class="eyebrow"><span class="chip-g">{t["eyebrow"]}</span><span>{t["devices"]}</span></p>
-      <h1>{t["h1a"]}<br><span>{t["h1b"]}</span></h1>
+      <h1>{t["h1a"]}<br><span class="grad">{t["h1b"]}</span></h1>
       <p class="lead">{t["lead"]}</p>
       <div class="cta">
-        <a class="btn btn-k" id="download-btn" href="{REL}">{t["dl"]}</a>
-        <a class="btn btn-line" href="#{tid[4]}">{t["how"]}</a>
+        <a class="btn btn-primary" id="download-btn" href="{REL}">{t["dl"]}</a>
+        <a class="btn btn-ghost" href="#{tid[4]}">{t["how"]}</a>
       </div>
       <p class="meta" id="release-meta" aria-live="polite">{t["meta"]}</p>
     </div>
     <div class="home-side">
-      <div class="tv" data-carousel>
+      <div class="tv-wrap"><div class="tv" data-carousel>
 ''')
     for i, (f, lab, alt) in enumerate(shots):
         a(f'        <img class="tv-shot{" on" if i == 0 else ""}" src="{b}assets/captures/{f}" alt="{alt}" width="1304" height="786"{"" if i == 0 else " loading=\"lazy\""}>\n')
-    a('      </div>\n      <ul class="points">\n')
+    a('      </div></div>\n      <ul class="points">\n')
     for p in t["points"]:
         a(f'        <li>{CHECK}{p}</li>\n')
     a('      </ul>\n    </div>\n    <div class="feats">\n')
     for i, (h, p) in enumerate(t["feats"]):
-        a(f'      <article class="feat feat-{"gyn"[i]}"><h2>{h}</h2><p>{p}</p></article>\n')
-    a('    </div>\n  </section>\n')
+        a(f'      <article class="card feat acc-{"gyn"[i]}">{icon(["remote","radio","shield"][i])}<h2>{h}</h2><p>{p}</p></article>\n')
+    names = [x for fam in t["families"] for x in fam[2]]
+    row = "".join(f'<span>{x.split(" <small>")[0]}</span>' for x in names)
+    a('    </div>\n    <div class="marquee" aria-hidden="true"><div class="track">' + row + row + '</div></div>\n  </section>\n')
     # --- Univers
     a(f'''
   <section class="panel" id="p-{tid[1]}" role="tabpanel" aria-labelledby="t-{tid[1]}">
@@ -194,7 +207,8 @@ def page(t):
     <div class="fams">
 ''')
     for c, name, items in t["families"]:
-        a(f'      <section class="fam fam-{c}"><h3>{name}</h3><ul>' + "".join(f"<li>{x}</li>" for x in items) + '</ul></section>\n')
+        ik = {"Vidéo":"film","Video":"film","Audio":"music","Direct":"live","Live":"live","Jeux":"game","Games":"game"}[name]
+        a(f'      <section class="card fam acc-{c}">{icon(ik)}<h3>{name}</h3><ul>' + "".join(f"<li>{x}</li>" for x in items) + '</ul></section>\n')
     a(f'''    </div>
     <p class="note">{t["u_note"]}</p>
   </section>
@@ -226,11 +240,11 @@ def page(t):
 ''')
     for c, name, desc, amount, per, items, badge in t["plans"]:
         bd = f'<span class="badge">{badge}</span>' if badge else ""
-        a(f'''      <article class="plan plan-{c}">{bd}
+        a(f'''      <article class="card plan plan-{c}">{bd}
         <h3>{name}</h3><p class="pdesc">{desc}</p>
         <p class="price"><b>{amount}</b> <span>{per}</span></p>
         <ul>{"".join(f"<li>{CHECK}{x}</li>" for x in items)}</ul>
-        <a class="btn {"btn-k" if c == "y" else "btn-line"}" href="{REL}" data-apk>{t["p_cta"]}</a>
+        <a class="btn {"btn-primary" if c == "y" else "btn-ghost"}" href="{REL}" data-apk>{t["p_cta"]}</a>
       </article>
 ''')
     a(f'''    </div>
@@ -242,11 +256,11 @@ def page(t):
   <section class="panel" id="p-{tid[4]}" role="tabpanel" aria-labelledby="t-{tid[4]}">
     <div class="head"><h2>{t["i_title"]}</h2><p>{t["i_lead"]}</p></div>
     <div class="steps">
-      <article class="step-card g-card"><h3>{t["i_phone"]}</h3><ol>{"".join(f"<li>{x}</li>" for x in t["i_phone_steps"])}</ol></article>
-      <article class="step-card n-card"><h3>{t["i_tv"]}</h3><ol>{"".join(f"<li>{x}</li>" for x in t["i_tv_steps"])}</ol></article>
+      <article class="card step-card acc-g"><h3>{t["i_phone"]}</h3><ol>{"".join(f"<li>{x}</li>" for x in t["i_phone_steps"])}</ol></article>
+      <article class="card step-card acc-y"><h3>{t["i_tv"]}</h3><ol>{"".join(f"<li>{x}</li>" for x in t["i_tv_steps"])}</ol></article>
     </div>
     <div class="cta center">
-      <a class="btn btn-y" id="download-btn-2" href="{REL}">{t["dl"]}</a>
+      <a class="btn btn-primary" id="download-btn-2" href="{REL}">{t["dl"]}</a>
     </div>
     <p class="note">{t["i_note"]}</p>
   </section>

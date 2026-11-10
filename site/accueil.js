@@ -18,7 +18,7 @@
   // Apparition en cascade : chaque bloc du panneau reçoit son rang.
   ids.forEach(function (id, n) {
     var panel = panelOf(n);
-    var blocks = panel.querySelectorAll(".head, .home-card, .home-side, .feat, .fam, .plan, .step-card, .faq details, .picks, .tv-big, .cta.center, .note");
+    var blocks = panel.querySelectorAll(".head, .home-card, .home-side, .feat, .fam, .plan, .step-card, .faq details, .picks, .tv-big, .cta.center, .note, .marquee");
     for (var i = 0; i < blocks.length; i++) {
       blocks[i].setAttribute("data-rise", "");
       blocks[i].style.setProperty("--d", i);
@@ -159,6 +159,31 @@
       var dx = e.changedTouches[0].clientX - x0;
       if (Math.abs(dx) > 40) pick(vs.index() + (dx < 0 ? 1 : -1));
       x0 = null;
+    });
+  }
+
+  // ------------------------------------------------------------ effets à la souris
+  // Projecteur qui suit le pointeur sur les cartes, et écran d'accueil qui s'incline.
+  document.addEventListener("pointermove", function (e) {
+    var card = e.target.closest ? e.target.closest(".card") : null;
+    if (card) {
+      var r = card.getBoundingClientRect();
+      card.style.setProperty("--mx", (e.clientX - r.left) + "px");
+      card.style.setProperty("--my", (e.clientY - r.top) + "px");
+    }
+  }, { passive: true });
+  var wrap = document.querySelector(".tv-wrap");
+  var side = document.querySelector(".home-side");
+  if (wrap && side && window.matchMedia("(hover: hover) and (min-width: 961px)").matches) {
+    side.addEventListener("pointermove", function (e) {
+      var r = side.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+      wrap.style.setProperty("--ry", (x * 16 - 4) + "deg");
+      wrap.style.setProperty("--rx", (-y * 10 + 2) + "deg");
+    });
+    side.addEventListener("pointerleave", function () {
+      wrap.style.removeProperty("--ry");
+      wrap.style.removeProperty("--rx");
     });
   }
 })();
