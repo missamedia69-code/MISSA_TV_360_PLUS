@@ -167,8 +167,14 @@ class GamesFragment : Fragment() {
         val ctx = context ?: return
         filterButtons.values.forEach { filtersContainer.removeView(it) }
         filterButtons.clear()
-        val systems = listOf("all" to getString(R.string.universe_games_filter_all)) +
-            systemsWithGames().map { it.system to it.label }
+        // Une seule console (NES) : pas de filtre à afficher.
+        val used = systemsWithGames()
+        val systems = if (used.size <= 1) emptyList() else
+            listOf("all" to getString(R.string.universe_games_filter_all)) + used.map { it.system to it.label }
+        if (systems.isEmpty()) {
+            selectedSystem = "all"
+            return
+        }
         if (selectedSystem != "all" && systems.none { it.first == selectedSystem }) selectedSystem = "all"
         systems.forEach { (id, label) ->
             val pill = MissaUiFactory.createPillButton(ctx, label, id == selectedSystem, marginEndDp = 6) {

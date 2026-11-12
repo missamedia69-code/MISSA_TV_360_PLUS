@@ -69,6 +69,42 @@ val generateGitHash = tasks.register<GenerateGitHashTask>("generateGitHash") {
     outputDir.set(layout.buildDirectory.dir("generated/git"))
 }
 
+/**
+ * Univers TV en direct : la liste tv/chaines.m3u du dépôt est aussi rangée dans l'APK
+ * (assets/tv/chaines.m3u). L'application l'affiche dès le premier lancement, même hors
+ * connexion, puis la remplace par la version de GitHub dès qu'elle l'a téléchargée.
+ */
+abstract class CopyLiveTvPlaylistTask : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val playlist: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        val target = File(out, "tv/chaines.m3u")
+        target.parentFile.mkdirs()
+        playlist.get().asFile.copyTo(target, overwrite = true)
+    }
+}
+
+val copyLiveTvPlaylist = tasks.register<CopyLiveTvPlaylistTask>("copyLiveTvPlaylist") {
+    playlist.set(layout.projectDirectory.file("../tv/chaines.m3u"))
+    outputDir.set(layout.buildDirectory.dir("generated/missa-tv"))
+}
+
+/**
+ * Branche GitHub d'où l'application lit ses contenus (liste TV, catalogue de jeux).
+ * « main » pour les versions publiées ; -PmissaContentBranch=<branche> pour essayer une
+ * branche de travail avant de la fusionner.
+ */
+val missaContentBranch: String = (project.findProperty("missaContentBranch") as String?)
+    ?.takeIf { it.matches(Regex("[A-Za-z0-9._/-]+")) } ?: "main"
+
 android {
     @Suppress("UnstableApiUsage")
     testOptions {
@@ -88,6 +124,10 @@ android {
             variant.sources.assets?.addGeneratedSourceDirectory(
                 generateGitHash,
                 GenerateGitHashTask::outputDir
+            )
+            variant.sources.assets?.addGeneratedSourceDirectory(
+                copyLiveTvPlaylist,
+                CopyLiveTvPlaylistTask::outputDir
             )
         }
     }
@@ -125,6 +165,11 @@ android {
         // Reads local.properties
         val localProperties = gradleLocalProperties(rootDir, project.providers)
 
+        buildConfigField(
+            "String",
+            "MISSA_CONTENT_BRANCH",
+            "\"$missaContentBranch\""
+        )
         buildConfigField(
             "long",
             "BUILD_DATE",

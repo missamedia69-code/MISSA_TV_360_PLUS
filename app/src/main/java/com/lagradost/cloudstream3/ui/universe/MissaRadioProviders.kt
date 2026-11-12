@@ -894,12 +894,13 @@ internal object MissaRadioProviders {
 
     // --- Resilient Network Harvesters ---
 
-    private suspend fun fetchRadioBrowserJson(queryAndParams: String): String? {
+    internal suspend fun fetchRadioBrowserJson(queryAndParams: String, endpoint: String = "stations"): String? {
         val startIdx = preferredMirrorIndex
         for (offset in RADIO_BROWSER_MIRRORS.indices) {
             val mirrorIdx = (startIdx + offset) % RADIO_BROWSER_MIRRORS.size
             val base = RADIO_BROWSER_MIRRORS[mirrorIdx]
-            val url = "$base/json/stations/$queryAndParams"
+            val sep = if (queryAndParams.startsWith("?")) "" else "/"
+            val url = "$base/json/$endpoint$sep$queryAndParams"
             val body = withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
                 try {
                     val resp = app.get(url, headers = httpHeaders)

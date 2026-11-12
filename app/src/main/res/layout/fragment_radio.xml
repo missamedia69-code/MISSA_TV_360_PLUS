@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Univers Radio : onglets (À la une, Favoris, Pays, Thèmes), puis une grille de petits
+    logos. Le mini-lecteur de MainActivity reste visible en bas de l'écran.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/primaryBlackBackground"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/missaSurfaceElevated"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/missa_section_horizontal_padding"
+        android:paddingTop="10dp"
+        android:paddingEnd="@dimen/missa_section_horizontal_padding"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/logo_screen_eyebrow"
+                    style="@style/TextAppearance.Missa.Badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/missaAccentPrimary"
+                    tools:text="Radio directe" />
+
+                <TextView
+                    android:id="@+id/logo_screen_title"
+                    style="@style/TextAppearance.Missa.ScreenTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:accessibilityHeading="true"
+                    tools:text="Radio" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/logo_screen_counter"
+                style="@style/TextAppearance.Missa.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/missa_eyebrow_pill_bg"
+                android:maxLines="1"
+                android:paddingStart="10dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="4dp"
+                android:textColor="?attr/missaAccentSuccess"
+                tools:text="51 345 stations" />
+        </LinearLayout>
+
+        <!-- Onglets et actions, créés par le fragment -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:overScrollMode="never"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/logo_screen_tabs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <!-- Fil d'Ariane : « ‹ Pays » + le pays ou le thème ouvert -->
+        <LinearLayout
+            android:id="@+id/logo_screen_crumb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/logo_screen_back"
+                style="@style/Widget.Missa.Button.Secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/missa_pill_touch_height"
+                android:layout_marginEnd="10dp"
+                tools:text="‹ Pays" />
+
+            <TextView
+                android:id="@+id/logo_screen_crumb_title"
+                style="@style/TextAppearance.Missa.Body"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textStyle="bold"
+                tools:text="Cameroun · 52 stations" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?attr/missaStrokeSubtle" />
+
+    <TextView
+        android:id="@+id/logo_screen_status"
+        style="@style/TextAppearance.Missa.Body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="20dp"
+        android:visibility="gone"
+        tools:text="Chargement…"
+        tools:visibility="visible" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/logo_screen_grid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="8dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="110dp"
+        tools:listitem="@layout/item_logo_tile" />
+</LinearLayout>

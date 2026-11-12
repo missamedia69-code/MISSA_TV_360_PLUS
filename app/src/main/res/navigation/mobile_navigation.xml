@@ -369,18 +369,13 @@
 
     <fragment
         android:id="@+id/navigation_universe_live_tv"
-        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:name="com.lagradost.cloudstream3.ui.universe.LiveTvFragment"
         android:label="@string/universe_live_tv_title"
         app:enterAnim="@anim/enter_anim"
         app:exitAnim="@anim/exit_anim"
         app:popEnterAnim="@anim/enter_anim"
         app:popExitAnim="@anim/exit_anim"
-        tools:layout="@layout/fragment_media_universe">
-        <argument
-            android:name="universe_id"
-            android:defaultValue="live_tv"
-            app:argType="string" />
-    </fragment>
+        tools:layout="@layout/fragment_radio" />
 
     <fragment
         android:id="@+id/navigation_universe_sports"
@@ -425,18 +420,13 @@
 
     <fragment
         android:id="@+id/navigation_universe_radio"
-        android:name="com.lagradost.cloudstream3.ui.universe.MediaUniverseFragment"
+        android:name="com.lagradost.cloudstream3.ui.universe.RadioFragment"
         android:label="@string/universe_radio_title"
         app:enterAnim="@anim/enter_anim"
         app:exitAnim="@anim/exit_anim"
         app:popEnterAnim="@anim/enter_anim"
         app:popExitAnim="@anim/exit_anim"
-        tools:layout="@layout/fragment_media_universe">
-        <argument
-            android:name="universe_id"
-            android:defaultValue="radio"
-            app:argType="string" />
-    </fragment>
+        tools:layout="@layout/fragment_radio" />
 
     <fragment
         android:id="@+id/navigation_universe_games"

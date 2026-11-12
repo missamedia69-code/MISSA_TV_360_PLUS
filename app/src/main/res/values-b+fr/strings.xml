@@ -1319,4 +1319,86 @@ Source : %6$s</string>
     <string name="missa_activation_no_network">Pas de connexion au serveur. Vérifiez votre connexion Internet.</string>
     <string name="missa_activation_unlocked">MISSA TV 360 PLUS est activé. Bon divertissement !</string>
     <string name="universe_games_empty">De nouveaux jeux arrivent bientôt. Revenez vite !</string>
+
+    <!-- Univers Radio et TV en direct : grille de petits logos -->
+    <string name="logo_tile_playing">▶ EN COURS</string>
+    <string name="logo_screen_back" formatted="false">‹ %1$s</string>
+    <string name="radio_tab_featured">À la une</string>
+    <string name="radio_tab_favorites">Favoris</string>
+    <string name="radio_tab_countries">Pays</string>
+    <string name="radio_tab_themes">Thèmes</string>
+    <string name="radio_action_search">Rechercher</string>
+    <string name="radio_action_add">Ajouter une radio</string>
+    <string name="radio_action_sleep">Minuterie</string>
+    <string name="radio_counter">%1$s stations</string>
+    <string name="radio_loading">Chargement…</string>
+    <string name="radio_offline">Pas de connexion à l’annuaire des radios. Vérifiez votre connexion Internet, puis réessayez.</string>
+    <string name="radio_empty">Aucune station ici.</string>
+    <string name="radio_favorites_empty">Aucun favori pour l’instant. Maintenez OK (ou appui long) sur une station pour l’ajouter.</string>
+    <string name="radio_section_missa">Sélection MISSA</string>
+    <string name="radio_section_popular">Les plus écoutées</string>
+    <string name="radio_crumb_count">%1$s · %2$s stations</string>
+    <string name="radio_crumb_search">Recherche : %1$s</string>
+    <string name="radio_option_play">Écouter</string>
+    <string name="radio_option_favorite">Ajouter aux favoris</string>
+    <string name="radio_option_unfavorite">Retirer des favoris</string>
+    <string name="radio_favorite_added">%1$s ajoutée aux favoris</string>
+    <string name="radio_favorite_removed">%1$s retirée des favoris</string>
+    <string name="radio_search_hint">Nom de la station</string>
+    <string name="radio_sleep_off">Désactivée</string>
+    <string name="radio_sleep_minutes">Arrêt dans %1$d min</string>
+    <string name="radio_continent_africa">Afrique</string>
+    <string name="radio_continent_europe">Europe</string>
+    <string name="radio_continent_americas">Amériques</string>
+    <string name="radio_continent_asia">Asie &amp; Moyen-Orient</string>
+    <string name="radio_continent_oceania">Océanie</string>
+    <string name="radio_theme_news">Actualités</string>
+    <string name="radio_theme_talk">Débats &amp; magazines</string>
+    <string name="radio_theme_african">Musiques africaines</string>
+    <string name="radio_theme_afrobeats">Afrobeats</string>
+    <string name="radio_theme_gospel">Gospel</string>
+    <string name="radio_theme_christian">Chrétien</string>
+    <string name="radio_theme_islam">Islam</string>
+    <string name="radio_theme_zouk">Zouk &amp; Kompa</string>
+    <string name="radio_theme_reggae">Reggae</string>
+    <string name="radio_theme_hiphop">Hip-hop &amp; Rap</string>
+    <string name="radio_theme_rnb">R&amp;B &amp; Soul</string>
+    <string name="radio_theme_jazz">Jazz</string>
+    <string name="radio_theme_blues">Blues</string>
+    <string name="radio_theme_pop">Pop</string>
+    <string name="radio_theme_rock">Rock</string>
+    <string name="radio_theme_dance">Dance</string>
+    <string name="radio_theme_electronic">Électro</string>
+    <string name="radio_theme_chanson">Chanson française</string>
+    <string name="radio_theme_latin">Latino</string>
+    <string name="radio_theme_classical">Classique</string>
+    <string name="radio_theme_oldies">Rétro</string>
+    <string name="radio_theme_chillout">Détente &amp; Lounge</string>
+    <string name="radio_theme_sports">Sport</string>
+    <string name="radio_theme_kids">Enfants</string>
+    <plurals name="radio_station_count">
+        <item quantity="one">%1$s station</item>
+        <item quantity="many">%1$s stations</item>
+        <item quantity="other">%1$s stations</item>
+    </plurals>
+
+    <!-- Univers TV en direct (liste tv/chaines.m3u) -->
+    <string name="live_tv_tab_all">Toutes les chaînes</string>
+    <string name="live_tv_tab_groups">Catégories</string>
+    <string name="live_tv_action_refresh">Mettre à jour la liste</string>
+    <string name="live_tv_refreshing">Recherche d’une nouvelle liste de chaînes…</string>
+    <string name="live_tv_refreshed">Liste des chaînes mise à jour</string>
+    <string name="live_tv_up_to_date">La liste des chaînes est déjà à jour</string>
+    <string name="live_tv_empty">Aucune chaîne pour l’instant. La liste sera téléchargée dès que vous serez connecté à Internet.</string>
+    <string name="live_tv_favorites_empty">Aucune chaîne favorite. Maintenez OK (ou appui long) sur une chaîne pour l’ajouter.</string>
+    <string name="live_tv_no_countries">Cette liste de chaînes n’indique pas le pays des chaînes.</string>
+    <string name="live_tv_group_other">Autres</string>
+    <string name="live_tv_crumb_count">%1$s · %2$d</string>
+    <string name="live_tv_option_watch">Regarder</string>
+    <string name="live_tv_search_hint">Chaîne, catégorie ou pays</string>
+    <plurals name="live_tv_channel_count">
+        <item quantity="one">%1$d chaîne</item>
+        <item quantity="many">%1$d chaînes</item>
+        <item quantity="other">%1$d chaînes</item>
+    </plurals>
 </resources>

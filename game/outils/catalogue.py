@@ -21,12 +21,10 @@ RACINE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 CATALOGUE = os.path.join(RACINE, "game", "catalogue.json")
 BASE_URL = "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/"
 
-# Consoles prises en charge et cœur EmulatorJS attendu. Seuls des cœurs dont la licence
-# autorise un usage commercial (MISSA TV est payante) : pas de Snes9x ni de Genesis Plus GX.
+# Une seule console : la NES, émulée par FCEUmm (GPL-2.0, usage commercial autorisé).
+# C'est l'émulateur le plus léger d'EmulatorJS : il tourne sur les téléviseurs modestes.
 CONSOLES = {
     "nes": {"core": "fceumm", "extensions": {"nes"}},
-    "gb": {"core": "gambatte", "extensions": {"gb", "gbc"}},
-    "gba": {"core": "mgba", "extensions": {"gba"}},
 }
 TAILLE_MAX_JEU = 32 * 1024 * 1024
 

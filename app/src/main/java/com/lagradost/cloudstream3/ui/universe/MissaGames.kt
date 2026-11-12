@@ -1,6 +1,7 @@
 package com.lagradost.cloudstream3.ui.universe
 
 import android.content.Context
+import com.lagradost.cloudstream3.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -37,11 +38,20 @@ import kotlin.coroutines.coroutineContext
  */
 object MissaGames {
 
-    const val CATALOGUE_URL =
-        "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/catalogue.json"
+    private const val RAW_MAIN = "raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/"
 
-    /** Le catalogue est relu au plus toutes les 12 heures, ou à la demande. */
-    private const val CATALOGUE_MAX_AGE_MS = 12L * 3600_000L
+    /** Branche d'où viennent les contenus (« main » pour les versions publiées). */
+    private val rawBranch: String
+        get() = RAW_MAIN.removeSuffix("main/") + BuildConfig.MISSA_CONTENT_BRANCH + "/"
+
+    val CATALOGUE_URL: String
+        get() = "https://${rawBranch}game/catalogue.json"
+
+    /**
+     * Le catalogue est relu à chaque démarrage de l'application (voir MainActivity) et, en
+     * ouvrant l'univers Jeux, s'il a plus d'une heure.
+     */
+    private const val CATALOGUE_MAX_AGE_MS = 3600_000L
     private const val MAX_DOWNLOAD_BYTES = 64L * 1024L * 1024L
     private const val USER_AGENT = "MISSA-TV-360"
 
@@ -132,7 +142,9 @@ object MissaGames {
      * HTTPS est ignorée : mieux vaut un jeu absent qu'un fichier impossible à vérifier.
      */
     fun parseCatalogue(json: String): Catalogue? {
-        val root = runCatching { JSONObject(json) }.getOrNull() ?: return null
+        // Version d'essai lue sur une autre branche : les fichiers viennent de cette branche.
+        val text = if (rawBranch != RAW_MAIN) json.replace(RAW_MAIN, rawBranch) else json
+        val root = runCatching { JSONObject(text) }.getOrNull() ?: return null
         val engineObj = root.optJSONObject("moteur")
         val engine = parsePackage(engineObj) ?: return null
 

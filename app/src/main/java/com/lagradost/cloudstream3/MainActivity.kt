@@ -203,6 +203,9 @@ import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
 import com.lagradost.cloudstream3.ui.MissaWindowFocusRing
 import com.lagradost.cloudstream3.ui.activation.MissaLicenceGate
 import com.lagradost.cloudstream3.ui.universe.GamesFragment
+import com.lagradost.cloudstream3.ui.universe.MissaGames
+import com.lagradost.cloudstream3.ui.universe.MissaLiveTv
+import com.lagradost.cloudstream3.ui.universe.MissaLogoScreenFragment
 import com.lagradost.cloudstream3.ui.universe.MissaTvFocusHelper
 import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
 import com.lagradost.cloudstream3.ui.universe.MissaUniverseDialogs
@@ -652,6 +655,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         return when (currentFragment) {
             is MediaUniverseFragment -> currentFragment.requestPrimaryContentFocus(sourceView)
             is GamesFragment -> currentFragment.requestPrimaryContentFocus()
+            is MissaLogoScreenFragment -> currentFragment.requestPrimaryContentFocus()
             else -> navHostView?.requestFocus() == true
         }
     }
@@ -896,6 +900,7 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         when (val fragment = navHost?.childFragmentManager?.primaryNavigationFragment) {
             is MediaUniverseFragment -> fragment.requestPrimaryContentFocus()
             is GamesFragment -> fragment.requestPrimaryContentFocus()
+            is MissaLogoScreenFragment -> fragment.requestPrimaryContentFocus()
         }
     }
 
@@ -1172,8 +1177,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }
 
         val st = radioState?.station
-        val hideOnScreen = currentDestId == R.id.navigation_player ||
-            currentDestId == R.id.navigation_universe_radio
+        // Les écrans Radio et TV en direct n'ont plus de lecteur intégré : le mini-lecteur
+        // reste visible partout, sauf dans le lecteur vidéo plein écran.
+        val hideOnScreen = currentDestId == R.id.navigation_player
         bar.isVisible = st != null && !hideOnScreen
         if (st == null || hideOnScreen) return
 
@@ -2356,6 +2362,12 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }
 
         ioSafe { SafeFile.check(this@MainActivity) }
+
+        // Univers TV en direct : à chaque démarrage, on récupère la liste tv/chaines.m3u du
+        // dépôt GitHub (rien n'est téléchargé si elle n'a pas changé depuis la dernière fois).
+        ioSafe { MissaLiveTv.refresh(this@MainActivity) }
+        // Univers Jeux : même principe pour le catalogue game/catalogue.json.
+        ioSafe { MissaGames.refreshCatalogue(this@MainActivity, force = true) }
 
         // Safe mode is a diagnostic aid, not a kill switch. It used to guard the whole
         // startup loading block, so a single crash - which writes filesDir/last_error and
