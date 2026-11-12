@@ -944,7 +944,7 @@ internal object MissaRadioProviders {
      * - Xiph.org Open Icecast Directory (`dir.xiph.org/yp.xml` bounded slice)
      */
     suspend fun harvestAllFreeProviders(): List<RadioStationPreset> = coroutineScope {
-        val semaphore = Semaphore(4)
+        val semaphore = Semaphore(MissaDeviceProfile.parallelism(normal = 4, light = 2))
 
         val radioBrowserQueries = listOf(
             // 1. Cameroon & Central/West/Francophone Africa first

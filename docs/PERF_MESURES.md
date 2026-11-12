@@ -99,3 +99,22 @@ ls -l app/build/outputs/apk/prerelease/release/*.apk
 - **A8 (R8)** peut rendre l'apparemment *légèrement* plus lente au premier lancement
   (le code est réorganisé) mais réduit nettement la taille. Si une extension se met à
   planter, c'est A8 : dire quelle extension et `adb logcat` le message d'erreur.
+
+## Mode « appareil léger » (TV et box 512 Mo / 1 Go)
+
+`MissaDeviceProfile.isLowRam()` est vrai quand Android signale un appareil à faible
+mémoire, quand le tas autorisé à l'application est de 96 Mo ou moins, ou quand l'appareil a
+moins de 1,3 Go de RAM au total. Dans ce cas :
+
+| Poste | Normal | Appareil léger |
+|---|---|---|
+| Animations (sélecteur, cartes, scintillement, carrousel) | oui | non |
+| Images | 32 bits, fondu 200 ms | 16 bits (RGB 565) pour les images opaques, sans fondu |
+| Catalogues Radio / Musique / Enfants / Podcasts au démarrage | en parallèle | l'un après l'autre, 6 s après l'ouverture |
+| Moteur YouTube préchauffé au démarrage | oui | non (à la première recherche) |
+| Requêtes simultanées (extensions, recherche, radio, podcasts) | 5–6 / 4 | 2–3 / 2 |
+| Fiches détaillées chargées (enrichissement) | 6 + 24 | 3 + 16 |
+| Lecteur vidéo | qualité libre, 30 s de vidéo déjà vue gardée | 720p au plus, rien de gardé derrière, 15–30 s d'avance, 16 Mo |
+
+Rappel : **toujours tester l'APK release** sur ces appareils. L'APK debug de la CI tourne
+sans les optimisations d'ART et rame beaucoup plus sur une petite TV.

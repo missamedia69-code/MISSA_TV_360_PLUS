@@ -1392,6 +1392,7 @@ Source : %6$s</string>
     <string name="live_tv_empty">Aucune chaîne pour l’instant. La liste sera téléchargée dès que vous serez connecté à Internet.</string>
     <string name="live_tv_favorites_empty">Aucune chaîne favorite. Maintenez OK (ou appui long) sur une chaîne pour l’ajouter.</string>
     <string name="live_tv_no_countries">Cette liste de chaînes n’indique pas le pays des chaînes.</string>
+    <string name="live_tv_search_empty">Aucune chaîne ne correspond à cette recherche.</string>
     <string name="live_tv_group_other">Autres</string>
     <string name="live_tv_crumb_count">%1$s · %2$d</string>
     <string name="live_tv_option_watch">Regarder</string>

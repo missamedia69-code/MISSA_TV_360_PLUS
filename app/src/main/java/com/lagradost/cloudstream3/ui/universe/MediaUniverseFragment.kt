@@ -963,7 +963,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         // 3. Build modular RecyclerView list items (HOME-01, HOME-02, HOME-05, HOME-06, HOME-07)
         val items = ArrayList<UniverseListItem>()
-        val dataSaver = MissaUiFactory.isDataSaverActive(ctx)
+        // Appareil léger : carrousel immobile et vignettes réduites, comme l'économiseur.
+        val dataSaver = MissaUiFactory.isDataSaverActive(ctx) || MissaDeviceProfile.isLowRam(ctx)
 
         // PODCASTS-03 : le lecteur audio n'apparaît dans l'univers Podcasts que lorsqu'un podcast
         // est en cours. Il laisse alors voir les épisodes de l'émission ouverte, exactement comme

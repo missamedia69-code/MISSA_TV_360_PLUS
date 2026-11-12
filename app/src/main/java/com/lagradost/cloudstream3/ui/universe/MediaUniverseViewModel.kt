@@ -41,6 +41,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -144,6 +145,8 @@ class MediaUniverseViewModel : ViewModel() {
         private const val MAX_DETAILS_CACHE = 96
         /** Concurrent details loads. 6 of them made the GC thrash every second. */
         private const val MAX_PARALLEL_DETAILS = 3
+        /** Appareil léger : attente avant de mettre à jour les catalogues au démarrage. */
+        private const val LOW_RAM_STARTUP_DELAY_MS = 6_000L
         /**
          * CRASH-01: heap that must stay free for the details enrichment to run at all.
          * A cold start has no disk snapshot, so it harvests every provider at once and the
@@ -495,17 +498,40 @@ class MediaUniverseViewModel : ViewModel() {
         // On laisse chaque manager décider : ils ne vont sur le réseau que si leur cache a
         // expiré. Un refresh forcé reste déclenché par l'utilisateur (pull-to-refresh,
         // reloadHomeEvent) ou après installation d'une extension.
-        viewModelScope.launch {
-            DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
-        }
-        viewModelScope.launch {
-            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
-        }
-        viewModelScope.launch {
-            DirectKidsPlayerManager.refreshRemoteVideosIfNeeded()
-        }
-        viewModelScope.launch {
-            DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded()
+        if (MissaDeviceProfile.isLowRam(context)) {
+            // Appareil léger : l'accueil s'affiche d'abord, puis les quatre catalogues se
+            // mettent à jour l'un après l'autre (et non plus tous en même temps).
+            viewModelScope.launch {
+                delay(LOW_RAM_STARTUP_DELAY_MS)
+                val steps: List<suspend () -> Unit> = listOf(
+                    { DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded() },
+                    { DirectRadioPlayerManager.refreshRemotePresetsIfNeeded() },
+                    { DirectKidsPlayerManager.refreshRemoteVideosIfNeeded() },
+                    { DirectMusicPlayerManager.refreshRemoteTracksIfNeeded() }
+                )
+                for (step in steps) {
+                    try {
+                        step()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Startup refresh failed: ${e.message}")
+                    }
+                }
+            }
+        } else {
+            viewModelScope.launch {
+                DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
+            }
+            viewModelScope.launch {
+                DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
+            }
+            viewModelScope.launch {
+                DirectKidsPlayerManager.refreshRemoteVideosIfNeeded()
+            }
+            viewModelScope.launch {
+                DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded()
+            }
         }
         hydrateDiskCacheAndLoad()
     }
@@ -856,7 +882,9 @@ class MediaUniverseViewModel : ViewModel() {
                 if (baseEntries.isNotEmpty()) {
                     saveCatalogToDiskCache(baseEntries, updatedAt)
                     val ctx = context
-                    val dataSaver = ctx != null && MissaUiFactory.isDataSaverActive(ctx)
+                    // Appareil léger : moins de fiches détaillées (chacune est un objet lourd).
+                    val dataSaver = ctx != null &&
+                        (MissaUiFactory.isDataSaverActive(ctx) || MissaDeviceProfile.isLowRam(ctx))
                     // CRASH-01: never start allocating one LoadResponse per card when the
                     // harvest has already eaten the heap — the catalogue still renders from the
                     // raw harvest, it just gets fewer enriched tags on this pass.
@@ -950,7 +978,7 @@ class MediaUniverseViewModel : ViewModel() {
         val doneCounter = AtomicInteger(0)
         onProgress?.invoke(0, total)
 
-        val semaphore = Semaphore(6)
+        val semaphore = Semaphore(MissaDeviceProfile.parallelism(normal = 6, light = 3))
         val rawResults = coroutineScope {
             providers.map { (api, isPreferred) ->
                 async(Dispatchers.IO) {
@@ -2096,7 +2124,7 @@ class MediaUniverseViewModel : ViewModel() {
         isPreferred: Boolean,
         onProviderFinished: () -> Unit
     ): List<RawHarvestedItem> = coroutineScope {
-        val semaphore = Semaphore(5)
+        val semaphore = Semaphore(MissaDeviceProfile.parallelism(normal = 5, light = 2))
         providers.map { api ->
             async(Dispatchers.IO) {
                 // The permit block must evaluate to the item list: a trailing statement here

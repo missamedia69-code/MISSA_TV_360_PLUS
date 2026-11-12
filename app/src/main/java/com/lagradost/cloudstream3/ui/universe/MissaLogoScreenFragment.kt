@@ -195,7 +195,11 @@ abstract class MissaLogoScreenFragment : Fragment() {
         if (!::gridAdapter.isInitialized) return
         gridAdapter.submitList(items) {
             if (!isAdded) return@submitList
-            if (scrollToTop) grid.scrollToPosition(0)
+            if (scrollToTop) {
+                grid.scrollToPosition(0)
+                // L'en-tête (fil d'Ariane) change de hauteur juste après : on recale.
+                grid.post { if (isAdded) grid.scrollToPosition(0) }
+            }
             if (focusKey != null) {
                 val pos = items.indexOfFirst { it.key == focusKey }
                 if (pos >= 0) focusPosition(pos)

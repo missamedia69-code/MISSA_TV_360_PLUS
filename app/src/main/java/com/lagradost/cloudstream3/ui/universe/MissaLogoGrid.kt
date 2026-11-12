@@ -240,19 +240,25 @@ class MissaLogoGridAdapter(
             itemView.contentDescription = item.description
         }
 
-        /** Essaie les logos dans l'ordre, puis affiche les initiales. */
+        /**
+         * Essaie les logos dans l'ordre. Les initiales restent affichées pendant le chargement
+         * (connexion lente) et si aucun logo ne répond ; elles disparaissent dès qu'un logo
+         * est affiché.
+         */
         private fun loadLogo(key: String, candidates: List<String>, index: Int) {
             if (image.getTag(R.id.missa_radio_logo_key) != key) return
             val url = candidates.getOrNull(index)
+            monogram.isVisible = true
             if (url == null) {
                 image.dispose()
                 image.setImageDrawable(null)
-                monogram.isVisible = true
                 return
             }
-            monogram.isVisible = false
             image.loadImage(url) {
                 listener(
+                    onSuccess = { _, _ ->
+                        if (image.getTag(R.id.missa_radio_logo_key) == key) monogram.isVisible = false
+                    },
                     onError = { _, _ -> image.post { loadLogo(key, candidates, index + 1) } },
                     onCancel = { }
                 )

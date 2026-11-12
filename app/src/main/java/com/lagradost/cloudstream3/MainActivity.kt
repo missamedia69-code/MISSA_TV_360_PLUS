@@ -203,6 +203,7 @@ import com.lagradost.cloudstream3.ui.universe.MissaMusicProviders
 import com.lagradost.cloudstream3.ui.MissaWindowFocusRing
 import com.lagradost.cloudstream3.ui.activation.MissaLicenceGate
 import com.lagradost.cloudstream3.ui.universe.GamesFragment
+import com.lagradost.cloudstream3.ui.universe.MissaDeviceProfile
 import com.lagradost.cloudstream3.ui.universe.MissaGames
 import com.lagradost.cloudstream3.ui.universe.MissaLiveTv
 import com.lagradost.cloudstream3.ui.universe.MissaLogoScreenFragment
@@ -3068,7 +3069,11 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
 
         ioSafe {
             migrateResumeWatching()
-            MissaMusicProviders.warmUpYouTubeEngine()
+            // Appareil léger : le moteur YouTube (lourd en mémoire) ne démarre qu'à la
+            // première recherche musicale, pas à l'ouverture de l'application.
+            if (!MissaDeviceProfile.isLowRam(this@MainActivity)) {
+                MissaMusicProviders.warmUpYouTubeEngine()
+            }
         }
 
         main {

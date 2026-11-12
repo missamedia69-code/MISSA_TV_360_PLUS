@@ -24,11 +24,13 @@ import coil3.request.CachePolicy
 import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import coil3.request.allowRgb565
 import coil3.request.bitmapConfig
 import coil3.request.crossfade
 import coil3.util.DebugLogger
 import com.lagradost.cloudstream3.BuildConfig
 import com.lagradost.cloudstream3.USER_AGENT
+import com.lagradost.cloudstream3.ui.universe.MissaDeviceProfile
 import com.lagradost.cloudstream3.network.buildDefaultClient
 import okio.Path.Companion.toOkioPath
 import java.io.File
@@ -38,8 +40,12 @@ object ImageLoader {
     private const val TAG = "CoilImgLoader"
     internal fun buildImageLoader(context: PlatformContext): ImageLoader {
         val isBrokenHardware = hasPotentialBrokenHardware()
+        // Appareil léger (TV 512 Mo / 1 Go) : pas de fondu, et les images opaques (affiches,
+        // vignettes) sont décodées en 16 bits, ce qui divise par deux leur place en mémoire.
+        val lowRam = MissaDeviceProfile.isLowRam(context)
         return ImageLoader.Builder(context)
-            .crossfade(200)
+            .crossfade(if (lowRam) 0 else 200)
+            .allowRgb565(lowRam)
             .allowHardware(SDK_INT >= 28 && !isBrokenHardware)
             .diskCachePolicy(CachePolicy.ENABLED)
             .networkCachePolicy(CachePolicy.ENABLED)

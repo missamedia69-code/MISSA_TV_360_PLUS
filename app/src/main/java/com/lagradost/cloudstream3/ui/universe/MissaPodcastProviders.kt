@@ -338,7 +338,7 @@ internal object MissaPodcastProviders {
      * nombre de connexions borné pour ne pas saturer la connexion de la télé.
      */
     suspend fun harvestAllFreeProviders(): List<PodcastShowPreset> = coroutineScope {
-        val semaphore = Semaphore(4)
+        val semaphore = Semaphore(MissaDeviceProfile.parallelism(normal = 4, light = 2))
         val batches = CATALOGUE_QUERIES.map { query ->
             async(Dispatchers.IO) {
                 semaphore.withPermit {

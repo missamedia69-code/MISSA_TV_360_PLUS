@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.ui.universe
 
+import android.content.Context
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
@@ -12,7 +13,9 @@ import androidx.lifecycle.lifecycleScope
 import com.lagradost.cloudstream3.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -82,8 +85,9 @@ class RadioFragment : MissaLogoScreenFragment() {
                 render()
             }
         }
-        DirectRadioPlayerManager.stationsUpdated.observe(viewLifecycleOwner) {
-            if (selectedTab == TAB_FEATURED && drill == null) reloadFeatured()
+        DirectRadioPlayerManager.stationsUpdated.observe(viewLifecycleOwner) { stamp ->
+            // 0 = valeur initiale : le catalogue est déjà en cours de lecture.
+            if (stamp != null && stamp > 0L && selectedTab == TAB_FEATURED && drill == null) reloadFeatured()
         }
         // Le compteur « 51 345 stations » se remplit dès que la liste des pays est connue.
         viewLifecycleOwner.lifecycleScope.launch {
@@ -235,50 +239,66 @@ class RadioFragment : MissaLogoScreenFragment() {
 
     // ------------------------------------------------------------------ Rendu
 
+    private var renderJob: Job? = null
+
+    /**
+     * Prépare les tuiles hors du fil principal (nom du pays traduit, favoris... pour des
+     * centaines de stations) puis les affiche : l'écran ne se fige pas pendant la préparation,
+     * même sur une petite TV.
+     */
     private fun render(scrollToTop: Boolean = false, focusKey: String? = null) {
         if (!isAdded) return
-        val favIds = DirectRadioPlayerManager.favoriteIds()
-        val items: List<LogoGridItem> = when {
-            drill != null -> buildList {
-                stations.forEach { add(stationItem(it, favIds)) }
-                if (!endReached) add(LogoGridItem.More())
-            }
+        val tab = selectedTab
+        val currentDrill = drill
+        val currentStations = stations
+        val more = !endReached
+        val ctx = context ?: return
+        renderJob?.cancel()
+        renderJob = viewLifecycleOwner.lifecycleScope.launch {
+            val items = withContext(Dispatchers.Default) {
+                val favIds = DirectRadioPlayerManager.favoriteIds()
+                when {
+                    currentDrill != null -> buildList {
+                        currentStations.forEach { add(stationItem(ctx, it, favIds)) }
+                        if (more) add(LogoGridItem.More())
+                    }
 
-            selectedTab == TAB_FEATURED -> buildFeatured(favIds)
-            selectedTab == TAB_FAVORITES -> {
-                val favs = favoriteStations(favIds)
-                setStatus(if (favs.isEmpty()) getString(R.string.radio_favorites_empty) else null)
-                favs.map { stationItem(it, favIds) }
-            }
+                    tab == TAB_FEATURED -> buildFeatured(ctx, favIds)
+                    tab == TAB_FAVORITES -> favoriteStations(favIds).map { stationItem(ctx, it, favIds) }
+                    tab == TAB_COUNTRIES -> buildCountries(ctx)
+                    tab == TAB_THEMES -> MissaRadioBrowse.themes.map { theme ->
+                        val label = ctx.getString(theme.labelRes)
+                        LogoGridItem.Folder(
+                            key = "theme:${theme.id}",
+                            title = label,
+                            subtitle = "",
+                            badge = label.take(1).uppercase(Locale.getDefault())
+                        )
+                    }
 
-            selectedTab == TAB_COUNTRIES -> buildCountries()
-            selectedTab == TAB_THEMES -> MissaRadioBrowse.themes.map { theme ->
-                val label = getString(theme.labelRes)
-                LogoGridItem.Folder(
-                    key = "theme:${theme.id}",
-                    title = label,
-                    subtitle = "",
-                    badge = label.take(1).uppercase(Locale.getDefault())
-                )
+                    else -> emptyList()
+                }
             }
-
-            else -> emptyList()
+            if (!isAdded) return@launch
+            if (currentDrill == null && tab == TAB_FAVORITES) {
+                setStatus(if (items.isEmpty()) getString(R.string.radio_favorites_empty) else null)
+            }
+            submit(items, scrollToTop = scrollToTop, focusKey = focusKey)
         }
-        submit(items, scrollToTop = scrollToTop, focusKey = focusKey)
     }
 
-    private fun buildFeatured(favIds: Set<String>): List<LogoGridItem> {
+    private fun buildFeatured(ctx: Context, favIds: Set<String>): List<LogoGridItem> {
         if (featured.isEmpty()) return emptyList()
         val curatedIds = MissaRadioProviders.curatedInstantStations.mapTo(HashSet()) { it.id }
         val (mine, rest) = featured.partition { it.isCustom || it.id in curatedIds }
         return buildList {
             if (mine.isNotEmpty()) {
-                add(LogoGridItem.Header("h:missa", getString(R.string.radio_section_missa)))
-                mine.forEach { add(stationItem(it, favIds)) }
+                add(LogoGridItem.Header("h:missa", ctx.getString(R.string.radio_section_missa)))
+                mine.forEach { add(stationItem(ctx, it, favIds)) }
             }
             if (rest.isNotEmpty()) {
-                add(LogoGridItem.Header("h:popular", getString(R.string.radio_section_popular)))
-                rest.forEach { add(stationItem(it, favIds)) }
+                add(LogoGridItem.Header("h:popular", ctx.getString(R.string.radio_section_popular)))
+                rest.forEach { add(stationItem(ctx, it, favIds)) }
             }
         }
     }
@@ -291,18 +311,18 @@ class RadioFragment : MissaLogoScreenFragment() {
         return (saved + legacy).filter { it.id in favIds }
     }
 
-    private fun buildCountries(): List<LogoGridItem> = buildList {
+    private fun buildCountries(ctx: Context): List<LogoGridItem> = buildList {
         var continent: MissaRadioBrowse.Continent? = null
         for (c in countries) {
             if (c.continent != continent) {
                 continent = c.continent
-                add(LogoGridItem.Header("h:${c.continent.name}", getString(c.continent.labelRes)))
+                add(LogoGridItem.Header("h:${c.continent.name}", ctx.getString(c.continent.labelRes)))
             }
             add(
                 LogoGridItem.Folder(
                     key = "country:${c.iso}",
                     title = c.name,
-                    subtitle = resources.getQuantityString(
+                    subtitle = ctx.resources.getQuantityString(
                         R.plurals.radio_station_count, c.stationCount,
                         NumberFormat.getIntegerInstance().format(c.stationCount)
                     ),
@@ -313,9 +333,9 @@ class RadioFragment : MissaLogoScreenFragment() {
         }
     }
 
-    private fun stationItem(st: RadioStationPreset, favIds: Set<String>): LogoGridItem.Logo {
+    private fun stationItem(ctx: Context, st: RadioStationPreset, favIds: Set<String>): LogoGridItem.Logo {
         val logos = (listOfNotNull(st.logoUrl) + st.logoFallbackUrls).filter { it.isNotBlank() }.distinct()
-        val origin = RadioOrigin.displayLabel(st.country, context)
+        val origin = RadioOrigin.displayLabel(st.country, ctx)
         return LogoGridItem.Logo(
             key = "st:" + st.streamUrl.lowercase(Locale.ROOT),
             title = st.name,

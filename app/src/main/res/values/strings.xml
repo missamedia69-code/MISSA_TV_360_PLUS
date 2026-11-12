@@ -1435,6 +1435,7 @@ Source: %6$s</string>
     <string name="live_tv_empty">No channel yet. The list will be downloaded as soon as you are connected to the Internet.</string>
     <string name="live_tv_favorites_empty">No favorite channel. Hold OK (or long-press) on a channel to add it.</string>
     <string name="live_tv_no_countries">This channel list does not give the country of its channels.</string>
+    <string name="live_tv_search_empty">No channel matches this search.</string>
     <string name="live_tv_group_other">Other</string>
     <string name="live_tv_crumb_count">%1$s · %2$d</string>
     <string name="live_tv_option_watch">Watch</string>

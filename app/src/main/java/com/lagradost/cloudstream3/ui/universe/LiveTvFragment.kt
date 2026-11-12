@@ -100,7 +100,6 @@ class LiveTvFragment : MissaLogoScreenFragment() {
 
     private fun onListChanged() {
         setCounter(resources.getQuantityString(R.plurals.live_tv_channel_count, channels.size, channels.size))
-        setStatus(if (channels.isEmpty()) getString(R.string.live_tv_empty) else null)
         render()
     }
 
@@ -127,20 +126,36 @@ class LiveTvFragment : MissaLogoScreenFragment() {
     private fun render(scrollToTop: Boolean = false, focusKey: String? = null) {
         if (!isAdded) return
         val favs = MissaLiveTv.favoriteUrls()
+        var emptyMessage: String? = null
         val items: List<LogoGridItem> = when (val d = drill) {
             is Drill.Group -> channelItems(channels.filter { d.name in it.groups }, favs)
             is Drill.Country -> channelItems(channels.filter { it.country == d.iso }, favs)
-            is Drill.Search -> channelItems(channels.filter { matches(it, d.query) }, favs)
+            is Drill.Search -> channelItems(channels.filter { matches(it, d.query) }, favs).also {
+                emptyMessage = getString(R.string.live_tv_search_empty)
+            }
             null -> when (selectedTab) {
                 TAB_FAVORITES -> channelItems(channels.filter { it.url in favs }, favs).also {
-                    if (channels.isNotEmpty()) setStatus(if (it.isEmpty()) getString(R.string.live_tv_favorites_empty) else null)
+                    emptyMessage = getString(R.string.live_tv_favorites_empty)
                 }
-                TAB_GROUPS -> { shown = emptyList(); groupFolders() }
-                TAB_COUNTRIES -> { shown = emptyList(); countryFolders() }
+                TAB_GROUPS -> {
+                    shown = emptyList()
+                    groupFolders()
+                }
+                TAB_COUNTRIES -> {
+                    shown = emptyList()
+                    emptyMessage = getString(R.string.live_tv_no_countries)
+                    countryFolders()
+                }
                 else -> channelItems(channels, favs)
             }
         }
-        if (selectedTab != TAB_FAVORITES && channels.isNotEmpty()) setStatus(null)
+        setStatus(
+            when {
+                channels.isEmpty() -> getString(R.string.live_tv_empty)
+                items.isEmpty() -> emptyMessage
+                else -> null
+            }
+        )
         submit(items, scrollToTop = scrollToTop, focusKey = focusKey)
     }
 
@@ -173,10 +188,7 @@ class LiveTvFragment : MissaLogoScreenFragment() {
 
     private fun countryFolders(): List<LogoGridItem> {
         val counts = channels.mapNotNull { it.country }.groupingBy { it }.eachCount()
-        if (counts.isEmpty()) {
-            if (channels.isNotEmpty()) setStatus(getString(R.string.live_tv_no_countries))
-            return emptyList()
-        }
+        if (counts.isEmpty()) return emptyList()
         val locale = Locale.getDefault()
         val collator = Collator.getInstance(locale).apply { strength = Collator.PRIMARY }
         return counts.entries
@@ -231,8 +243,9 @@ class LiveTvFragment : MissaLogoScreenFragment() {
     private fun openDrill(target: Drill, backLabel: String, title: String, fromKey: String?) {
         drill = target
         returnFocusKey = fromKey
+        showCrumb(backLabel, title)
         render(scrollToTop = true)
-        showCrumb(backLabel, getString(R.string.live_tv_crumb_count, title, shown.size))
+        updateCrumbTitle(getString(R.string.live_tv_crumb_count, title, shown.size))
     }
 
     override fun onItemLongClick(item: LogoGridItem) {
@@ -282,8 +295,10 @@ class LiveTvFragment : MissaLogoScreenFragment() {
             val tabLabel = tabs().firstOrNull { it.first == selectedTab }?.second ?: getString(R.string.live_tv_tab_all)
             drill = Drill.Search(q)
             returnFocusKey = null
+            val title = getString(R.string.radio_crumb_search, q)
+            showCrumb(tabLabel, title)
             render(scrollToTop = true)
-            showCrumb(tabLabel, getString(R.string.live_tv_crumb_count, getString(R.string.radio_crumb_search, q), shown.size))
+            updateCrumbTitle(getString(R.string.live_tv_crumb_count, title, shown.size))
         }
         val dialog = AlertDialog.Builder(ctx)
             .setTitle(R.string.radio_action_search)
