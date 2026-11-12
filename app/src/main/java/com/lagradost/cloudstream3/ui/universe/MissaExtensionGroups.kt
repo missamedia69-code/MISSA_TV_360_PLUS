@@ -26,7 +26,9 @@ data class AssignableGroup(
  *  - setOf("films")  -> uniquement ces groupes
  *
  * Priorité : provider > extension > Auto.
- * "music" et "kids" ne sont JAMAIS proposés : ces univers sont 100 % YouTube.
+ * "music", "kids" et "documentaries" ne sont JAMAIS proposés : ces univers sont 100 % YouTube.
+ * "live_tv" (liste tv/chaines.m3u) et "radio" (annuaire Radio Browser) non plus : ils ont leur
+ * propre source et n'affichent pas le contenu des extensions.
  */
 object MissaExtensionGroups {
     private const val FOLDER = "missa_ext_groups_v1"
@@ -39,12 +41,9 @@ object MissaExtensionGroups {
     val ASSIGNABLE_GROUPS: List<AssignableGroup> = listOf(
         AssignableGroup("films", R.string.universe_films_title),
         AssignableGroup("series", R.string.universe_series_title),
-        AssignableGroup("documentaries", R.string.universe_documentaries_title),
         AssignableGroup("shorts", R.string.universe_shorts_title),
-        AssignableGroup("live_tv", R.string.universe_live_tv_title),
         AssignableGroup("sports", R.string.universe_sports_title),
-        AssignableGroup("podcasts", R.string.universe_podcasts_title),
-        AssignableGroup("radio", R.string.universe_radio_title)
+        AssignableGroup("podcasts", R.string.universe_podcasts_title)
     )
 
     /** Incrémenté à chaque modification : force le rechargement du catalogue (voir computeProviderSignature). */

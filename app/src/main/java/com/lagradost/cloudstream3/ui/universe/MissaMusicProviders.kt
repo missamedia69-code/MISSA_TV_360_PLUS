@@ -287,7 +287,9 @@ object MissaMusicProviders {
         if (newPipeInitialized) return
         synchronized(newPipeLock) {
             if (!newPipeInitialized) {
-                runCatching { NewPipe.getDownloader() }.getOrElse {
+                // getDownloader() renvoie null (sans lever d'exception) tant que NewPipe n'est
+                // pas initialisé : il faut tester la valeur, pas seulement l'exception.
+                if (runCatching { NewPipe.getDownloader() }.getOrNull() == null) {
                     NewPipe.init(DownloaderTestImpl.getInstance())
                 }
                 newPipeInitialized = true

@@ -784,7 +784,7 @@
     <string name="universe_series_description">Séries, saisons et épisodes unifiés depuis toutes vos extensions compatibles.</string>
     <string name="universe_documentaries_title">Documentaires &amp; Live</string>
     <string name="universe_documentaries_title_short">Docs &amp; Live</string>
-    <string name="universe_documentaries_description">Grands documentaires, docu-séries, reportages, nature, histoire, sciences, plus les chaînes et directs Twitch, YouTube &amp; Dailymotion.</string>
+    <string name="universe_documentaries_description">Grands documentaires, reportages, histoire, nature, sciences, Afrique, plus l’info et les directs — tout vient de YouTube.</string>
     <string name="universe_shorts_title">Courts</string>
     <string name="universe_shorts_description">Créations et films au format court identifiés par durée et métadonnées.</string>
     <string name="universe_kids_title">Enfants</string>
@@ -1402,4 +1402,27 @@ Source : %6$s</string>
         <item quantity="many">%1$d chaînes</item>
         <item quantity="other">%1$d chaînes</item>
     </plurals>
+
+    <!-- Univers Documentaires & Live (100 % YouTube) -->
+    <string name="missa_docs_row_live_news">En direct · Actualités</string>
+    <string name="missa_docs_chip_live_news">Info en direct</string>
+    <string name="missa_docs_row_live_docs">En direct · Documentaires &amp; nature</string>
+    <string name="missa_docs_chip_live_docs">Docs en direct</string>
+    <string name="missa_docs_row_africa">Afrique : histoire, cultures &amp; peuples</string>
+    <string name="missa_docs_chip_africa">Afrique</string>
+    <string name="missa_docs_row_history">Histoire &amp; civilisations</string>
+    <string name="missa_docs_chip_history">Histoire</string>
+    <string name="missa_docs_row_nature">Nature &amp; animaux sauvages</string>
+    <string name="missa_docs_chip_nature">Nature</string>
+    <string name="missa_docs_row_science">Sciences, espace &amp; technologies</string>
+    <string name="missa_docs_chip_science">Sciences</string>
+    <string name="missa_docs_row_society">Enquêtes &amp; grands reportages</string>
+    <string name="missa_docs_chip_society">Enquêtes</string>
+    <string name="missa_docs_row_travel">Voyages &amp; découvertes</string>
+    <string name="missa_docs_chip_travel">Voyages</string>
+    <string name="missa_docs_row_all">Tous les documentaires</string>
+    <string name="missa_docs_chip_all">Tous</string>
+    <string name="missa_searching_docs_youtube">Recherche YouTube de documentaires et directs pour « %1$s »…</string>
+    <!-- Libellé court de la barre du bas (téléphone) -->
+    <string name="nav_title_downloads">Téléchargés</string>
 </resources>

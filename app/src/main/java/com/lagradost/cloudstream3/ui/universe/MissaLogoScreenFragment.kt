@@ -102,8 +102,11 @@ abstract class MissaLogoScreenFragment : Fragment() {
             topBorderEscapeProvider = { topEscapeTarget() },
             instantReveal = true
         )
-        layoutManager.spanSizeLookup = gridAdapter.spanSizeLookup { spanCount }
+        layoutManager.spanSizeLookup = gridAdapter.spanSizeLookup { layoutManager.spanCount }
         grid.layoutManager = layoutManager
+        MissaLogoGridAdapter.bindAdaptiveSpans(
+            grid, layoutManager, MissaLogoGridAdapter.tileWidthDp(requireContext(), tvMode)
+        ) { spanCount = it }
         grid.setHasFixedSize(true)
         grid.itemAnimator = null
         // Petits téléviseurs : on garde peu de tuiles hors écran en réserve.

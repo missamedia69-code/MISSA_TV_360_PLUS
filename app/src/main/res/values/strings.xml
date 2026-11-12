@@ -828,7 +828,7 @@
     <string name="universe_series_description">Shows, seasons and episodes unified across all compatible extensions.</string>
     <string name="universe_documentaries_title">Documentaries &amp; Live</string>
     <string name="universe_documentaries_title_short">Docs &amp; Live</string>
-    <string name="universe_documentaries_description">Feature documentaries, docu-series, reports, nature, history, science, plus live channels and streams from Twitch, YouTube &amp; Dailymotion.</string>
+    <string name="universe_documentaries_description">Feature documentaries, reports, history, nature, science, Africa, plus live news and live streams — all from YouTube.</string>
     <string name="universe_shorts_title">Shorts</string>
     <string name="universe_shorts_description">Short-format films and creations identified by duration and metadata.</string>
     <string name="universe_kids_title">Kids</string>
@@ -1444,4 +1444,27 @@ Source: %6$s</string>
         <item quantity="one">%1$d channel</item>
         <item quantity="other">%1$d channels</item>
     </plurals>
+
+    <!-- Univers Documentaires & Live (100 % YouTube) -->
+    <string name="missa_docs_row_live_news">Live now · News</string>
+    <string name="missa_docs_chip_live_news">Live news</string>
+    <string name="missa_docs_row_live_docs">Live now · Documentaries &amp; nature</string>
+    <string name="missa_docs_chip_live_docs">Live docs</string>
+    <string name="missa_docs_row_africa">Africa: history, cultures &amp; peoples</string>
+    <string name="missa_docs_chip_africa">Africa</string>
+    <string name="missa_docs_row_history">History &amp; civilizations</string>
+    <string name="missa_docs_chip_history">History</string>
+    <string name="missa_docs_row_nature">Nature &amp; wildlife</string>
+    <string name="missa_docs_chip_nature">Nature</string>
+    <string name="missa_docs_row_science">Science, space &amp; technology</string>
+    <string name="missa_docs_chip_science">Science</string>
+    <string name="missa_docs_row_society">Investigations &amp; reports</string>
+    <string name="missa_docs_chip_society">Investigations</string>
+    <string name="missa_docs_row_travel">Travel &amp; discovery</string>
+    <string name="missa_docs_chip_travel">Travel</string>
+    <string name="missa_docs_row_all">All documentaries</string>
+    <string name="missa_docs_chip_all">All</string>
+    <string name="missa_searching_docs_youtube">Searching YouTube for documentaries and live streams: "%1$s"…</string>
+    <!-- Libellé court de la barre du bas (téléphone) -->
+    <string name="nav_title_downloads">Downloads</string>
 </resources>

@@ -507,6 +507,7 @@ class MediaUniverseViewModel : ViewModel() {
                     { DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded() },
                     { DirectRadioPlayerManager.refreshRemotePresetsIfNeeded() },
                     { DirectKidsPlayerManager.refreshRemoteVideosIfNeeded() },
+                    { DirectDocsPlayerManager.refreshRemoteVideosIfNeeded() },
                     { DirectMusicPlayerManager.refreshRemoteTracksIfNeeded() }
                 )
                 for (step in steps) {
@@ -528,6 +529,9 @@ class MediaUniverseViewModel : ViewModel() {
             }
             viewModelScope.launch {
                 DirectKidsPlayerManager.refreshRemoteVideosIfNeeded()
+            }
+            viewModelScope.launch {
+                DirectDocsPlayerManager.refreshRemoteVideosIfNeeded()
             }
             viewModelScope.launch {
                 DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded()
@@ -690,6 +694,9 @@ class MediaUniverseViewModel : ViewModel() {
             }
             viewModelScope.launch {
                 DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
+            }
+            viewModelScope.launch {
+                DirectDocsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
             }
             viewModelScope.launch {
                 DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded(force = true)
@@ -1100,7 +1107,8 @@ class MediaUniverseViewModel : ViewModel() {
         // Match entries belonging to this universe + filter local query if overrideEntries not provided.
         // "music" is 100% exclusively powered by YouTube (DirectMusicPlayerManager) and "kids" is
         // 100% exclusively powered by YouTube Kids (DirectKidsPlayerManager) — zero plugin entries.
-        val universeEntries = if (universeId == "music" || universeId == "kids") {
+        // "documentaries" (Documentaires & Live) est lui aussi 100 % YouTube (DirectDocsPlayerManager).
+        val universeEntries = if (universeId == "music" || universeId == "kids" || universeId == "documentaries") {
             emptyList()
         } else {
             baseSourceEntries.filter { entry ->
@@ -1119,6 +1127,7 @@ class MediaUniverseViewModel : ViewModel() {
                 .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
             "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
             "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
+            "documentaries" -> listOf(MissaDocsProviders.PROVIDER_YOUTUBE)
             "podcasts" -> DirectPodcastPlayerManager.allPresetShows()
                 .map { it.providerName.ifBlank { DIRECT_PODCAST_API_NAME } }
             else -> emptyList()
@@ -1127,6 +1136,7 @@ class MediaUniverseViewModel : ViewModel() {
         val availableSources = when (universeId) {
             "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
             "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
+            "documentaries" -> listOf(MissaDocsProviders.PROVIDER_YOUTUBE)
             else -> (
                 (overrideEntries ?: snapshot.entries)
                     .filter { universeId == "home" || it.universes.contains(universeId) }
@@ -1330,6 +1340,52 @@ class MediaUniverseViewModel : ViewModel() {
                         items = selection.all.map { MissaKidsProviders.toKidsSearchResponse(it) }
                             .toMutableList(),
                         isHorizontal = false
+                    )
+                }
+            }
+        }
+
+        // Univers Documentaires & Live 100 % YouTube : directs en cours puis documentaires,
+        // sélection renouvelée à chaque lancement.
+        if (universeId == "documentaries") {
+            // Vignettes YouTube au format 16:9 : cartes horizontales.
+            if (searchQuery.isNotBlank()) {
+                val hits = (DirectDocsPlayerManager.getOnlineSearchResults(searchQuery) +
+                    DirectDocsPlayerManager.allPresetVideos().filter { MissaDocsProviders.matchesQuery(it, searchQuery) })
+                    .distinctBy { it.id }
+                if (hits.isNotEmpty()) {
+                    val resultsTitle = ctx?.getString(R.string.universe_search_results_for, searchQuery.trim())
+                        ?: searchQuery.trim()
+                    buckets["docs_search_results"] = BucketData(
+                        key = "docs_search_results",
+                        rowTitle = resultsTitle,
+                        chipLabel = resultsTitle,
+                        rank = 1,
+                        items = hits.map { MissaDocsProviders.toSearchResponse(it) }.toMutableList(),
+                        isHorizontal = true
+                    )
+                }
+            } else {
+                val selection = DirectDocsPlayerManager.currentSelection()
+                for ((category, items) in selection.rows) {
+                    if (items.isEmpty()) continue
+                    buckets[category.id] = BucketData(
+                        key = category.id,
+                        rowTitle = resolveStr(ctx, category.rowTitleRes, category.id),
+                        chipLabel = resolveStr(ctx, category.chipLabelRes, category.id),
+                        rank = category.editorialRank,
+                        items = items.map { MissaDocsProviders.toSearchResponse(it) }.toMutableList(),
+                        isHorizontal = true
+                    )
+                }
+                if (selection.all.isNotEmpty()) {
+                    buckets["docs_all"] = BucketData(
+                        key = "docs_all",
+                        rowTitle = resolveStr(ctx, R.string.missa_docs_row_all, "docs_all"),
+                        chipLabel = resolveStr(ctx, R.string.missa_docs_chip_all, "docs_all"),
+                        rank = 900,
+                        items = selection.all.map { MissaDocsProviders.toSearchResponse(it) }.toMutableList(),
+                        isHorizontal = true
                     )
                 }
             }
@@ -1784,6 +1840,7 @@ class MediaUniverseViewModel : ViewModel() {
         // first catalogue is still downloading (KIDS-01).
         val directProviderLoading = visibleRows.isEmpty() && when (universeId) {
             "kids" -> DirectKidsPlayerManager.isAwaitingFirstCatalogue()
+            "documentaries" -> DirectDocsPlayerManager.isAwaitingFirstCatalogue()
             "podcasts" -> DirectPodcastPlayerManager.isAwaitingFirstCatalogue()
             else -> false
         }
@@ -1793,13 +1850,16 @@ class MediaUniverseViewModel : ViewModel() {
         val hasActiveFilter = searchQuery.isNotBlank() ||
             !selectedCategoryKey.isNullOrBlank() ||
             selectedSources.isNotEmpty()
+        // Univers 100 % YouTube : ils ne dépendent d'aucune extension. Vides hors chargement,
+        // c'est que YouTube n'a pas répondu (connexion) : on le dit au lieu d'un écran vide.
+        val youTubeOnly = universeId == "kids" || universeId == "documentaries"
         val emptyReason: UniverseEmptyReason? = resolveEmptyReason(
             effectiveLoading = effectiveLoading,
             hasVisibleRows = visibleRows.isNotEmpty(),
             hasActiveFilter = hasActiveFilter,
-            isOffline = snapshot.isOffline,
+            isOffline = snapshot.isOffline || youTubeOnly,
             hasError = snapshot.hasError,
-            activeProviderCount = snapshot.activeProviderCount,
+            activeProviderCount = if (youTubeOnly) 1 else snapshot.activeProviderCount,
             isDirectProviderLoading = directProviderLoading
         )
 
@@ -1906,6 +1966,30 @@ class MediaUniverseViewModel : ViewModel() {
                 return heroKids.map { video ->
                     val resp = MissaKidsProviders.toKidsSearchResponse(video)
                     val categoryLabel = KidsCategory.byId(video.genre)?.let {
+                        resolveStr(ctx, it.chipLabelRes, it.id)
+                    }
+                    HeroBannerSlide(
+                        card = resp,
+                        details = null,
+                        allSources = listOf(resp),
+                        eyebrow = eyebrowText,
+                        plot = video.artist.takeIf { it.isNotBlank() },
+                        yearText = resp.apiName,
+                        durationText = resp.formattedDuration(),
+                        scoreText = null,
+                        tags = listOfNotNull(categoryLabel),
+                        isDirectStream = true
+                    )
+                }
+            }
+        }
+
+        if (universeId == "documentaries") {
+            val heroDocs = DirectDocsPlayerManager.heroVideos(max = 5)
+            if (heroDocs.isNotEmpty()) {
+                return heroDocs.map { video ->
+                    val resp = MissaDocsProviders.toSearchResponse(video)
+                    val categoryLabel = DocsCategory.byId(video.genre)?.let {
                         resolveStr(ctx, it.chipLabelRes, it.id)
                     }
                     HeroBannerSlide(

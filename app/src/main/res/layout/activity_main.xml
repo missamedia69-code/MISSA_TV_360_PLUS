@@ -170,6 +170,8 @@
             android:layout_height="@dimen/nav_view_height"
             android:background="?attr/primaryGrayBackground"
             app:itemIconTint="@color/item_select_color"
+            app:itemTextAppearanceActive="@style/TextAppearance.Missa.BottomNavLabel"
+            app:itemTextAppearanceInactive="@style/TextAppearance.Missa.BottomNavLabel"
             app:itemTextColor="@color/item_select_color"
             app:labelVisibilityMode="labeled"
             app:layout_constraintBottom_toBottomOf="parent"

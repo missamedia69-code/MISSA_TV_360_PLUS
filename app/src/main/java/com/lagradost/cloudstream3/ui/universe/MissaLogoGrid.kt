@@ -73,10 +73,53 @@ class MissaLogoGridAdapter(
                 ) PAYLOAD_STATE else null
         }
 
-        /** Nombre de colonnes : des tuiles d'environ 92 dp sur TV, 84 dp sur téléphone. */
+        /**
+         * Largeur visée d'une tuile : petite sur TV (beaucoup de chaînes à l'écran, vues de
+         * loin), lisible au doigt sur téléphone, un peu plus grande sur tablette.
+         */
+        fun tileWidthDp(context: Context, tvMode: Boolean): Int = when {
+            tvMode -> 96
+            context.resources.configuration.smallestScreenWidthDp >= 600 -> 116
+            else -> 88
+        }
+
+        /** Nombre de colonnes avant la première mesure de la grille (estimation). */
         fun spanCountFor(context: Context, tvMode: Boolean): Int {
             val widthDp = context.resources.configuration.screenWidthDp
-            return (widthDp / (if (tvMode) 92 else 84)).coerceIn(3, 12)
+            return (widthDp / tileWidthDp(context, tvMode)).coerceIn(3, 12)
+        }
+
+        /**
+         * Recalcule le nombre de colonnes d'après la largeur **réelle** de la grille, à chaque
+         * fois qu'elle change (rotation, retour du lecteur vidéo plein écran, fenêtre
+         * redimensionnée). Calculé une seule fois à la création, il restait figé sur la
+         * largeur du paysage au retour du lecteur : 9 colonnes minuscules sur un téléphone
+         * tenu droit.
+         */
+        fun bindAdaptiveSpans(
+            recycler: RecyclerView,
+            layoutManager: GridLayoutManager,
+            tileWidthDp: Int,
+            minSpans: Int = 3,
+            maxSpans: Int = 12,
+            onChanged: (Int) -> Unit = {}
+        ) {
+            val density = recycler.resources.displayMetrics.density
+            fun apply() {
+                val available = recycler.width - recycler.paddingLeft - recycler.paddingRight
+                if (available <= 0) return
+                val spans = (available / (tileWidthDp * density)).toInt().coerceIn(minSpans, maxSpans)
+                if (spans != layoutManager.spanCount) {
+                    layoutManager.spanCount = spans
+                    layoutManager.spanSizeLookup?.invalidateSpanIndexCache()
+                    onChanged(spans)
+                    recycler.post { recycler.requestLayout() }
+                }
+            }
+            recycler.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+                if (right - left != oldRight - oldLeft) apply()
+            }
+            recycler.post { apply() }
         }
 
         /** Initiales d'une station ou d'une chaîne, quand elle n'a pas de logo. */

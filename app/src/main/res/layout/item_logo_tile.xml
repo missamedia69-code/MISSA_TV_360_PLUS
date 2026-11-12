@@ -92,6 +92,6 @@
         android:lines="2"
         android:maxLines="2"
         android:textColor="?attr/textColor"
-        android:textSize="11sp"
+        android:textSize="12sp"
         tools:text="Radio Balafon 90.3 Douala" />
 </LinearLayout>

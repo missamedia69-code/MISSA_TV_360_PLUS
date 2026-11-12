@@ -89,11 +89,12 @@ class GamesFragment : Fragment() {
             onPrimary = { card -> onPrimaryAction(card) },
             onSecondary = { card -> onSecondaryAction(card) }
         )
-        // Petites tuiles : autant de colonnes que la largeur le permet (environ 130 dp par jeu
-        // sur TV, 110 dp sur téléphone), soit 6 à 7 jeux par rangée sur un téléviseur.
-        val widthDp = resources.configuration.screenWidthDp
-        val spans = (widthDp / (if (tvMode) 130 else 110)).coerceIn(3, 8)
-        recyclerView.layoutManager = MissaAlignedGridLayoutManager(
+        // Petites tuiles : autant de colonnes que la largeur réelle de la grille le permet
+        // (environ 130 dp par jeu sur TV et tablette, 110 dp sur téléphone), recalculé à chaque
+        // changement de taille (retour du jeu en plein écran, rotation).
+        val tileDp = if (tvMode || resources.configuration.smallestScreenWidthDp >= 600) 130 else 110
+        val spans = (resources.configuration.screenWidthDp / tileDp).coerceIn(2, 8)
+        val gridManager = MissaAlignedGridLayoutManager(
             context = requireContext(),
             spanCount = spans,
             trapBottomEdge = true,
@@ -102,6 +103,8 @@ class GamesFragment : Fragment() {
             topBorderEscapeProvider = { filterButtons[selectedSystem] ?: refreshButton },
             instantReveal = true
         )
+        recyclerView.layoutManager = gridManager
+        MissaLogoGridAdapter.bindAdaptiveSpans(recyclerView, gridManager, tileDp, minSpans = 2, maxSpans = 8)
         recyclerView.setHasFixedSize(true)
         recyclerView.itemAnimator = null
         recyclerView.adapter = listAdapter
