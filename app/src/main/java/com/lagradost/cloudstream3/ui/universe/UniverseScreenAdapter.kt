@@ -155,8 +155,9 @@ internal class UniverseHubCardAdapter(
         private fun fitLongestWord(view: TextView, text: String) {
             if (baseTitleSizePx == 0f) baseTitleSizePx = view.textSize
             val res = view.resources
-            val available = res.getDimensionPixelSize(R.dimen.missa_hub_card_width) -
-                itemView.paddingLeft - itemView.paddingRight
+            val cardWidth = itemView.layoutParams?.width?.takeIf { it > 0 }
+                ?: res.getDimensionPixelSize(R.dimen.missa_hub_card_width)
+            val available = cardWidth - itemView.paddingLeft - itemView.paddingRight
             val longest = text.split(Regex("\\s+")).maxByOrNull { it.length }.orEmpty()
             val minPx = 12f * res.displayMetrics.scaledDensity
             var size = baseTitleSizePx
@@ -186,6 +187,22 @@ internal class UniverseHubCardAdapter(
             // Carte étroite : le titre court (« Docs & Live ») quand il existe, et une taille
             // réduite si un mot ne tient pas sur une ligne (grande police du téléphone), au lieu
             // d'un mot coupé en deux (« Docur / ntaires »).
+            // Téléphone et tablette : même largeur que les cartes paysage des rangées, pour
+            // un accueil régulier (sur TV, la taille fixe des dimens).
+            if (!MissaUiFactory.isTvLayoutMode()) {
+                HomeChildItemAdapter.ensurePosterSizeFor(ctx)
+                val w = HomeChildItemAdapter.landscapeWidth
+                // Même hauteur que les cartes paysage, sans descendre sous ce qu'il faut pour
+                // l'icône, le titre et le sous-titre.
+                val minH = (88 * itemView.resources.displayMetrics.density).toInt()
+                val h = maxOf(HomeChildItemAdapter.landscapeHeight, minH)
+                val lp = itemView.layoutParams
+                if (w > 0 && lp != null && (lp.width != w || lp.height != h)) {
+                    lp.width = w
+                    lp.height = h
+                    itemView.layoutParams = lp
+                }
+            }
             val cardTitle = item.definition.shortTitleRes?.let { ctx.getString(it) } ?: titleText
             title.text = cardTitle
             fitLongestWord(title, cardTitle)

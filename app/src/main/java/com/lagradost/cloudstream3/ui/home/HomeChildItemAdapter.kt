@@ -134,16 +134,8 @@ open class HomeChildItemAdapter(
         }
 
     private fun updateCachedPosterSize() {
-        setWidth = if (!isHorizontal) {
-            minPosterSize
-        } else {
-            maxPosterSize
-        }
-        setHeight = if (!isHorizontal) {
-            maxPosterSize
-        } else {
-            minPosterSize
-        }
+        setWidth = if (!isHorizontal) minPosterSize else landscapeWidth
+        setHeight = if (!isHorizontal) maxPosterSize else landscapeHeight
     }
 
     init {
@@ -170,16 +162,59 @@ open class HomeChildItemAdapter(
         val sharedPool =
             newSharedPool { setMaxRecycledViews(CONTENT, 20) }
 
+        /** Affiche portrait (2:3) : largeur et hauteur en pixels. */
         var minPosterSize: Int = 0
         var maxPosterSize: Int = 0
 
+        /** Carte paysage (16:9) : largeur et hauteur en pixels. */
+        var landscapeWidth: Int = 0
+        var landscapeHeight: Int = 0
+
+        /** Largeur d'écran (dp) pour laquelle les tailles ont été calculées. */
+        @Volatile
+        private var sizedForWidthDp: Int = -1
+
+        /**
+         * Tailles des cartes, calculées d'après la largeur de l'écran pour que l'accueil soit
+         * régulier : sur téléphone, environ 3,4 affiches ou 2,3 cartes paysage par largeur
+         * d'écran ; sur tablette, 6,4 et 4,4. Les affiches gardent le rapport 2:3, les cartes
+         * paysage le 16:9 des vignettes vidéo. Sur TV, les tailles d'origine (vues de loin).
+         * Le réglage « taille des affiches » ajoute 10 % par cran.
+         */
         fun updatePosterSize(context: Context, value: Int? = null) {
             val scale = value ?: PreferenceManager.getDefaultSharedPreferences(context)
                 ?.getInt(context.getString(R.string.poster_size_key), 0) ?: 0
             // Scale by +10% per step
             val mul = 1.0f + scale * 0.1f
-            minPosterSize = (114.toPx.toFloat() * mul).toInt()
-            maxPosterSize = (180.toPx.toFloat() * mul).toInt()
+            val config = context.resources.configuration
+            sizedForWidthDp = config.screenWidthDp
+            val density = context.resources.displayMetrics.density
+            val portraitDp: Float
+            val landscapeDp: Float
+            if (isLayout(TV or EMULATOR)) {
+                portraitDp = 114f
+                landscapeDp = 180f
+            } else {
+                val tablet = config.smallestScreenWidthDp >= 600
+                val usable = (config.screenWidthDp - 24).coerceAtLeast(280).toFloat()
+                portraitDp = (usable / (if (tablet) 6.4f else 3.4f)).coerceIn(96f, 150f)
+                landscapeDp = (usable / (if (tablet) 4.4f else 2.3f)).coerceIn(150f, 240f)
+            }
+            minPosterSize = (portraitDp * density * mul).toInt()
+            maxPosterSize = (portraitDp * 1.5f * density * mul).toInt()
+            landscapeWidth = (landscapeDp * density * mul).toInt()
+            landscapeHeight = if (isLayout(TV or EMULATOR)) {
+                (114f * density * mul).toInt()
+            } else {
+                (landscapeDp * 9f / 16f * density * mul).toInt()
+            }
+        }
+
+        /** Recalcule les tailles si la largeur d'écran a changé (rotation, retour du lecteur). */
+        fun ensurePosterSizeFor(context: Context): Boolean {
+            if (minPosterSize > 0 && sizedForWidthDp == context.resources.configuration.screenWidthDp) return false
+            updatePosterSize(context)
+            return true
         }
 
         fun updateLayoutParms(layout: FrameLayout, width: Int, height: Int) {
@@ -202,10 +237,9 @@ open class HomeChildItemAdapter(
     }
 
     protected fun applyBinding(holder: ViewHolderState<Boolean>, isFirstItem: Boolean) {
-        if (minPosterSize <= 0 || maxPosterSize <= 0) {
-            updatePosterSize(holder.itemView.context)
-            updateCachedPosterSize()
-        } else if (setWidth <= 0 || setHeight <= 0) {
+        if (ensurePosterSizeFor(holder.itemView.context) || setWidth <= 0 || setHeight <= 0 ||
+            setWidth != (if (isHorizontal) landscapeWidth else minPosterSize)
+        ) {
             updateCachedPosterSize()
         }
         if (isLayout(TV or EMULATOR) && MainActivity.ANIMATED_OUTLINE) {
