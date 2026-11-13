@@ -71,6 +71,11 @@ La bannière originale de Metal Slug est dans `bannieres/mslug.webp` (portrait 3
 et s'affiche dans la grille des jeux. Un logo horizontal original se trouve dans
 `logos/mslug.webp` ; l'écran Jeux n'a pas de champ logo séparé et ne l'affiche pas.
 
+Neo Bomberman est fourni directement au format `.neo` : `roms/neogeo/neobombe.neo`.
+Son affiche originale est dans `bannieres/neobombe.webp`. L'archive reçue sous un
+nom `.png` n'était pas une image mais un ZIP contenant ce `.neo` ; seule la ROM
+extraite est publiée dans le dépôt.
+
 ## Ajouter un jeu
 
 1. Déposer le jeu dans `roms/neogeo/` (par exemple `roms/neogeo/kof98.neo`).
