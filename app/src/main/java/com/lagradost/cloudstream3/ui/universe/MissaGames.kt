@@ -2,6 +2,8 @@ package com.lagradost.cloudstream3.ui.universe
 
 import android.content.Context
 import android.os.Build
+import android.util.Base64
+import android.util.Log
 import com.lagradost.cloudstream3.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -41,6 +43,9 @@ import kotlin.coroutines.coroutineContext
 object MissaGames {
 
     private const val RAW_MAIN = "raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/"
+    private const val CATALOGUE_ASSET = "game/catalogue.json"
+    private const val REPO = "missamedia69-code/MISSA_TV_360_PLUS"
+    private const val TAG = "MissaGames"
 
     /** Branche d'où viennent les contenus (« main » pour les versions publiées). */
     private val rawBranch: String
@@ -266,30 +271,66 @@ object MissaGames {
     @Volatile
     private var memo: Pair<Long, Catalogue>? = null
 
-    /** Dernier catalogue lu, gardé en mémoire tant que le fichier ne change pas. */
+    /** Le catalogue livré avec l'APK évite qu'une ancienne copie vide masque les jeux publiés. */
+    private fun bundledCatalogue(context: Context): Catalogue? {
+        if (BuildConfig.MISSA_CONTENT_BRANCH != "main") return null
+        return runCatching {
+            context.assets.open(CATALOGUE_ASSET).bufferedReader().use { parseCatalogue(it.readText()) }
+        }.getOrNull()
+    }
+
+    /** Dernier catalogue téléchargé, ou copie embarquée si le cache est absent ou encore vide. */
     fun cachedCatalogue(context: Context): Catalogue? {
         val cache = catalogueCache(context)
-        if (!cache.isFile) return null
+        if (!cache.isFile) return bundledCatalogue(context)
         val stamp = cache.lastModified()
-        memo?.let { (time, cat) -> if (time == stamp) return cat }
-        val parsed = runCatching { parseCatalogue(cache.readText()) }.getOrNull() ?: return null
-        memo = stamp to parsed
-        return parsed
+        val cached = memo?.takeIf { it.first == stamp }?.second ?: runCatching {
+            parseCatalogue(cache.readText())
+        }.getOrNull()?.also { memo = stamp to it }
+        return cached?.takeIf { it.games.isNotEmpty() } ?: bundledCatalogue(context) ?: cached
+    }
+
+    /**
+     * Ne fait pas confiance à un ancien catalogue vide : sur certains réseaux l'adresse raw
+     * renvoie encore cette version après publication. L'API GitHub sert de second accès.
+     */
+    private fun fetchCatalogue(): Pair<String, Catalogue>? {
+        val branch = BuildConfig.MISSA_CONTENT_BRANCH
+        val rawUrl = "$CATALOGUE_URL?t=${System.currentTimeMillis()}"
+        val apiUrl = "https://api.github.com/repos/$REPO/contents/game/catalogue.json?ref=$branch"
+        var empty: Pair<String, Catalogue>? = null
+        for ((url, isApi) in listOf(rawUrl to false, apiUrl to true)) {
+            try {
+                val response = httpGetText(url)
+                val body = if (isApi) {
+                    val content = JSONObject(response).getString("content")
+                    String(Base64.decode(content, Base64.DEFAULT), Charsets.UTF_8)
+                } else response
+                val catalogue = parseCatalogue(body) ?: throw IOException("Invalid catalogue from $url")
+                if (catalogue.games.isNotEmpty()) return body to catalogue
+                empty = body to catalogue
+            } catch (e: Exception) {
+                Log.w(TAG, "Catalogue unavailable from $url", e)
+            }
+        }
+        return empty
     }
 
     /** Relit le catalogue en ligne s'il est trop ancien (ou si [force]) ; garde le cache sinon. */
     suspend fun refreshCatalogue(context: Context, force: Boolean): Catalogue? = withContext(Dispatchers.IO) {
         val cache = catalogueCache(context)
         val fresh = cache.isFile && System.currentTimeMillis() - cache.lastModified() < CATALOGUE_MAX_AGE_MS
-        if (!force && fresh) return@withContext cachedCatalogue(context)
-        val body = runCatching { httpGetText(CATALOGUE_URL) }.getOrNull()
-        val parsed = body?.let { parseCatalogue(it) }
-        if (parsed != null && body != null) {
-            cache.writeText(body)
-            parsed
-        } else {
-            cachedCatalogue(context)
+        val current = cachedCatalogue(context)
+        val diskHasGames = cache.isFile && runCatching {
+            parseCatalogue(cache.readText())?.games?.isNotEmpty() == true
+        }.getOrDefault(false)
+        if (!force && fresh && diskHasGames) return@withContext current
+        val fetched = fetchCatalogue()
+        if (fetched != null) {
+            cache.writeText(fetched.first)
+            memo = cache.lastModified() to fetched.second
         }
+        cachedCatalogue(context)
     }
 
     private fun openConnection(url: String): HttpURLConnection =
@@ -302,6 +343,8 @@ object MissaGames {
 
     private fun httpGetText(url: String): String {
         val conn = openConnection(url)
+        conn.useCaches = false
+        conn.setRequestProperty("Cache-Control", "no-cache")
         try {
             if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
             return conn.inputStream.bufferedReader().use { it.readText() }

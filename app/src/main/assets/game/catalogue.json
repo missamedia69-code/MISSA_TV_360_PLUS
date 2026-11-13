@@ -1,0 +1,79 @@
+{
+  "version": 2,
+  "console": "neogeo",
+  "mode": "mvs",
+  "moteur": {
+    "nom": "Geolith 0.5.0 + LibretroDroid 0.14.0",
+    "version": "geolith-0.5.0_libretrodroid-0.14.0",
+    "licence": "Geolith : BSD-3-Clause (Musashi MIT, Z80 MIT, ymfm BSD-3-Clause) ; LibretroDroid : GPL-3.0",
+    "licences": [
+      "game/licences/geolith-BSD-3-Clause.txt",
+      "game/licences/musashi-MIT.txt",
+      "game/licences/z80-MIT.txt",
+      "game/licences/ymfm-BSD-3-Clause.txt",
+      "game/licences/GPL-3.0.txt"
+    ],
+    "sources": [
+      "game/sources/geolith-libretro-0.5.0-source.zip",
+      "game/sources/libretrodroid-0.14.0-source.zip"
+    ],
+    "abis": {
+      "arm64-v8a": {
+        "path": "game/neogeo/moteur/neogeo-arm64-v8a.zip",
+        "fileName": "neogeo-arm64-v8a.zip",
+        "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/moteur/neogeo-arm64-v8a.zip",
+        "bytes": 763662,
+        "sha256": "46139038182341fcf839881dc5a95b9b1feb0456561ee842dfcecf91cd54b446"
+      },
+      "armeabi-v7a": {
+        "path": "game/neogeo/moteur/neogeo-armeabi-v7a.zip",
+        "fileName": "neogeo-armeabi-v7a.zip",
+        "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/moteur/neogeo-armeabi-v7a.zip",
+        "bytes": 639270,
+        "sha256": "66dad07e7ecad1b5df7cb11c2f08753ede688e934b14a9426ad7c6fd6f7a01a9"
+      },
+      "x86_64": {
+        "path": "game/neogeo/moteur/neogeo-x86_64.zip",
+        "fileName": "neogeo-x86_64.zip",
+        "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/moteur/neogeo-x86_64.zip",
+        "bytes": 825301,
+        "sha256": "7d7010d67059eaf568350bfcf0df2a2cd564212d48879235eff41892931067f2"
+      },
+      "x86": {
+        "path": "game/neogeo/moteur/neogeo-x86.zip",
+        "fileName": "neogeo-x86.zip",
+        "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/moteur/neogeo-x86.zip",
+        "bytes": 828990,
+        "sha256": "e2e15fae7ac793d9ea9c4764c1a5e601e87f39830634bc90fbdcc71dc596c073"
+      }
+    }
+  },
+  "bios": [
+    {
+      "path": "game/neogeo/bios/neogeo.zip",
+      "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
+      "fileName": "neogeo.zip",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/bios/neogeo.zip",
+      "bytes": 1950045,
+      "sha256": "36a47cf50a585cafc812e19ef7646ad1556a5de90440d9dcb06f373926cd68ea"
+    }
+  ],
+  "jeux": [
+    {
+      "id": "mslug",
+      "title": "Metal Slug - Super Vehicle-001",
+      "genre": "Action / plateforme",
+      "author": "Nazca",
+      "players": "1-2",
+      "description": "Jeu d'action arcade Neo Geo de 1996, jouable en solo ou à deux.",
+      "path": "game/roms/neogeo/mslug.neo",
+      "banner": "game/bannieres/mslug.webp",
+      "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
+      "fileName": "mslug.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/mslug.neo",
+      "bytes": 27529216,
+      "sha256": "073dc44f1d0523c4a1ab1e684f85549f1c9a9ee5c892e98063e2ea633efad2f7",
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug.webp"
+    }
+  ]
+}
