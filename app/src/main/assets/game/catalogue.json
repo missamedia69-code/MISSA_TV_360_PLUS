@@ -74,6 +74,22 @@
       "bytes": 27529216,
       "sha256": "073dc44f1d0523c4a1ab1e684f85549f1c9a9ee5c892e98063e2ea633efad2f7",
       "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug.webp"
+    },
+    {
+      "id": "neobombe",
+      "title": "Neo Bomberman",
+      "genre": "Action / labyrinthe",
+      "author": "Hudson Soft",
+      "players": "1-2",
+      "description": "Jeu d'action et de labyrinthes Neo Geo de 1997, jouable en solo ou à deux.",
+      "path": "game/roms/neogeo/neobombe.neo",
+      "banner": "game/bannieres/neobombe.webp",
+      "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
+      "fileName": "neobombe.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/neobombe.neo",
+      "bytes": 17043456,
+      "sha256": "a976248d059c437656a1101e3dd3e0c63308e05f1fa24fb2c01f2855dbddd1a2",
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/neobombe.webp"
     }
   ]
 }
