@@ -1,6 +1,8 @@
 package com.lagradost.cloudstream3.ui.universe
 
 import android.content.Context
+import android.os.Build
+import com.lagradost.cloudstream3.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -17,82 +19,94 @@ import java.util.zip.ZipInputStream
 import kotlin.coroutines.coroutineContext
 
 /**
- * Univers Jeux : catalogue et installation à la demande.
+ * Univers Jeux : jeux **Neo Geo**, catalogue et installation à la demande.
  *
- * Rien n'est embarqué dans l'APK. Le catalogue `game/catalogue.json` du dépôt décrit :
- *  - le **moteur** (EmulatorJS + lanceur.html), téléchargé une seule fois ;
- *  - un **émulateur** par console, téléchargé la première fois qu'un jeu de cette console
- *    est installé ;
- *  - les **jeux**.
- * Chaque fichier est vérifié par son SHA-256 avant d'être utilisé, puis le jeu tourne hors
- * ligne dans [GamePlayerActivity].
+ * Rien de l'émulateur n'est dans l'APK. Le catalogue `game/catalogue.json` du dépôt décrit :
+ *  - le **moteur** Neo Geo, un paquet par architecture (Geolith + LibretroDroid, ~0,7 Mo),
+ *    téléchargé une seule fois, la première fois qu'un jeu est lancé ;
+ *  - le **BIOS** Neo Geo (neogeo.zip en mode MVS, aes.zip en mode AES), une seule fois ;
+ *  - les **jeux** (.neo) et leur bannière, affichée avant tout téléchargement.
+ * Chaque fichier est vérifié par son SHA-256 avant d'être utilisé ; le moteur est ensuite
+ * rendu non modifiable puis chargé par [NeoGeoPlayerActivity].
  *
  * Organisation sur l'appareil (filesDir/missa-games) :
  * ```
- * ejs/lanceur.html, ejs/data/...        moteur + cœurs dézippés (servis à la WebView)
- * ejs/.moteur, ejs/.emu-<console>       empreinte du paquet installé
- * roms/<console>/<fichier>              jeux
- * catalogue.json                        dernier catalogue lu
+ * neogeo/moteur/<abi>/liblibretrodroid.so, libgeolith.so, .version
+ * neogeo/bios/neogeo.zip | aes.zip
+ * neogeo/saves/<jeu>.srm                 sauvegardes
+ * roms/neogeo/<fichier>.neo              jeux
+ * catalogue.json                         dernier catalogue lu
  * ```
  */
 object MissaGames {
 
-    const val CATALOGUE_URL =
-        "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/catalogue.json"
+    private const val RAW_MAIN = "raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/"
 
-    /** Le catalogue est relu au plus toutes les 12 heures, ou à la demande. */
-    private const val CATALOGUE_MAX_AGE_MS = 12L * 3600_000L
-    private const val MAX_DOWNLOAD_BYTES = 64L * 1024L * 1024L
+    /** Branche d'où viennent les contenus (« main » pour les versions publiées). */
+    private val rawBranch: String
+        get() = RAW_MAIN.removeSuffix("main/") + BuildConfig.MISSA_CONTENT_BRANCH + "/"
+
+    val CATALOGUE_URL: String
+        get() = "https://${rawBranch}game/catalogue.json"
+
+    /** Relu à chaque démarrage (MainActivity) et, en ouvrant l'univers, s'il a plus d'une heure. */
+    private const val CATALOGUE_MAX_AGE_MS = 3600_000L
+    /** Les plus gros jeux Neo Geo font environ 120 Mo au format .neo. */
+    private const val MAX_DOWNLOAD_BYTES = 160L * 1024L * 1024L
     private const val USER_AGENT = "MISSA-TV-360"
+
+    const val SYSTEM = "neogeo"
+    const val CORE_LIB = "libgeolith.so"
+    const val FRONTEND_LIB = "liblibretrodroid.so"
 
     // ----------------------------------------------------------------------------- Modèle
 
-    data class Package(
-        val url: String,
-        val sha256: String,
-        val bytes: Long
-    )
+    data class Package(val url: String, val sha256: String, val bytes: Long)
 
-    data class Emulator(
-        val system: String,
-        val label: String,
-        val core: String,
-        val pkg: Package,
-        val licence: String
-    )
+    data class BiosFile(val fileName: String, val pkg: Package, val licence: String)
+
+    data class Engine(val abi: String, val version: String, val pkg: Package, val licence: String)
 
     data class Game(
         val id: String,
         val title: String,
-        val system: String,
-        val platformLabel: String,
         val genre: String,
         val author: String,
         val description: String,
         val fileName: String,
         val pkg: Package,
         val licence: String,
-        val sourceUrl: String,
-        /** Pochette (HTTPS), ou null : la carte garde alors l'icône manette. */
-        val coverUrl: String? = null
-    )
+        /** Bannière (HTTPS) affichée avant le téléchargement, ou null. */
+        val coverUrl: String? = null,
+        val players: String = ""
+    ) {
+        val system: String get() = SYSTEM
+        val platformLabel: String get() = "Neo Geo"
+    }
 
     data class Catalogue(
-        val engineVersion: String,
-        val engine: Package,
-        val emulators: Map<String, Emulator>,
+        /** Moteur par architecture (arm64-v8a, armeabi-v7a, x86_64, x86). */
+        val engines: Map<String, Engine>,
+        val bios: List<BiosFile>,
+        /** « mvs » (arcade, neogeo.zip) ou « aes » (console, aes.zip). */
+        val mode: String,
         val games: List<Game>
     ) {
-        fun emulatorFor(game: Game): Emulator? = emulators[game.system]
+        /** Moteur adapté à cet appareil : la première architecture qu'il sait exécuter. */
+        fun engineForDevice(abis: Array<String> = Build.SUPPORTED_ABIS): Engine? =
+            abis.firstNotNullOfOrNull { engines[it] }
+
+        /** BIOS attendu par le mode choisi. */
+        val requiredBiosName: String get() = if (mode == "aes") "aes.zip" else "neogeo.zip"
+
+        val requiredBios: BiosFile? get() = bios.firstOrNull { it.fileName == requiredBiosName }
     }
 
     /** Ce qu'il reste à télécharger pour pouvoir lancer un jeu. */
-    data class InstallPlan(
-        val engine: Boolean,
-        val emulator: Emulator?,
-        val game: Boolean
-    ) {
-        val isEmpty: Boolean get() = !engine && emulator == null && !game
+    data class InstallPlan(val engine: Engine?, val bios: BiosFile?, val game: Boolean) {
+        val isEmpty: Boolean get() = engine == null && bios == null && !game
+        fun bytes(game: Game): Long =
+            (engine?.pkg?.bytes ?: 0L) + (bios?.pkg?.bytes ?: 0L) + (if (this.game) game.pkg.bytes else 0L)
     }
 
     data class Progress(val doneBytes: Long, val totalBytes: Long, val step: Step) {
@@ -100,7 +114,7 @@ object MissaGames {
             get() = if (totalBytes > 0) ((doneBytes * 100) / totalBytes).toInt().coerceIn(0, 100) else 0
     }
 
-    enum class Step { ENGINE, EMULATOR, GAME }
+    enum class Step { ENGINE, BIOS, GAME }
 
     // -------------------------------------------------------------------- Lecture (pure)
 
@@ -128,118 +142,122 @@ object MissaGames {
     }
 
     /**
-     * Lit le catalogue. Toute entrée incomplète, sans empreinte ou dont l'adresse n'est pas en
-     * HTTPS est ignorée : mieux vaut un jeu absent qu'un fichier impossible à vérifier.
+     * Lit le catalogue (version 2, Neo Geo). Toute entrée incomplète, sans empreinte ou dont
+     * l'adresse n'est pas en HTTPS est ignorée : mieux vaut un jeu absent qu'un fichier
+     * impossible à vérifier.
      */
     fun parseCatalogue(json: String): Catalogue? {
-        val root = runCatching { JSONObject(json) }.getOrNull() ?: return null
-        val engineObj = root.optJSONObject("moteur")
-        val engine = parsePackage(engineObj) ?: return null
+        // Version d'essai lue sur une autre branche : les fichiers viennent de cette branche.
+        val text = if (rawBranch != RAW_MAIN) json.replace(RAW_MAIN, rawBranch) else json
+        val root = runCatching { JSONObject(text) }.getOrNull() ?: return null
+        if (root.optString("console", SYSTEM) != SYSTEM) return null
 
-        val emulators = LinkedHashMap<String, Emulator>()
-        val emuArr = root.optJSONArray("emulateurs")
-        if (emuArr != null) {
-            for (i in 0 until emuArr.length()) {
-                val o = emuArr.optJSONObject(i) ?: continue
-                val system = o.optString("system").trim().lowercase(Locale.ROOT)
-                val core = o.optString("core").trim()
+        val engineObj = root.optJSONObject("moteur") ?: return null
+        val version = engineObj.optString("version")
+        val licence = engineObj.optString("licence")
+        val engines = LinkedHashMap<String, Engine>()
+        engineObj.optJSONObject("abis")?.let { abis ->
+            for (abi in abis.keys()) {
+                val pkg = parsePackage(abis.optJSONObject(abi)) ?: continue
+                engines[abi] = Engine(abi, version, pkg, licence)
+            }
+        }
+        if (engines.isEmpty()) return null
+
+        val bios = ArrayList<BiosFile>()
+        root.optJSONArray("bios")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val name = safeFileName(o.optString("fileName")) ?: continue
+                if (name != "neogeo.zip" && name != "aes.zip") continue
                 val pkg = parsePackage(o) ?: continue
-                if (system.isBlank() || !core.matches(Regex("[a-z0-9_]+"))) continue
-                emulators[system] = Emulator(
-                    system = system,
-                    label = o.optString("label", system.uppercase(Locale.ROOT)),
-                    core = core,
-                    pkg = pkg,
-                    licence = o.optString("licence")
-                )
+                bios.add(BiosFile(name, pkg, o.optString("licence")))
             }
         }
 
         val games = ArrayList<Game>()
         val seen = HashSet<String>()
-        val gameArr = root.optJSONArray("jeux")
-        if (gameArr != null) {
-            for (i in 0 until gameArr.length()) {
-                val o = gameArr.optJSONObject(i) ?: continue
+        root.optJSONArray("jeux")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
                 val id = o.optString("id").trim()
-                val system = o.optString("system").trim().lowercase(Locale.ROOT)
                 val pkg = parsePackage(o) ?: continue
                 val fileName = safeFileName(o.optString("fileName")) ?: continue
-                if (id.isBlank() || !seen.add(id) || system !in emulators) continue
+                if (id.isBlank() || !seen.add(id) || !fileName.endsWith(".neo", ignoreCase = true)) continue
                 games.add(
                     Game(
                         id = id,
                         title = o.optString("title", fileName),
-                        system = system,
-                        platformLabel = o.optString("platformLabel", emulators[system]?.label ?: system),
                         genre = o.optString("genre"),
                         author = o.optString("author"),
                         description = o.optString("description"),
                         fileName = fileName,
                         pkg = pkg,
                         licence = o.optString("licence"),
-                        sourceUrl = o.optString("sourceUrl"),
-                        coverUrl = o.optString("coverUrl").trim().takeIf { it.startsWith("https://") }
+                        coverUrl = (o.optString("bannerUrl").ifBlank { o.optString("coverUrl") })
+                            .trim().takeIf { it.startsWith("https://") },
+                        players = o.optString("players")
                     )
                 )
             }
         }
-        return Catalogue(
-            engineVersion = engineObj?.optString("version").orEmpty(),
-            engine = engine,
-            emulators = emulators,
-            games = games
-        )
+        val mode = root.optString("mode", "mvs").lowercase(Locale.ROOT).takeIf { it == "aes" } ?: "mvs"
+        return Catalogue(engines, bios, mode, games)
     }
 
     // ------------------------------------------------------------------ Fichiers locaux
 
     fun rootDir(context: Context): File = File(context.filesDir, "missa-games").apply { mkdirs() }
-    fun engineDir(context: Context): File = File(rootDir(context), "ejs")
-    private fun romsDir(context: Context, system: String): File =
-        File(File(rootDir(context), "roms"), system).apply { mkdirs() }
+    private fun neoGeoDir(context: Context): File = File(rootDir(context), "neogeo")
+    fun engineDir(context: Context, abi: String): File = File(File(neoGeoDir(context), "moteur"), abi)
+    fun biosDir(context: Context): File = File(neoGeoDir(context), "bios").apply { mkdirs() }
+    fun savesDir(context: Context): File = File(neoGeoDir(context), "saves").apply { mkdirs() }
+    private fun romsDir(context: Context): File = File(File(rootDir(context), "roms"), SYSTEM).apply { mkdirs() }
     private fun catalogueCache(context: Context): File = File(rootDir(context), "catalogue.json")
-    private fun engineMarker(context: Context): File = File(engineDir(context), ".moteur")
-    private fun emulatorMarker(context: Context, system: String): File =
-        File(engineDir(context), ".emu-$system")
+    private fun engineMarker(context: Context, abi: String): File = File(engineDir(context, abi), ".version")
 
-    fun gameFile(context: Context, game: Game): File = File(romsDir(context, game.system), game.fileName)
-
-    /** Chemin du jeu tel que la WebView le demande, relatif à la racine servie. */
-    fun gameWebPath(game: Game): String = "roms/${game.system}/${game.fileName}"
+    fun gameFile(context: Context, game: Game): File = File(romsDir(context), game.fileName)
+    fun biosFile(context: Context, bios: BiosFile): File = File(biosDir(context), bios.fileName)
+    fun coreFile(context: Context, engine: Engine): File = File(engineDir(context, engine.abi), CORE_LIB)
+    fun frontendFile(context: Context, engine: Engine): File = File(engineDir(context, engine.abi), FRONTEND_LIB)
 
     private fun markerMatches(marker: File, sha: String): Boolean =
         marker.isFile && runCatching { marker.readText().trim() }.getOrNull() == sha
 
-    fun isEngineInstalled(context: Context, catalogue: Catalogue): Boolean =
-        markerMatches(engineMarker(context), catalogue.engine.sha256) &&
-            File(engineDir(context), "lanceur.html").isFile
+    fun isEngineInstalled(context: Context, engine: Engine): Boolean =
+        markerMatches(engineMarker(context, engine.abi), engine.pkg.sha256) &&
+            coreFile(context, engine).isFile && frontendFile(context, engine).isFile
 
-    fun isEmulatorInstalled(context: Context, emulator: Emulator): Boolean =
-        markerMatches(emulatorMarker(context, emulator.system), emulator.pkg.sha256)
+    fun isBiosInstalled(context: Context, bios: BiosFile): Boolean {
+        val file = biosFile(context, bios)
+        return file.isFile && file.length() == bios.pkg.bytes
+    }
 
-    /** Un jeu est prêt s'il est présent, entier, et que son moteur et son émulateur le sont. */
-    fun isGameInstalled(context: Context, catalogue: Catalogue, game: Game): Boolean {
+    private fun isGameFilePresent(context: Context, game: Game): Boolean {
         val file = gameFile(context, game)
-        val emulator = catalogue.emulatorFor(game) ?: return false
-        return file.isFile && file.length() == game.pkg.bytes &&
-            isEmulatorInstalled(context, emulator) && isEngineInstalled(context, catalogue)
+        return file.isFile && file.length() == game.pkg.bytes
+    }
+
+    /** Un jeu est prêt si lui, le moteur de l'appareil et le BIOS sont présents et entiers. */
+    fun isGameInstalled(context: Context, catalogue: Catalogue, game: Game): Boolean {
+        val engine = catalogue.engineForDevice() ?: return false
+        val bios = catalogue.requiredBios ?: return false
+        return isGameFilePresent(context, game) && isEngineInstalled(context, engine) &&
+            isBiosInstalled(context, bios)
     }
 
     fun planInstall(context: Context, catalogue: Catalogue, game: Game): InstallPlan {
-        val emulator = catalogue.emulatorFor(game)
-        val file = gameFile(context, game)
-        val engineNeeded = !isEngineInstalled(context, catalogue)
+        val engine = catalogue.engineForDevice()
+        val bios = catalogue.requiredBios
         return InstallPlan(
-            engine = engineNeeded,
-            // Un nouveau moteur remplace le dossier entier : l'émulateur doit être redéployé.
-            emulator = emulator?.takeIf { engineNeeded || !isEmulatorInstalled(context, it) },
-            game = !(file.isFile && file.length() == game.pkg.bytes)
+            engine = engine?.takeIf { !isEngineInstalled(context, it) },
+            bios = bios?.takeIf { !isBiosInstalled(context, it) },
+            game = !isGameFilePresent(context, game)
         )
     }
 
     fun installedBytes(context: Context, catalogue: Catalogue): Long =
-        catalogue.games.filter { isGameInstalled(context, catalogue, it) }.sumOf { it.pkg.bytes }
+        catalogue.games.filter { isGameFilePresent(context, it) }.sumOf { it.pkg.bytes }
 
     fun deleteGame(context: Context, game: Game): Boolean = gameFile(context, game).delete()
 
@@ -295,10 +313,9 @@ object MissaGames {
     // ------------------------------------------------------------------- Installation
 
     /**
-     * Installe tout ce qu'il manque pour [game], dans l'ordre : moteur, émulateur, jeu.
-     * [onProgress] reçoit l'avancement global (octets cumulés des trois étapes).
-     * Lève une exception si un téléchargement échoue ou si une empreinte ne correspond pas ;
-     * rien de partiel n'est alors considéré comme installé.
+     * Installe tout ce qu'il manque pour [game], dans l'ordre : moteur, BIOS, jeu.
+     * [onProgress] reçoit l'avancement global. Lève une exception si un téléchargement échoue
+     * ou si une empreinte ne correspond pas : rien de partiel n'est considéré comme installé.
      */
     suspend fun install(
         context: Context,
@@ -306,33 +323,37 @@ object MissaGames {
         game: Game,
         onProgress: (Progress) -> Unit
     ) = withContext(Dispatchers.IO) {
+        if (catalogue.engineForDevice() == null) throw IOException("No Neo Geo engine for ${Build.SUPPORTED_ABIS.joinToString()}")
+        if (catalogue.requiredBios == null) throw IOException("Neo Geo BIOS missing from catalogue")
         val plan = planInstall(context, catalogue, game)
-        val total = (if (plan.engine) catalogue.engine.bytes else 0L) +
-            (plan.emulator?.pkg?.bytes ?: 0L) +
-            (if (plan.game) game.pkg.bytes else 0L)
+        val total = plan.bytes(game)
         var done = 0L
         val tmp = File(rootDir(context), "tmp").apply { mkdirs() }
 
-        if (plan.engine) {
-            val zip = File(tmp, "moteur.zip")
-            download(catalogue.engine, zip) { n -> onProgress(Progress(done + n, total, Step.ENGINE)) }
-            // Le moteur remplace l'ancien : les cœurs devront être redéployés par-dessus.
-            val dir = engineDir(context)
-            dir.deleteRecursively()
+        plan.engine?.let { engine ->
+            val zip = File(tmp, "moteur-${engine.abi}.zip")
+            download(engine.pkg, zip) { n -> onProgress(Progress(done + n, total, Step.ENGINE)) }
+            val dir = engineDir(context, engine.abi)
+            // Un fichier non modifiable ne peut pas être écrasé : on repart d'un dossier vide.
+            dir.listFiles()?.forEach { it.setWritable(true); it.delete() }
             dir.mkdirs()
             unzipSafely(zip, dir)
             zip.delete()
-            engineMarker(context).writeText(catalogue.engine.sha256)
-            done += catalogue.engine.bytes
+            // Android 14 et plus : un code chargé dynamiquement doit être en lecture seule.
+            listOf(coreFile(context, engine), frontendFile(context, engine)).forEach {
+                if (!it.isFile) throw IOException("Engine package incomplete: ${it.name}")
+                it.setReadOnly()
+            }
+            engineMarker(context, engine.abi).writeText(engine.pkg.sha256)
+            done += engine.pkg.bytes
         }
-        val emulator = catalogue.emulatorFor(game) ?: throw IOException("No emulator for ${game.system}")
-        if (plan.emulator != null) {
-            val zip = File(tmp, "emu-${emulator.system}.zip")
-            download(emulator.pkg, zip) { n -> onProgress(Progress(done + n, total, Step.EMULATOR)) }
-            unzipSafely(zip, engineDir(context))
-            zip.delete()
-            emulatorMarker(context, emulator.system).writeText(emulator.pkg.sha256)
-            done += emulator.pkg.bytes
+        plan.bios?.let { bios ->
+            val target = biosFile(context, bios)
+            val part = File(target.parentFile, target.name + ".part")
+            download(bios.pkg, part) { n -> onProgress(Progress(done + n, total, Step.BIOS)) }
+            if (target.exists()) target.delete()
+            if (!part.renameTo(target)) throw IOException("Could not finalize ${target.name}")
+            done += bios.pkg.bytes
         }
         if (plan.game) {
             val target = gameFile(context, game)

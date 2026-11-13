@@ -67,3 +67,10 @@
 # --- Lisibilite des rapports d'erreur ---
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# --- Univers Jeux (Neo Geo) : LibretroDroid est appelé depuis sa bibliothèque native
+#     (JNI : noms de classes, de méthodes et de champs fixes) et utilise @OnLifecycleEvent. ---
+-keep class com.swordfish.libretrodroid.** { *; }
+-keepclassmembers class * {
+    @androidx.lifecycle.OnLifecycleEvent *;
+}

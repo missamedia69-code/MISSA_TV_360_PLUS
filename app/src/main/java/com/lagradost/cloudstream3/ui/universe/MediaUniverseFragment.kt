@@ -289,6 +289,13 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             }
         }
 
+        // Documentaires & Live (100 % YouTube) : on redessine quand le catalogue arrive.
+        DirectDocsPlayerManager.videosUpdated.observe(viewLifecycleOwner) {
+            if (universeId == "documentaries") {
+                renderScreen()
+            }
+        }
+
         // Re-render when the per-launch rotated Kids catalogue arrives from YouTube (KIDS-01).
         DirectKidsPlayerManager.videosUpdated.observe(viewLifecycleOwner) {
             if (universeId == "kids" || universeId == "home") {
@@ -963,7 +970,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
 
         // 3. Build modular RecyclerView list items (HOME-01, HOME-02, HOME-05, HOME-06, HOME-07)
         val items = ArrayList<UniverseListItem>()
-        val dataSaver = MissaUiFactory.isDataSaverActive(ctx)
+        // Appareil léger : carrousel immobile et vignettes réduites, comme l'économiseur.
+        val dataSaver = MissaUiFactory.isDataSaverActive(ctx) || MissaDeviceProfile.isLowRam(ctx)
 
         // PODCASTS-03 : le lecteur audio n'apparaît dans l'univers Podcasts que lorsqu'un podcast
         // est en cours. Il laisse alors voir les épisodes de l'émission ouverte, exactement comme
@@ -1216,6 +1224,8 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                 searchProgressText?.text = getString(R.string.missa_searching_music_youtube, trimmed)
             } else if (universeId == "kids") {
                 searchProgressText?.text = getString(R.string.missa_searching_kids_youtube, trimmed)
+            } else if (universeId == "documentaries") {
+                searchProgressText?.text = getString(R.string.missa_searching_docs_youtube, trimmed)
             }
             try {
                 val results = coroutineScope {
@@ -1234,13 +1244,18 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     } else {
                         null
                     }
+                    val docsJob = if (universeId == "documentaries") {
+                        async { DirectDocsPlayerManager.searchVideosOnline(trimmed) }
+                    } else {
+                        null
+                    }
                     val podcastJob = if (universeId == "podcasts" || universeId == "home") {
                         async { DirectPodcastPlayerManager.searchShowsOnline(trimmed) }
                     } else {
                         null
                     }
                     val pluginResults = if (universeId == "music" || universeId == "radio" ||
-                        universeId == "kids" || universeId == "podcasts"
+                        universeId == "kids" || universeId == "podcasts" || universeId == "documentaries"
                     ) {
                         emptyList()
                     } else {
@@ -1260,6 +1275,7 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
                     radioJob?.await()
                     musicJob?.await()
                     kidsJob?.await()
+                    docsJob?.await()
                     podcastJob?.await()
                     pluginResults
                 }
@@ -1573,6 +1589,9 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             }
             if (universeId == "kids") {
                 DirectKidsPlayerManager.forceRefreshCatalog()
+            }
+            if (universeId == "documentaries") {
+                DirectDocsPlayerManager.forceRefreshCatalog()
             }
             viewModel.ensureCatalogLoaded(forceReload = true)
             if (universeId == "music") {

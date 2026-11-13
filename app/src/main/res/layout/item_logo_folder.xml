@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tuile « dossier » (un pays, un thème, un groupe de chaînes) : un badge, le nom, le nombre. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="3dp"
+    android:background="@drawable/missa_universe_card_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:minHeight="52dp"
+    android:orientation="horizontal"
+    android:paddingStart="8dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="6dp">
+
+    <FrameLayout
+        android:layout_width="40dp"
+        android:layout_height="28dp"
+        android:background="@drawable/missa_radio_logo_tile">
+
+        <ImageView
+            android:id="@+id/logo_folder_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/logo_folder_badge"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:importantForAccessibility="no"
+            android:maxLines="1"
+            android:textColor="?attr/missaAccentPrimary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            tools:text="CM" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/logo_folder_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/textColor"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            tools:text="Cameroun" />
+
+        <TextView
+            android:id="@+id/logo_folder_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/grayTextColor"
+            android:textSize="11sp"
+            tools:text="52 stations" />
+    </LinearLayout>
+</LinearLayout>

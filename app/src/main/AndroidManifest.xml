@@ -157,7 +157,6 @@
 
         Not exported to prevent bypassing the AccountSelectActivity
         -->
-        <!-- Univers Jeux : écran de jeu plein écran (WebView sur les fichiers locaux) -->
         <activity
             android:name=".ui.activation.MissaActivationActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
@@ -165,8 +164,9 @@
             android:launchMode="singleTop"
             android:theme="@style/AppTheme" />
 
+        <!-- Univers Jeux : écran de jeu Neo Geo (moteur natif Geolith via LibretroDroid) -->
         <activity
-            android:name=".ui.universe.GamePlayerActivity"
+            android:name=".ui.universe.NeoGeoPlayerActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
             android:exported="false"
             android:screenOrientation="sensorLandscape"

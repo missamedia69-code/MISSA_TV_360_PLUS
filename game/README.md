@@ -1,45 +1,123 @@
-# Univers Jeux de MISSA TV
+# Univers Jeux de MISSA TV : Neo Geo
 
-Ce dossier contient tout ce que l'univers Jeux télécharge **à la demande** : l'application
-reste légère. Rien n'est inclus dans l'APK.
+L'univers Jeux de MISSA TV propose des jeux **Neo Geo**. Rien de l'émulateur n'est dans
+l'APK : tout est dans ce dossier et téléchargé à la demande.
 
 ## Comment l'application s'en sert
 
-1. Elle lit `game/catalogue.json` sur la branche `main`.
-2. Quand l'utilisateur choisit un jeu, elle télécharge, si ce n'est pas déjà fait :
-   - le **moteur** d'émulation (`moteur/`, une seule fois, environ 200 Ko) ;
-   - l'**émulateur** de la console du jeu (`emulateurs/`, une fois par console, environ 2 Mo) ;
-   - le **jeu** (`roms/`).
-3. Chaque fichier est vérifié par son empreinte SHA-256, puis rangé sur l'appareil.
-   Le jeu se lance ensuite **hors ligne**, dans un écran plein écran de l'application.
+1. À **chaque démarrage**, elle lit `game/catalogue.json` sur la branche `main` : les
+   bannières des jeux s'affichent tout de suite dans l'univers Jeux.
+2. Quand l'utilisateur touche un jeu, elle télécharge ce qui manque, une seule fois :
+   - le **moteur Neo Geo** de son processeur (`neogeo/moteur/`, environ 0,7 Mo) ;
+   - le **BIOS Neo Geo** (`neogeo/bios/`) ;
+   - le **jeu** (`roms/neogeo/`, fichier `.neo`).
+3. Chaque fichier est vérifié par son empreinte SHA-256. Le jeu se lance ensuite **hors
+   ligne**, en plein écran, avec la manette, la télécommande ou la manette tactile.
 
-## Contenu
+## Le moteur
 
-Le catalogue est **vide** : l'univers Jeux a été remis à zéro pour accueillir les futurs
-jeux de MISSA TV. L'écran Jeux et le lecteur de l'application restent en place.
+| Élément | Version | Licence | Rôle |
+|---|---|---|---|
+| [Geolith](https://gitlab.com/jgemu/geolith) (port libretro) | 0.5.0 | BSD-3-Clause | émulation Neo Geo AES/MVS, 100 % de la ludothèque |
+| [LibretroDroid](https://github.com/Swordfish90/LibretroDroid) | 0.14.0 | GPL-3.0 | affichage OpenGL, son, manettes |
 
-| Dossier | Contenu |
-|---|---|
-| `moteur/` | EmulatorJS 4.2.3 (GPL-3.0) et `lanceur.html`, la page qui démarre un jeu |
-| `licences/` | le texte de chaque licence |
-| `sources/` | le code source exact des éléments sous GPL |
-| `outils/catalogue.py` | met à jour et vérifie `catalogue.json` |
+Geolith est l'un des rares émulateurs Neo Geo dont la licence **autorise l'usage
+commercial**. FinalBurn Neo et MAME l'interdisent (« you may not sell… »), ils ne peuvent
+donc pas être utilisés dans MISSA TV.
 
-Pour ajouter un jeu sur console, il faudra remettre l'émulateur correspondant dans
-`emulateurs/` (consoles possibles : `nes`, `gb`, `gba` ; jamais Snes9x, Genesis Plus GX
-ou PicoDrive, interdits en usage commercial).
+Le moteur est natif (pas de WebView) : c'est ce qui lui permet de tourner sur les petits
+téléviseurs. Un paquet par architecture : `arm64-v8a` et `armeabi-v7a` (téléviseurs,
+box, téléphones), `x86_64` et `x86`. Chaque paquet contient `libgeolith.so` (cœur officiel
+du serveur de compilation libretro) et `liblibretrodroid.so` (bibliothèque publiée sur
+JitPack), sans modification. La partie Java de LibretroDroid est intégrée à l'application
+(`app/src/main/java/com/swordfish/libretrodroid`), avec une seule modification : la
+bibliothèque native est chargée depuis le paquet téléchargé.
 
-**Aucune ROM commerciale** (Nintendo, Sega, Konami, SNK…), même ancienne.
+Les textes de licence sont dans `licences/` et le code source exact dans `sources/`.
+
+## Ce que vous devez fournir
+
+### 1. Le BIOS (obligatoire)
+
+Une Neo Geo ne démarre pas sans son BIOS, qui appartient à SNK. **Il doit faire partie
+de votre accord de licence** avec l'ayant droit, au même titre que les jeux.
+
+- Mode arcade (`"mode": "mvs"`, par défaut) : `neogeo/bios/neogeo.zip` (jeu de BIOS MAME
+  récent) ;
+- mode console (`"mode": "aes"`) : `neogeo/bios/aes.zip`.
+
+Déclarez-le dans la liste `bios` du catalogue :
+
+```json
+"bios": [
+  { "path": "game/neogeo/bios/neogeo.zip", "licence": "Contrat SNK n° ... du ..." }
+]
+```
+
+Tant que le BIOS n'est pas publié, l'application affiche les jeux mais annonce qu'ils
+arrivent bientôt.
+
+### 2. Les jeux (format `.neo`)
+
+Geolith lit uniquement le format **`.neo`** (TerraOnion). Si votre fournisseur livre des
+fichiers MAME (`.zip`), convertissez-les avec l'outil libre
+[lithogen](https://github.com/carmiker/lithogen) ou NeoBuilder.
 
 ## Ajouter un jeu
 
-1. **Vérifier la licence** : elle doit autoriser la redistribution **sans clause
-   « non commerciale »** (GPL, MIT, Zlib, BSD, CC0, CC BY, CC BY-SA), ou vous devez avoir
-   un accord écrit de l'auteur.
-2. Déposer la ROM dans `roms/<console>/`, sa licence dans `licences/` et, pour un jeu
-   GPL, l'archive de ses sources dans `sources/`.
-3. Ajouter une entrée dans la liste `jeux` de `catalogue.json` (copier une entrée existante).
-   Consoles possibles : `nes`, `gb`, `gba`.
+1. Déposer le jeu dans `roms/neogeo/` (par exemple `roms/neogeo/kof98.neo`).
+2. Déposer sa bannière dans `bannieres/` : image **portrait 3:4**, par exemple
+   600 × 800 pixels, en WebP ou JPEG (moins de 200 Ko).
+3. Ajouter une entrée dans la liste `jeux` de `catalogue.json` :
+
+   ```json
+   {
+     "id": "kof98",
+     "title": "The King of Fighters '98",
+     "genre": "Combat",
+     "author": "SNK",
+     "players": "1-2",
+     "description": "Le grand classique du combat en équipes de trois.",
+     "path": "game/roms/neogeo/kof98.neo",
+     "banner": "game/bannieres/kof98.webp",
+     "licence": "Contrat ... du ... (diffusion commerciale autorisée)"
+   }
+   ```
+
 4. Lancer `python3 game/outils/catalogue.py` : il remplit la taille, l'empreinte et les
-   liens, et signale les erreurs.
-5. Fusionner sur `main` : le jeu apparaît dans l'application au prochain rafraîchissement.
+   liens, et refuse un jeu qui n'est pas un vrai `.neo`, sans licence, ou sans le BIOS du
+   mode choisi.
+5. Fusionner sur `main` : le jeu apparaît dans l'application **au prochain démarrage**.
+
+### Jeux de plus de 100 Mo
+
+GitHub refuse les fichiers de plus de 100 Mo dans le dépôt. Pour un gros jeu (Garou,
+King of Fighters 2003...), publiez le fichier `.neo` en pièce jointe d'une **Release**
+GitHub (jusqu'à 2 Go) ou sur un autre stockage HTTPS, et décrivez-le sans `path` :
+
+```json
+{
+  "id": "garou", "title": "Garou: Mark of the Wolves", "genre": "Combat", "author": "SNK",
+  "description": "...", "licence": "Contrat ...", "banner": "game/bannieres/garou.webp",
+  "url": "https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/download/jeux-1/garou.neo",
+  "bytes": 123456789,
+  "sha256": "empreinte obtenue avec : sha256sum garou.neo"
+}
+```
+
+Taille maximale d'un jeu : 160 Mo.
+
+**Aucun jeu sans licence écrite** autorisant sa diffusion dans une application payante.
+
+## Commandes
+
+| | Manette | Télécommande | Écran tactile |
+|---|---|---|---|
+| Direction | croix / stick | flèches | croix à gauche |
+| A B C D | A B X Y (selon la manette) | OK ou 1, 2, 3, 4 | boutons à droite |
+| Pièce | Select | 5 | PIÈCE |
+| Start | Start | 0, Menu ou Lecture | START |
+| Menu pause | Home / Mode | Retour | Retour |
+
+Les jeux sont réglés en **partie gratuite** : pas besoin d'insérer de pièce. Les
+sauvegardes (scores, progression) sont gardées sur l'appareil.

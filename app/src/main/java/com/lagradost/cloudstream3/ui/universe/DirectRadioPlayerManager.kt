@@ -74,6 +74,9 @@ object DirectRadioPlayerManager {
     private const val LEGACY_REMOTE_STATIONS_CACHE_KEY = "missa_remote_radio_stations_v1"
     private const val REMOTE_STATIONS_UPDATED_AT_KEY = "missa_remote_radio_updated_at_v3"
     private const val FAVORITE_STATIONS_KEY = "missa_favorite_radio_ids_v1"
+    /** Les stations favorites elles-mêmes : une station trouvée dans un pays ou un thème
+     *  n'est pas dans le catalogue de départ, son identifiant seul ne suffit pas. */
+    private const val FAVORITE_STATIONS_FULL_KEY = "missa_favorite_radio_stations_v2"
     private const val REMOTE_CACHE_TTL_MS = 12 * 60 * 60_000L
 
     val defaultStations: List<RadioStationPreset>
@@ -147,6 +150,34 @@ object DirectRadioPlayerManager {
     }.getOrDefault(emptySet())
 
     fun isFavorite(stationId: String): Boolean = favoriteIds().contains(stationId)
+
+    /** Stations favorites enregistrées en entier (voir [FAVORITE_STATIONS_FULL_KEY]). */
+    fun savedFavoriteStations(): List<RadioStationPreset> = runCatching {
+        getKey<Array<RadioStationPreset>>(FAVORITE_STATIONS_FULL_KEY)?.toList().orEmpty()
+    }.getOrDefault(emptyList())
+
+    /** Ajoute ou retire une station des favoris, en gardant la station entière. */
+    fun toggleFavoriteStation(preset: RadioStationPreset): Boolean {
+        val nowFav = toggleFavorite(preset.id)
+        val saved = savedFavoriteStations().filter { it.id != preset.id }.toMutableList()
+        if (nowFav) saved.add(0, preset)
+        runCatching { setKey(FAVORITE_STATIONS_FULL_KEY, saved.toTypedArray()) }
+        return nowFav
+    }
+
+    /**
+     * Liste que l'utilisateur parcourt (un pays, un thème, ses favoris...). Station suivante
+     * et précédente suivent cette liste tant que la station en cours en fait partie.
+     */
+    @Volatile
+    var browseQueue: List<RadioStationPreset> = emptyList()
+
+    private fun navigationList(): List<RadioStationPreset> {
+        val currentUrl = _state.value?.station?.streamUrl
+        val queue = browseQueue
+        if (queue.isNotEmpty() && queue.any { it.streamUrl == currentUrl }) return queue
+        return snapshotStations()
+    }
 
     fun toggleFavorite(stationId: String): Boolean {
         val mutable = favoriteIds().toMutableSet()
@@ -730,7 +761,7 @@ object DirectRadioPlayerManager {
     }
 
     fun nextStation(context: Context) {
-        val stations = snapshotStations()
+        val stations = navigationList()
         if (stations.isEmpty()) return
         val currentUrl = _state.value?.station?.streamUrl
         val currentIndex = stations.indexOfFirst { it.streamUrl == currentUrl }
@@ -739,7 +770,7 @@ object DirectRadioPlayerManager {
     }
 
     fun previousStation(context: Context) {
-        val stations = snapshotStations()
+        val stations = navigationList()
         if (stations.isEmpty()) return
         val currentUrl = _state.value?.station?.streamUrl
         val currentIndex = stations.indexOfFirst { it.streamUrl == currentUrl }.let { if (it < 0) 0 else it }

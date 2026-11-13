@@ -18,12 +18,12 @@ MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agr�
 3. **Documentaires** (`navigation_universe_documentaries`) — Grands documentaires, docu-séries, enquêtes, nature, histoire, sciences et chaînes découverte.
 4. **Courts métrages** (`navigation_universe_shorts`) — Formats courts, mini-documentaires et créations indépendantes.
 5. **Jeunesse / Enfants** (`navigation_universe_kids`) — Sélection familiale filtrée avec **verrouillage parental par code PIN** (`TRUST-01`).
-6. **TV en direct** (`navigation_universe_live_tv`) — Chaînes live, zapping instantané `CH+` / `CH-` à la télécommande, dernière chaîne mémorisée et favoris en tête (`FLOW-02`).
+6. **TV en direct** (`navigation_universe_live_tv`) — Les chaînes du fichier [`tv/chaines.m3u`](tv/README.md) du dépôt, relu par l'application à chaque démarrage (rien n'est téléchargé s'il n'a pas changé). Petites tuiles logo, onglets Toutes / Favoris / Catégories / Pays, recherche, lecture dans le lecteur vidéo.
 7. **Sports** (`navigation_universe_sports`) — Directs sportifs, compétitions et rediffusions.
 8. **Musiques** (`navigation_universe_music`) — Titres, albums, clips vidéo, concerts, chaînes musicales et flux musicaux en continu (Afro, Cameroun, Urbain, Pop, Gospel, Jazz…).
 9. **Podcasts** (`navigation_universe_podcasts`) — Émissions audio, chroniques et livres audio.
-10. **Radio directe** (`navigation_universe_radio`) — Stations africaines (Cameroun, Côte d'Ivoire, Sénégal, RDC…) et internationales en lecture directe via **AndroidX Media3 `MediaSessionService`** (notification système, écran verrouillé, mini-lecteur persistant, minuterie de veille et flux personnalisés `M3U8`/`MP3`/`AAC`).
-11. **Jeux** (`navigation_universe_games`) — Jeux homebrew libres (NES, Game Boy / Color) téléchargés à la demande depuis le dossier [`game/`](game/README.md) : le jeu, son émulateur ([EmulatorJS](https://emulatorjs.org), GPL-3.0) et ses sauvegardes restent sur l'appareil et tournent hors ligne, à la télécommande, à la manette ou en tactile.
+10. **Radio directe** (`navigation_universe_radio`) — Les 51 000 stations de l'annuaire libre Radio Browser, rangées par **pays** (225 pays, par continent, Cameroun et Afrique francophone en tête) et par **thème** (actualités, gospel, afro, jazz...), en petites tuiles logo chargées page par page, plus la sélection MISSA, les favoris et la recherche. Lecture via **AndroidX Media3 `MediaSessionService`** (notification système, écran verrouillé, mini-lecteur persistant, minuterie de veille et flux personnalisés `M3U8`/`MP3`/`AAC`).
+11. **Jeux** (`navigation_universe_games`) — Jeux d'arcade **Neo Geo**, avec un moteur natif léger : [Geolith](https://gitlab.com/jgemu/geolith) (BSD, usage commercial autorisé) et [LibretroDroid](https://github.com/Swordfish90/LibretroDroid) (GPL-3.0). Rien de l'émulateur n'est dans l'APK : le moteur (~0,7 Mo), le BIOS et les jeux (`.neo`) sont téléchargés depuis le dossier [`game/`](game/README.md) au premier lancement, vérifiés, puis joués hors ligne à la manette, à la télécommande ou avec la manette tactile.
 
 ---
 
@@ -37,6 +37,7 @@ MISSA TV 360 PLUS remplace la navigation par extension individuelle par une agr�
 - **Performance & Mode Économie de Données (`HOME-02`, `HOME-13`, `FLOW-03`)** :
   - `RecyclerView` modulaire (`ListAdapter` + `DiffUtil` avec payloads sans perte de focus), carrousel `ViewPager2`, squelette `Shimmer` progressif et cache catalogue sur disque (`< 1s` au démarrage à froid).
   - Mode **Data Saver** réduisant la concurrence réseau et gelant l'auto-rotation du carrousel sur connexions mobiles limitées.
+  - Mode **appareil léger** automatique sous 1,3 Go de RAM (TV et box 512 Mo / 1 Go) : sans animation, images en 16 bits, catalogues mis à jour l'un après l'autre, moins de requêtes simultanées, lecteur vidéo limité au 720p avec une mémoire tampon réduite (`MissaDeviceProfile`).
 - **Internationalisation & Accessibilité (`I18N-01..02`, `A11Y-01`)** :
   - Filtrage par clés stables `MissaCategoryKey` indépendant de la langue active, parité complète `values/strings.xml` (EN) et `values-b+fr/strings.xml` (FR) avec `<plurals>`.
   - Support TalkBack (`accessibilityHeading`, descriptions dynamiques, cibles tactiles `>= 48dp`) et mise à l'échelle des polices jusqu'à `130 %`.

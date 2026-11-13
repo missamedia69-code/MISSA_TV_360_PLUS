@@ -41,6 +41,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -144,6 +145,8 @@ class MediaUniverseViewModel : ViewModel() {
         private const val MAX_DETAILS_CACHE = 96
         /** Concurrent details loads. 6 of them made the GC thrash every second. */
         private const val MAX_PARALLEL_DETAILS = 3
+        /** Appareil léger : attente avant de mettre à jour les catalogues au démarrage. */
+        private const val LOW_RAM_STARTUP_DELAY_MS = 6_000L
         /**
          * CRASH-01: heap that must stay free for the details enrichment to run at all.
          * A cold start has no disk snapshot, so it harvests every provider at once and the
@@ -495,17 +498,44 @@ class MediaUniverseViewModel : ViewModel() {
         // On laisse chaque manager décider : ils ne vont sur le réseau que si leur cache a
         // expiré. Un refresh forcé reste déclenché par l'utilisateur (pull-to-refresh,
         // reloadHomeEvent) ou après installation d'une extension.
-        viewModelScope.launch {
-            DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
-        }
-        viewModelScope.launch {
-            DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
-        }
-        viewModelScope.launch {
-            DirectKidsPlayerManager.refreshRemoteVideosIfNeeded()
-        }
-        viewModelScope.launch {
-            DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded()
+        if (MissaDeviceProfile.isLowRam(context)) {
+            // Appareil léger : l'accueil s'affiche d'abord, puis les quatre catalogues se
+            // mettent à jour l'un après l'autre (et non plus tous en même temps).
+            viewModelScope.launch {
+                delay(LOW_RAM_STARTUP_DELAY_MS)
+                val steps: List<suspend () -> Unit> = listOf(
+                    { DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded() },
+                    { DirectRadioPlayerManager.refreshRemotePresetsIfNeeded() },
+                    { DirectKidsPlayerManager.refreshRemoteVideosIfNeeded() },
+                    { DirectDocsPlayerManager.refreshRemoteVideosIfNeeded() },
+                    { DirectMusicPlayerManager.refreshRemoteTracksIfNeeded() }
+                )
+                for (step in steps) {
+                    try {
+                        step()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Startup refresh failed: ${e.message}")
+                    }
+                }
+            }
+        } else {
+            viewModelScope.launch {
+                DirectRadioPlayerManager.refreshRemotePresetsIfNeeded()
+            }
+            viewModelScope.launch {
+                DirectMusicPlayerManager.refreshRemoteTracksIfNeeded()
+            }
+            viewModelScope.launch {
+                DirectKidsPlayerManager.refreshRemoteVideosIfNeeded()
+            }
+            viewModelScope.launch {
+                DirectDocsPlayerManager.refreshRemoteVideosIfNeeded()
+            }
+            viewModelScope.launch {
+                DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded()
+            }
         }
         hydrateDiskCacheAndLoad()
     }
@@ -664,6 +694,9 @@ class MediaUniverseViewModel : ViewModel() {
             }
             viewModelScope.launch {
                 DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
+            }
+            viewModelScope.launch {
+                DirectDocsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
             }
             viewModelScope.launch {
                 DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded(force = true)
@@ -856,7 +889,9 @@ class MediaUniverseViewModel : ViewModel() {
                 if (baseEntries.isNotEmpty()) {
                     saveCatalogToDiskCache(baseEntries, updatedAt)
                     val ctx = context
-                    val dataSaver = ctx != null && MissaUiFactory.isDataSaverActive(ctx)
+                    // Appareil léger : moins de fiches détaillées (chacune est un objet lourd).
+                    val dataSaver = ctx != null &&
+                        (MissaUiFactory.isDataSaverActive(ctx) || MissaDeviceProfile.isLowRam(ctx))
                     // CRASH-01: never start allocating one LoadResponse per card when the
                     // harvest has already eaten the heap — the catalogue still renders from the
                     // raw harvest, it just gets fewer enriched tags on this pass.
@@ -950,7 +985,7 @@ class MediaUniverseViewModel : ViewModel() {
         val doneCounter = AtomicInteger(0)
         onProgress?.invoke(0, total)
 
-        val semaphore = Semaphore(6)
+        val semaphore = Semaphore(MissaDeviceProfile.parallelism(normal = 6, light = 3))
         val rawResults = coroutineScope {
             providers.map { (api, isPreferred) ->
                 async(Dispatchers.IO) {
@@ -1072,7 +1107,8 @@ class MediaUniverseViewModel : ViewModel() {
         // Match entries belonging to this universe + filter local query if overrideEntries not provided.
         // "music" is 100% exclusively powered by YouTube (DirectMusicPlayerManager) and "kids" is
         // 100% exclusively powered by YouTube Kids (DirectKidsPlayerManager) — zero plugin entries.
-        val universeEntries = if (universeId == "music" || universeId == "kids") {
+        // "documentaries" (Documentaires & Live) est lui aussi 100 % YouTube (DirectDocsPlayerManager).
+        val universeEntries = if (universeId == "music" || universeId == "kids" || universeId == "documentaries") {
             emptyList()
         } else {
             baseSourceEntries.filter { entry ->
@@ -1091,6 +1127,7 @@ class MediaUniverseViewModel : ViewModel() {
                 .map { it.providerName.ifBlank { DIRECT_RADIO_API_NAME } }
             "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
             "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
+            "documentaries" -> listOf(MissaDocsProviders.PROVIDER_YOUTUBE)
             "podcasts" -> DirectPodcastPlayerManager.allPresetShows()
                 .map { it.providerName.ifBlank { DIRECT_PODCAST_API_NAME } }
             else -> emptyList()
@@ -1099,6 +1136,7 @@ class MediaUniverseViewModel : ViewModel() {
         val availableSources = when (universeId) {
             "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
             "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
+            "documentaries" -> listOf(MissaDocsProviders.PROVIDER_YOUTUBE)
             else -> (
                 (overrideEntries ?: snapshot.entries)
                     .filter { universeId == "home" || it.universes.contains(universeId) }
@@ -1302,6 +1340,52 @@ class MediaUniverseViewModel : ViewModel() {
                         items = selection.all.map { MissaKidsProviders.toKidsSearchResponse(it) }
                             .toMutableList(),
                         isHorizontal = false
+                    )
+                }
+            }
+        }
+
+        // Univers Documentaires & Live 100 % YouTube : directs en cours puis documentaires,
+        // sélection renouvelée à chaque lancement.
+        if (universeId == "documentaries") {
+            // Vignettes YouTube au format 16:9 : cartes horizontales.
+            if (searchQuery.isNotBlank()) {
+                val hits = (DirectDocsPlayerManager.getOnlineSearchResults(searchQuery) +
+                    DirectDocsPlayerManager.allPresetVideos().filter { MissaDocsProviders.matchesQuery(it, searchQuery) })
+                    .distinctBy { it.id }
+                if (hits.isNotEmpty()) {
+                    val resultsTitle = ctx?.getString(R.string.universe_search_results_for, searchQuery.trim())
+                        ?: searchQuery.trim()
+                    buckets["docs_search_results"] = BucketData(
+                        key = "docs_search_results",
+                        rowTitle = resultsTitle,
+                        chipLabel = resultsTitle,
+                        rank = 1,
+                        items = hits.map { MissaDocsProviders.toSearchResponse(it) }.toMutableList(),
+                        isHorizontal = true
+                    )
+                }
+            } else {
+                val selection = DirectDocsPlayerManager.currentSelection()
+                for ((category, items) in selection.rows) {
+                    if (items.isEmpty()) continue
+                    buckets[category.id] = BucketData(
+                        key = category.id,
+                        rowTitle = resolveStr(ctx, category.rowTitleRes, category.id),
+                        chipLabel = resolveStr(ctx, category.chipLabelRes, category.id),
+                        rank = category.editorialRank,
+                        items = items.map { MissaDocsProviders.toSearchResponse(it) }.toMutableList(),
+                        isHorizontal = true
+                    )
+                }
+                if (selection.all.isNotEmpty()) {
+                    buckets["docs_all"] = BucketData(
+                        key = "docs_all",
+                        rowTitle = resolveStr(ctx, R.string.missa_docs_row_all, "docs_all"),
+                        chipLabel = resolveStr(ctx, R.string.missa_docs_chip_all, "docs_all"),
+                        rank = 900,
+                        items = selection.all.map { MissaDocsProviders.toSearchResponse(it) }.toMutableList(),
+                        isHorizontal = true
                     )
                 }
             }
@@ -1756,6 +1840,7 @@ class MediaUniverseViewModel : ViewModel() {
         // first catalogue is still downloading (KIDS-01).
         val directProviderLoading = visibleRows.isEmpty() && when (universeId) {
             "kids" -> DirectKidsPlayerManager.isAwaitingFirstCatalogue()
+            "documentaries" -> DirectDocsPlayerManager.isAwaitingFirstCatalogue()
             "podcasts" -> DirectPodcastPlayerManager.isAwaitingFirstCatalogue()
             else -> false
         }
@@ -1765,13 +1850,16 @@ class MediaUniverseViewModel : ViewModel() {
         val hasActiveFilter = searchQuery.isNotBlank() ||
             !selectedCategoryKey.isNullOrBlank() ||
             selectedSources.isNotEmpty()
+        // Univers 100 % YouTube : ils ne dépendent d'aucune extension. Vides hors chargement,
+        // c'est que YouTube n'a pas répondu (connexion) : on le dit au lieu d'un écran vide.
+        val youTubeOnly = universeId == "kids" || universeId == "documentaries"
         val emptyReason: UniverseEmptyReason? = resolveEmptyReason(
             effectiveLoading = effectiveLoading,
             hasVisibleRows = visibleRows.isNotEmpty(),
             hasActiveFilter = hasActiveFilter,
-            isOffline = snapshot.isOffline,
+            isOffline = snapshot.isOffline || youTubeOnly,
             hasError = snapshot.hasError,
-            activeProviderCount = snapshot.activeProviderCount,
+            activeProviderCount = if (youTubeOnly) 1 else snapshot.activeProviderCount,
             isDirectProviderLoading = directProviderLoading
         )
 
@@ -1878,6 +1966,30 @@ class MediaUniverseViewModel : ViewModel() {
                 return heroKids.map { video ->
                     val resp = MissaKidsProviders.toKidsSearchResponse(video)
                     val categoryLabel = KidsCategory.byId(video.genre)?.let {
+                        resolveStr(ctx, it.chipLabelRes, it.id)
+                    }
+                    HeroBannerSlide(
+                        card = resp,
+                        details = null,
+                        allSources = listOf(resp),
+                        eyebrow = eyebrowText,
+                        plot = video.artist.takeIf { it.isNotBlank() },
+                        yearText = resp.apiName,
+                        durationText = resp.formattedDuration(),
+                        scoreText = null,
+                        tags = listOfNotNull(categoryLabel),
+                        isDirectStream = true
+                    )
+                }
+            }
+        }
+
+        if (universeId == "documentaries") {
+            val heroDocs = DirectDocsPlayerManager.heroVideos(max = 5)
+            if (heroDocs.isNotEmpty()) {
+                return heroDocs.map { video ->
+                    val resp = MissaDocsProviders.toSearchResponse(video)
+                    val categoryLabel = DocsCategory.byId(video.genre)?.let {
                         resolveStr(ctx, it.chipLabelRes, it.id)
                     }
                     HeroBannerSlide(
@@ -2096,7 +2208,7 @@ class MediaUniverseViewModel : ViewModel() {
         isPreferred: Boolean,
         onProviderFinished: () -> Unit
     ): List<RawHarvestedItem> = coroutineScope {
-        val semaphore = Semaphore(5)
+        val semaphore = Semaphore(MissaDeviceProfile.parallelism(normal = 5, light = 2))
         providers.map { api ->
             async(Dispatchers.IO) {
                 // The permit block must evaluate to the item list: a trailing statement here

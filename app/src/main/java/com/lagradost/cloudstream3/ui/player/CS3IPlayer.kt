@@ -95,6 +95,7 @@ import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.ui.subtitles.SaveCaptionStyle
+import com.lagradost.cloudstream3.ui.universe.MissaDeviceProfile
 import com.lagradost.cloudstream3.ui.universe.MissaUiFactory
 import com.lagradost.cloudstream3.ui.subtitles.SubtitlesFragment.Companion.applyStyle
 import com.lagradost.cloudstream3.utils.AppContextUtils.isUsingMobileData
@@ -674,6 +675,11 @@ class CS3IPlayer : IPlayer {
          * plus une piste 1080p sur un forfait mobile.
          */
         private const val DATA_SAVER_MAX_VIDEO_HEIGHT = 480
+        /** Appareil léger : le décodage 1080p sature les petites puces TV, 720p suffit. */
+        private const val LOW_RAM_MAX_VIDEO_HEIGHT = 720
+        private const val LOW_RAM_TARGET_BUFFER_BYTES = 16 * 1024 * 1024
+        private const val LOW_RAM_MIN_BUFFER_MS = 15_000
+        private const val LOW_RAM_MAX_BUFFER_MS = 30_000
 
         /**
          * Single shared engine, to minimize the overhead of maintaining many as:
@@ -1096,6 +1102,7 @@ class CS3IPlayer : IPlayer {
         /** External audio tracks to merge with the video */
         audioSources: List<MediaSource> = emptyList()
     ): ExoPlayer {
+        val lowRamDevice = MissaDeviceProfile.isLowRam(context)
         val exoPlayerBuilder =
             ExoPlayer.Builder(context)
                 .setMediaSourceFactory(
@@ -1267,19 +1274,22 @@ class CS3IPlayer : IPlayer {
                     DefaultLoadControl.Builder()
                         .setTargetBufferBytes(
                             if (cacheSize <= 0) {
-                                DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES
+                                // Appareil léger : 16 Mo de vidéo en avance au plus.
+                                if (lowRamDevice) LOW_RAM_TARGET_BUFFER_BYTES
+                                else DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES
                             } else {
                                 if (cacheSize > Int.MAX_VALUE) Int.MAX_VALUE else cacheSize.toInt()
                             }
                         )
                         .setBackBuffer(
-                            30000,
-                            true
+                            // Appareil léger : on ne garde pas en mémoire la vidéo déjà vue.
+                            if (lowRamDevice) 0 else 30000,
+                            !lowRamDevice
                         )
                         .setBufferDurationsMs(
-                            DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                            if (lowRamDevice) LOW_RAM_MIN_BUFFER_MS else DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
                             if (videoBufferMs <= 0) {
-                                DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
+                                if (lowRamDevice) LOW_RAM_MAX_BUFFER_MS else DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
                             } else {
                                 videoBufferMs.toInt()
                             },
@@ -1434,6 +1444,8 @@ class CS3IPlayer : IPlayer {
         val effectiveMaxVideoHeight =
             if (MissaUiFactory.isDataSaverActive(context)) {
                 DATA_SAVER_MAX_VIDEO_HEIGHT.coerceAtMost(maxVideoHeight)
+            } else if (MissaDeviceProfile.isLowRam(context)) {
+                LOW_RAM_MAX_VIDEO_HEIGHT.coerceAtMost(maxVideoHeight)
             } else {
                 maxVideoHeight
             }

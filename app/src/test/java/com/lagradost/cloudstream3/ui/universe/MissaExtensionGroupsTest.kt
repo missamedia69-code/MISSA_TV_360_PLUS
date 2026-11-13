@@ -51,14 +51,15 @@ class MissaExtensionGroupsTest {
     }
 
     @Test
-    fun `assignable groups cover every universe except home, music and kids`() {
+    fun `assignable groups exclude universes that have their own single source`() {
         val ids = MissaExtensionGroups.ASSIGNABLE_GROUPS.map { it.id }
-        // music et kids sont 100 % YouTube : jamais assignables (projectUniverse leur passe une
-        // liste vide). home n'est pas un groupe, c'est la vue qui les contient tous.
-        assertTrue("music" !in ids)
-        assertTrue("kids" !in ids)
-        assertTrue("home" !in ids)
-        assertEquals(8, ids.size)
+        // music, kids et documentaries sont 100 % YouTube, live_tv lit tv/chaines.m3u et radio
+        // l'annuaire Radio Browser : jamais assignables. home n'est pas un groupe, c'est la vue
+        // qui les contient tous.
+        for (own in listOf("music", "kids", "documentaries", "live_tv", "radio", "home")) {
+            assertTrue(own !in ids)
+        }
+        assertEquals(listOf("films", "series", "shorts", "sports", "podcasts"), ids)
         // et rien que des identifiants d'univers qui existent vraiment
         assertTrue(ids.all { id -> MissaUniverses.NAVIGATION_UNIVERSES.any { it.id == id } })
     }

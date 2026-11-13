@@ -46,6 +46,8 @@ object MissaUiFactory {
 
     /** Respects system accessibility reduced-motion setting (THEME-08, HOME-03). */
     fun areAnimationsEnabled(context: Context): Boolean {
+        // Appareil léger (TV 512 Mo / 1 Go) : aucune animation, chaque image compte.
+        if (MissaDeviceProfile.isLowRam(context)) return false
         val scale = runCatching {
             Settings.Global.getFloat(
                 context.contentResolver,

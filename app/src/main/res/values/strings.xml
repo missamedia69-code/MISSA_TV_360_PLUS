@@ -828,7 +828,7 @@
     <string name="universe_series_description">Shows, seasons and episodes unified across all compatible extensions.</string>
     <string name="universe_documentaries_title">Documentaries &amp; Live</string>
     <string name="universe_documentaries_title_short">Docs &amp; Live</string>
-    <string name="universe_documentaries_description">Feature documentaries, docu-series, reports, nature, history, science, plus live channels and streams from Twitch, YouTube &amp; Dailymotion.</string>
+    <string name="universe_documentaries_description">Feature documentaries, reports, history, nature, science, Africa, plus live news and live streams — all from YouTube.</string>
     <string name="universe_shorts_title">Shorts</string>
     <string name="universe_shorts_description">Short-format films and creations identified by duration and metadata.</string>
     <string name="universe_kids_title">Kids</string>
@@ -1302,8 +1302,8 @@
     <!-- Univers Jeux (game/catalogue.json, EmulatorJS en WebView) -->
     <string name="universe_games_title">Games</string>
     <string name="universe_games_title_short">Games</string>
-    <string name="universe_games_description">Free retro games, downloaded on demand and played offline.</string>
-    <string name="universe_card_games_sub">NES, Game Boy and more</string>
+    <string name="universe_games_description">Neo Geo arcade games, downloaded on demand and played offline.</string>
+    <string name="universe_card_games_sub">Neo Geo arcade</string>
     <string name="universe_eyebrow_games">GAMES</string>
     <string name="universe_games_intro">Tap a game to download or play it · long press: options</string>
     <string name="universe_games_intro_tv">OK: play or download · Hold OK: options (info, remove)</string>
@@ -1363,4 +1363,136 @@ Source: %6$s</string>
     <string name="missa_activation_no_network">No connection to the server. Check your Internet connection.</string>
     <string name="missa_activation_unlocked">MISSA TV 360 PLUS is activated. Enjoy!</string>
     <string name="universe_games_empty">New games are on the way. Come back soon!</string>
+
+    <!-- Univers Radio et TV en direct : grille de petits logos -->
+    <string name="logo_tile_playing">▶ LIVE</string>
+    <string name="logo_screen_back" formatted="false">‹ %1$s</string>
+    <string name="radio_tab_featured">Featured</string>
+    <string name="radio_tab_favorites">Favorites</string>
+    <string name="radio_tab_countries">Countries</string>
+    <string name="radio_tab_themes">Themes</string>
+    <string name="radio_action_search">Search</string>
+    <string name="radio_action_add">Add a radio</string>
+    <string name="radio_action_sleep">Sleep timer</string>
+    <string name="radio_counter">%1$s stations</string>
+    <string name="radio_loading">Loading…</string>
+    <string name="radio_offline">No connection to the radio directory. Check your Internet connection, then try again.</string>
+    <string name="radio_empty">No station found here.</string>
+    <string name="radio_favorites_empty">No favorite yet. Hold OK (or long-press) on a station to add it.</string>
+    <string name="radio_section_missa">MISSA selection</string>
+    <string name="radio_section_popular">Most listened</string>
+    <string name="radio_crumb_count">%1$s · %2$s stations</string>
+    <string name="radio_crumb_search">Search: %1$s</string>
+    <string name="radio_option_play">Listen</string>
+    <string name="radio_option_favorite">Add to favorites</string>
+    <string name="radio_option_unfavorite">Remove from favorites</string>
+    <string name="radio_favorite_added">%1$s added to favorites</string>
+    <string name="radio_favorite_removed">%1$s removed from favorites</string>
+    <string name="radio_search_hint">Station name</string>
+    <string name="radio_sleep_off">Off</string>
+    <string name="radio_sleep_minutes">Stop in %1$d min</string>
+    <string name="radio_continent_africa">Africa</string>
+    <string name="radio_continent_europe">Europe</string>
+    <string name="radio_continent_americas">Americas</string>
+    <string name="radio_continent_asia">Asia &amp; Middle East</string>
+    <string name="radio_continent_oceania">Oceania</string>
+    <string name="radio_theme_news">News</string>
+    <string name="radio_theme_talk">Talk &amp; debate</string>
+    <string name="radio_theme_african">African music</string>
+    <string name="radio_theme_afrobeats">Afrobeats</string>
+    <string name="radio_theme_gospel">Gospel</string>
+    <string name="radio_theme_christian">Christian</string>
+    <string name="radio_theme_islam">Islam</string>
+    <string name="radio_theme_zouk">Zouk &amp; Kompa</string>
+    <string name="radio_theme_reggae">Reggae</string>
+    <string name="radio_theme_hiphop">Hip-hop &amp; Rap</string>
+    <string name="radio_theme_rnb">R&amp;B &amp; Soul</string>
+    <string name="radio_theme_jazz">Jazz</string>
+    <string name="radio_theme_blues">Blues</string>
+    <string name="radio_theme_pop">Pop</string>
+    <string name="radio_theme_rock">Rock</string>
+    <string name="radio_theme_dance">Dance</string>
+    <string name="radio_theme_electronic">Electronic</string>
+    <string name="radio_theme_chanson">French chanson</string>
+    <string name="radio_theme_latin">Latin</string>
+    <string name="radio_theme_classical">Classical</string>
+    <string name="radio_theme_oldies">Oldies</string>
+    <string name="radio_theme_chillout">Chill &amp; Lounge</string>
+    <string name="radio_theme_sports">Sports</string>
+    <string name="radio_theme_kids">Kids</string>
+    <plurals name="radio_station_count">
+        <item quantity="one">%1$s station</item>
+        <item quantity="other">%1$s stations</item>
+    </plurals>
+
+    <!-- Univers TV en direct (liste tv/chaines.m3u) -->
+    <string name="live_tv_tab_all">All channels</string>
+    <string name="live_tv_tab_groups">Categories</string>
+    <string name="live_tv_action_refresh">Update the list</string>
+    <string name="live_tv_refreshing">Checking for a new channel list…</string>
+    <string name="live_tv_refreshed">Channel list updated</string>
+    <string name="live_tv_up_to_date">The channel list is already up to date</string>
+    <string name="live_tv_empty">No channel yet. The list will be downloaded as soon as you are connected to the Internet.</string>
+    <string name="live_tv_favorites_empty">No favorite channel. Hold OK (or long-press) on a channel to add it.</string>
+    <string name="live_tv_no_countries">This channel list does not give the country of its channels.</string>
+    <string name="live_tv_search_empty">No channel matches this search.</string>
+    <string name="live_tv_group_other">Other</string>
+    <string name="live_tv_crumb_count">%1$s · %2$d</string>
+    <string name="live_tv_option_watch">Watch</string>
+    <string name="live_tv_search_hint">Channel, category or country</string>
+    <plurals name="live_tv_channel_count">
+        <item quantity="one">%1$d channel</item>
+        <item quantity="other">%1$d channels</item>
+    </plurals>
+
+    <!-- Univers Documentaires & Live (100 % YouTube) -->
+    <string name="missa_docs_row_live_news">Live now · News</string>
+    <string name="missa_docs_chip_live_news">Live news</string>
+    <string name="missa_docs_row_live_docs">Live now · Documentaries &amp; nature</string>
+    <string name="missa_docs_chip_live_docs">Live docs</string>
+    <string name="missa_docs_row_africa">Africa: history, cultures &amp; peoples</string>
+    <string name="missa_docs_chip_africa">Africa</string>
+    <string name="missa_docs_row_history">History &amp; civilizations</string>
+    <string name="missa_docs_chip_history">History</string>
+    <string name="missa_docs_row_nature">Nature &amp; wildlife</string>
+    <string name="missa_docs_chip_nature">Nature</string>
+    <string name="missa_docs_row_science">Science, space &amp; technology</string>
+    <string name="missa_docs_chip_science">Science</string>
+    <string name="missa_docs_row_society">Investigations &amp; reports</string>
+    <string name="missa_docs_chip_society">Investigations</string>
+    <string name="missa_docs_row_travel">Travel &amp; discovery</string>
+    <string name="missa_docs_chip_travel">Travel</string>
+    <string name="missa_docs_row_all">All documentaries</string>
+    <string name="missa_docs_chip_all">All</string>
+    <string name="missa_searching_docs_youtube">Searching YouTube for documentaries and live streams: "%1$s"…</string>
+    <!-- Libellé court de la barre du bas (téléphone) -->
+    <string name="nav_title_downloads">Downloads</string>
+
+    <!-- Univers Jeux : lecteur Neo Geo -->
+    <string name="neogeo_starting">Starting %1$s…</string>
+    <string name="neogeo_not_installed">This game is not fully downloaded yet. Go back to the Games universe and download it again.</string>
+    <string name="neogeo_engine_error">The Neo Geo engine could not start on this device. Delete the game, then download it again.</string>
+    <string name="neogeo_load_error">The game could not start. Check that the Neo Geo BIOS (%1$s) and the game file are complete, then try again.</string>
+    <string name="neogeo_gl_error">This device\'s graphics chip is not compatible with the Neo Geo engine.</string>
+    <string name="neogeo_generic_error">The game stopped unexpectedly (code %1$d).</string>
+    <string name="neogeo_resume">Resume</string>
+    <string name="neogeo_restart">Restart the game</string>
+    <string name="neogeo_controls">Controls</string>
+    <string name="neogeo_quit">Quit the game</string>
+    <string name="neogeo_controls_text">Gamepad: D-pad, A B C D, Select = coin, Start.
+
+TV remote: arrows = joystick, OK or 1 = A, 2 = B, 3 = C, 4 = D, 5 = coin, 0 / Menu / Play = START, Back = this menu.
+
+Phone and tablet: on-screen gamepad.
+
+Games are in free play: no coin is needed.</string>
+    <string name="neogeo_unsupported_device">No Neo Geo engine is available for this device\'s processor yet.</string>
+    <string name="neogeo_bios_missing">Neo Geo games will be available very soon: the console\'s BIOS is not published yet.</string>
+    <string name="neogeo_game_info">Publisher: %1$s
+Genre: %2$s
+
+%3$s
+
+Game licence: %4$s
+Engine: %5$s (%6$s)</string>
 </resources>

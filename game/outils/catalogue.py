@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Tient à jour game/catalogue.json, le catalogue de l'univers Jeux de MISSA TV.
+"""Tient à jour game/catalogue.json, le catalogue de l'univers Jeux (Neo Geo) de MISSA TV.
 
-L'application lit ce catalogue sur la branche main, puis télécharge à la demande :
-  - le moteur d'émulation (une seule fois, partagé par toutes les consoles) ;
-  - l'émulateur de la console du jeu (une seule fois par console) ;
-  - le jeu lui-même.
+L'application lit ce catalogue sur la branche main à chaque démarrage, puis télécharge à la
+demande, la première fois qu'un jeu est lancé :
+  - le moteur Neo Geo de l'architecture de l'appareil (une seule fois) ;
+  - le BIOS Neo Geo (une seule fois) ;
+  - le jeu (.neo).
 Chaque fichier est vérifié par son empreinte SHA-256 avant d'être utilisé.
 
 Usage :
-  python3 game/outils/catalogue.py             remplit url, fileName, bytes, sha256
+  python3 game/outils/catalogue.py             remplit url, fileName, bytes, sha256, bannerUrl
   python3 game/outils/catalogue.py --verifier  échoue si le catalogue n'est pas à jour (CI)
 """
 import hashlib
@@ -21,14 +22,13 @@ RACINE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 CATALOGUE = os.path.join(RACINE, "game", "catalogue.json")
 BASE_URL = "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/"
 
-# Consoles prises en charge et cœur EmulatorJS attendu. Seuls des cœurs dont la licence
-# autorise un usage commercial (MISSA TV est payante) : pas de Snes9x ni de Genesis Plus GX.
-CONSOLES = {
-    "nes": {"core": "fceumm", "extensions": {"nes"}},
-    "gb": {"core": "gambatte", "extensions": {"gb", "gbc"}},
-    "gba": {"core": "mgba", "extensions": {"gba"}},
-}
-TAILLE_MAX_JEU = 32 * 1024 * 1024
+# Architectures Android pour lesquelles un moteur peut être fourni.
+ABIS = ("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+# Fichiers attendus dans chaque paquet moteur.
+FICHIERS_MOTEUR = ("liblibretrodroid.so", "libgeolith.so")
+# BIOS reconnus par Geolith : neogeo.zip (mode MVS, arcade) et aes.zip (mode AES, console).
+BIOS_CONNUS = {"neogeo.zip": "mvs", "aes.zip": "aes"}
+TAILLE_MAX = 160 * 1024 * 1024
 
 
 def lire(chemin):
@@ -36,46 +36,35 @@ def lire(chemin):
         return f.read()
 
 
-def completer(entree, erreurs, nom):
+def externe(entree):
+    """Fichier hébergé hors du dépôt (Release GitHub, stockage privé...) : pas de « path »,
+    mais une adresse HTTPS, sa taille et son empreinte, renseignées à la main."""
+    return not entree.get("path") and str(entree.get("url", "")).startswith("https://")
+
+
+def completer(entree, erreurs, nom, garder_nom=False):
+    if externe(entree):
+        if not entree.get("fileName"):
+            entree["fileName"] = entree["url"].rsplit("/", 1)[-1].split("?")[0]
+        sha = str(entree.get("sha256", ""))
+        if len(sha) != 64 or not all(c in "0123456789abcdef" for c in sha.lower()):
+            erreurs.append(f"{nom}: fichier externe sans empreinte sha256 valide")
+        if not isinstance(entree.get("bytes"), int) or not 0 < entree["bytes"] <= TAILLE_MAX:
+            erreurs.append(f"{nom}: fichier externe sans taille (bytes) valide")
+        return entree
     chemin = entree.get("path", "")
     if not chemin or not os.path.isfile(os.path.join(RACINE, chemin)):
         erreurs.append(f"{nom}: fichier introuvable ({chemin})")
         return entree
     octets = lire(chemin)
-    entree["fileName"] = os.path.basename(chemin)
+    if len(octets) > TAILLE_MAX:
+        erreurs.append(f"{nom}: fichier trop lourd ({len(octets)} octets)")
+    if not garder_nom:
+        entree["fileName"] = os.path.basename(chemin)
     entree["url"] = BASE_URL + chemin
     entree["bytes"] = len(octets)
     entree["sha256"] = hashlib.sha256(octets).hexdigest()
-    for cle in ("licenceFile", "sourceArchive"):
-        if entree.get(cle) and not os.path.isfile(os.path.join(RACINE, entree[cle])):
-            erreurs.append(f"{nom}: {cle} introuvable ({entree[cle]})")
-    if "GPL" in entree.get("licence", "") and not entree.get("sourceArchive"):
-        erreurs.append(f"{nom}: sous GPL sans archive des sources (sourceArchive)")
-    if not entree.get("licence") or not entree.get("licenceFile"):
-        erreurs.append(f"{nom}: licence manquante")
     return entree
-
-
-def contenu_zip(chemin, erreurs, nom):
-    try:
-        with zipfile.ZipFile(os.path.join(RACINE, chemin)) as z:
-            if z.testzip() is not None:
-                erreurs.append(f"{nom}: archive corrompue")
-            return set(z.namelist())
-    except (OSError, zipfile.BadZipFile) as e:
-        erreurs.append(f"{nom}: archive illisible ({e})")
-        return set()
-
-
-def entete_valide(chemin, octets):
-    ext = chemin.rsplit(".", 1)[-1].lower()
-    if ext in ("gb", "gbc"):
-        return octets[0x104:0x108] == bytes.fromhex("CEED6666")  # début du logo Nintendo
-    if ext == "nes":
-        return octets[:4] == b"NES\x1a"
-    if ext == "gba":
-        return len(octets) > 0xC0 and octets[3] == 0xEA
-    return False
 
 
 def main():
@@ -84,58 +73,71 @@ def main():
         cat = json.load(f)
     erreurs = []
 
-    moteur = completer(cat["moteur"], erreurs, "moteur")
-    fichiers = contenu_zip(moteur.get("path", ""), erreurs, "moteur")
-    for attendu in ("lanceur.html", "data/loader.js", "data/emulator.min.js", "data/compression/extract7z.js"):
-        if attendu not in fichiers:
-            erreurs.append(f"moteur: {attendu} absent de l'archive")
+    if cat.get("console") != "neogeo":
+        erreurs.append("console : seule « neogeo » est prise en charge")
 
-    systemes = set()
-    for emu in cat["emulateurs"]:
-        nom = "émulateur " + emu.get("system", "?")
-        completer(emu, erreurs, nom)
-        conf = CONSOLES.get(emu.get("system"))
-        if not conf:
-            erreurs.append(f"{nom}: console non prise en charge")
-            continue
-        if emu.get("core") != conf["core"]:
-            erreurs.append(f"{nom}: cœur {emu.get('core')} au lieu de {conf['core']}")
-        fichiers = contenu_zip(emu.get("path", ""), erreurs, nom)
-        for attendu in (f"data/cores/{conf['core']}-wasm.data",
-                        f"data/cores/{conf['core']}-legacy-wasm.data",
-                        f"data/cores/reports/{conf['core']}.json"):
-            if attendu not in fichiers:
-                erreurs.append(f"{nom}: {attendu} absent de l'archive")
-        systemes.add(emu.get("system"))
+    moteur = cat.get("moteur", {})
+    abis = moteur.get("abis", {})
+    if not abis:
+        erreurs.append("moteur : aucune architecture")
+    for abi, paquet in abis.items():
+        nom = f"moteur {abi}"
+        if abi not in ABIS:
+            erreurs.append(f"{nom}: architecture inconnue")
+        completer(paquet, erreurs, nom)
+        try:
+            with zipfile.ZipFile(os.path.join(RACINE, paquet.get("path", ""))) as z:
+                noms = set(z.namelist())
+                if z.testzip() is not None:
+                    erreurs.append(f"{nom}: archive corrompue")
+            for attendu in FICHIERS_MOTEUR:
+                if attendu not in noms:
+                    erreurs.append(f"{nom}: {attendu} absent de l'archive")
+        except (OSError, zipfile.BadZipFile) as e:
+            erreurs.append(f"{nom}: archive illisible ({e})")
+    for cle in ("licences", "sources"):
+        for chemin in moteur.get(cle, []):
+            if not os.path.isfile(os.path.join(RACINE, chemin)):
+                erreurs.append(f"moteur: {cle} introuvable ({chemin})")
+
+    mode = cat.get("mode", "mvs")
+    if mode not in ("mvs", "aes"):
+        erreurs.append("mode : « mvs » ou « aes »")
+    noms_bios = set()
+    for bios in cat.get("bios", []):
+        nom_fichier = bios.get("fileName") or os.path.basename(bios.get("path", ""))
+        bios["fileName"] = nom_fichier
+        nom = f"BIOS {nom_fichier}"
+        completer(bios, erreurs, nom, garder_nom=True)
+        if nom_fichier not in BIOS_CONNUS:
+            erreurs.append(f"{nom}: nom inattendu (neogeo.zip ou aes.zip)")
+        if not bios.get("licence"):
+            erreurs.append(f"{nom}: indiquez la licence ou le contrat qui autorise sa diffusion")
+        noms_bios.add(nom_fichier)
+    bios_requis = "neogeo.zip" if mode == "mvs" else "aes.zip"
+    if cat.get("jeux") and bios_requis not in noms_bios:
+        erreurs.append(f"jeux présents mais BIOS {bios_requis} absent (mode {mode})")
 
     ids = set()
-    for jeu in cat["jeux"]:
+    for jeu in cat.get("jeux", []):
         nom = jeu.get("id", "?")
-        for cle in ("id", "title", "system", "genre", "author", "description", "path"):
+        for cle in ("id", "title", "genre", "author", "description", "licence"):
             if not str(jeu.get(cle, "")).strip():
                 erreurs.append(f"{nom}: champ « {cle} » manquant")
         if nom in ids:
             erreurs.append(f"{nom}: identifiant en double")
         ids.add(nom)
-        completer(jeu, erreurs, nom)
-        if jeu.get("cover"):
-            if os.path.isfile(os.path.join(RACINE, jeu["cover"])):
-                jeu["coverUrl"] = BASE_URL + jeu["cover"]
-            else:
-                erreurs.append(f"{nom}: pochette introuvable ({jeu['cover']})")
-        systeme = jeu.get("system")
-        if systeme not in systemes:
-            erreurs.append(f"{nom}: aucun émulateur pour la console {systeme}")
         chemin = jeu.get("path", "")
-        if os.path.isfile(os.path.join(RACINE, chemin)):
-            ext = chemin.rsplit(".", 1)[-1].lower()
-            if ext not in CONSOLES.get(systeme, {}).get("extensions", set()):
-                erreurs.append(f"{nom}: extension .{ext} incompatible avec {systeme}")
-            octets = lire(chemin)
-            if not entete_valide(chemin, octets):
-                erreurs.append(f"{nom}: en-tête de ROM invalide")
-            if len(octets) > TAILLE_MAX_JEU:
-                erreurs.append(f"{nom}: jeu trop lourd")
+        if not (chemin or jeu.get("url", "").split("?")[0]).lower().endswith(".neo"):
+            erreurs.append(f"{nom}: le jeu doit être au format .neo")
+        completer(jeu, erreurs, nom)
+        if chemin and os.path.isfile(os.path.join(RACINE, chemin)) and lire(chemin)[:4] != b"NEO\x01":
+            erreurs.append(f"{nom}: en-tête .neo invalide (attendu « NEO » + 1)")
+        if jeu.get("banner"):
+            if os.path.isfile(os.path.join(RACINE, jeu["banner"])):
+                jeu["bannerUrl"] = BASE_URL + jeu["banner"]
+            else:
+                erreurs.append(f"{nom}: bannière introuvable ({jeu['banner']})")
 
     texte = json.dumps(cat, ensure_ascii=False, indent=2) + "\n"
     if verifier:
@@ -148,7 +150,7 @@ def main():
     if not verifier:
         with open(CATALOGUE, "w", encoding="utf-8") as f:
             f.write(texte)
-    print(f"{len(cat['jeux'])} jeux, {len(cat['emulateurs'])} émulateurs : OK")
+    print(f"{len(cat.get('jeux', []))} jeux, {len(cat.get('bios', []))} BIOS, {len(abis)} moteurs : OK")
     return 0
 
 
