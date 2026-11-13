@@ -48,6 +48,32 @@
       }
     }
   },
-  "bios": [],
-  "jeux": []
+  "bios": [
+    {
+      "path": "game/neogeo/bios/neogeo.zip",
+      "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
+      "fileName": "neogeo.zip",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/bios/neogeo.zip",
+      "bytes": 1950045,
+      "sha256": "36a47cf50a585cafc812e19ef7646ad1556a5de90440d9dcb06f373926cd68ea"
+    }
+  ],
+  "jeux": [
+    {
+      "id": "mslug",
+      "title": "Metal Slug - Super Vehicle-001",
+      "genre": "Action / plateforme",
+      "author": "Nazca",
+      "players": "1-2",
+      "description": "Jeu d'action arcade Neo Geo de 1996, jouable en solo ou à deux.",
+      "path": "game/roms/neogeo/mslug.neo",
+      "banner": "game/bannieres/mslug.webp",
+      "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
+      "fileName": "mslug.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/mslug.neo",
+      "bytes": 27529216,
+      "sha256": "073dc44f1d0523c4a1ab1e684f85549f1c9a9ee5c892e98063e2ea633efad2f7",
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug.webp"
+    }
+  ]
 }

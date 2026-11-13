@@ -61,7 +61,15 @@ arrivent bientôt.
 
 Geolith lit uniquement le format **`.neo`** (TerraOnion). Si votre fournisseur livre des
 fichiers MAME (`.zip`), convertissez-les avec l'outil libre
-[lithogen](https://github.com/carmiker/lithogen) ou NeoBuilder.
+[lithogen](https://github.com/carmiker/lithogen) ou NeoBuilder. Pour Metal Slug,
+le fichier converti `game/roms/neogeo/mslug.neo` a été vérifié avec
+`lithogen --strict` : c'est le seul fichier du jeu déclaré dans le catalogue
+et téléchargé par l'application. L'archive MAME d'origine n'est pas nécessaire
+au fonctionnement de l'application et n'est pas conservée dans le dossier `game/`.
+
+La bannière originale de Metal Slug est dans `bannieres/mslug.webp` (portrait 3:4)
+et s'affiche dans la grille des jeux. Un logo horizontal original se trouve dans
+`logos/mslug.webp` ; l'écran Jeux n'a pas de champ logo séparé et ne l'affiche pas.
 
 ## Ajouter un jeu
 
