@@ -125,6 +125,17 @@ class MissaGamesTest {
     }
 
     @Test
+    fun `the bundled catalogue stays in sync with the published catalogue`() {
+        val root = generateSequence(File("").absoluteFile) { it.parentFile }
+            .firstOrNull { File(it, "game/catalogue.json").isFile } ?: return
+        val published = File(root, "game/catalogue.json")
+        val bundled = File(root, "app/src/main/assets/game/catalogue.json")
+        assertTrue("The APK needs an offline catalogue", bundled.isFile)
+        assertEquals(published.readText(), bundled.readText())
+        assertTrue(MissaGames.parseCatalogue(bundled.readText())!!.games.isNotEmpty())
+    }
+
+    @Test
     fun `the published catalogue is a Neo Geo catalogue`() {
         val file = generateSequence(File("").absoluteFile) { it.parentFile }
             .map { File(it, "game/catalogue.json") }
