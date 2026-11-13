@@ -67,6 +67,10 @@ le fichier converti `game/roms/neogeo/mslug.neo` a été vérifié avec
 et téléchargé par l'application. L'archive MAME d'origine n'est pas nécessaire
 au fonctionnement de l'application et n'est pas conservée dans le dossier `game/`.
 
+La bannière originale de Metal Slug est dans `bannieres/mslug.webp` (portrait 3:4)
+et s'affiche dans la grille des jeux. Un logo horizontal original se trouve dans
+`logos/mslug.webp` ; l'écran Jeux n'a pas de champ logo séparé et ne l'affiche pas.
+
 ## Ajouter un jeu
 
 1. Déposer le jeu dans `roms/neogeo/` (par exemple `roms/neogeo/kof98.neo`).
