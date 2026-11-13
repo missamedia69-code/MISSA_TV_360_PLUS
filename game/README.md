@@ -61,7 +61,10 @@ arrivent bientôt.
 
 Geolith lit uniquement le format **`.neo`** (TerraOnion). Si votre fournisseur livre des
 fichiers MAME (`.zip`), convertissez-les avec l'outil libre
-[lithogen](https://github.com/carmiker/lithogen) ou NeoBuilder.
+[lithogen](https://github.com/carmiker/lithogen) ou NeoBuilder. Par exemple,
+`game/mslug.zip` est l'archive MAME d'origine de Metal Slug ; seul le fichier
+converti `game/roms/neogeo/mslug.neo` est déclaré dans le catalogue et téléchargé
+par l'application. La conversion a été vérifiée avec `lithogen --strict`.
 
 ## Ajouter un jeu
 
