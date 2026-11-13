@@ -205,7 +205,8 @@ object MissaLiveTv {
             if (etag != null) conn.setRequestProperty("If-None-Match", etag)
             val code = conn.responseCode
             if (code == HttpURLConnection.HTTP_NOT_MODIFIED || code != HttpURLConnection.HTTP_OK) return@withContext false
-            val length = conn.contentLengthLong
+            // getContentLengthLong() n'existe qu'à partir d'Android 7 : on lit l'en-tête.
+            val length = conn.getHeaderField("Content-Length")?.trim()?.toLongOrNull() ?: -1L
             if (length > MAX_BYTES) return@withContext false
             file.parentFile?.mkdirs()
             val tmp = File(file.parentFile, "$LOCAL_FILE.part")

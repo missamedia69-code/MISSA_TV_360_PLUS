@@ -1,113 +1,53 @@
 {
-  "version": 1,
+  "version": 2,
+  "console": "neogeo",
+  "mode": "mvs",
   "moteur": {
-    "id": "emulatorjs",
-    "version": "4.2.3",
-    "path": "game/moteur/emulatorjs-4.2.3.zip",
-    "licence": "GPL-3.0",
-    "licenceFile": "game/licences/emulatorjs-GPL-3.0.txt",
-    "sourceUrl": "https://github.com/EmulatorJS/EmulatorJS/tree/v4.2.3",
-    "sourceArchive": "game/sources/emulatorjs-4.2.3-source.zip",
-    "fileName": "emulatorjs-4.2.3.zip",
-    "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/moteur/emulatorjs-4.2.3.zip",
-    "bytes": 200646,
-    "sha256": "a534699677dafa9a8d7e8fb32193a1a4dc9685d810ac0dfb2394d4f59d5d5f6b"
+    "nom": "Geolith 0.5.0 + LibretroDroid 0.14.0",
+    "version": "geolith-0.5.0_libretrodroid-0.14.0",
+    "licence": "Geolith : BSD-3-Clause (Musashi MIT, Z80 MIT, ymfm BSD-3-Clause) ; LibretroDroid : GPL-3.0",
+    "licences": [
+      "game/licences/geolith-BSD-3-Clause.txt",
+      "game/licences/musashi-MIT.txt",
+      "game/licences/z80-MIT.txt",
+      "game/licences/ymfm-BSD-3-Clause.txt",
+      "game/licences/GPL-3.0.txt"
+    ],
+    "sources": [
+      "game/sources/geolith-libretro-0.5.0-source.zip",
+      "game/sources/libretrodroid-0.14.0-source.zip"
+    ],
+    "abis": {
+      "arm64-v8a": {
+        "path": "game/neogeo/moteur/neogeo-arm64-v8a.zip",
+        "fileName": "neogeo-arm64-v8a.zip",
+        "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/moteur/neogeo-arm64-v8a.zip",
+        "bytes": 763662,
+        "sha256": "46139038182341fcf839881dc5a95b9b1feb0456561ee842dfcecf91cd54b446"
+      },
+      "armeabi-v7a": {
+        "path": "game/neogeo/moteur/neogeo-armeabi-v7a.zip",
+        "fileName": "neogeo-armeabi-v7a.zip",
+        "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/moteur/neogeo-armeabi-v7a.zip",
+        "bytes": 639270,
+        "sha256": "66dad07e7ecad1b5df7cb11c2f08753ede688e934b14a9426ad7c6fd6f7a01a9"
+      },
+      "x86_64": {
+        "path": "game/neogeo/moteur/neogeo-x86_64.zip",
+        "fileName": "neogeo-x86_64.zip",
+        "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/moteur/neogeo-x86_64.zip",
+        "bytes": 825301,
+        "sha256": "7d7010d67059eaf568350bfcf0df2a2cd564212d48879235eff41892931067f2"
+      },
+      "x86": {
+        "path": "game/neogeo/moteur/neogeo-x86.zip",
+        "fileName": "neogeo-x86.zip",
+        "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/neogeo/moteur/neogeo-x86.zip",
+        "bytes": 828990,
+        "sha256": "e2e15fae7ac793d9ea9c4764c1a5e601e87f39830634bc90fbdcc71dc596c073"
+      }
+    }
   },
-  "emulateurs": [
-    {
-      "system": "nes",
-      "label": "NES",
-      "core": "fceumm",
-      "path": "game/emulateurs/nes-fceumm.zip",
-      "licence": "GPL-2.0",
-      "licenceFile": "game/licences/GPL-2.0.txt",
-      "sourceUrl": "https://github.com/EmulatorJS/libretro-fceumm/tree/d9d7e141274d07186b6a871ca2919b6f13cfb2f9",
-      "sourceArchive": "game/sources/fceumm-d9d7e14-source.zip",
-      "fileName": "nes-fceumm.zip",
-      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/emulateurs/nes-fceumm.zip",
-      "bytes": 2108168,
-      "sha256": "985fbbbe7294d5de7121015498b6253a28de6f82843a8e2ca3963f8ded0b4f03"
-    }
-  ],
-  "jeux": [
-    {
-      "id": "roborun_nes",
-      "title": "RoboRun NES",
-      "system": "nes",
-      "platformLabel": "NES",
-      "genre": "Plateforme",
-      "author": "HeavenHM",
-      "description": "Plateforme 2D : traversez plusieurs niveaux, évitez les ennemis et attrapez l'étoile d'invincibilité.",
-      "path": "game/roms/nes/RoboRun-NES_1.1.nes",
-      "licence": "GPL-3.0",
-      "licenceFile": "game/licences/GPL-3.0.txt",
-      "sourceUrl": "https://github.com/heaven-hm/roborun-nes",
-      "sourceArchive": "game/sources/roborun-1.1-source.zip",
-      "fileName": "RoboRun-NES_1.1.nes",
-      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/nes/RoboRun-NES_1.1.nes",
-      "bytes": 40976,
-      "sha256": "16a3c5d52d8f4d71322e2e24530c66292c015f5969d38ace826a9231eb5ea516",
-      "cover": "game/covers/roborun.webp",
-      "coverUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/covers/roborun.webp"
-    },
-    {
-      "id": "dabg",
-      "title": "Double Action Blaster Guys",
-      "system": "nes",
-      "platformLabel": "NES",
-      "genre": "Plateforme / action",
-      "author": "NovaSquirrel",
-      "description": "Plateforme arcade jouable à deux : 52 niveaux, plus de 25 ennemis et un éditeur de niveaux intégré.",
-      "path": "game/roms/nes/double-action-blaster-guys.nes",
-      "licence": "Zlib",
-      "licenceFile": "game/licences/double-action-blaster-guys-Zlib.txt",
-      "sourceUrl": "https://github.com/NovaSquirrel/DABG",
-      "fileName": "double-action-blaster-guys.nes",
-      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/nes/double-action-blaster-guys.nes",
-      "bytes": 32784,
-      "sha256": "eca79b9d0b546e96c1bc73099e239539fb9c7773ff10a431bb3a9cd6763208ca",
-      "cover": "game/covers/dabg.webp",
-      "coverUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/covers/dabg.webp"
-    },
-    {
-      "id": "thwaite",
-      "title": "Thwaite",
-      "system": "nes",
-      "platformLabel": "NES",
-      "genre": "Arcade / tir",
-      "author": "Damian Yerrick",
-      "description": "Des missiles tombent du ciel : abattez-les avec vos feux d'artifice pour protéger les villages.",
-      "path": "game/roms/nes/thwaite.nes",
-      "licence": "GPL-3.0",
-      "licenceFile": "game/licences/GPL-3.0.txt",
-      "sourceUrl": "https://github.com/pinobatch/thwaite-nes",
-      "sourceArchive": "game/sources/thwaite-v0.04-source.zip",
-      "fileName": "thwaite.nes",
-      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/nes/thwaite.nes",
-      "bytes": 24592,
-      "sha256": "a2df24d9c9f72e56c2fdc4c703becc47a5700ad0158da8208247635ebeb3779c",
-      "cover": "game/covers/thwaite.webp",
-      "coverUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/covers/thwaite.webp"
-    },
-    {
-      "id": "concentration-room",
-      "title": "Concentration Room",
-      "system": "nes",
-      "platformLabel": "NES",
-      "genre": "Mémoire",
-      "author": "Damian Yerrick",
-      "description": "Retournez les cartes deux par deux et retrouvez les paires. De 10 à 72 cartes, seul ou à deux.",
-      "path": "game/roms/nes/concentration-room.nes",
-      "licence": "GPL-3.0",
-      "licenceFile": "game/licences/GPL-3.0.txt",
-      "sourceUrl": "https://github.com/pinobatch/croom-nes",
-      "sourceArchive": "game/sources/concentration-room-v0.02a-source.zip",
-      "fileName": "concentration-room.nes",
-      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/nes/concentration-room.nes",
-      "bytes": 24592,
-      "sha256": "2ce17df1ad66a8a0533c0a8739f5b5ebe275c264924bbe350c42c5ac0394f20e",
-      "cover": "game/covers/concentration-room.webp",
-      "coverUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/covers/concentration-room.webp"
-    }
-  ]
+  "bios": [],
+  "jeux": []
 }

@@ -1258,8 +1258,8 @@
     <!-- Univers Jeux (game/catalogue.json, EmulatorJS en WebView) -->
     <string name="universe_games_title">Jeux</string>
     <string name="universe_games_title_short">Jeux</string>
-    <string name="universe_games_description">Jeux rétro libres, téléchargés à la demande et joués hors ligne.</string>
-    <string name="universe_card_games_sub">NES, Game Boy et plus</string>
+    <string name="universe_games_description">Jeux d’arcade Neo Geo, téléchargés à la demande et joués hors ligne.</string>
+    <string name="universe_card_games_sub">Arcade Neo Geo</string>
     <string name="universe_eyebrow_games">JEUX</string>
     <string name="universe_games_intro">Touchez un jeu pour le télécharger ou y jouer · appui long : options</string>
     <string name="universe_games_intro_tv">OK : jouer ou télécharger · OK maintenu : options (infos, supprimer)</string>
@@ -1425,4 +1425,32 @@ Source : %6$s</string>
     <string name="missa_searching_docs_youtube">Recherche YouTube de documentaires et directs pour « %1$s »…</string>
     <!-- Libellé court de la barre du bas (téléphone) -->
     <string name="nav_title_downloads">Téléchargés</string>
+
+    <!-- Univers Jeux : lecteur Neo Geo -->
+    <string name="neogeo_starting">Lancement de %1$s…</string>
+    <string name="neogeo_not_installed">Ce jeu n’est pas encore entièrement téléchargé. Revenez à l’univers Jeux et téléchargez-le à nouveau.</string>
+    <string name="neogeo_engine_error">Le moteur Neo Geo n’a pas pu démarrer sur cet appareil. Supprimez le jeu puis téléchargez-le à nouveau.</string>
+    <string name="neogeo_load_error">Le jeu n’a pas pu démarrer. Vérifiez que le BIOS Neo Geo (%1$s) et le fichier du jeu sont complets, puis réessayez.</string>
+    <string name="neogeo_gl_error">La puce graphique de cet appareil n’est pas compatible avec le moteur Neo Geo.</string>
+    <string name="neogeo_generic_error">Le jeu s’est arrêté de façon inattendue (code %1$d).</string>
+    <string name="neogeo_resume">Reprendre</string>
+    <string name="neogeo_restart">Recommencer la partie</string>
+    <string name="neogeo_controls">Commandes</string>
+    <string name="neogeo_quit">Quitter le jeu</string>
+    <string name="neogeo_controls_text">Manette : croix, A B C D, Select = pièce, Start.
+
+Télécommande : flèches = manette, OK ou 1 = A, 2 = B, 3 = C, 4 = D, 5 = pièce, 0 / Menu / Lecture = START, Retour = ce menu.
+
+Téléphone et tablette : manette tactile à l’écran.
+
+Les jeux sont en partie gratuite : pas besoin d’insérer de pièce.</string>
+    <string name="neogeo_unsupported_device">Aucun moteur Neo Geo n’est encore disponible pour le processeur de cet appareil.</string>
+    <string name="neogeo_bios_missing">Les jeux Neo Geo arrivent très bientôt : le BIOS de la console n’est pas encore publié.</string>
+    <string name="neogeo_game_info">Éditeur : %1$s
+Genre : %2$s
+
+%3$s
+
+Licence du jeu : %4$s
+Moteur : %5$s (%6$s)</string>
 </resources>

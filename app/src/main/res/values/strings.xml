@@ -1302,8 +1302,8 @@
     <!-- Univers Jeux (game/catalogue.json, EmulatorJS en WebView) -->
     <string name="universe_games_title">Games</string>
     <string name="universe_games_title_short">Games</string>
-    <string name="universe_games_description">Free retro games, downloaded on demand and played offline.</string>
-    <string name="universe_card_games_sub">NES, Game Boy and more</string>
+    <string name="universe_games_description">Neo Geo arcade games, downloaded on demand and played offline.</string>
+    <string name="universe_card_games_sub">Neo Geo arcade</string>
     <string name="universe_eyebrow_games">GAMES</string>
     <string name="universe_games_intro">Tap a game to download or play it · long press: options</string>
     <string name="universe_games_intro_tv">OK: play or download · Hold OK: options (info, remove)</string>
@@ -1467,4 +1467,32 @@ Source: %6$s</string>
     <string name="missa_searching_docs_youtube">Searching YouTube for documentaries and live streams: "%1$s"…</string>
     <!-- Libellé court de la barre du bas (téléphone) -->
     <string name="nav_title_downloads">Downloads</string>
+
+    <!-- Univers Jeux : lecteur Neo Geo -->
+    <string name="neogeo_starting">Starting %1$s…</string>
+    <string name="neogeo_not_installed">This game is not fully downloaded yet. Go back to the Games universe and download it again.</string>
+    <string name="neogeo_engine_error">The Neo Geo engine could not start on this device. Delete the game, then download it again.</string>
+    <string name="neogeo_load_error">The game could not start. Check that the Neo Geo BIOS (%1$s) and the game file are complete, then try again.</string>
+    <string name="neogeo_gl_error">This device\'s graphics chip is not compatible with the Neo Geo engine.</string>
+    <string name="neogeo_generic_error">The game stopped unexpectedly (code %1$d).</string>
+    <string name="neogeo_resume">Resume</string>
+    <string name="neogeo_restart">Restart the game</string>
+    <string name="neogeo_controls">Controls</string>
+    <string name="neogeo_quit">Quit the game</string>
+    <string name="neogeo_controls_text">Gamepad: D-pad, A B C D, Select = coin, Start.
+
+TV remote: arrows = joystick, OK or 1 = A, 2 = B, 3 = C, 4 = D, 5 = coin, 0 / Menu / Play = START, Back = this menu.
+
+Phone and tablet: on-screen gamepad.
+
+Games are in free play: no coin is needed.</string>
+    <string name="neogeo_unsupported_device">No Neo Geo engine is available for this device\'s processor yet.</string>
+    <string name="neogeo_bios_missing">Neo Geo games will be available very soon: the console\'s BIOS is not published yet.</string>
+    <string name="neogeo_game_info">Publisher: %1$s
+Genre: %2$s
+
+%3$s
+
+Game licence: %4$s
+Engine: %5$s (%6$s)</string>
 </resources>

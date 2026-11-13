@@ -39,7 +39,7 @@ import java.util.Locale
  *
  * Un jeu se télécharge en un appui : l'application récupère au passage le moteur
  * d'émulation et l'émulateur de sa console s'ils manquent (voir [MissaGames.install]), puis
- * le jeu est prêt à lancer, hors ligne, dans [GamePlayerActivity].
+ * le jeu est prêt à lancer, hors ligne, dans [NeoGeoPlayerActivity].
  */
 class GamesFragment : Fragment() {
 
@@ -160,45 +160,21 @@ class GamesFragment : Fragment() {
         }
     }
 
-    private fun systemsWithGames(): List<MissaGames.Emulator> {
-        val cat = catalogue ?: return emptyList()
-        val used = cat.games.map { it.system }.toSet()
-        return cat.emulators.values.filter { it.system in used }
-    }
-
+    /** Une seule console (Neo Geo) : pas de filtre par console. */
     private fun buildFilters() {
-        val ctx = context ?: return
         filterButtons.values.forEach { filtersContainer.removeView(it) }
         filterButtons.clear()
-        // Une seule console (NES) : pas de filtre à afficher.
-        val used = systemsWithGames()
-        val systems = if (used.size <= 1) emptyList() else
-            listOf("all" to getString(R.string.universe_games_filter_all)) + used.map { it.system to it.label }
-        if (systems.isEmpty()) {
-            selectedSystem = "all"
-            return
-        }
-        if (selectedSystem != "all" && systems.none { it.first == selectedSystem }) selectedSystem = "all"
-        systems.forEach { (id, label) ->
-            val pill = MissaUiFactory.createPillButton(ctx, label, id == selectedSystem, marginEndDp = 6) {
-                selectedSystem = id
-                filterButtons.forEach { (key, button) -> MissaUiFactory.stylePillSelection(button, key == selectedSystem) }
-                render()
-            }
-            filtersContainer.addView(pill)
-            filterButtons[id] = pill
-        }
+        selectedSystem = "all"
     }
 
     private fun recomputeStates() {
         val ctx = context ?: return
         val cat = catalogue ?: return
         installState.clear()
+        val ready = cat.engineForDevice() != null && cat.requiredBios != null
         cat.games.forEach { game ->
             val plan = MissaGames.planInstall(ctx, cat, game)
-            val bytes = (if (plan.engine) cat.engine.bytes else 0L) +
-                (plan.emulator?.pkg?.bytes ?: 0L) + (if (plan.game) game.pkg.bytes else 0L)
-            installState[game.id] = plan.isEmpty to bytes
+            installState[game.id] = (ready && plan.isEmpty) to plan.bytes(game)
         }
     }
 
@@ -230,8 +206,20 @@ class GamesFragment : Fragment() {
         val cat = catalogue ?: return
         when {
             jobs.containsKey(card.game.id) -> cancelInstall(card.game)
+            // Appareil dont le processeur n'a pas de moteur Neo Geo dans le catalogue.
+            cat.engineForDevice() == null -> AlertDialog.Builder(ctx)
+                .setTitle(card.game.title)
+                .setMessage(R.string.neogeo_unsupported_device)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            // Le BIOS Neo Geo n'est pas encore publié dans le catalogue.
+            cat.requiredBios == null -> AlertDialog.Builder(ctx)
+                .setTitle(card.game.title)
+                .setMessage(R.string.neogeo_bios_missing)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
             MissaGames.isGameInstalled(ctx, cat, card.game) ->
-                startActivity(GamePlayerActivity.intent(ctx, card.game))
+                startActivity(NeoGeoPlayerActivity.intent(ctx, card.game))
             else -> startInstall(cat, card.game)
         }
     }
@@ -306,14 +294,14 @@ class GamesFragment : Fragment() {
 
     private fun showInfo(g: MissaGames.Game) {
         val ctx = context ?: return
-        val emulator = catalogue?.emulatorFor(g)
+        val engine = catalogue?.engineForDevice()
         AlertDialog.Builder(ctx)
             .setTitle(g.title)
             .setMessage(
                 getString(
-                    R.string.universe_games_info,
-                    g.author, g.platformLabel, g.licence,
-                    emulator?.core.orEmpty(), emulator?.licence.orEmpty(), g.sourceUrl
+                    R.string.neogeo_game_info,
+                    g.author, g.genre, g.description, g.licence,
+                    engine?.version.orEmpty(), engine?.licence.orEmpty()
                 )
             )
             .setPositiveButton(android.R.string.ok, null)
@@ -419,10 +407,7 @@ class GamesFragment : Fragment() {
                 current = card
                 val g = card.game
                 bindArtwork(g.coverUrl)
-                system.text = when (g.system) {
-                    "gb" -> if (g.fileName.endsWith(".gbc", ignoreCase = true)) "GBC" else "GB"
-                    else -> g.system.uppercase(Locale.ROOT)
-                }
+                system.text = "NEO GEO"
                 title.text = g.title
                 itemView.contentDescription = "${g.title}, ${g.platformLabel}"
                 bindState(card)

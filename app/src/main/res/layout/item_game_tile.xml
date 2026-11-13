@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Tuile compacte de l'univers Jeux : pochette carrée, titre, une ligne d'état.
+    Tuile compacte de l'univers Jeux : bannière portrait (3:4), titre, une ligne d'état.
     Toute la tuile reçoit le sélecteur (le cadre vert est dessiné par MainActivity, comme
     dans les autres univers). Appui / OK = action principale, appui long = options.
 -->
@@ -26,7 +26,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:background="?attr/missaSurfaceElevated"
-            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintDimensionRatio="3:4"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
