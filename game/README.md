@@ -121,7 +121,7 @@ Taille maximale d'un jeu : 160 Mo.
 
 | | Manette | Télécommande | Écran tactile |
 |---|---|---|---|
-| Direction | croix / stick | flèches | croix à gauche |
+| Direction | croix / stick | flèches | joystick circulaire à gauche |
 | A B C D | A B X Y (selon la manette) | OK ou 1, 2, 3, 4 | boutons à droite |
 | Pièce | Select | 5 | PIÈCE |
 | Start | Start | 0, Menu ou Lecture | START |

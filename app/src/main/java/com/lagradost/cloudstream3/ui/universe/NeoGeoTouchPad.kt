@@ -17,7 +17,9 @@ import kotlin.math.min
 /**
  * Manette tactile Neo Geo (téléphone et tablette), dessinée par-dessus le jeu.
  *
- *  - à gauche, une croix à 8 directions (le pouce peut glisser d'une direction à l'autre) ;
+ *  - à gauche, un joystick circulaire : une boule centrale suit le pouce dans un anneau, sur
+ *    8 directions. Le doigt qui a saisi la boule la garde jusqu'à ce qu'il se lève, même s'il
+ *    sort de l'anneau : quarts de cercle et rotations complètes se font d'un seul geste ;
  *  - à droite, les quatre boutons A B C D en arc, comme sur la manette d'origine ;
  *  - en haut, PIÈCE et START.
  *
@@ -48,6 +50,12 @@ class NeoGeoTouchPad(
     private var padCy = 0f
     private var padR = 0f
 
+    /** Doigt qui tient la boule du joystick (identifiant du pointeur), ou -1. */
+    private var stickPointer = -1
+    /** Position de la boule par rapport au centre, limitée à la course du joystick. */
+    private var knobDx = 0f
+    private var knobDy = 0f
+
     /** Touches de chaque doigt posé (identifiant du pointeur -> codes de touche). */
     private val pointerKeys = HashMap<Int, Set<Int>>()
     private val pressed = HashSet<Int>()
@@ -59,6 +67,8 @@ class NeoGeoTouchPad(
         strokeWidth = 2f * density
         color = Color.argb(140, 255, 255, 255)
     }
+    private val knobFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(170, 255, 255, 255) }
+    private val knobFillHeld = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(220, 245, 190, 0) }
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(220, 255, 255, 255)
         textAlign = Paint.Align.CENTER
@@ -90,17 +100,20 @@ class NeoGeoTouchPad(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        // Croix
+        // Joystick : anneau, repères des 4 directions, puis la boule qui suit le pouce.
         canvas.drawCircle(padCx, padCy, padR, fill)
         canvas.drawCircle(padCx, padCy, padR, stroke)
-        val arm = padR * 0.62f
+        val mark = padR * 0.82f
         val dirs = listOf(
-            KeyEvent.KEYCODE_DPAD_UP to (0f to -arm), KeyEvent.KEYCODE_DPAD_DOWN to (0f to arm),
-            KeyEvent.KEYCODE_DPAD_LEFT to (-arm to 0f), KeyEvent.KEYCODE_DPAD_RIGHT to (arm to 0f)
+            KeyEvent.KEYCODE_DPAD_UP to (0f to -mark), KeyEvent.KEYCODE_DPAD_DOWN to (0f to mark),
+            KeyEvent.KEYCODE_DPAD_LEFT to (-mark to 0f), KeyEvent.KEYCODE_DPAD_RIGHT to (mark to 0f)
         )
         for ((key, off) in dirs) {
-            canvas.drawCircle(padCx + off.first, padCy + off.second, padR * 0.24f, if (key in pressed) fillPressed else fill)
+            canvas.drawCircle(padCx + off.first, padCy + off.second, padR * 0.07f, if (key in pressed) fillPressed else fill)
         }
+        val held = stickPointer != -1
+        canvas.drawCircle(padCx + knobDx, padCy + knobDy, padR * KNOB_RADIUS, if (held) knobFillHeld else knobFill)
+        canvas.drawCircle(padCx + knobDx, padCy + knobDy, padR * KNOB_RADIUS, stroke)
         // Boutons
         for (z in buttons) {
             canvas.drawCircle(z.cx, z.cy, z.r, if (z.keyCode in pressed) fillPressed else fill)
@@ -117,25 +130,29 @@ class NeoGeoTouchPad(
         text.textSize = saved
     }
 
-    /** Touches visées par un doigt en (x, y). */
-    private fun keysAt(x: Float, y: Float): Set<Int> {
+    /** Le doigt se pose-t-il sur le joystick (anneau et une marge autour) ? */
+    private fun onStick(x: Float, y: Float): Boolean = hypot(x - padCx, y - padCy) <= padR * 1.25f
+
+    /** Place la boule sous le doigt (sans dépasser sa course) et renvoie les directions tenues. */
+    private fun moveStick(x: Float, y: Float): Set<Int> {
         val dx = x - padCx
         val dy = y - padCy
-        if (hypot(dx, dy) <= padR * 1.5f && hypot(dx, dy) > padR * 0.18f) {
-            // 8 secteurs de 45° : diagonales = deux directions à la fois.
-            val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).let { if (it < 0) it + 360 else it }
-            val sector = (((angle + 22.5) % 360) / 45).toInt()
-            return when (sector) {
-                0 -> setOf(KeyEvent.KEYCODE_DPAD_RIGHT)
-                1 -> setOf(KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN)
-                2 -> setOf(KeyEvent.KEYCODE_DPAD_DOWN)
-                3 -> setOf(KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT)
-                4 -> setOf(KeyEvent.KEYCODE_DPAD_LEFT)
-                5 -> setOf(KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP)
-                6 -> setOf(KeyEvent.KEYCODE_DPAD_UP)
-                else -> setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_RIGHT)
-            }
-        }
+        val travel = padR * KNOB_TRAVEL
+        val dist = hypot(dx, dy)
+        val scale = if (dist > travel && dist > 0f) travel / dist else 1f
+        knobDx = dx * scale
+        knobDy = dy * scale
+        return stickKeys(dx, dy, padR * DEAD_ZONE)
+    }
+
+    private fun releaseStick() {
+        stickPointer = -1
+        knobDx = 0f
+        knobDy = 0f
+    }
+
+    /** Bouton visé par un doigt en (x, y). */
+    private fun buttonAt(x: Float, y: Float): Set<Int> {
         for (z in buttons + small) {
             val hit = if (z in small) z.r * 1.6f else z.r * 1.15f
             if (hypot(x - z.cx, y - z.cy) <= hit) return setOf(z.keyCode)
@@ -145,26 +162,48 @@ class NeoGeoTouchPad(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        val knobBefore = knobDx to knobDy
+        val heldBefore = stickPointer
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val i = event.actionIndex
-                pointerKeys[event.getPointerId(i)] = keysAt(event.getX(i), event.getY(i))
+                val id = event.getPointerId(i)
+                val x = event.getX(i)
+                val y = event.getY(i)
+                if (stickPointer == -1 && onStick(x, y)) {
+                    stickPointer = id
+                    pointerKeys[id] = moveStick(x, y)
+                } else {
+                    pointerKeys[id] = buttonAt(x, y)
+                }
             }
             MotionEvent.ACTION_MOVE -> for (i in 0 until event.pointerCount) {
-                pointerKeys[event.getPointerId(i)] = keysAt(event.getX(i), event.getY(i))
+                val id = event.getPointerId(i)
+                pointerKeys[id] = if (id == stickPointer) moveStick(event.getX(i), event.getY(i))
+                else buttonAt(event.getX(i), event.getY(i))
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> pointerKeys.remove(event.getPointerId(event.actionIndex))
-            MotionEvent.ACTION_CANCEL -> pointerKeys.clear()
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                val id = event.getPointerId(event.actionIndex)
+                pointerKeys.remove(id)
+                if (id == stickPointer) releaseStick()
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                pointerKeys.clear()
+                releaseStick()
+            }
         }
         val now = pointerKeys.values.flatten().toSet()
         val released = pressed - now
         val newly = now - pressed
         released.forEach { onKey(it, false) }
         newly.forEach { onKey(it, true) }
-        if (newly.isNotEmpty()) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        // Vibration pour les boutons seulement : le joystick en rotation vibrerait sans arrêt.
+        if (newly.any { it !in DIRECTION_KEYS }) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         if (released.isNotEmpty() || newly.isNotEmpty()) {
             pressed.clear()
             pressed.addAll(now)
+        }
+        if (released.isNotEmpty() || newly.isNotEmpty() || knobBefore != (knobDx to knobDy) || heldBefore != stickPointer) {
             invalidate()
         }
         return true
@@ -175,6 +214,39 @@ class NeoGeoTouchPad(
         pressed.forEach { onKey(it, false) }
         pressed.clear()
         pointerKeys.clear()
+        releaseStick()
         invalidate()
+    }
+
+    companion object {
+        /** Rayon de la boule, course de la boule et zone morte, en part du rayon de l'anneau. */
+        private const val KNOB_RADIUS = 0.42f
+        private const val KNOB_TRAVEL = 0.58f
+        private const val DEAD_ZONE = 0.22f
+
+        private val DIRECTION_KEYS = setOf(
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT
+        )
+
+        /**
+         * Directions tenues pour une boule déplacée de ([dx], [dy]) depuis le centre (y vers le
+         * bas). Rien dans la zone morte ; au-delà, 8 secteurs de 45° : les diagonales tiennent
+         * deux directions à la fois, comme le levier à 8 directions de la Neo Geo.
+         */
+        internal fun stickKeys(dx: Float, dy: Float, deadZone: Float): Set<Int> {
+            if (hypot(dx, dy) <= deadZone) return emptySet()
+            val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).let { if (it < 0) it + 360 else it }
+            return when ((((angle + 22.5) % 360) / 45).toInt()) {
+                0 -> setOf(KeyEvent.KEYCODE_DPAD_RIGHT)
+                1 -> setOf(KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN)
+                2 -> setOf(KeyEvent.KEYCODE_DPAD_DOWN)
+                3 -> setOf(KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT)
+                4 -> setOf(KeyEvent.KEYCODE_DPAD_LEFT)
+                5 -> setOf(KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP)
+                6 -> setOf(KeyEvent.KEYCODE_DPAD_UP)
+                else -> setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_RIGHT)
+            }
+        }
     }
 }

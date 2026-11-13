@@ -148,4 +148,31 @@ class MissaGamesTest {
         // Des jeux publiés exigent le BIOS du mode choisi.
         if (cat.games.isNotEmpty()) assertNotNull(cat.requiredBios)
     }
+
+    @Test
+    fun `joystick tactile, zone morte puis 8 directions en rotation`() {
+        val up = KeyEvent.KEYCODE_DPAD_UP
+        val down = KeyEvent.KEYCODE_DPAD_DOWN
+        val left = KeyEvent.KEYCODE_DPAD_LEFT
+        val right = KeyEvent.KEYCODE_DPAD_RIGHT
+        // Boule au centre ou à peine déplacée : aucune direction.
+        assertEquals(emptySet<Int>(), NeoGeoTouchPad.stickKeys(0f, 0f, 20f))
+        assertEquals(emptySet<Int>(), NeoGeoTouchPad.stickKeys(10f, -10f, 20f))
+        // Un tour complet dans le sens des aiguilles d'une montre (y vers le bas de l'écran).
+        val tour = listOf(
+            (100f to 0f) to setOf(right),
+            (100f to 100f) to setOf(right, down),
+            (0f to 100f) to setOf(down),
+            (-100f to 100f) to setOf(down, left),
+            (-100f to 0f) to setOf(left),
+            (-100f to -100f) to setOf(left, up),
+            (0f to -100f) to setOf(up),
+            (100f to -100f) to setOf(up, right)
+        )
+        for ((pos, attendu) in tour) {
+            assertEquals(attendu, NeoGeoTouchPad.stickKeys(pos.first, pos.second, 20f))
+        }
+        // Le doigt peut sortir de l'anneau : la direction ne dépend que de l'angle.
+        assertEquals(setOf(left), NeoGeoTouchPad.stickKeys(-900f, 30f, 20f))
+    }
 }
