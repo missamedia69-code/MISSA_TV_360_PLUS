@@ -1,4 +1,4 @@
-name: Inspect game upload (temporary)
+name: Convert game uploads (temporary)
 on:
   push:
     branches: [arena/14cc0d36-missa-tv-360-plus]
@@ -7,31 +7,35 @@ permissions:
   contents: read
   pull-requests: write
 jobs:
-  inspect:
+  convert:
     runs-on: ubuntu-latest
     steps:
-      - name: Download public release and inspect archives
+      - name: Convert separately and report results
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          python3 - <<'PY' > /tmp/report 2>&1
-          import hashlib, os, urllib.request, zipfile
-          base='https://github.com/${{ github.repository }}/releases/download/transfert-jeux-2026-11/'
-          for name in ['mslugx.10.png','mslugx.11.png','mslugx.6.png','mslugx.7.png','Internet.Download.Manager.6.43.Build.11.rar']:
-              print('\n###',name,flush=True)
-              p='/tmp/'+name
-              try:
-                  urllib.request.urlretrieve(base+name,p)
-                  print('Bytes:',os.path.getsize(p),'SHA256:',hashlib.sha256(open(p,'rb').read()).hexdigest(),flush=True)
-                  with open(p,'rb') as f: print('Signature:',repr(f.read(16)),flush=True)
-                  if zipfile.is_zipfile(p):
-                      with zipfile.ZipFile(p) as z:
-                          for e in z.infolist(): print(repr(e.filename),e.file_size,flush=True)
-                          print('ZIP CRC error:', z.testzip(),flush=True)
-                  else: print('Not ZIP',flush=True)
-              except Exception as e: print('ERROR:',repr(e),flush=True)
-              finally:
-                  if os.path.exists(p): os.remove(p)
-          PY
-          gh pr comment 21 --body-file /tmp/report
+          set -u
+          printf 'Conversion stricte des ROMs :\n' > /tmp/report
+          git clone --depth 1 https://github.com/carmiker/lithogen.git /tmp/lithogen >> /tmp/report 2>&1
+          (cd /tmp/lithogen && autoreconf -fi && ./configure && make -j2) >> /tmp/report 2>&1
+          if [ ! -x /tmp/lithogen/lithogen ]; then
+            printf '\nCompilation lithogen échouée.\n' >> /tmp/report
+          else
+            for spec in 'mslug3 mslugx.10.png' 'mslug5 mslugx.11.png' 'mslugx mslugx.6.png' 'mslug4 mslugx.7.png'; do
+              set -- $spec
+              printf '\n### %s (%s)\n' "$1" "$2" >> /tmp/report
+              curl -fLsS "https://github.com/${{ github.repository }}/releases/download/transfert-jeux-2026-11/$2" -o "/tmp/$1.zip" 2>> /tmp/report
+              if [ -s "/tmp/$1.zip" ]; then
+                /tmp/lithogen/lithogen --strict --set "$1" "/tmp/$1.zip" -o "/tmp/$1.neo" >> /tmp/report 2>&1 || echo "FAILED conversion $1" >> /tmp/report
+                if [ -f "/tmp/$1.neo" ]; then
+                  stat -c '%n %s bytes' "/tmp/$1.neo" >> /tmp/report
+                  sha256sum "/tmp/$1.neo" >> /tmp/report
+                  python3 /tmp/lithogen/tools/dump_neo.py "/tmp/$1.neo" >> /tmp/report 2>&1 || true
+                fi
+              fi
+              rm -f "/tmp/$1.zip"
+            done
+          fi
+          tail -c 35000 /tmp/report > /tmp/report-short
+          gh pr comment 21 --body-file /tmp/report-short
