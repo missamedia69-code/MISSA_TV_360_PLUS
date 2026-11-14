@@ -14,6 +14,7 @@ jobs:
       - name: Download draft asset and inspect archive
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           { gh api -H 'Accept: application/octet-stream' repos/${{ github.repository }}/releases/assets/748587086 > /tmp/mslug3.zip; } 2>/tmp/error || {
             printf 'Échec du téléchargement de la pièce jointe :\n\n```\n%s\n```\n' "$(head -c 1800 /tmp/error)" > /tmp/report
