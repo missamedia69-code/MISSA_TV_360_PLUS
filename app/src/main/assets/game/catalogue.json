@@ -90,6 +90,22 @@
       "bytes": 17043456,
       "sha256": "a976248d059c437656a1101e3dd3e0c63308e05f1fa24fb2c01f2855dbddd1a2",
       "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/neobombe.webp"
+    },
+    {
+      "id": "mslug2",
+      "title": "Metal Slug 2",
+      "genre": "Action / plateforme",
+      "author": "SNK",
+      "players": "1-2",
+      "description": "Suite du jeu d'action arcade Neo Geo, sortie en 1998, jouable en solo ou à deux.",
+      "path": "game/roms/neogeo/mslug2.neo",
+      "banner": "game/bannieres/mslug2.webp",
+      "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
+      "fileName": "mslug2.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/mslug2.neo",
+      "bytes": 45355008,
+      "sha256": "bc2799426a1b58155c19dbf371ab39ea82f953b8ac451d664b1da207287a1245",
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug2.webp"
     }
   ]
 }

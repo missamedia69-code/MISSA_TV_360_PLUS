@@ -76,6 +76,11 @@ Son affiche originale est dans `bannieres/neobombe.webp`. L'archive reçue sous 
 nom `.png` n'était pas une image mais un ZIP contenant ce `.neo` ; seule la ROM
 extraite est publiée dans le dépôt.
 
+Metal Slug 2 est converti depuis l'archive MAME reçue avec `lithogen --strict` :
+seuls `roms/neogeo/mslug2.neo` et son affiche `bannieres/mslug2.webp` sont
+publiés. L'autre archive reçue sous un nom ressemblant à `mslugx` contient en
+réalité Metal Slug 1 (ROMs `201-*`), déjà présent ; elle n'est pas ajoutée.
+
 ## Ajouter un jeu
 
 1. Déposer le jeu dans `roms/neogeo/` (par exemple `roms/neogeo/kof98.neo`).
