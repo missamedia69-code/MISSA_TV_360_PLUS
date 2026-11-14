@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  pull-requests: write
 jobs:
   inspect:
     runs-on: ubuntu-latest
@@ -14,8 +15,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api -H 'Accept: application/octet-stream' repos/${{ github.repository }}/releases/assets/748587086 > /tmp/mslug3.zip
-          python3 - <<'PY'
+          { gh api -H 'Accept: application/octet-stream' repos/${{ github.repository }}/releases/assets/748587086 > /tmp/mslug3.zip; } 2>/tmp/error || {
+            printf 'Échec du téléchargement de la pièce jointe :\n\n```\n%s\n```\n' "$(head -c 1800 /tmp/error)" > /tmp/report
+            gh pr comment 21 --body-file /tmp/report
+            exit 1
+          }
+          python3 - <<'PY' > /tmp/report
           import hashlib, os, zipfile
           p='/tmp/mslug3.zip'
           print('Downloaded bytes:', os.path.getsize(p), 'SHA256:', hashlib.sha256(open(p,'rb').read()).hexdigest())
@@ -24,3 +29,4 @@ jobs:
                   print(repr(entry.filename), entry.file_size)
               print('ZIP CRC error:', z.testzip())
           PY
+          gh pr comment 21 --body-file /tmp/report
