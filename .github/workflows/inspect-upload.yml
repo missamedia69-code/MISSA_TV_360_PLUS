@@ -20,7 +20,7 @@ jobs:
             gh pr comment 21 --body-file /tmp/report
             exit 1
           }
-          python3 - <<'PY' > /tmp/report
+          python3 - <<'PY' > /tmp/report 2>&1 || true
           import hashlib, os, zipfile
           p='/tmp/mslug3.zip'
           print('Downloaded bytes:', os.path.getsize(p), 'SHA256:', hashlib.sha256(open(p,'rb').read()).hexdigest())
