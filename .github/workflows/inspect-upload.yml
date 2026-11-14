@@ -1,41 +1,48 @@
-name: Convert game uploads (temporary)
+name: Publish converted game uploads (temporary)
 on:
   push:
     branches: [arena/14cc0d36-missa-tv-360-plus]
     paths: [.github/workflows/inspect-upload.yml]
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 jobs:
   convert:
     runs-on: ubuntu-latest
     steps:
-      - name: Convert separately and report results
+      - name: Convert strictly and publish verified NEO files only
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          set -u
-          printf 'Conversion stricte des ROMs :\n' > /tmp/report
-          git clone --depth 1 https://github.com/carmiker/lithogen.git /tmp/lithogen >> /tmp/report 2>&1
-          (cd /tmp/lithogen && autoreconf -fi && ./configure && make -j2) >> /tmp/report 2>&1
-          if [ ! -x /tmp/lithogen/lithogen ]; then
-            printf '\nCompilation lithogen échouée.\n' >> /tmp/report
-          else
-            for spec in 'mslug3 mslugx.10.png' 'mslug5 mslugx.11.png' 'mslugx mslugx.6.png' 'mslug4 mslugx.7.png'; do
-              set -- $spec
-              printf '\n### %s (%s)\n' "$1" "$2" >> /tmp/report
-              curl -fLsS "https://github.com/${{ github.repository }}/releases/download/transfert-jeux-2026-11/$2" -o "/tmp/$1.zip" 2>> /tmp/report
-              if [ -s "/tmp/$1.zip" ]; then
-                /tmp/lithogen/lithogen --strict --set "$1" "/tmp/$1.zip" -o "/tmp/$1.neo" >> /tmp/report 2>&1 || echo "FAILED conversion $1" >> /tmp/report
-                if [ -f "/tmp/$1.neo" ]; then
-                  stat -c '%n %s bytes' "/tmp/$1.neo" >> /tmp/report
-                  sha256sum "/tmp/$1.neo" >> /tmp/report
-                  python3 /tmp/lithogen/tools/dump_neo.py "/tmp/$1.neo" >> /tmp/report 2>&1 || true
-                fi
-              fi
-              rm -f "/tmp/$1.zip"
-            done
-          fi
-          tail -c 35000 /tmp/report > /tmp/report-short
-          gh pr comment 21 --body-file /tmp/report-short
+          set -eu
+          git clone --depth 1 https://github.com/carmiker/lithogen.git /tmp/lithogen
+          (cd /tmp/lithogen && autoreconf -fi && ./configure && make -j2) > /tmp/build.log 2>&1
+          printf 'Publication des ROMs validées (sans ZIP ni BIOS) :\n' > /tmp/report
+          while read -r setname source checksum; do
+            printf '\n### %s\n' "$setname" >> /tmp/report
+            if ! curl -fLsS "https://github.com/${{ github.repository }}/releases/download/transfert-jeux-2026-11/$source" -o "/tmp/$setname.zip"; then
+              echo 'ERREUR téléchargement' >> /tmp/report
+              continue
+            fi
+            if ! /tmp/lithogen/lithogen --strict --set "$setname" "/tmp/$setname.zip" -o "/tmp/$setname.neo" >> /tmp/report 2>&1; then
+              echo 'ERREUR conversion' >> /tmp/report
+              continue
+            fi
+            if ! echo "$checksum  /tmp/$setname.neo" | sha256sum -c - >> /tmp/report 2>&1; then
+              echo 'ERREUR empreinte inattendue ; fichier non publié' >> /tmp/report
+              continue
+            fi
+            if gh release upload jeux-metal-slug-2026-11 "/tmp/$setname.neo" --clobber >> /tmp/report 2>&1; then
+              stat -c 'Publié : %n (%s octets)' "/tmp/$setname.neo" >> /tmp/report
+            else
+              echo 'ERREUR publication' >> /tmp/report
+            fi
+            rm -f "/tmp/$setname.zip" "/tmp/$setname.neo"
+          done <<'SETS'
+          mslug3 mslugx.10.png 69c3c19155eb0d31b05bc65818234f8d649cfcc7fa322e9370ff61af455faa3a
+          mslug5 mslugx.11.png a084c93c6c155a18d360bce942a272e37223773363a7750351f998a6438764f6
+          mslugx mslugx.6.png a04b750567157011911404d26b9721bf49e36dd3e672359645508567626f7ffd
+          mslug4 mslugx.7.png 0ce968b0b83297a3c9054543f0f219c3785a9a60f8bcf7e4c437080483a9d121
+          SETS
+          gh pr comment 21 --body-file /tmp/report
