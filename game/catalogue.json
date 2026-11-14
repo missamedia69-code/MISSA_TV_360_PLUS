@@ -73,7 +73,7 @@
       "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/mslug.neo",
       "bytes": 27529216,
       "sha256": "073dc44f1d0523c4a1ab1e684f85549f1c9a9ee5c892e98063e2ea633efad2f7",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug.webp"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug.webp?v=6af729caa4ed"
     },
     {
       "id": "neobombe",
@@ -89,7 +89,7 @@
       "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/neobombe.neo",
       "bytes": 17043456,
       "sha256": "a976248d059c437656a1101e3dd3e0c63308e05f1fa24fb2c01f2855dbddd1a2",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/neobombe.webp"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/neobombe.webp?v=ecb67da8189a"
     },
     {
       "id": "mslug2",
@@ -105,7 +105,7 @@
       "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/mslug2.neo",
       "bytes": 45355008,
       "sha256": "bc2799426a1b58155c19dbf371ab39ea82f953b8ac451d664b1da207287a1245",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug2.webp"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug2.webp?v=47cdb443b3d6"
     },
     {
       "id": "mslugx",
@@ -120,7 +120,7 @@
       "sha256": "a04b750567157011911404d26b9721bf49e36dd3e672359645508567626f7ffd",
       "banner": "game/bannieres/mslugx.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslugx.webp"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslugx.webp?v=4433956c3760"
     },
     {
       "id": "mslug3",
@@ -135,7 +135,7 @@
       "sha256": "69c3c19155eb0d31b05bc65818234f8d649cfcc7fa322e9370ff61af455faa3a",
       "banner": "game/bannieres/mslug3.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug3.webp"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug3.webp?v=ec6e63e6dffe"
     },
     {
       "id": "mslug4",
@@ -150,7 +150,7 @@
       "sha256": "0ce968b0b83297a3c9054543f0f219c3785a9a60f8bcf7e4c437080483a9d121",
       "banner": "game/bannieres/mslug4.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug4.webp"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug4.webp?v=eee74f5c0d0d"
     },
     {
       "id": "mslug5",
@@ -165,7 +165,7 @@
       "sha256": "a084c93c6c155a18d360bce942a272e37223773363a7750351f998a6438764f6",
       "banner": "game/bannieres/mslug5.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug5.webp"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug5.webp?v=50f0086e9f6b"
     }
   ]
 }

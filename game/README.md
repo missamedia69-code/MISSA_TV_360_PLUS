@@ -92,6 +92,12 @@ originales sont dans `bannieres/`. Le catalogue réseau et sa copie embarquée
 référencent les mêmes URL, tailles et empreintes SHA-256. Une validation de
 conversion et les contrôles Android ne remplacent pas un essai sur appareil.
 
+Les sept jeux du catalogue disposent chacun d'une affiche originale détaillée,
+portrait 3:4, dans `bannieres/`. Les URL des affiches portent une version tirée
+de leur empreinte SHA-256 afin que le cache d'images de l'application récupère
+la nouvelle illustration après une mise à jour, sans télécharger à nouveau les
+ROMs.
+
 ## Ajouter un jeu
 
 1. Déposer le jeu dans `roms/neogeo/` (par exemple `roms/neogeo/kof98.neo`).
