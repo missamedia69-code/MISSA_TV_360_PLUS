@@ -10,7 +10,7 @@ l'APK : tout est dans ce dossier et téléchargé à la demande.
 2. Quand l'utilisateur touche un jeu, elle télécharge ce qui manque, une seule fois :
    - le **moteur Neo Geo** de son processeur (`neogeo/moteur/`, environ 0,7 Mo) ;
    - le **BIOS Neo Geo** (`neogeo/bios/`) ;
-   - le **jeu** (`roms/neogeo/`, fichier `.neo`).
+   - le **jeu** (`rom/`, fichier `.neo`).
 3. Chaque fichier est vérifié par son empreinte SHA-256. Le jeu se lance ensuite **hors
    ligne**, en plein écran, avec la manette, la télécommande ou la manette tactile.
 
@@ -62,7 +62,7 @@ arrivent bientôt.
 Geolith lit uniquement le format **`.neo`** (TerraOnion). Si votre fournisseur livre des
 fichiers MAME (`.zip`), convertissez-les avec l'outil libre
 [lithogen](https://github.com/carmiker/lithogen) ou NeoBuilder. Pour Metal Slug,
-le fichier converti `game/roms/neogeo/mslug.neo` a été vérifié avec
+le fichier converti `game/rom/mslug.neo` a été vérifié avec
 `lithogen --strict` : c'est le seul fichier du jeu déclaré dans le catalogue
 et téléchargé par l'application. L'archive MAME d'origine n'est pas nécessaire
 au fonctionnement de l'application et n'est pas conservée dans le dossier `game/`.
@@ -71,13 +71,13 @@ La bannière originale de Metal Slug est dans `bannieres/mslug.webp` (portrait 3
 et s'affiche dans la grille des jeux. Un logo horizontal original se trouve dans
 `logos/mslug.webp` ; l'écran Jeux n'a pas de champ logo séparé et ne l'affiche pas.
 
-Neo Bomberman est fourni directement au format `.neo` : `roms/neogeo/neobombe.neo`.
+Neo Bomberman est fourni directement au format `.neo` : `rom/neobombe.neo`.
 Son affiche originale est dans `bannieres/neobombe.webp`. L'archive reçue sous un
 nom `.png` n'était pas une image mais un ZIP contenant ce `.neo` ; seule la ROM
 extraite est publiée dans le dépôt.
 
 Metal Slug 2 est converti depuis l'archive MAME reçue avec `lithogen --strict` :
-seuls `roms/neogeo/mslug2.neo` et son affiche `bannieres/mslug2.webp` sont
+seuls `rom/mslug2.neo` et son affiche `bannieres/mslug2.webp` sont
 publiés. L'autre archive reçue sous un nom ressemblant à `mslugx` contient en
 réalité Metal Slug 1 (ROMs `201-*`), déjà présent ; elle n'est pas ajoutée.
 
@@ -85,8 +85,7 @@ Quatre autres archives reçues sous des noms `.png` sont des ZIP MAME : Metal
 Slug X (ROMs `250-*`), Metal Slug 3 (`256-*`), Metal Slug 4 (`263-*`) et Metal
 Slug 5 (`268-*`). Leur intégrité ZIP a été vérifiée et elles ont été converties
 avec `lithogen --strict` (NGH 250, 256, 263 et 268 respectivement). Seules les
-ROMs `.neo` validées sont hébergées dans la Release
-`jeux-metal-slug-2026-11` ; les ZIP d'origine et leurs BIOS inclus ne sont pas
+ROMs `.neo` validées sont publiées, dans `rom/` comme les autres jeux ; les ZIP d'origine et leurs BIOS inclus ne sont pas
 nécessaires au jeu et ne figurent pas dans le catalogue. Leurs affiches
 originales sont dans `bannieres/`. Le catalogue réseau et sa copie embarquée
 référencent les mêmes URL, tailles et empreintes SHA-256. Une validation de
@@ -115,7 +114,7 @@ une mise à jour, sans télécharger à nouveau les ROMs.
 
 ## Ajouter un jeu
 
-1. Déposer le jeu dans `roms/neogeo/` (par exemple `roms/neogeo/kof98.neo`).
+1. Déposer le jeu dans `rom/` (par exemple `rom/kof98.neo`).
 2. Déposer sa bannière dans `bannieres/` : image **portrait 3:4**, par exemple
    600 × 800 pixels, en WebP ou JPEG (moins de 200 Ko).
 3. Ajouter une entrée dans la liste `jeux` de `catalogue.json` :
@@ -128,7 +127,7 @@ une mise à jour, sans télécharger à nouveau les ROMs.
      "author": "SNK",
      "players": "1-2",
      "description": "Le grand classique du combat en équipes de trois.",
-     "path": "game/roms/neogeo/kof98.neo",
+     "path": "game/rom/kof98.neo",
      "banner": "game/bannieres/kof98.webp",
      "licence": "Contrat ... du ... (diffusion commerciale autorisée)"
    }

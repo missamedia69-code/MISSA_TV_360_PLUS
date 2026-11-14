@@ -66,14 +66,14 @@
       "author": "Nazca",
       "players": "1-2",
       "description": "Jeu d'action arcade Neo Geo de 1996, jouable en solo ou à deux.",
-      "path": "game/roms/neogeo/mslug.neo",
+      "path": "game/rom/mslug.neo",
       "banner": "game/bannieres/mslug.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "fileName": "mslug.neo",
-      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/mslug.neo",
       "bytes": 27529216,
       "sha256": "073dc44f1d0523c4a1ab1e684f85549f1c9a9ee5c892e98063e2ea633efad2f7",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug.webp?v=e297585c4cd5"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug.webp?v=e297585c4cd5",
+      "fileName": "mslug.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/rom/mslug.neo"
     },
     {
       "id": "neobombe",
@@ -82,14 +82,14 @@
       "author": "Hudson Soft",
       "players": "1-2",
       "description": "Jeu d'action et de labyrinthes Neo Geo de 1997, jouable en solo ou à deux.",
-      "path": "game/roms/neogeo/neobombe.neo",
+      "path": "game/rom/neobombe.neo",
       "banner": "game/bannieres/neobombe.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "fileName": "neobombe.neo",
-      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/neobombe.neo",
       "bytes": 17043456,
       "sha256": "a976248d059c437656a1101e3dd3e0c63308e05f1fa24fb2c01f2855dbddd1a2",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/neobombe.webp?v=83a025c3b1c5"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/neobombe.webp?v=83a025c3b1c5",
+      "fileName": "neobombe.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/rom/neobombe.neo"
     },
     {
       "id": "mslug2",
@@ -98,14 +98,14 @@
       "author": "SNK",
       "players": "1-2",
       "description": "Suite du jeu d'action arcade Neo Geo, sortie en 1998, jouable en solo ou à deux.",
-      "path": "game/roms/neogeo/mslug2.neo",
+      "path": "game/rom/mslug2.neo",
       "banner": "game/bannieres/mslug2.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "fileName": "mslug2.neo",
-      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/roms/neogeo/mslug2.neo",
       "bytes": 45355008,
       "sha256": "bc2799426a1b58155c19dbf371ab39ea82f953b8ac451d664b1da207287a1245",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug2.webp?v=c47a02bc82bc"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug2.webp?v=c47a02bc82bc",
+      "fileName": "mslug2.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/rom/mslug2.neo"
     },
     {
       "id": "mslugx",
@@ -114,13 +114,14 @@
       "author": "SNK",
       "players": "1-2",
       "description": "Version revisitée de Metal Slug 2, sortie en 1999 sur Neo Geo.",
-      "url": "https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/download/jeux-metal-slug-2026-11/mslugx.neo",
-      "fileName": "mslugx.neo",
       "bytes": 66326528,
       "sha256": "a04b750567157011911404d26b9721bf49e36dd3e672359645508567626f7ffd",
       "banner": "game/bannieres/mslugx.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslugx.webp?v=209fb0cf1c21"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslugx.webp?v=209fb0cf1c21",
+      "path": "game/rom/mslugx.neo",
+      "fileName": "mslugx.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/rom/mslugx.neo"
     },
     {
       "id": "mslug3",
@@ -129,13 +130,14 @@
       "author": "SNK",
       "players": "1-2",
       "description": "Aventure arcade Neo Geo de 2000, jouable en solo ou à deux.",
-      "url": "https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/download/jeux-metal-slug-2026-11/mslug3.neo",
-      "fileName": "mslug3.neo",
       "bytes": 94375936,
       "sha256": "69c3c19155eb0d31b05bc65818234f8d649cfcc7fa322e9370ff61af455faa3a",
       "banner": "game/bannieres/mslug3.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug3.webp?v=18ed7cf0d5b7"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug3.webp?v=18ed7cf0d5b7",
+      "path": "game/rom/mslug3.neo",
+      "fileName": "mslug3.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/rom/mslug3.neo"
     },
     {
       "id": "mslug4",
@@ -144,13 +146,14 @@
       "author": "Mega / Playmore",
       "players": "1-2",
       "description": "Jeu d’action arcade Neo Geo de 2002, jouable en solo ou à deux.",
-      "url": "https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/download/jeux-metal-slug-2026-11/mslug4.neo",
-      "fileName": "mslug4.neo",
       "bytes": 73011200,
       "sha256": "0ce968b0b83297a3c9054543f0f219c3785a9a60f8bcf7e4c437080483a9d121",
       "banner": "game/bannieres/mslug4.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug4.webp?v=920589a7158b"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug4.webp?v=920589a7158b",
+      "path": "game/rom/mslug4.neo",
+      "fileName": "mslug4.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/rom/mslug4.neo"
     },
     {
       "id": "mslug5",
@@ -159,13 +162,14 @@
       "author": "SNK Playmore",
       "players": "1-2",
       "description": "Jeu d’action arcade Neo Geo de 2003, jouable en solo ou à deux.",
-      "url": "https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/download/jeux-metal-slug-2026-11/mslug5.neo",
-      "fileName": "mslug5.neo",
       "bytes": 92934144,
       "sha256": "a084c93c6c155a18d360bce942a272e37223773363a7750351f998a6438764f6",
       "banner": "game/bannieres/mslug5.webp",
       "licence": "Autorisation de diffusion déclarée par le responsable de MISSA TV",
-      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug5.webp?v=dadd5c375a04"
+      "bannerUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/bannieres/mslug5.webp?v=dadd5c375a04",
+      "path": "game/rom/mslug5.neo",
+      "fileName": "mslug5.neo",
+      "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/game/rom/mslug5.neo"
     }
   ]
 }
