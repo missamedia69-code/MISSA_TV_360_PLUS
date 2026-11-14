@@ -93,10 +93,15 @@ référencent les mêmes URL, tailles et empreintes SHA-256. Une validation de
 conversion et les contrôles Android ne remplacent pas un essai sur appareil.
 
 Les sept jeux du catalogue disposent chacun d'une affiche originale détaillée,
-portrait 3:4, dans `bannieres/`. Les URL des affiches portent une version tirée
-de leur empreinte SHA-256 afin que le cache d'images de l'application récupère
-la nouvelle illustration après une mise à jour, sans télécharger à nouveau les
-ROMs.
+portrait 3:4, dans `bannieres/`. Les titres ne sont plus composés avec une police
+sans-serif générique : Metal Slug reprend un lettrage arcade à empattements,
+doré et en relief, inspiré de ses logotypes ; Neo Bomberman emploie un lettrage
+BD orange, une inscription « NEO » métallisée et un motif de bombe. Ces titres
+sont des créations originales composées avec les polices libres Alfa Slab One,
+Bangers et Bungee (SIL Open Font License), sans réutiliser les logos officiels.
+Les URL des affiches portent une version tirée de leur empreinte SHA-256 afin
+que le cache d'images de l'application récupère la nouvelle illustration après
+une mise à jour, sans télécharger à nouveau les ROMs.
 
 ## Ajouter un jeu
 
