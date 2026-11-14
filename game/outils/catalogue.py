@@ -135,7 +135,10 @@ def main():
             erreurs.append(f"{nom}: en-tête .neo invalide (attendu « NEO » + 1)")
         if jeu.get("banner"):
             if os.path.isfile(os.path.join(RACINE, jeu["banner"])):
-                jeu["bannerUrl"] = BASE_URL + jeu["banner"]
+                # L'application conserve les affiches dans le cache disque Coil : une URL
+                # versionnée par le contenu force le renouvellement après une refonte.
+                empreinte = hashlib.sha256(lire(jeu["banner"])).hexdigest()[:12]
+                jeu["bannerUrl"] = BASE_URL + jeu["banner"] + "?v=" + empreinte
             else:
                 erreurs.append(f"{nom}: bannière introuvable ({jeu['banner']})")
 
