@@ -76,6 +76,22 @@ Son affiche originale est dans `bannieres/neobombe.webp`. L'archive reçue sous 
 nom `.png` n'était pas une image mais un ZIP contenant ce `.neo` ; seule la ROM
 extraite est publiée dans le dépôt.
 
+Metal Slug 2 est converti depuis l'archive MAME reçue avec `lithogen --strict` :
+seuls `roms/neogeo/mslug2.neo` et son affiche `bannieres/mslug2.webp` sont
+publiés. L'autre archive reçue sous un nom ressemblant à `mslugx` contient en
+réalité Metal Slug 1 (ROMs `201-*`), déjà présent ; elle n'est pas ajoutée.
+
+Quatre autres archives reçues sous des noms `.png` sont des ZIP MAME : Metal
+Slug X (ROMs `250-*`), Metal Slug 3 (`256-*`), Metal Slug 4 (`263-*`) et Metal
+Slug 5 (`268-*`). Leur intégrité ZIP a été vérifiée et elles ont été converties
+avec `lithogen --strict` (NGH 250, 256, 263 et 268 respectivement). Seules les
+ROMs `.neo` validées sont hébergées dans la Release
+`jeux-metal-slug-2026-11` ; les ZIP d'origine et leurs BIOS inclus ne sont pas
+nécessaires au jeu et ne figurent pas dans le catalogue. Leurs affiches
+originales sont dans `bannieres/`. Le catalogue réseau et sa copie embarquée
+référencent les mêmes URL, tailles et empreintes SHA-256. Une validation de
+conversion et les contrôles Android ne remplacent pas un essai sur appareil.
+
 ## Ajouter un jeu
 
 1. Déposer le jeu dans `roms/neogeo/` (par exemple `roms/neogeo/kof98.neo`).
