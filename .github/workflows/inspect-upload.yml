@@ -1,0 +1,26 @@
+name: Inspect game upload (temporary)
+on:
+  push:
+    branches: [arena/14cc0d36-missa-tv-360-plus]
+    paths: [.github/workflows/inspect-upload.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download draft asset and inspect archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -H 'Accept: application/octet-stream' repos/${{ github.repository }}/releases/assets/748587086 > /tmp/mslug3.zip
+          python3 - <<'PY'
+          import hashlib, os, zipfile
+          p='/tmp/mslug3.zip'
+          print('Downloaded bytes:', os.path.getsize(p), 'SHA256:', hashlib.sha256(open(p,'rb').read()).hexdigest())
+          with zipfile.ZipFile(p) as z:
+              for entry in z.infolist():
+                  print(repr(entry.filename), entry.file_size)
+              print('ZIP CRC error:', z.testzip())
+          PY
