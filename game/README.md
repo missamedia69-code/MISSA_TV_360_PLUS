@@ -93,12 +93,22 @@ référencent les mêmes URL, tailles et empreintes SHA-256. Une validation de
 conversion et les contrôles Android ne remplacent pas un essai sur appareil.
 
 Les sept jeux du catalogue disposent chacun d'une affiche originale détaillée,
-portrait 3:4, dans `bannieres/`. Les titres ne sont plus composés avec une police
-sans-serif générique : Metal Slug reprend un lettrage arcade à empattements,
-doré et en relief, inspiré de ses logotypes ; Neo Bomberman emploie un lettrage
-BD orange, une inscription « NEO » métallisée et un motif de bombe. Ces titres
-sont des créations originales composées avec les polices libres Alfa Slab One,
-Bangers et Bungee (SIL Open Font License), sans réutiliser les logos officiels.
+portrait 3:4, dans `bannieres/`. Les anciens lettrages uniformes ont été remplacés
+par le **logotype propre à chaque édition** : Metal Slug original (or), 2 (orange
+avec 2 violet), X (grand X métallique), 3 (3 chromé), 4 (métal sombre et 4
+rouge), 5 (blanc/rouge et cible), et Neo Bomberman (bombe et explosion).
+Les images de fond restent originales ; les logotypes sont des marques et visuels
+des ayants droit, utilisés selon les autorisations de diffusion déclarées par
+le responsable de MISSA TV. Références utilisées pour vérifier chaque titre :
+
+- [Metal Slug](https://es.wikipedia.org/wiki/Archivo:Metal_Slug_logo.png)
+- [Metal Slug 2](https://gamesdb.launchbox-app.com/games/images/77412-metal-slug-2)
+- [Metal Slug X](https://gamesdb.launchbox-app.com/games/details/82676-metal-slug-x)
+- [Metal Slug 3](https://www.pngkey.com/maxpic/u2w7r5i1u2r5i1q8/)
+- [Metal Slug 4](https://gamesdb.launchbox-app.com/games/images/31454-metal-slug-4)
+- [Metal Slug 5](https://gamesdb.launchbox-app.com/games/images/214-metal-slug-5)
+- [Neo Bomberman](https://fr.wikipedia.org/wiki/Neo_Bomberman)
+
 Les URL des affiches portent une version tirée de leur empreinte SHA-256 afin
 que le cache d'images de l'application récupère la nouvelle illustration après
 une mise à jour, sans télécharger à nouveau les ROMs.
