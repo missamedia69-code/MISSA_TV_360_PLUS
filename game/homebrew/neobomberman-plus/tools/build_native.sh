@@ -28,7 +28,10 @@ cp "$PROJECT/bomber.c" "$PROJECT/bomber.h" 00-template/
 sed -i 's/^GAMEROM=ngdevkit$/GAMEROM=bomberplus/' 00-template/Makefile
 sed -i 's/^LDFLAGS=$/LDFLAGS=-Wl,--defsym,rom_NGH_ID=1987/' 00-template/Makefile
 sed -i 's@$(ELF):[[:space:]]*$(BUILDDIR)/main.o@$(ELF): $(BUILDDIR)/main.o $(BUILDDIR)/bomber.o@' 00-template/Makefile
-make -C 00-template cart
+# Avoid optional GnGeo hash (requires an installed GnGeo database); build only
+# the cartridge and its dependencies after generating shared graphics/audio.
+make -C 00-template build/.generated
+make -C 00-template build/rom/bomberplus.zip
 CHIPS=00-template/build/rom
 cp "$CHIPS/bomberplus.zip" "$BUILD_OUTPUT/bomberplus.zip"
 python3 "$PROJECT/tools/pack_neo.py" "$CHIPS" "$BUILD_OUTPUT/bomberplus.neo"
