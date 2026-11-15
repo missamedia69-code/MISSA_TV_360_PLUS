@@ -22,6 +22,7 @@ unset MAKELEVEL MAKEFLAGS MFLAGS GNUMAKEFLAGS
 sed -i 's/`\${make} _examples`/`\${make} --no-print-directory _examples`/' configure.ac
 autoreconf -iv
 bash ./configure
+cp config.mk 00-template/config.mk
 cp "$PROJECT/neo_main.c" 00-template/main.c
 cp "$PROJECT/bomber.c" "$PROJECT/bomber.h" 00-template/
 sed -i 's/^GAMEROM=ngdevkit$/GAMEROM=bomberplus/' 00-template/Makefile
