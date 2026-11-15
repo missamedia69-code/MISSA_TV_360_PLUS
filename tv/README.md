@@ -42,9 +42,10 @@ est ignorée (l'application garde la précédente).
 La liste de départ a été produite par `outils/generer_depart.py` à partir des listes
 publiques du projet [iptv-org](https://github.com/iptv-org/iptv) : chaînes d'Afrique
 francophone et quelques chaînes d'information internationales. Elle a ensuite été
-complétée par d'autres sources fournies par l'utilisateur. En particulier, 586 flux de la
-playlist « Popular Movies IPTV » ont été ajoutés après exclusion de 2 flux déjà présents,
-avec les catégories traduites en français. Ce script de génération ne doit pas être relancé
+complétée par d'autres sources fournies par l'utilisateur. En particulier, la
+playlist « Popular Movies IPTV » a apporté 581 flux absents de la liste publiée ;
+7 autres étaient déjà présents (2 dans la liste de départ, puis 5 ajoutés avec la
+liste Afrique). Les catégories cinéma ont été traduites en français. Ce script de génération ne doit pas être relancé
 sur la liste publiée sans précaution : il écraserait les ajouts manuels.
 
 L'ajout d'une URL ne prouve ni la disponibilité du flux, ni ses droits de diffusion ;
