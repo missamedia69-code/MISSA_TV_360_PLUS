@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090c19">
+<title>Bomber Plus · aperçu jouable</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/game.js" defer></script>
+</head>
+<body>
+<div class="ambient" aria-hidden="true"></div>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">B<span>+</span></span><span class="brand-name">MISSA <b>ARCADE</b></span></div>
+  <span class="top-tag"><i></i> PROTOTYPE JOUABLE</span>
+</header>
+<main class="layout">
+  <section class="intro">
+    <div class="kicker"><span class="line"></span> HOME­BREW · NEO GEO</div>
+    <h1>BOMBER<br><em>PLUS</em><span class="dot">.</span></h1>
+    <p class="subtitle">Une arène. Des bombes. Aucun endroit où se cacher.</p>
+    <p class="disclaimer">Aperçu dans le navigateur utilisant le <strong>même moteur de jeu C</strong> que le prototype Neo Geo. Ce n’est <strong>pas</strong> une émulation de la console.</p>
+    <div class="mode-buttons">
+      <button class="primary" id="solo"><span class="play-icon">▶</span> JOUER EN SOLO <span class="arrow">↗</span></button>
+      <button class="secondary" id="duo">À DEUX JOUEURS <span class="arrow">↗</span></button>
+    </div>
+    <div class="controls-box">
+      <p class="section-label">COMMANDES</p>
+      <div class="control-row"><span class="player-dot one"></span><strong>JOUEUR 1</strong><span>Flèches <span class="sep">·</span> Espace pour poser</span></div>
+      <div class="control-row"><span class="player-dot two"></span><strong>JOUEUR 2</strong><span>ZQSD / WASD <span class="sep">·</span> F pour poser</span></div>
+      <p class="hint">Sur mobile, utilisez les boutons sous l’arène.</p>
+    </div>
+  </section>
+  <section class="cabinet" aria-label="Aperçu du jeu">
+    <div class="cabinet-head"><span class="on-air"><span class="light"></span> LIVE PREVIEW</span><span class="build">BOMBER PLUS / BUILD 01</span></div>
+    <div class="screen-frame">
+      <div class="hud"><div><small>MANCHE</small><strong id="stage">01</strong></div><div class="hud-score"><small>SCORE</small><strong id="score">000000</strong></div><div><small>VIES <span class="p1-tag">P1</span></small><strong id="lives">♥ ♥ ♥</strong></div></div>
+      <div class="board-shell"><canvas id="board" width="624" height="528" role="img" aria-label="Arène Bomber Plus"></canvas><div class="overlay" id="overlay"><span class="overlay-tag">READY, PLAYER ONE?</span><div class="overlay-logo">B<span>+</span></div><h2>ENTREZ DANS L’ARÈNE</h2><p>Faites exploser les obstacles et éliminez tous les ennemis.</p><button id="overlay-play">COMMENCER <span>▶</span></button></div></div>
+      <div class="screen-foot"><span id="status"><span class="pulse"></span> EN ATTENTE</span><span id="players-label">1 JOUEUR</span><button id="restart" title="Recommencer la partie">↺ RECOMMENCER</button></div>
+    </div>
+    <div class="mobile-pad" aria-label="Commandes tactiles"><div class="dpad"><button data-key="up" aria-label="Haut">▲</button><div><button data-key="left" aria-label="Gauche">◀</button><button data-key="down" aria-label="Bas">▼</button><button data-key="right" aria-label="Droite">▶</button></div></div><button class="bomb-button" data-key="bomb" aria-label="Poser une bombe">BOMBE<span>●</span></button></div>
+    <div class="cabinet-base"><span>✦ &nbsp; FAIT POUR JOUER</span><span>© MISSA TV</span></div>
+  </section>
+</main>
+<footer>Prototype homebrew original · ROM Neo Geo et compatibilité console encore en cours de validation.</footer>
+</body>
+</html>
