@@ -14,8 +14,11 @@ trap 'rm -rf "$TMP"' EXIT
 git clone --quiet https://github.com/dciabrin/ngdevkit-examples.git "$TMP/examples"
 (cd "$TMP/examples" && git checkout --quiet "$REF")
 cd "$TMP/examples"
+# When invoked via `make -C`, MAKEFLAGS=--print-directory pollutes the upstream
+# `make _examples` output parsed by configure; its braces also need bash.
+unset MAKEFLAGS MFLAGS GNUMAKEFLAGS
 autoreconf -iv
-./configure
+bash ./configure
 cp "$PROJECT/neo_main.c" 00-template/main.c
 cp "$PROJECT/bomber.c" "$PROJECT/bomber.h" 00-template/
 sed -i 's/^GAMEROM=ngdevkit$/GAMEROM=bomberplus/' 00-template/Makefile
