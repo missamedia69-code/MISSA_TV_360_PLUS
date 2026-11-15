@@ -1,0 +1,68 @@
+name: Bomber Plus Neo Geo prototype
+
+on:
+  push:
+    branches: ['arena/**']
+    paths:
+      - 'game/homebrew/neobomberman-plus/**'
+      - '.github/workflows/homebrew-bomberplus.yml'
+  pull_request:
+    paths:
+      - 'game/homebrew/neobomberman-plus/**'
+      - '.github/workflows/homebrew-bomberplus.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  logic:
+    name: Bomber game logic and packer tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -C game/homebrew/neobomberman-plus test
+      - name: Check logic with sanitizers
+        run: |
+          cd game/homebrew/neobomberman-plus
+          gcc -std=c99 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined \
+            -fno-omit-frame-pointer bomber.c tests/test_bomber.c -o build/test-sanitized
+          ./build/test-sanitized
+
+  native:
+    name: Build experimental Neo Geo cartridge
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install open-source Neo Geo SDK
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y software-properties-common autoconf automake rsync zip imagemagick sox pkg-config
+          sudo add-apt-repository -y ppa:dciabrin/ngdevkit
+          sudo apt-get update -qq
+          sudo apt-get install -y ngdevkit
+      - name: Compile original 68000 game, Z80 driver and ROM chips
+        run: make -C game/homebrew/neobomberman-plus native
+      - name: Validate NEO v1 header and prototype ID
+        run: |
+          python3 - <<'PY'
+          import pathlib,struct
+          p=pathlib.Path('game/homebrew/neobomberman-plus/build/bomberplus.neo')
+          d=p.read_bytes()
+          assert d[:4]==b'NEO\x01'
+          sizes=struct.unpack_from('<6I',d,4)
+          assert len(d)==4096+sum(sizes)
+          assert struct.unpack_from('<I',d,40)[0]==1987
+          assert sizes[0] and sizes[1] and sizes[2] and sizes[-1]
+          print(p,len(d),sizes)
+          PY
+      - name: Keep cartridge for emulator and hardware smoke tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: bomberplus-experimental-neogeo
+          path: |
+            game/homebrew/neobomberman-plus/build/bomberplus.neo
+            game/homebrew/neobomberman-plus/build/bomberplus.zip
+          if-no-files-found: error
+          retention-days: 7
