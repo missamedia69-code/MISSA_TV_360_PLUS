@@ -36,6 +36,9 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install open-source Neo Geo SDK
         run: |
           sudo apt-get update -qq
