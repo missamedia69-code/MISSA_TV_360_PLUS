@@ -27,6 +27,20 @@ Sur Neo Geo : **A** lance une partie solo depuis l'écran titre ; **B** lance
 une partie à deux. Joystick pour bouger, **A** pour poser une bombe ; **B**
 redémarre après un game over. Le mode MVS de MISSA TV est la première cible.
 
+## Aperçu jouable en WebView
+
+```sh
+python3 game/homebrew/neobomberman-plus/web/server.py
+# Ouvrir http://localhost:8000 dans le navigateur (port exposé par l'aperçu Arena)
+```
+
+Ce serveur de développement compile `bomber.c` en bibliothèque partagée avec
+GCC et l'exécute derrière une interface Canvas. Les boutons tactiles, le clavier
+et le mode deux joueurs sont disponibles. **Il ne charge ni n'émule la ROM Neo
+Geo** et ne constitue donc pas une preuve de compatibilité avec la console.
+Le serveur garde une seule partie en mémoire : ouvrir plusieurs onglets partage
+la partie ; il n'est pas destiné à un déploiement public multi-utilisateur.
+
 ## Vérifications locales (sans console)
 
 ```sh

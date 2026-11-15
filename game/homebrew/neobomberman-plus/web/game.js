@@ -1,0 +1,33 @@
+const canvas=document.querySelector('#board'),ctx=canvas.getContext('2d');
+const overlay=document.querySelector('#overlay'),status=document.querySelector('#status');
+const held=new Set(),touch=new Set();
+let game=null,running=false,players=1,busy=false,starting=false,showEnd=false;
+const W=48,H=48;
+const keys={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',Space:'bomb',KeyW:'p2up',KeyZ:'p2up',KeyS:'p2down',KeyA:'p2left',KeyQ:'p2left',KeyD:'p2right',KeyF:'p2bomb'};
+window.addEventListener('keydown',e=>{if(keys[e.code]){held.add(keys[e.code]);e.preventDefault();}if(e.code==='Enter'&&!running)start(players);});
+window.addEventListener('keyup',e=>{if(keys[e.code]){held.delete(keys[e.code]);e.preventDefault();}});
+window.addEventListener('blur',()=>{held.clear();touch.clear();});
+document.querySelectorAll('[data-key]').forEach(btn=>{
+ const key=btn.dataset.key;
+ const down=e=>{e.preventDefault();btn.setPointerCapture(e.pointerId);touch.add(key);btn.classList.add('pressed');};
+ const up=e=>{e.preventDefault();touch.delete(key);btn.classList.remove('pressed');};
+ btn.addEventListener('pointerdown',down);btn.addEventListener('pointerup',up);btn.addEventListener('pointercancel',up);btn.addEventListener('lostpointercapture',up);
+});
+const input=k=>held.has(k)||touch.has(k);
+const mask=(prefix='')=>(input(prefix+'up')?1:0)|(input(prefix+'down')?2:0)|(input(prefix+'left')?4:0)|(input(prefix+'right')?8:0)|(input(prefix+'bomb')?16:0);
+async function api(endpoint,body){const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!response.ok)throw Error('La connexion au moteur de jeu a échoué.');return response.json();}
+async function start(count){if(starting)return;starting=true;players=count;try{game=await api('/api/new',{players:count,seed:Date.now()>>>0});running=true;showEnd=false;overlay.classList.add('hidden');document.querySelector('#players-label').textContent=count===2?'2 JOUEURS':'1 JOUEUR';update();draw();}catch(e){status.textContent=e.message;}finally{starting=false;}}
+document.querySelector('#solo').onclick=()=>start(1);document.querySelector('#duo').onclick=()=>start(2);
+document.querySelector('#overlay-play').onclick=()=>start(players);document.querySelector('#restart').onclick=()=>start(players);
+function update(){if(!game)return;document.querySelector('#stage').textContent=String(game.stage).padStart(2,'0');document.querySelector('#score').textContent=String(game.score).padStart(6,'0');document.querySelector('#lives').textContent='♥ '.repeat(game.players[0].lives).trim()||'—';status.innerHTML=game.state===2?'◌ &nbsp; PARTIE TERMINÉE':game.state===1?'✦ &nbsp; MANCHE TERMINÉE':'<span class="pulse"></span> PARTIE EN COURS';if(game.state===2&&!showEnd){showEnd=true;overlay.classList.remove('hidden');overlay.querySelector('.overlay-tag').textContent='FIN DE PARTIE';overlay.querySelector('h2').textContent='PARTIE TERMINÉE';overlay.querySelector('p').textContent=`Score : ${game.score} · Manche ${game.stage}. Prêt pour une nouvelle tentative ?`;overlay.querySelector('button').innerHTML='REJOUER <span>▶</span>';running=false;}}
+const rect=(x,y,w,h,color)=>{ctx.fillStyle=color;ctx.fillRect(x,y,w,h);};
+function stone(x,y){rect(x,y,48,48,'#455767');rect(x+2,y+2,44,42,'#617587');rect(x+3,y+3,40,6,'#8fa3ae');rect(x+4,y+14,19,3,'#354859');rect(x+23,y+26,20,3,'#354859');rect(x+25,y+16,3,12,'#354859');rect(x+4,y+37,40,5,'#34485a');rect(x+8,y+22,5,4,'#8c9dab');}
+function brick(x,y){rect(x+2,y+4,44,41,'#714a41');rect(x+4,y+5,40,16,'#e09a67');rect(x+4,y+5,40,4,'#f3bb7c');rect(x+3,y+23,19,18,'#ba7255');rect(x+25,y+23,19,18,'#c68261');rect(x+4,y+21,40,3,'#6c3a38');rect(x+22,y+23,3,19,'#6c3a38');rect(x+6,y+39,38,3,'#623d3d');}
+function bomb(x,y,frame){const cx=x+24,cy=y+25;rect(x+11,y+38,30,4,'#162526');ctx.fillStyle='#141d2e';ctx.beginPath();ctx.arc(cx,cy,17,0,Math.PI*2);ctx.fill();ctx.fillStyle='#303f5a';ctx.beginPath();ctx.arc(cx-2,cy-2,14,0,Math.PI*2);ctx.fill();rect(x+16,y+13,8,5,'#b3c4d3');rect(x+22,y+5,4,7,'#d5ae63');rect(x+25,y+3,5,5,frame%8<4?'#ffdd56':'#ff7162');rect(x+13,y+15,6,5,'#8192a6');}
+function player(x,y,id,frame,invul){if(invul&&Math.floor(frame/7)%2)return;let main=id===0?'#efcb51':'#6bb9df',shadow=id===0?'#b47b51':'#4388af';rect(x+11,y+38,28,4,'#132825');rect(x+14,y+31,9,9,shadow);rect(x+27,y+31,9,9,shadow);rect(x+10,y+13,28,23,'#faf3dc');rect(x+10,y+13,28,7,main);rect(x+14,y+9,20,9,main);rect(x+7,y+21,7,10,main);rect(x+34,y+21,7,10,main);rect(x+18,y+22,4,6,'#1c2836');rect(x+27,y+22,4,6,'#1c2836');rect(x+21,y+31,7,2,'#dd8c7b');}
+function enemy(x,y,frame){let bounce=Math.floor(frame/15)%2?2:0;rect(x+10,y+39,29,4,'#152727');rect(x+10,y+16+bounce,28,22,'#b5546b');rect(x+12,y+11+bounce,24,10,'#e07881');rect(x+8,y+21+bounce,6,11,'#9e4967');rect(x+34,y+21+bounce,6,11,'#9e4967');rect(x+16,y+22+bounce,5,7,'#f9e9ba');rect(x+27,y+22+bounce,5,7,'#f9e9ba');rect(x+17,y+26+bounce,3,3,'#171d32');rect(x+28,y+26+bounce,3,3,'#171d32');rect(x+13,y+36+bounce,8,5,'#7f354f');rect(x+27,y+36+bounce,8,5,'#7f354f');}
+function flame(x,y,frame){rect(x+7,y+37,34,5,'#e3593c');rect(x+10,y+21,28,20,'#f47e3d');rect(x+14,y+13,20,24,'#ffbd52');rect(x+19,y+19,12,15,'#fff0a0');rect(x+8,y+11+(frame%3)*2,7,14,'#f5963c');rect(x+32,y+6+(frame%3)*3,7,18,'#faae43');rect(x+21,y+6,7,10,'#fff1a9');}
+function bonus(x,y,type){rect(x+10,y+10,28,29,type===1?'#65bf91':'#9bbfe6');rect(x+13,y+13,22,22,'#213d46');rect(x+20,y+17,8,16,type===1?'#d4f2a0':'#d7e9f5');rect(x+16,y+21,16,8,type===1?'#d4f2a0':'#d7e9f5');}
+function draw(){if(!game){ctx.fillStyle='#19352f';ctx.fillRect(0,0,624,528);for(let y=0;y<11;y++)for(let x=0;x<13;x++){rect(x*48+1,y*48+1,46,46,(x+y)%2?'#1e3f36':'#22473b');if(!x||!y||x===12||y===10)stone(x*48,y*48);}return;}const f=game.frame;for(let y=0;y<11;y++)for(let x=0;x<13;x++){let px=x*W,py=y*H;rect(px,py,W,H,(x+y)%2?'#205041':'#265543');rect(px+3,py+4,4,4,'#345d4b');rect(px+34,py+33,3,4,'#2c6549');let t=game.tiles[y][x];if(t===1)stone(px,py);else if(t===2)brick(px,py);else if(game.upgrades[y][x])bonus(px,py,game.upgrades[y][x]);if(game.bombs.some(b=>b[2]&&b[0]===x&&b[1]===y))bomb(px,py,f);if(game.fire[y][x])flame(px,py,f);}game.enemies.forEach(e=>{if(e[2])enemy(e[0]*W,e[1]*H,f)});game.players.forEach((p,i)=>{if(p.enabled&&p.lives)player(p.x*W,p.y*H,i,f,p.invulnerable)});}
+async function loop(){if(running&&!busy){busy=true;try{game=await api('/api/tick',{p1:mask(),p2:mask('p2'),frames:4});update();draw();}catch(e){running=false;status.textContent='CONNEXION PERDUE';console.error(e);}finally{busy=false;}}setTimeout(loop,66);}
+fetch('/api/state').then(r=>r.json()).then(s=>{game=s;draw();}).catch(()=>{status.textContent='MOTEUR INDISPONIBLE';});loop();
