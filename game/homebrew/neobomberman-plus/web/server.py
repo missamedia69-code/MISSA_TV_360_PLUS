@@ -27,6 +27,19 @@ lock = threading.Lock()
 
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
+
+    def do_HEAD(self):
+        if self.path in ('/', '/index.html', '/style.css', '/game.js', '/api/state'):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8' if self.path in ('/', '/index.html') else 'application/octet-stream')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+
     def send(self, status, body, mime):
         self.send_response(status)
         self.send_header('Content-Type', mime)
