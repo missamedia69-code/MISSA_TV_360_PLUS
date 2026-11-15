@@ -27,7 +27,20 @@ Sur Neo Geo : **A** lance une partie solo depuis l'écran titre ; **B** lance
 une partie à deux. Joystick pour bouger, **A** pour poser une bombe ; **B**
 redémarre après un game over. Le mode MVS de MISSA TV est la première cible.
 
-## Aperçu jouable en WebView
+## Aperçu jouable en WebView ou hors ligne
+
+Si la prévisualisation Arena n'apparaît pas, télécharger
+[`Bomber-Plus-jouable.html`](Bomber-Plus-jouable.html) et ouvrir **le fichier
+local** dans Chrome, Firefox ou un autre navigateur récent. Cette page contient
+le moteur C compilé en WebAssembly, le dessin Canvas, le CSS et le JavaScript :
+aucun serveur, BIOS, réseau ou téléchargement annexe n'est nécessaire. Sur
+mobile, le navigateur doit autoriser l'ouverture de fichiers HTML locaux.
+
+Pour reconstruire cette page, installer Zig 0.13 puis lancer
+`python3 tools/build_standalone.py` dans ce dossier. Le navigateur utilise le
+même `bomber.c` ; ce n'est **toujours pas** une émulation Neo Geo.
+
+L'aperçu de développement avec serveur peut aussi être lancé :
 
 ```sh
 python3 game/homebrew/neobomberman-plus/web/server.py
