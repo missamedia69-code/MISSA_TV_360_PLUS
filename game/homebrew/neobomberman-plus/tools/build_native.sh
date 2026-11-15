@@ -16,7 +16,10 @@ git clone --quiet https://github.com/dciabrin/ngdevkit-examples.git "$TMP/exampl
 cd "$TMP/examples"
 # When invoked via `make -C`, MAKEFLAGS=--print-directory pollutes the upstream
 # `make _examples` output parsed by configure; its braces also need bash.
-unset MAKEFLAGS MFLAGS GNUMAKEFLAGS
+unset MAKELEVEL MAKEFLAGS MFLAGS GNUMAKEFLAGS
+# Explicitly suppress GNU make's directory chatter in the example list parsed
+# by upstream configure (nested make sets MAKELEVEL even after MAKEFLAGS reset).
+sed -i 's/`\${make} _examples`/`\${make} --no-print-directory _examples`/' configure.ac
 autoreconf -iv
 bash ./configure
 cp "$PROJECT/neo_main.c" 00-template/main.c
