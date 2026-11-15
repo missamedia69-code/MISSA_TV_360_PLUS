@@ -1,6 +1,10 @@
 # Bomber Plus — prototype homebrew Neo Geo
 
-**Prototype, pas une nouvelle version finalisée de Neo Bomberman.** Ce projet écrit
+**Prototype, pas une nouvelle version finalisée de Neo Bomberman.** Une
+cartouche et un paquet `.neo` ont été compilés par GitHub Actions avec ngdevkit
+(run `43676693343`) et proposés comme **artefacts expérimentaux**, pas comme
+jeu prêt à être distribué. Aucun essai de démarrage dans un émulateur ni sur
+console n'a encore été réalisé ; la ROM n'est pas dans le catalogue. Ce projet écrit
 un programme 68000 inédit destiné au matériel Neo Geo MVS/AES ; il ne modifie
 pas `game/rom/neobombe.neo` et n'embarque ni la ROM commerciale ni son BIOS.
 Il utilise la couche FIX (lettres et symboles) pour un premier jeu fonctionnel,

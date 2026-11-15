@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   logic:
@@ -57,8 +56,6 @@ jobs:
             grep -E 'error:|Error |No rule|not found|FAILED|configure: error|No space|Permission denied' neo-build.log | tail -n 12 | while IFS= read -r line; do
               echo "::error title=NativeNeoGeoBuild::${line:0:240}"
             done
-            { echo '### Native build diagnostic'; echo '```'; tail -n 75 neo-build.log; echo '```'; df -h; } > /tmp/neo-diagnostic
-            GH_TOKEN="${{ github.token }}" GH_REPO="${{ github.repository }}" gh pr comment 26 --body-file /tmp/neo-diagnostic || true
             exit 1
           fi
           tail -n 25 neo-build.log
