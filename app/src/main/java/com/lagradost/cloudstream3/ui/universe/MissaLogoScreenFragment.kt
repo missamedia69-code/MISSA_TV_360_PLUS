@@ -71,6 +71,23 @@ abstract class MissaLogoScreenFragment : Fragment() {
 
     protected abstract fun initialTab(): String
 
+    /** Dernier élément ouvert : le sélecteur y revient au retour du lecteur. */
+    protected var lastOpenedKey: String? = null
+    private var savedGridState: android.os.Parcelable? = null
+
+    /**
+     * L'écran revient au premier plan (retour du lecteur) : sa vue a été recréée mais l'onglet
+     * et le sous-niveau sont conservés. Vrai si l'écran a réaffiché sa liste lui-même.
+     */
+    protected open fun onViewRestored(): Boolean = false
+
+    /** Position de défilement d'avant le départ, à réappliquer une fois la liste affichée. */
+    protected fun restoreGridScroll() {
+        val state = savedGridState ?: return
+        savedGridState = null
+        grid.layoutManager?.onRestoreInstanceState(state)
+    }
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
         inflater.inflate(R.layout.fragment_radio, container, false)
 
@@ -89,7 +106,7 @@ abstract class MissaLogoScreenFragment : Fragment() {
         counterView.isVisible = false
 
         gridAdapter = MissaLogoGridAdapter(
-            onClick = { onItemClick(it) },
+            onClick = { lastOpenedKey = it.key; onItemClick(it) },
             onLongClick = { onItemLongClick(it) },
             onNearEnd = { grid.post { if (isAdded) onNearEnd() } }
         )
@@ -121,11 +138,18 @@ abstract class MissaLogoScreenFragment : Fragment() {
         backButton.setOnClickListener { onBackInside() }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback)
 
+        val restoring = selectedTab.isNotEmpty()
         buildTabs()
-        selectTab(initialTab(), notify = true)
+        if (restoring) {
+            selectTab(selectedTab, notify = false)
+            if (!onViewRestored()) onTabSelected(selectedTab)
+        } else {
+            selectTab(initialTab(), notify = true)
+        }
     }
 
     override fun onDestroyView() {
+        if (::grid.isInitialized) savedGridState = grid.layoutManager?.onSaveInstanceState()
         tabButtons.clear()
         actionButtons.clear()
         super.onDestroyView()
@@ -194,10 +218,16 @@ abstract class MissaLogoScreenFragment : Fragment() {
      * Affiche une liste. [scrollToTop] : nouvelle liste (onglet, pays). [focusKey] : remet le
      * sélecteur sur cet élément une fois la liste affichée (retour d'un sous-niveau).
      */
-    protected fun submit(items: List<LogoGridItem>, scrollToTop: Boolean = false, focusKey: String? = null) {
+    protected fun submit(
+        items: List<LogoGridItem>,
+        scrollToTop: Boolean = false,
+        focusKey: String? = null,
+        restoreScroll: Boolean = false
+    ) {
         if (!::gridAdapter.isInitialized) return
         gridAdapter.submitList(items) {
             if (!isAdded) return@submitList
+            if (restoreScroll) restoreGridScroll()
             if (scrollToTop) {
                 grid.scrollToPosition(0)
                 // L'en-tête (fil d'Ariane) change de hauteur juste après : on recale.
@@ -205,7 +235,11 @@ abstract class MissaLogoScreenFragment : Fragment() {
             }
             if (focusKey != null) {
                 val pos = items.indexOfFirst { it.key == focusKey }
-                if (pos >= 0) focusPosition(pos)
+                if (pos >= 0) {
+                    // Écran tactile : on recale la liste sans poser de sélecteur.
+                    if (tvMode || grid.hasFocus() || !grid.isInTouchMode) focusPosition(pos)
+                    else if (grid.findViewHolderForAdapterPosition(pos) == null) grid.scrollToPosition(pos)
+                }
             }
         }
     }
@@ -224,6 +258,12 @@ abstract class MissaLogoScreenFragment : Fragment() {
     /** Appelé par MainActivity pour poser le sélecteur dans le contenu (navigation TV). */
     fun requestPrimaryContentFocus(): Boolean {
         if (!isAdded || !::grid.isInitialized) return false
+        // Retour du lecteur : on revient d'abord sur l'élément qui avait été ouvert.
+        lastOpenedKey?.let { key ->
+            val pos = gridAdapter.currentList.indexOfFirst { it.key == key }
+            val v = if (pos >= 0) grid.findViewHolderForAdapterPosition(pos)?.itemView else null
+            if (v != null && v.isFocusable && v.requestFocus()) return true
+        }
         val lm = grid.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
         val first = lm?.findFirstVisibleItemPosition() ?: 0
         val start = if (first < 0) 0 else first

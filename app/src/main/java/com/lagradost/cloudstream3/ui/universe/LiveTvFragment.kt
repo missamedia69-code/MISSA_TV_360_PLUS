@@ -74,7 +74,28 @@ class LiveTvFragment : MissaLogoScreenFragment() {
         load()
     }
 
+    /** Retour du lecteur : même onglet, même sous-niveau, sélecteur sur la chaîne regardée. */
+    override fun onViewRestored(): Boolean {
+        when (val d = drill) {
+            is Drill.Group -> showCrumb(getString(R.string.live_tv_tab_groups), d.name)
+            is Drill.Country -> showCrumb(getString(R.string.radio_tab_countries), countryName(d.iso, Locale.getDefault()))
+            is Drill.Search -> showCrumb(
+                tabs().firstOrNull { it.first == selectedTab }?.second ?: getString(R.string.live_tv_tab_all),
+                getString(R.string.radio_crumb_search, d.query)
+            )
+            null -> Unit
+        }
+        pendingRestore = true
+        return true
+    }
+
+    private var pendingRestore = false
+
     private fun load() {
+        if (channels.isNotEmpty()) {
+            onListChanged()
+            return
+        }
         setStatus(getString(R.string.radio_loading))
         viewLifecycleOwner.lifecycleScope.launch {
             val ctx = context ?: return@launch
@@ -100,7 +121,12 @@ class LiveTvFragment : MissaLogoScreenFragment() {
 
     private fun onListChanged() {
         setCounter(resources.getQuantityString(R.plurals.live_tv_channel_count, channels.size, channels.size))
-        render()
+        if (pendingRestore) {
+            pendingRestore = false
+            render(focusKey = lastOpenedKey, restoreScroll = true)
+        } else {
+            render()
+        }
     }
 
     override fun onTabSelected(tabId: String) {
@@ -123,7 +149,7 @@ class LiveTvFragment : MissaLogoScreenFragment() {
 
     // ------------------------------------------------------------------ Rendu
 
-    private fun render(scrollToTop: Boolean = false, focusKey: String? = null) {
+    private fun render(scrollToTop: Boolean = false, focusKey: String? = null, restoreScroll: Boolean = false) {
         if (!isAdded) return
         val favs = MissaLiveTv.favoriteUrls()
         var emptyMessage: String? = null
@@ -156,7 +182,7 @@ class LiveTvFragment : MissaLogoScreenFragment() {
                 else -> null
             }
         )
-        submit(items, scrollToTop = scrollToTop, focusKey = focusKey)
+        submit(items, scrollToTop = scrollToTop, focusKey = focusKey, restoreScroll = restoreScroll)
     }
 
     private fun channelItems(list: List<MissaLiveTv.Channel>, favs: Set<String>): List<LogoGridItem> {
@@ -167,7 +193,7 @@ class LiveTvFragment : MissaLogoScreenFragment() {
                 title = ch.name,
                 logos = listOfNotNull(ch.logo),
                 favorite = ch.url in favs,
-                description = listOfNotNull(ch.name, ch.groups.firstOrNull()).joinToString(", ")
+                description = listOfNotNull(ch.name, ch.quality, ch.groups.firstOrNull()).joinToString(", ")
             )
         }
     }
@@ -260,7 +286,7 @@ class LiveTvFragment : MissaLogoScreenFragment() {
             }
         )
         AlertDialog.Builder(ctx)
-            .setTitle(ch.name)
+            .setTitle(listOfNotNull(ch.name, ch.quality).joinToString(" · "))
             .setItems(options.map { it.first }.toTypedArray()) { _, which -> options[which].second() }
             .show()
     }

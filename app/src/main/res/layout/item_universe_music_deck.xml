@@ -76,38 +76,60 @@
                     android:layout_gravity="bottom"
                     android:background="@drawable/missa_hero_scrim_cinematic" />
 
-                <!-- Top-Left Live Status Pill -->
-                <TextView
-                    android:id="@+id/music_deck_live_badge"
-                    style="@style/TextAppearance.Missa.Badge"
-                    android:layout_width="wrap_content"
+                <!-- Bandeau du haut : pastille d'état à gauche, « Plein écran » à droite.
+                     Une seule rangée : les deux pastilles ne peuvent plus se chevaucher et
+                     ont la même hauteur visible (36dp). -->
+                <LinearLayout
+                    android:id="@+id/music_deck_hud_row"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top|start"
-                    android:layout_margin="10dp"
-                    android:background="@drawable/missa_eyebrow_pill_bg"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="4dp"
-                    android:text="@string/universe_music_badge_idle"
-                    android:textColor="?attr/missaAccentPrimary"
-                    android:textStyle="bold" />
+                    android:layout_gravity="top"
+                    android:layout_marginHorizontal="8dp"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <!-- Top-Right Fullscreen Clip Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/music_deck_fullscreen_btn"
-                    style="@style/Widget.Missa.Button.Secondary"
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:layout_gravity="top|end"
-                    android:layout_margin="8dp"
-                    android:contentDescription="@string/universe_music_fullscreen"
-                    android:minHeight="48dp"
-                    android:minWidth="40dp"
-                    android:paddingHorizontal="10dp"
-                    android:text="@string/universe_music_fullscreen"
-                    app:icon="@drawable/baseline_fullscreen_24"
-                    app:iconGravity="textStart"
-                    app:iconPadding="4dp"
-                    app:iconSize="18dp" />
+                    <FrameLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1">
+
+                        <TextView
+                            android:id="@+id/music_deck_live_badge"
+                            style="@style/TextAppearance.Missa.Badge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:layout_gravity="start|center_vertical"
+                            android:background="@drawable/missa_eyebrow_pill_bg"
+                            android:ellipsize="end"
+                            android:gravity="center_vertical"
+                            android:maxLines="1"
+                            android:paddingHorizontal="12dp"
+                            android:text="@string/universe_music_badge_idle"
+                            android:textColor="?attr/missaAccentPrimary"
+                            android:textStyle="bold" />
+                    </FrameLayout>
+
+                    <!-- 48dp au toucher, 36dp visibles (marges internes de 6dp). -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/music_deck_fullscreen_btn"
+                        style="@style/Widget.Missa.Button.Secondary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="8dp"
+                        android:contentDescription="@string/universe_music_fullscreen"
+                        android:insetTop="6dp"
+                        android:insetBottom="6dp"
+                        android:minWidth="40dp"
+                        android:minHeight="48dp"
+                        android:paddingHorizontal="12dp"
+                        android:text="@string/universe_music_fullscreen"
+                        android:textAppearance="@style/TextAppearance.Missa.Badge"
+                        app:icon="@drawable/baseline_fullscreen_24"
+                        app:iconGravity="textStart"
+                        app:iconPadding="4dp"
+                        app:iconSize="16dp" />
+                </LinearLayout>
             </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 

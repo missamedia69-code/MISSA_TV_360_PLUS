@@ -32,6 +32,7 @@ https://exemple.org/crtv/playlist.m3u8
 | `tvg-logo` | logo de la tuile (sinon, les initiales de la chaîne) |
 | `group-title` | onglet **Catégories** (plusieurs catégories : séparez-les par `;`) |
 | `tvg-country` | onglet **Pays** (code ISO à 2 lettres : `CM`, `CI`, `SN`...) |
+| `tvg-quality` | qualité mesurée : `HD` (720p et plus) ou `SD` (400p à 719p), affichée dans le menu de la chaîne |
 | `http-referrer`, `http-user-agent` ou `#EXTVLCOPT:` | en-têtes envoyés au serveur de la chaîne |
 
 Limites : 20 000 chaînes et 16 Mo au plus. Une liste qui ne contient aucune chaîne valide
@@ -54,3 +55,12 @@ remplacer entièrement la liste par votre propre fichier.
 
 **N'ajoutez que des chaînes que vous avez le droit de diffuser** (flux publics officiels,
 chaînes partenaires) : pas de bouquets payants piratés.
+
+## Tri du 16 novembre 2026
+
+Les flux publics ont été testés un par un (serveur aux États-Unis) et leur résolution
+mesurée. La liste est triée par pays (Cameroun et Afrique francophone d'abord), puis par
+catégorie, puis par nom. Ont été retirés : les flux sous la SD (moins de 400p) et les flux
+internationaux injoignables. Les chaînes africaines injoignables depuis le serveur de test
+sont gardées : elles peuvent n'être accessibles que depuis leur pays. Le bloc de fin
+(`pjoejspro.top`) n'a été ni testé ni retouché.
