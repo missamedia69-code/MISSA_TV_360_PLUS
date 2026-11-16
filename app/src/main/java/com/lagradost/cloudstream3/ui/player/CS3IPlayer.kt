@@ -680,6 +680,8 @@ class CS3IPlayer : IPlayer {
         private const val LOW_RAM_TARGET_BUFFER_BYTES = 16 * 1024 * 1024
         private const val LOW_RAM_MIN_BUFFER_MS = 15_000
         private const val LOW_RAM_MAX_BUFFER_MS = 30_000
+        private const val FAST_START_BUFFER_MS = 1_500
+        private const val FAST_RESUME_BUFFER_MS = 3_000
 
         /**
          * Single shared engine, to minimize the overhead of maintaining many as:
@@ -1293,8 +1295,10 @@ class CS3IPlayer : IPlayer {
                             } else {
                                 videoBufferMs.toInt()
                             },
-                            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
-                            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
+                            // Démarrage plus rapide : l'image part dès 1,5 s de vidéo reçue (au
+                            // lieu de 2,5 s) et reprend après une coupure dès 3 s (au lieu de 5 s).
+                            FAST_START_BUFFER_MS,
+                            FAST_RESUME_BUFFER_MS
                         ).build()
                 )
 

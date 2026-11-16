@@ -55,7 +55,9 @@ object MissaLiveTv {
         /** Code pays ISO (tvg-country), en majuscules, ou null. */
         val country: String?,
         val userAgent: String? = null,
-        val referer: String? = null
+        val referer: String? = null,
+        /** Qualité mesurée (tvg-quality) : « HD », « SD » ou null. */
+        val quality: String? = null
     )
 
     // ------------------------------------------------------------------ Lecture du M3U
@@ -120,7 +122,8 @@ object MissaLiveTv {
                             groups = groups,
                             country = country,
                             userAgent = vlcAgent ?: attrs["http-user-agent"]?.takeIf { it.isNotBlank() },
-                            referer = vlcReferer ?: attrs["http-referrer"]?.takeIf { it.isNotBlank() }
+                            referer = vlcReferer ?: attrs["http-referrer"]?.takeIf { it.isNotBlank() },
+                            quality = attrs["tvg-quality"]?.uppercase(Locale.ROOT)?.takeIf { it == "HD" || it == "SD" }
                         )
                         if (out.size >= MAX_CHANNELS) break
                     }
