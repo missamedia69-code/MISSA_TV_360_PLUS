@@ -34,6 +34,7 @@ import androidx.core.text.toSpanned
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Format.NO_VALUE
 import androidx.media3.common.MimeTypes
@@ -185,6 +186,17 @@ class GeneratorPlayer : FullScreenPlayer() {
     private val nextMeta: Any? get() = viewModel.state.generatorState?.nextMeta
 
     private var isPlayerActive: AtomicBoolean = AtomicBoolean(false)
+
+    /**
+     * MISSA : démarrage automatique. Une extension peut interroger une dizaine de serveurs ;
+     * attendre la fin de toutes les recherches faisait patienter 1 à 2 minutes alors qu'un lien
+     * jouable était souvent trouvé en quelques secondes. Dès le premier lien utilisable, on
+     * laisse [AUTO_START_DELAY_MS] aux autres serveurs pour proposer mieux (tri par qualité),
+     * puis la lecture démarre ; la recherche continue en arrière-plan et les autres liens
+     * restent disponibles dans « Sources ».
+     */
+    private var autoStartJob: Job? = null
+    private val AUTO_START_DELAY_MS = 4_000L
     private var isNextEpisode: Boolean = false // this is used to reset the watch time
 
     private var preferredAutoSelectSubtitles: String? = null // null means do nothing, "" means none
@@ -1707,6 +1719,18 @@ class GeneratorPlayer : FullScreenPlayer() {
     override fun nextMirror() {
         val nextLink = getNextLink()
         if (nextLink == null) {
+            // MISSA : lecture lancée tôt (démarrage automatique) et la recherche continue :
+            // on attend le prochain lien au lieu de quitter le lecteur.
+            // (Pas releasePlayer() : il effacerait la liste des liens en échec, et le même lien
+            // serait relancé en boucle.)
+            if (viewModel.state.loading is Resource.Loading) {
+                player.release()
+                currentSelectedLink = null
+                isPlayerActive.set(false)
+                binding?.playerLoadingOverlay?.isVisible = true
+                autoStartJob = null
+                return
+            }
             noLinksFound()
             return
         }
@@ -2340,10 +2364,14 @@ class GeneratorPlayer : FullScreenPlayer() {
 
             when (loading) {
                 is Resource.Loading -> {
+                    autoStartJob?.cancel()
+                    autoStartJob = null
                     releasePlayer()
                 }
 
                 is Resource.Success -> {
+                    autoStartJob?.cancel()
+                    autoStartJob = null
                     // provider returned false
                     //if (it.value != true) {
                     //    showToast(activity, R.string.unexpected_error, Toast.LENGTH_SHORT)
@@ -2385,6 +2413,16 @@ class GeneratorPlayer : FullScreenPlayer() {
                     }
                 ) {
                     startPlayer()
+                }
+            }
+
+            // MISSA : premier lien utilisable → lecture automatique quelques secondes après.
+            if (usableLinks > 0 && !isPlayerActive.get() && autoStartJob == null) {
+                autoStartJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(AUTO_START_DELAY_MS)
+                    if (instance == viewModel.state.instance && !isPlayerActive.get()) {
+                        safe { startPlayer() }
+                    }
                 }
             }
 
