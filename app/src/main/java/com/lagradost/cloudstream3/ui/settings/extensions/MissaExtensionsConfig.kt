@@ -14,11 +14,11 @@ import com.lagradost.cloudstream3.utils.txt
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import java.text.SimpleDateFormat
 import java.util.Date
-import com.lagradost.cloudstream3.BuildConfig
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.plugins.PluginManager
 import com.lagradost.cloudstream3.plugins.RepositoryManager
+import com.lagradost.cloudstream3.ui.universe.MissaContentSource
 import com.lagradost.cloudstream3.ui.universe.MissaExtensionGroups
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -49,7 +49,6 @@ import java.util.Locale
 object MissaExtensionsConfig {
 
     private const val TAG = "MissaExtConfig"
-    private const val REPO = "missamedia69-code/MISSA_TV_360_PLUS"
     private const val CONFIG_PATH = "extensions/config.json"
     private const val LOCAL_DIR = "missa-extensions"
     private const val LOCAL_FILE = "config.json"
@@ -58,8 +57,9 @@ object MissaExtensionsConfig {
     private const val MAX_BYTES = 1024 * 1024
     const val EXPORT_FILE_NAME = "missa_extensions_config"
 
-    val configUrl: String
-        get() = "https://raw.githubusercontent.com/$REPO/${BuildConfig.MISSA_CONTENT_BRANCH}/$CONFIG_PATH"
+    /** Adresses essayées dans l'ordre : site Cloudflare, puis GitHub. */
+    val configUrls: List<String>
+        get() = MissaContentSource.urls(CONFIG_PATH)
 
     data class Entry(
         val repositoryUrl: String,
@@ -188,19 +188,29 @@ object MissaExtensionsConfig {
     }
 
     private fun download(context: Context) {
+        for (url in configUrls) {
+            if (download(context, url)) return
+        }
+    }
+
+    /** Vrai si ce serveur a répondu (fichier à jour ou nouveau fichier enregistré). */
+    private fun download(context: Context, url: String): Boolean {
         val file = localFile(context)
-        val etag = if (file.exists()) getKey<String>(ETAG_KEY) else null
-        val conn = runCatching { URL(configUrl).openConnection() as HttpURLConnection }.getOrNull() ?: return
+        val etagKey = ETAG_KEY + ":" + (runCatching { URL(url).host }.getOrNull() ?: "")
+        val etag = if (file.exists()) getKey<String>(etagKey) else null
+        val conn = runCatching { URL(url).openConnection() as HttpURLConnection }.getOrNull() ?: return false
         try {
             conn.connectTimeout = 10_000
             conn.readTimeout = 15_000
             conn.setRequestProperty("User-Agent", "MISSA-TV-360")
             if (etag != null) conn.setRequestProperty("If-None-Match", etag)
-            if (conn.responseCode != HttpURLConnection.HTTP_OK) return
+            val code = conn.responseCode
+            if (code == HttpURLConnection.HTTP_NOT_MODIFIED) return true
+            if (code != HttpURLConnection.HTTP_OK) return false
             val bytes = conn.inputStream.use { it.readBytes() }
-            if (bytes.size > MAX_BYTES) return
+            if (bytes.size > MAX_BYTES) return false
             val text = bytes.toString(Charsets.UTF_8)
-            if (parse(text) == null) return
+            if (parse(text) == null) return false
             file.parentFile?.mkdirs()
             val tmp = File(file.parentFile, "$LOCAL_FILE.part")
             tmp.writeText(text)
@@ -208,9 +218,11 @@ object MissaExtensionsConfig {
                 tmp.copyTo(file, overwrite = true)
                 tmp.delete()
             }
-            conn.getHeaderField("ETag")?.let { setKey(ETAG_KEY, it) }
+            conn.getHeaderField("ETag")?.let { setKey(etagKey, it) }
+            return true
         } catch (e: Exception) {
-            Log.w(TAG, "Configuration non téléchargée : $e")
+            Log.w(TAG, "Configuration non téléchargée depuis $url : $e")
+            return false
         } finally {
             conn.disconnect()
         }

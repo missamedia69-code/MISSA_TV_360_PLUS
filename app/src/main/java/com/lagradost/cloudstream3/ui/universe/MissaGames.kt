@@ -296,10 +296,12 @@ object MissaGames {
      */
     private fun fetchCatalogue(): Pair<String, Catalogue>? {
         val branch = BuildConfig.MISSA_CONTENT_BRANCH
-        val rawUrl = "$CATALOGUE_URL?t=${System.currentTimeMillis()}"
         val apiUrl = "https://api.github.com/repos/$REPO/contents/game/catalogue.json?ref=$branch"
         var empty: Pair<String, Catalogue>? = null
-        for ((url, isApi) in listOf(rawUrl to false, apiUrl to true)) {
+        // Site Cloudflare d'abord, puis GitHub (raw), puis l'API GitHub (voir MissaContentSource).
+        val sources = MissaContentSource.urls("game/catalogue.json")
+            .map { "$it?t=${System.currentTimeMillis()}" to false } + (apiUrl to true)
+        for ((url, isApi) in sources) {
             try {
                 val response = httpGetText(url)
                 val body = if (isApi) {

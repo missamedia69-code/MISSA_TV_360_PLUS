@@ -23,6 +23,10 @@ on:
     paths:
       - 'site/**'
       - 'cloudflare/**'
+      # Fichiers lus par l'application au démarrage, recopiés sur le site (voir « Publier »).
+      - 'tv/chaines.m3u'
+      - 'game/catalogue.json'
+      - 'extensions/config.json'
       - '.github/workflows/site-cloudflare.yml'
   workflow_dispatch:
 
@@ -118,6 +122,16 @@ jobs:
         shell: bash
         run: |
           cp -r site cloudflare/public
+          # Fichiers de démarrage de l'application : servis par Cloudflare (serveurs en Afrique),
+          # GitHub reste la source en secours. Même chemin que dans le dépôt.
+          # Les jeux (game/rom, plus de 25 Mo) restent sur GitHub : limite de Cloudflare Pages.
+          for F in tv/chaines.m3u game/catalogue.json extensions/config.json; do
+            if [[ -f "$F" ]]; then
+              mkdir -p "cloudflare/public/$(dirname "$F")"
+              cp "$F" "cloudflare/public/$F"
+              echo "Recopié : $F"
+            fi
+          done
           cd cloudflare
           npx --yes wrangler@3 pages deploy --project-name="$PROJECT" --branch=main --commit-dirty=true | tee ../deploy.log
           cd ..
