@@ -390,6 +390,26 @@ object ExtensionsScreen : Screen {
                 extraDialog = false
                 onAction(UpdateAllPlugins)
             })
+            // MISSA TV : configuration des extensions publiée dans le dépôt (extensions/config.json).
+            DropdownMenuItem(text = {
+                Text(text = stringResource(R.string.missa_ext_config_export))
+            }, onClick = {
+                extraDialog = false
+                activity?.let { MissaExtensionsConfig.export(it) }
+            })
+            var syncDisabled by remember { mutableStateOf(MissaExtensionsConfig.isSyncDisabled()) }
+            DropdownMenuItem(text = {
+                Text(
+                    text = stringResource(
+                        if (syncDisabled) R.string.missa_ext_config_sync_enable
+                        else R.string.missa_ext_config_sync_disable
+                    )
+                )
+            }, onClick = {
+                syncDisabled = !syncDisabled
+                MissaExtensionsConfig.setSyncDisabled(syncDisabled)
+                extraDialog = false
+            })
 
             /**
              * Easier to debug the system if we have this.

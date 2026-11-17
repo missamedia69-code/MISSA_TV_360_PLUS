@@ -235,6 +235,16 @@ object BackupUtils {
         }
     }
 
+    /**
+     * Écrit [text] dans le dossier de sauvegarde (Téléchargements par défaut) sous
+     * « [name].[ext] ». Sert à l'export de la configuration des extensions MISSA TV.
+     */
+    @Throws(IOException::class)
+    fun writeToBackupFolder(context: Context, name: String, ext: String, text: String) {
+        val stream = setupBackupStream(context, name, ext)
+        stream.openNew().use { out -> out.write(text.toByteArray(Charsets.UTF_8)) }
+    }
+
     @Throws(IOException::class)
     private fun setupBackupStream(context: Context, name: String, ext: String = "txt"): DownloadObjects.StreamData {
         return setupStream(

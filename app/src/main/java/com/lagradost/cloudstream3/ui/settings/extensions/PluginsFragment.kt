@@ -47,6 +47,8 @@ class PluginsFragment : BaseFragment<FragmentPluginsBinding>(
     }
 
     override fun onBindingCreated(binding: FragmentPluginsBinding) {
+        // Réglages des extensions réservés au responsable de MISSA TV.
+        MissaAdminLock.guard(this)
         pluginViewModel = ViewModelProvider(this)[PluginsViewModel::class.java]
 
         // Since the ViewModel is getting reused the tvTypes must be cleared between uses

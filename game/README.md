@@ -170,3 +170,24 @@ Taille maximale d'un jeu : 160 Mo.
 
 Les jeux sont réglés en **partie gratuite** : pas besoin d'insérer de pièce. Les
 sauvegardes (scores, progression) sont gardées sur l'appareil.
+
+## Copie sur Cloudflare R2
+
+Les fichiers de `rom/` et `neogeo/` sont aussi copiés dans le stockage **Cloudflare R2**
+(seau `missatv-jeux`, 10 Go gratuits, téléchargements gratuits) par le workflow
+`site-cloudflare.yml`, et servis par le site à l'adresse `https://missatv.pages.dev/jeux/...`.
+L'application télécharge d'abord cette copie (serveurs en Afrique), puis GitHub si elle
+échoue ; l'empreinte SHA-256 du catalogue est vérifiée dans les deux cas. Rien à changer dans
+`catalogue.json`.
+
+Prérequis, une seule fois, sur le compte Cloudflare :
+
+1. **R2** (menu de gauche) → activer R2 (Cloudflare demande un moyen de paiement ; rien n'est
+   facturé sous 10 Go).
+2. **Mon profil → Jetons d'API** → modifier le jeton enregistré dans le secret GitHub
+   `CLOUDFLARE_API_TOKEN` → ajouter la permission **Compte → Workers R2 Storage → Modifier**.
+3. GitHub → **Actions → Site vitrine (Cloudflare Pages) → Run workflow** : le seau est créé et
+   tous les jeux y sont envoyés. Ensuite, seuls les jeux ajoutés ou modifiés sont envoyés.
+
+Tant que R2 n'est pas activé, rien ne change : les jeux sont téléchargés sur GitHub.
+

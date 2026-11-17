@@ -296,10 +296,12 @@ object MissaGames {
      */
     private fun fetchCatalogue(): Pair<String, Catalogue>? {
         val branch = BuildConfig.MISSA_CONTENT_BRANCH
-        val rawUrl = "$CATALOGUE_URL?t=${System.currentTimeMillis()}"
         val apiUrl = "https://api.github.com/repos/$REPO/contents/game/catalogue.json?ref=$branch"
         var empty: Pair<String, Catalogue>? = null
-        for ((url, isApi) in listOf(rawUrl to false, apiUrl to true)) {
+        // Site Cloudflare d'abord, puis GitHub (raw), puis l'API GitHub (voir MissaContentSource).
+        val sources = MissaContentSource.urls("game/catalogue.json")
+            .map { "$it?t=${System.currentTimeMillis()}" to false } + (apiUrl to true)
+        for ((url, isApi) in sources) {
             try {
                 val response = httpGetText(url)
                 val body = if (isApi) {
@@ -410,8 +412,31 @@ object MissaGames {
     }
 
     /** Télécharge [pkg] dans [dest] et vérifie taille et SHA-256 ; supprime le fichier sinon. */
+    /**
+     * Télécharge [pkg] : d'abord depuis le stockage Cloudflare R2 du site (serveurs en Afrique),
+     * puis depuis l'adresse du catalogue (GitHub) si le premier échoue. L'empreinte SHA-256 est
+     * vérifiée dans les deux cas.
+     */
     private suspend fun download(pkg: Package, dest: File, onBytes: (Long) -> Unit) {
-        val conn = openConnection(pkg.url)
+        val urls = listOfNotNull(MissaContentSource.gameMirror(pkg.url), pkg.url)
+        var last: Throwable? = null
+        for (url in urls) {
+            try {
+                downloadFrom(url, pkg, dest, onBytes)
+                return
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Log.w(TAG, "Download failed from $url", e)
+                last = e
+                onBytes(0)
+            }
+        }
+        throw last ?: IOException("No source")
+    }
+
+    private suspend fun downloadFrom(url: String, pkg: Package, dest: File, onBytes: (Long) -> Unit) {
+        val conn = openConnection(url)
         val digest = MessageDigest.getInstance("SHA-256")
         var written = 0L
         try {

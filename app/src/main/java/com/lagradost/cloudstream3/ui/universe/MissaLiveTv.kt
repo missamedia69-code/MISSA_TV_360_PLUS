@@ -3,7 +3,6 @@ package com.lagradost.cloudstream3.ui.universe
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.lagradost.cloudstream3.BuildConfig
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +30,6 @@ import java.util.Locale
  */
 object MissaLiveTv {
 
-    private const val REPO = "missamedia69-code/MISSA_TV_360_PLUS"
     private const val PLAYLIST_PATH = "tv/chaines.m3u"
     private const val ASSET_PATH = "tv/chaines.m3u"
     private const val LOCAL_DIR = "missa-tv"
@@ -43,7 +41,7 @@ object MissaLiveTv {
     private const val USER_AGENT = "MISSA-TV-360"
 
     val playlistUrl: String
-        get() = "https://raw.githubusercontent.com/$REPO/${BuildConfig.MISSA_CONTENT_BRANCH}/$PLAYLIST_PATH"
+        get() = MissaContentSource.urls(PLAYLIST_PATH).first()
 
     data class Channel(
         val id: String,
@@ -192,25 +190,42 @@ object MissaLiveTv {
     }
 
     /**
-     * Télécharge la liste de GitHub si elle a changé. Appelé au démarrage de l'application.
+     * Télécharge la liste si elle a changé : d'abord sur le site Cloudflare, puis sur GitHub
+     * en secours (voir [MissaContentSource]). Appelé au démarrage de l'application.
      * Vrai si une nouvelle liste a été enregistrée.
      */
     suspend fun refresh(context: Context): Boolean = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
+        for (url in MissaContentSource.urls(PLAYLIST_PATH)) {
+            when (fetch(appContext, url)) {
+                Fetch.CHANGED -> return@withContext true
+                Fetch.UNCHANGED -> return@withContext false
+                Fetch.FAILED -> Unit // adresse suivante
+            }
+        }
+        false
+    }
+
+    private enum class Fetch { CHANGED, UNCHANGED, FAILED }
+
+    private fun fetch(appContext: Context, url: String): Fetch {
         val file = localFile(appContext)
-        val etag = if (file.exists()) getKey<String>(ETAG_KEY) else null
-        val conn = runCatching { URL(playlistUrl).openConnection() as HttpURLConnection }.getOrNull()
-            ?: return@withContext false
+        // Une empreinte (ETag) par serveur : celle de Cloudflare ne vaut rien pour GitHub.
+        val etagKey = ETAG_KEY + ":" + (runCatching { URL(url).host }.getOrNull() ?: "")
+        val etag = if (file.exists()) getKey<String>(etagKey) else null
+        val conn = runCatching { URL(url).openConnection() as HttpURLConnection }.getOrNull()
+            ?: return Fetch.FAILED
         try {
             conn.connectTimeout = 10_000
             conn.readTimeout = 20_000
             conn.setRequestProperty("User-Agent", USER_AGENT)
             if (etag != null) conn.setRequestProperty("If-None-Match", etag)
             val code = conn.responseCode
-            if (code == HttpURLConnection.HTTP_NOT_MODIFIED || code != HttpURLConnection.HTTP_OK) return@withContext false
+            if (code == HttpURLConnection.HTTP_NOT_MODIFIED) return Fetch.UNCHANGED
+            if (code != HttpURLConnection.HTTP_OK) return Fetch.FAILED
             // getContentLengthLong() n'existe qu'à partir d'Android 7 : on lit l'en-tête.
             val length = conn.getHeaderField("Content-Length")?.trim()?.toLongOrNull() ?: -1L
-            if (length > MAX_BYTES) return@withContext false
+            if (length > MAX_BYTES) return Fetch.FAILED
             file.parentFile?.mkdirs()
             val tmp = File(file.parentFile, "$LOCAL_FILE.part")
             var total = 0L
@@ -230,18 +245,24 @@ object MissaLiveTv {
             val parsed = tmp.bufferedReader().use { parse(it) }
             if (parsed.isEmpty()) {
                 tmp.delete()
-                return@withContext false
+                return Fetch.FAILED
+            }
+            // Même contenu que la copie actuelle (venue de l'autre serveur) : rien de neuf.
+            if (file.exists() && file.length() == tmp.length() && file.readBytes().contentEquals(tmp.readBytes())) {
+                tmp.delete()
+                conn.getHeaderField("ETag")?.let { setKey(etagKey, it) }
+                return Fetch.UNCHANGED
             }
             if (!tmp.renameTo(file)) {
                 tmp.copyTo(file, overwrite = true)
                 tmp.delete()
             }
-            conn.getHeaderField("ETag")?.let { setKey(ETAG_KEY, it) }
+            conn.getHeaderField("ETag")?.let { setKey(etagKey, it) }
             memo = parsed
             _updates.postValue(System.currentTimeMillis())
-            true
+            return Fetch.CHANGED
         } catch (_: Exception) {
-            false
+            return Fetch.FAILED
         } finally {
             conn.disconnect()
         }
