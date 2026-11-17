@@ -1453,4 +1453,8 @@ Genre : %2$s
 
 Licence du jeu : %4$s
 Moteur : %5$s (%6$s)</string>
+    <string name="missa_admin_lock_title">Réglages des extensions verrouillés</string>
+    <string name="missa_admin_lock_desc">Saisissez le code administrateur pour modifier les extensions.</string>
+    <string name="missa_admin_lock_hint">Code</string>
+    <string name="missa_admin_lock_wrong">Code incorrect</string>
 </resources>

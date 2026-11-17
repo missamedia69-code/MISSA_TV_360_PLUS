@@ -1495,4 +1495,8 @@ Genre: %2$s
 
 Game licence: %4$s
 Engine: %5$s (%6$s)</string>
+    <string name="missa_admin_lock_title">Extension settings locked</string>
+    <string name="missa_admin_lock_desc">Enter the administrator code to change the extensions.</string>
+    <string name="missa_admin_lock_hint">Code</string>
+    <string name="missa_admin_lock_wrong">Wrong code</string>
 </resources>
