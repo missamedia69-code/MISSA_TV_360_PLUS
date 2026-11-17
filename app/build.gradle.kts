@@ -205,8 +205,14 @@ android {
             // (media3/Cronet/Jackson/Coil représentent l'essentiel de l'APK) et aucune
             // optimisation. Les règles de app/proguard-rules.pro gardent tout ce que les
             // extensions voient, car elles sont chargées à l'exécution.
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // R8 désactivé : les extensions sont chargées à l'exécution et appellent
+            // directement la bibliothèque standard Kotlin, kotlinx.coroutines, NiceHttp
+            // (app.get / app.post), Jackson, Rhino... R8 supprimait ou renommait ces classes
+            // (kotlin.text.StringsKt, com.lagradost.nicehttp.*...), et presque toutes les
+            // extensions échouaient au chargement (« Impossible de charger … »).
+            // Même choix que CloudStream d'origine : compatibilité avant la taille de l'APK.
+            isMinifyEnabled = false
+            isShrinkResources = false
             // PERF A1 : sans keystore "prerelease" (cas de la CI, qui n'en fournit pas),
             // l'APK release resterait non signé et donc impossible à installer. On le signe
             // avec la clé debug : ce sont des builds de test, pas des livraisons publiques.
