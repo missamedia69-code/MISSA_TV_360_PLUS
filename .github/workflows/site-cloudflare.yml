@@ -6,8 +6,9 @@ name: Site vitrine (Cloudflare Pages)
 #
 # Publie aussi l'API d'activation (cloudflare/functions, adresse /api/...) et sa base D1
 # « missatv » (créée automatiquement, tables dans cloudflare/schema.sql).
-# Paiements KPay, secrets facultatifs du dépôt, recopiés sur Cloudflare à chaque publication :
-#   KPAY_API_KEY, KPAY_SECRET_KEY, KPAY_WEBHOOK_SECRET, MISSA_ADMIN_TOKEN
+# Paiements (SasPay, ou KPay sans clé SasPay), secrets facultatifs du dépôt, recopiés sur
+# Cloudflare à chaque publication :
+#   SASPAY_SECRET_KEY, SASPAY_WEBHOOK_SECRET, KPAY_API_KEY, KPAY_SECRET_KEY, KPAY_WEBHOOK_SECRET, MISSA_ADMIN_TOKEN
 # Variable du dépôt (onglet Variables) : MISSA_LICENCE_ENFORCED = 1 pour activer le blocage
 # après l'essai de 24 h dans l'application. Sans elle, l'application reste libre.
 #
@@ -106,6 +107,8 @@ jobs:
         if: steps.secrets.outputs.ready == 'true'
         shell: bash
         env:
+          SASPAY_SECRET_KEY: ${{ secrets.SASPAY_SECRET_KEY }}
+          SASPAY_WEBHOOK_SECRET: ${{ secrets.SASPAY_WEBHOOK_SECRET }}
           KPAY_API_KEY: ${{ secrets.KPAY_API_KEY }}
           KPAY_SECRET_KEY: ${{ secrets.KPAY_SECRET_KEY }}
           KPAY_WEBHOOK_SECRET: ${{ secrets.KPAY_WEBHOOK_SECRET }}
@@ -113,7 +116,7 @@ jobs:
           LICENCE_ENFORCED: ${{ vars.MISSA_LICENCE_ENFORCED }}
         run: |
           set -euo pipefail
-          for NAME in KPAY_API_KEY KPAY_SECRET_KEY KPAY_WEBHOOK_SECRET ADMIN_TOKEN LICENCE_ENFORCED; do
+          for NAME in SASPAY_SECRET_KEY SASPAY_WEBHOOK_SECRET KPAY_API_KEY KPAY_SECRET_KEY KPAY_WEBHOOK_SECRET ADMIN_TOKEN LICENCE_ENFORCED; do
             VALUE="${!NAME:-}"
             if [[ -n "$VALUE" ]]; then
               printf '%s' "$VALUE" | npx --yes wrangler@3 pages secret put "$NAME" --project-name="$PROJECT" >/dev/null
@@ -152,7 +155,7 @@ jobs:
           fi
           for F in $FILES; do
             KEY="${F#game/}"
-            if npx --yes wrangler@3 r2 object put "$BUCKET/$KEY" --file "$F" --content-type application/octet-stream --remote; then
+            if npx --yes wrangler@3 r2 object put "$BUCKET/$KEY" --file "$F" --content-type application/octet-stream; then
               echo "Envoyé : $KEY"
             else
               echo "::warning::Envoi impossible : $KEY (l'application le prendra sur GitHub)"
