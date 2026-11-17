@@ -122,6 +122,7 @@ import com.lagradost.cloudstream3.ui.result.START_ACTION_RESUME_LATEST
 import com.lagradost.cloudstream3.ui.result.SyncViewModel
 import com.lagradost.cloudstream3.ui.search.SearchFragment
 import com.lagradost.cloudstream3.ui.search.SearchResultBuilder
+import com.lagradost.cloudstream3.ui.settings.extensions.MissaExtensionsConfig
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
@@ -2399,6 +2400,10 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                 )
             } else {
                 ioSafe {
+                    // Extensions imposées par extensions/config.json du dépôt : dépôts,
+                    // extensions et univers. Avant le chargement des extensions en ligne.
+                    runCatching { MissaExtensionsConfig.sync(this@MainActivity) }
+                        .onFailure { logError(it) }
                     if (settingsManager.getBoolean(
                             getString(R.string.auto_update_plugins_key),
                             true
