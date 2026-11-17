@@ -1504,4 +1504,21 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_ext_config_export_empty">No installed extension to export</string>
     <string name="missa_ext_config_sync_disable">Stop syncing extensions on this device</string>
     <string name="missa_ext_config_sync_enable">Sync extensions on this device again</string>
+    <string name="missa_activation_choose">Choose your subscription</string>
+    <string name="missa_activation_plan_month">1 month</string>
+    <string name="missa_activation_plan_months">%1$d months</string>
+    <string name="missa_activation_plan_year">1 year</string>
+    <string name="missa_activation_plan_best">Best price</string>
+    <string name="missa_activation_scan_plan">%1$s · %2$s: scan this QR code with your phone to pay.</string>
+    <string name="missa_activation_opening">Opening the payment page…</string>
+    <string name="missa_activation_two_devices">One subscription works on 2 devices (TV, phone or tablet).</string>
+    <string name="missa_activation_link">I already have a subscription</string>
+    <string name="missa_activation_link_help">Enter the code of the device that paid for the subscription (shown on that device, e.g. MISSA-7K2Q9P).</string>
+    <string name="missa_activation_link_go">Activate this device</string>
+    <string name="missa_activation_link_bad">Unknown code. Check the code of the device that paid.</string>
+    <string name="missa_activation_link_nosub">That device has no active subscription.</string>
+    <string name="missa_activation_link_full">This subscription is already used on 2 devices.</string>
+    <string name="missa_activation_second_device">Your subscription covers 2 devices. To activate the second one, choose “I already have a subscription” on it and enter this code:
+
+%1$s</string>
 </resources>

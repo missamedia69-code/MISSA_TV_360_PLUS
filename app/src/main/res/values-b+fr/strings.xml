@@ -1462,4 +1462,21 @@ Moteur : %5$s (%6$s)</string>
     <string name="missa_ext_config_export_empty">Aucune extension installée à exporter</string>
     <string name="missa_ext_config_sync_disable">Ne plus synchroniser les extensions sur cet appareil</string>
     <string name="missa_ext_config_sync_enable">Synchroniser à nouveau les extensions sur cet appareil</string>
+    <string name="missa_activation_choose">Choisissez votre abonnement</string>
+    <string name="missa_activation_plan_month">1 mois</string>
+    <string name="missa_activation_plan_months">%1$d mois</string>
+    <string name="missa_activation_plan_year">1 an</string>
+    <string name="missa_activation_plan_best">Meilleur prix</string>
+    <string name="missa_activation_scan_plan">%1$s · %2$s : scannez ce QR code avec votre téléphone pour payer.</string>
+    <string name="missa_activation_opening">Ouverture de la page de paiement…</string>
+    <string name="missa_activation_two_devices">Un abonnement fonctionne sur 2 appareils (TV, téléphone ou tablette).</string>
+    <string name="missa_activation_link">J'ai déjà un abonnement</string>
+    <string name="missa_activation_link_help">Entrez le code de l'appareil qui a payé l'abonnement (affiché sur cet appareil, par exemple MISSA-7K2Q9P).</string>
+    <string name="missa_activation_link_go">Activer cet appareil</string>
+    <string name="missa_activation_link_bad">Code inconnu. Vérifiez le code de l'appareil qui a payé.</string>
+    <string name="missa_activation_link_nosub">Cet appareil n'a pas d'abonnement actif.</string>
+    <string name="missa_activation_link_full">Cet abonnement est déjà utilisé sur 2 appareils.</string>
+    <string name="missa_activation_second_device">Votre abonnement couvre 2 appareils. Pour activer le deuxième, choisissez « J'ai déjà un abonnement » sur celui-ci et entrez ce code :
+
+%1$s</string>
 </resources>

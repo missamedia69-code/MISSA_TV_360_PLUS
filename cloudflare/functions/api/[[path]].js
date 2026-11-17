@@ -81,7 +81,12 @@ async function licence(request, env) {
   }
   // Notification KPay perdue ? On demande l'état des paiements récents directement à KPay.
   await reconcilePending(env, deviceId, now);
-  return json(await deviceState(env, deviceId, now, request));
+  const st = await deviceState(env, deviceId, now, request);
+  // Formules proposées sur l'écran de blocage de l'appli (prix fixés ici, jamais par l'appli).
+  st.plans = ["m1", "m3", "m6", "year"].map((id) => ({
+    id, amount: PLANS[id].amount, currency: PLANS[id].currency, days: PLANS[id].days, label: PLANS[id].label,
+  }));
+  return json(st);
 }
 
 async function createDevice(env, deviceId, model, now) {

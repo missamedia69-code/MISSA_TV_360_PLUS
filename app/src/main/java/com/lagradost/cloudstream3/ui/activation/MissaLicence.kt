@@ -18,7 +18,7 @@ import java.util.UUID
  * Essai de 24 h et abonnement.
  *
  * C'est le serveur (missatv.pages.dev/api, voir cloudflare/) qui décide : il note la date du
- * premier contact de l'appareil, l'abonnement payé via KPay et sa date de fin. L'appli garde
+ * premier contact de l'appareil, l'abonnement payé via SasPay et sa date de fin. L'appli garde
  * sa dernière réponse pour fonctionner hors connexion pendant [OFFLINE_MS].
  *
  * Tant que le serveur n'a jamais répondu « enforced », rien n'est bloqué : une appli publiée
@@ -27,6 +27,7 @@ import java.util.UUID
  */
 object MissaLicence {
     const val API_URL = "https://missatv.pages.dev/api/licence"
+    private const val API_BASE = "https://missatv.pages.dev/api/"
     const val SITE_ACTIVATE = "missatv.pages.dev/activer"
 
     private const val PREFS = "missa_licence"
@@ -142,6 +143,7 @@ object MissaLicence {
                 putLong("expiresAt", j.optLong("expiresAt"))
                 putLong("graceEndsAt", j.optLong("graceEndsAt"))
                 putString("payUrl", j.optString("payUrl"))
+                j.optJSONArray("plans")?.let { putString("plans", it.toString()) }
                 putLong("serverOffset", serverTime - (sent + received) / 2)
                 putLong("lastOk", received)
             }
@@ -149,6 +151,76 @@ object MissaLicence {
         } catch (e: Exception) {
             logError(e)
             false
+        }
+    }
+
+    /** Formule proposée sur l'écran de blocage (prix envoyés par le serveur). */
+    data class Plan(val id: String, val amount: Int, val currency: String, val days: Int, val label: String)
+
+    /** Formules du dernier contact avec le serveur, ou les formules habituelles par défaut. */
+    fun plans(ctx: Context): List<Plan> {
+        val raw = prefs(ctx).getString("plans", null)
+        val parsed = raw?.let { text ->
+            runCatching {
+                val arr = org.json.JSONArray(text)
+                (0 until arr.length()).mapNotNull { i ->
+                    val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                    val id = o.optString("id")
+                    if (!Regex("^(m[1-9]|year)$").matches(id)) return@mapNotNull null
+                    Plan(id, o.optInt("amount"), o.optString("currency", "XAF"), o.optInt("days"), o.optString("label"))
+                }
+            }.getOrNull()
+        }
+        return parsed?.takeIf { it.isNotEmpty() } ?: listOf(
+            Plan("m1", 1000, "XAF", 30, "1 mois"),
+            Plan("m3", 3000, "XAF", 90, "3 mois"),
+            Plan("m6", 6000, "XAF", 180, "6 mois"),
+            Plan("year", 10000, "XAF", 365, "1 an"),
+        )
+    }
+
+    /** Adresse de la page Activer qui lance tout de suite le paiement de [planId] (QR code TV). */
+    fun payUrlFor(ctx: Context, planId: String): String? {
+        val base = snapshot(ctx)?.payUrl?.takeIf { it.startsWith("https://") } ?: return null
+        return base + (if (base.contains('?')) "&" else "?") + "plan=" + planId
+    }
+
+    /** Crée le paiement chez le prestataire et renvoie l'adresse de sa page, ou null. */
+    suspend fun createPayment(ctx: Context, planId: String): String? = withContext(Dispatchers.IO) {
+        val code = snapshot(ctx)?.code?.takeIf { it.isNotBlank() } ?: return@withContext null
+        try {
+            val res = app.post(API_BASE + "pay", json = mapOf("code" to code, "plan" to planId), timeout = 20L)
+            JSONObject(res.text).optString("gatewayUrl").takeIf { it.startsWith("https://") }
+        } catch (e: Exception) {
+            logError(e)
+            null
+        }
+    }
+
+    enum class LinkResult { OK, BAD_CODE, NO_SUBSCRIPTION, TOO_MANY, NETWORK }
+
+    /**
+     * Rattache cet appareil à l'abonnement d'un autre appareil (2 appareils par abonnement) :
+     * [ownerCode] est le code affiché sur l'appareil qui a payé.
+     */
+    suspend fun linkToSubscription(ctx: Context, ownerCode: String): LinkResult = withContext(Dispatchers.IO) {
+        val code = snapshot(ctx)?.code?.takeIf { it.isNotBlank() } ?: return@withContext LinkResult.NETWORK
+        try {
+            val res = app.post(API_BASE + "link", json = mapOf("code" to code, "ownerCode" to ownerCode.trim()), timeout = 15L)
+            val j = runCatching { JSONObject(res.text) }.getOrNull() ?: return@withContext LinkResult.NETWORK
+            if (j.optBoolean("ok")) {
+                refresh(ctx)
+                return@withContext LinkResult.OK
+            }
+            when (j.optString("error")) {
+                "too_many_devices" -> LinkResult.TOO_MANY
+                "no_subscription" -> LinkResult.NO_SUBSCRIPTION
+                "unknown_code", "bad_request" -> LinkResult.BAD_CODE
+                else -> LinkResult.NETWORK
+            }
+        } catch (e: Exception) {
+            logError(e)
+            LinkResult.NETWORK
         }
     }
 
