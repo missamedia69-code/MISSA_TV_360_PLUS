@@ -1620,6 +1620,17 @@ class GeneratorPlayer : FullScreenPlayer() {
         activity?.popCurrentPage()
     }
 
+    /** Démarrage automatique : premier lien utilisable qui n'a pas déjà échoué. */
+    private fun autoStartPlayer() {
+        if (isPlayerActive.get()) return
+        val failed = viewModel.state.erroredLinks
+        val link = viewModel.state.sortLinks(currentQualityProfile)
+            .firstOrNull { it.shouldUseLink && it.link !in failed }?.link ?: return
+        if (!isPlayerActive.compareAndSet(false, true)) return
+        loadLink(link, false)
+        showPlayerMetadata()
+    }
+
     private fun startPlayer() {
         // We don't want double load when you skip loading
         if (isPlayerActive.get()) {
@@ -2421,7 +2432,7 @@ class GeneratorPlayer : FullScreenPlayer() {
                 autoStartJob = viewLifecycleOwner.lifecycleScope.launch {
                     delay(AUTO_START_DELAY_MS)
                     if (instance == viewModel.state.instance && !isPlayerActive.get()) {
-                        safe { startPlayer() }
+                        safe { autoStartPlayer() }
                     }
                 }
             }
