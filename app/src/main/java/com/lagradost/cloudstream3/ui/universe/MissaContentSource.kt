@@ -21,6 +21,19 @@ object MissaContentSource {
     fun githubUrl(path: String): String =
         "https://raw.githubusercontent.com/$REPO/${BuildConfig.MISSA_CONTENT_BRANCH}/$path"
 
+    /**
+     * Copie Cloudflare R2 d'un fichier de jeu publié sur GitHub (game/rom/..., game/neogeo/...),
+     * servie par le site sous /jeux/. Null si [githubUrl] n'est pas un fichier de jeu de main.
+     */
+    fun gameMirror(githubUrl: String): String? {
+        if (BuildConfig.MISSA_CONTENT_BRANCH != "main") return null
+        val prefix = "https://raw.githubusercontent.com/$REPO/main/game/"
+        if (!githubUrl.startsWith(prefix)) return null
+        val rest = githubUrl.removePrefix(prefix).substringBefore('?')
+        if (!(rest.startsWith("rom/") || rest.startsWith("neogeo/"))) return null
+        return SITE + "jeux/" + rest
+    }
+
     /** Adresses à essayer dans l'ordre pour [path] (chemin dans le dépôt, ex. tv/chaines.m3u). */
     fun urls(path: String): List<String> =
         if (BuildConfig.MISSA_CONTENT_BRANCH == "main") listOf(SITE + path, githubUrl(path))
