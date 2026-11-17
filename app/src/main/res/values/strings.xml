@@ -1518,7 +1518,5 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_activation_link_bad">Unknown code. Check the code of the device that paid.</string>
     <string name="missa_activation_link_nosub">That device has no active subscription.</string>
     <string name="missa_activation_link_full">This subscription is already used on 2 devices.</string>
-    <string name="missa_activation_second_device">Your subscription covers 2 devices. To activate the second one, choose “I already have a subscription” on it and enter this code:
-
-%1$s</string>
+    <string name="missa_activation_second_device">Your subscription covers 2 devices. To activate the second one, choose “I already have a subscription” on it and enter this code:\n\n%1$s</string>
 </resources>
