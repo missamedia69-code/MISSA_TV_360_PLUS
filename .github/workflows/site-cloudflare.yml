@@ -152,7 +152,7 @@ jobs:
           fi
           for F in $FILES; do
             KEY="${F#game/}"
-            if npx --yes wrangler@3 r2 object put "$BUCKET/$KEY" --file "$F" --content-type application/octet-stream --remote; then
+            if npx --yes wrangler@3 r2 object put "$BUCKET/$KEY" --file "$F" --content-type application/octet-stream; then
               echo "Envoyé : $KEY"
             else
               echo "::warning::Envoi impossible : $KEY (l'application le prendra sur GitHub)"
