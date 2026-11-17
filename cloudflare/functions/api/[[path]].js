@@ -9,7 +9,9 @@
 //   - quand l'abonnement expire : 1 jour de grâce, puis blocage.
 //
 // Variables (Cloudflare Pages → Settings → Variables and secrets, ou workflow) :
-//   KPAY_API_KEY, KPAY_SECRET_KEY   clés de l'application KPay (secrets)
+//   SASPAY_SECRET_KEY               clé secrète SasPay : sk_test_... (essais) ou sk_live_... (réel)
+//   SASPAY_WEBHOOK_SECRET           secret de signature des webhooks SasPay (secret)
+//   KPAY_API_KEY, KPAY_SECRET_KEY   ancien prestataire KPay, utilisé seulement sans clé SasPay
 //   KPAY_WEBHOOK_SECRET             secret de signature des notifications KPay (secret)
 //   LICENCE_ENFORCED                "1" pour activer le blocage dans l'appli ; sinon tout est libre
 //   ADMIN_TOKEN                     facultatif : pour offrir des jours à un client (support)
@@ -22,6 +24,11 @@ const MAX_DEVICES = 2;
 // (changement de TV ou de téléphone sans passer par le support).
 const DEVICE_STALE_MS = 30 * DAY;
 const KPAY_BASE = "https://admin.kpay.site/api/v1";
+// SasPay : l'environnement suit la clé (sk_live_ → réel, sinon bac à sable).
+const SASPAY_LIVE = "https://api.saspay.me/api/v1";
+const SASPAY_SANDBOX = "https://sandbox-api.saspay.me/api/v1";
+// Les paiements SasPay ont un identifiant qui commence par MTS-, ceux de KPay par MTV-.
+const SASPAY_PREFIX = "MTS-";
 
 // De 1 à 9 mois : 1 000 FCFA par mois (30 jours). Au-delà, c'est l'année : 10 000 FCFA
 // pour 365 jours (le prix de 10 mois pour 12).
@@ -46,6 +53,7 @@ export async function onRequest(context) {
     if (path === "/pay" && request.method === "POST") return cors(await pay(request, env));
     if (path === "/link" && request.method === "POST") return cors(await link(request, env));
     if (path === "/kpay-webhook" && request.method === "POST") return await webhook(request, env);
+    if (path === "/saspay-webhook" && request.method === "POST") return await saspayWebhook(request, env);
     if (path === "/admin/grant" && request.method === "POST") return await adminGrant(request, env);
     return json({ error: "not_found" }, 404);
   } catch (e) {
@@ -133,7 +141,7 @@ async function codeInfo(request, env) {
     state: st.state,
     expiresAt: st.expiresAt,
     trialEndsAt: st.trialEndsAt,
-    paymentsReady: !!(env.KPAY_API_KEY && env.KPAY_SECRET_KEY),
+    paymentsReady: saspayReady(env) || kpayReady(env),
     plans: Object.fromEntries(Object.entries(PLANS).filter(([k]) => k !== "month").map(([k, p]) => [k, {
       amount: p.amount, currency: p.currency, days: p.days,
     }])),
@@ -146,7 +154,8 @@ async function pay(request, env) {
   const code = normCode(body.code);
   const plan = Object.prototype.hasOwnProperty.call(PLANS, body.plan) ? PLANS[body.plan] : null;
   if (!code || !plan) return json({ error: "bad_request" }, 400);
-  if (!env.KPAY_API_KEY || !env.KPAY_SECRET_KEY) return json({ error: "payments_not_configured" }, 503);
+  if (saspayReady(env)) return await saspayPay(request, env, code, body.plan, plan);
+  if (!kpayReady(env)) return json({ error: "payments_not_configured" }, 503);
   const device = await env.DB.prepare("SELECT id FROM devices WHERE code = ?").bind(code).first();
   if (!device) return json({ error: "unknown_code" }, 404);
 
@@ -226,10 +235,12 @@ async function webhook(request, env) {
 
 /** Interroge KPay pour les paiements en attente (au plus toutes les 15 s, pendant 2 h). */
 async function reconcilePending(env, deviceId, now) {
-  if (!env.KPAY_API_KEY || !env.KPAY_SECRET_KEY) return;
+  if (saspayReady(env)) await saspayReconcile(env, deviceId, now);
+  if (!kpayReady(env)) return;
   const { results } = await env.DB.prepare(
     `SELECT external_id, kpay_ref FROM payments
      WHERE device_id = ? AND status = 'PENDING' AND created_at > ? AND last_check < ? AND kpay_ref IS NOT NULL
+       AND external_id NOT LIKE 'MTS-%'
      LIMIT 3`
   ).bind(deviceId, now - 2 * 60 * 60 * 1000, now - 15000).all();
   for (const p of results || []) {
@@ -287,6 +298,151 @@ async function extend(env, deviceId, durationMs, now) {
   // Renouvellement : on ajoute la durée à la date de fin si elle n'est pas encore passée.
   await env.DB.prepare("UPDATE subscriptions SET expires_at = MAX(expires_at, ?) + ? WHERE id = ?")
     .bind(now, durationMs, sub.id).run();
+}
+
+// ---------------------------------------------------------------- SasPay
+
+function saspayReady(env) {
+  return !!env.SASPAY_SECRET_KEY;
+}
+
+function kpayReady(env) {
+  return !!(env.KPAY_API_KEY && env.KPAY_SECRET_KEY);
+}
+
+function saspayBase(env) {
+  return String(env.SASPAY_SECRET_KEY || "").startsWith("sk_live_") ? SASPAY_LIVE : SASPAY_SANDBOX;
+}
+
+function saspayHeaders(env) {
+  return {
+    Authorization: `Bearer ${env.SASPAY_SECRET_KEY}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+}
+
+/** Réponses SasPay : enveloppe { success, data } (on accepte aussi l'objet nu). */
+function saspayData(body) {
+  return body && typeof body === "object" && body.data && typeof body.data === "object" ? body.data : body;
+}
+
+/**
+ * Crée une session de checkout hébergé : SasPay affiche la page de paiement (le client y
+ * choisit son réseau mobile money et saisit son numéro) et renvoie son adresse.
+ */
+async function saspayPay(request, env, code, planId, plan) {
+  const device = await env.DB.prepare("SELECT id FROM devices WHERE code = ?").bind(code).first();
+  if (!device) return json({ error: "unknown_code" }, 404);
+  const now = Date.now();
+  const externalId = SASPAY_PREFIX + randomHex(10);
+  const origin = new URL(request.url).origin;
+  const returnUrl = `${origin}/activer/?code=${encodeURIComponent(code)}&retour=1`;
+  // SasPay exige un nom et un e-mail : l'appli ne les demande pas, on utilise le code de
+  // l'appareil (le client ne reçoit donc pas de reçu par e-mail).
+  const local = code.toLowerCase();
+  const res = await fetch(`${saspayBase(env)}/checkout-sessions/`, {
+    method: "POST",
+    headers: saspayHeaders(env),
+    body: JSON.stringify({
+      amount: plan.amount.toFixed(2),
+      currency: plan.currency,
+      country: "CM",
+      description: `MISSA TV 360 PLUS — abonnement ${plan.label} (${code})`,
+      customer_name: code,
+      customer_email: `${local}@clients.missatv.pages.dev`,
+      return_url: returnUrl,
+      metadata: { external_id: externalId, code, plan: planId },
+    }),
+  });
+  const body = await res.json().catch(() => ({}));
+  const data = saspayData(body) || {};
+  if (!res.ok || !data.checkout_url || !data.id) {
+    console.error("SasPay checkout", res.status, JSON.stringify(body));
+    return json({ error: "payment_provider_error" }, 502);
+  }
+  await env.DB.prepare(
+    `INSERT INTO payments (external_id, device_id, plan, amount, currency, kpay_ref, status, is_test, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`
+  ).bind(externalId, device.id, planId, plan.amount, plan.currency, String(data.id),
+    saspayBase(env) === SASPAY_SANDBOX ? 1 : 0, now).run();
+  return json({ gatewayUrl: data.checkout_url });
+}
+
+/**
+ * Relit chez SasPay l'état d'une session de checkout (« kpay_ref » contient l'identifiant de
+ * session pour les paiements MTS-). SasPay revérifie lui-même l'état réel avant de répondre.
+ */
+async function saspayCheck(env, payment) {
+  const res = await fetch(`${saspayBase(env)}/checkout-sessions/${encodeURIComponent(payment.kpay_ref)}/status/`,
+    { headers: saspayHeaders(env) });
+  if (!res.ok) return null;
+  const data = saspayData(await res.json().catch(() => ({}))) || {};
+  const session = String(data.status || "").toUpperCase();
+  const tx = String(data.transaction_status || "").toUpperCase();
+  if (session === "PAID" || tx === "SUCCESS") {
+    await applyCompleted(env, payment.external_id, payment.amount, data.transaction_reference || data.transaction_id);
+    return "COMPLETED";
+  }
+  if (["FAILED", "CANCELLED", "EXPIRED"].includes(session) || ["FAILED", "CANCELLED"].includes(tx)) {
+    const status = session === "EXPIRED" ? "CANCELLED" : (tx || session);
+    await env.DB.prepare("UPDATE payments SET status = ? WHERE external_id = ? AND status = 'PENDING'")
+      .bind(status === "FAILED" ? "FAILED" : "CANCELLED", payment.external_id).run();
+    return status;
+  }
+  return "PENDING";
+}
+
+/** Paiements SasPay en attente d'un appareil (au plus toutes les 15 s, pendant 2 h). */
+async function saspayReconcile(env, deviceId, now) {
+  const { results } = await env.DB.prepare(
+    `SELECT external_id, kpay_ref, amount FROM payments
+     WHERE device_id = ? AND status = 'PENDING' AND created_at > ? AND last_check < ?
+       AND kpay_ref IS NOT NULL AND external_id LIKE 'MTS-%'
+     LIMIT 3`
+  ).bind(deviceId, now - 2 * 60 * 60 * 1000, now - 15000).all();
+  for (const p of results || []) {
+    await env.DB.prepare("UPDATE payments SET last_check = ? WHERE external_id = ?").bind(now, p.external_id).run();
+    try { await saspayCheck(env, p); } catch (e) { console.error("SasPay status", e); }
+  }
+}
+
+/**
+ * Webhook SasPay (transaction.success / failed / cancelled). Signature vérifiée : HMAC-SHA256
+ * de « horodatage.corps brut », horodatage à moins de 5 minutes. Le contenu du webhook ne
+ * valide rien à lui seul : on relit chez SasPay l'état des sessions en attente.
+ */
+async function saspayWebhook(request, env) {
+  if (!env.SASPAY_WEBHOOK_SECRET || !saspayReady(env)) return new Response("not configured", { status: 503 });
+  const raw = await request.text();
+  const sig = (request.headers.get("x-webhook-signature") || "").toLowerCase();
+  const ts = request.headers.get("x-webhook-timestamp") || "";
+  if (!/^\d+$/.test(ts) || Math.abs(Date.now() / 1000 - Number(ts)) > 300) {
+    return new Response("stale", { status: 403 });
+  }
+  const expected = await hmacHex(env.SASPAY_WEBHOOK_SECRET, `${ts}.${raw}`);
+  if (!timingSafeEqual(sig, expected)) return new Response("invalid signature", { status: 403 });
+  let ev;
+  try { ev = JSON.parse(raw); } catch { return new Response("bad json", { status: 400 }); }
+  const type = String(ev.event || request.headers.get("x-webhook-event") || "");
+  if (!type.startsWith("transaction.")) return new Response("OK");
+  const txId = ev.data && ev.data.id ? String(ev.data.id) : null;
+  // Le webhook ne contient pas notre identifiant : on relit les sessions récentes en attente.
+  const now = Date.now();
+  const { results } = await env.DB.prepare(
+    `SELECT external_id, kpay_ref, amount FROM payments
+     WHERE status = 'PENDING' AND external_id LIKE 'MTS-%' AND kpay_ref IS NOT NULL AND created_at > ?
+     ORDER BY created_at DESC LIMIT 10`
+  ).bind(now - 2 * 60 * 60 * 1000).all();
+  for (const p of results || []) {
+    try {
+      const st = await saspayCheck(env, p);
+      if (st === "COMPLETED" && txId) console.log("SasPay payé", p.external_id, txId);
+    } catch (e) {
+      console.error("SasPay webhook check", e);
+    }
+  }
+  return new Response("OK");
 }
 
 // ---------------------------------------------------------------- support
