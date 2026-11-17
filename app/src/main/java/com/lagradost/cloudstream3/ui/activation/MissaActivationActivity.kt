@@ -265,6 +265,7 @@ class MissaActivationActivity : AppCompatActivity() {
                         MissaLicence.LinkResult.BAD_CODE -> input.error = getString(R.string.missa_activation_link_bad)
                         MissaLicence.LinkResult.NO_SUBSCRIPTION -> input.error = getString(R.string.missa_activation_link_nosub)
                         MissaLicence.LinkResult.TOO_MANY -> input.error = getString(R.string.missa_activation_link_full)
+                        MissaLicence.LinkResult.LOCKED -> input.error = getString(R.string.missa_activation_link_locked)
                         MissaLicence.LinkResult.NETWORK -> input.error = getString(R.string.missa_activation_no_network)
                     }
                 }

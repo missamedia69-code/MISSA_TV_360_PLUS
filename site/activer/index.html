@@ -122,6 +122,7 @@
     failed: ["Le paiement n'a pas abouti. Vous pouvez réessayer.", "The payment did not go through. You can try again."],
     linked: ["Appareil associé. Revenez à l'application.", "Device linked. Go back to the app."],
     noSub: ["Cet appareil n'a pas d'abonnement actif.", "That device has no active subscription."],
+    locked: ["Trop d'essais. Réessayez dans une heure.", "Too many attempts. Try again in an hour."],
     tooMany: ["Cet abonnement est déjà utilisé sur 2 appareils.", "This subscription is already used on 2 devices."]
   };
   function t(k) { return T[k][en ? 1 : 0]; }
@@ -208,7 +209,7 @@
     api("link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code, ownerCode: $("ownerInput").value }) })
       .then(function (d) {
         if (d.ok) { msg("linkMsg", t("linked"), "ok"); load(); return; }
-        msg("linkMsg", d.error === "too_many_devices" ? t("tooMany") : d.error === "no_subscription" ? t("noSub") : d.error === "unknown_code" || d.error === "bad_request" ? t("badCode") : t("net"), "err");
+        msg("linkMsg", d.error === "too_many_attempts" ? t("locked") : d.error === "too_many_devices" ? t("tooMany") : d.error === "no_subscription" ? t("noSub") : d.error === "unknown_code" || d.error === "bad_request" ? t("badCode") : t("net"), "err");
       }).catch(function () { msg("linkMsg", t("net"), "err"); });
   });
 

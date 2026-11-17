@@ -197,7 +197,7 @@ object MissaLicence {
         }
     }
 
-    enum class LinkResult { OK, BAD_CODE, NO_SUBSCRIPTION, TOO_MANY, NETWORK }
+    enum class LinkResult { OK, BAD_CODE, NO_SUBSCRIPTION, TOO_MANY, LOCKED, NETWORK }
 
     /**
      * Rattache cet appareil à l'abonnement d'un autre appareil (2 appareils par abonnement) :
@@ -214,6 +214,7 @@ object MissaLicence {
             }
             when (j.optString("error")) {
                 "too_many_devices" -> LinkResult.TOO_MANY
+                "too_many_attempts" -> LinkResult.LOCKED
                 "no_subscription" -> LinkResult.NO_SUBSCRIPTION
                 "unknown_code", "bad_request" -> LinkResult.BAD_CODE
                 else -> LinkResult.NETWORK

@@ -15,4 +15,8 @@
     <!-- Catalogues Radio / Musique / Enfants : plusieurs centaines de Ko, re-téléchargeables.
          Les garder dans une sauvegarde ne sert qu'à la gonfler (PERF A5). -->
     <exclude domain="sharedpref" path="missa_catalogue_cache.xml" />
+
+    <!-- Licence (essai, abonnement, identifiant de secours) : propre à CET appareil. Restaurée
+         ailleurs, elle donnerait jusqu'à 3 jours d'accès hors connexion à un autre appareil. -->
+    <exclude domain="sharedpref" path="missa_licence.xml" />
 </full-backup-content>

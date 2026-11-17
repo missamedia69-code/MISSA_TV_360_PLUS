@@ -201,12 +201,24 @@ async function link(request, env) {
   const ownerCode = normCode(body.ownerCode);
   if (!code || !ownerCode || code === ownerCode) return json({ error: "bad_request" }, 400);
   const now = Date.now();
+  // Anti-devinette : au plus 10 essais ratés par appareil et par heure.
+  const tries = await env.DB.prepare("SELECT COUNT(*) AS n FROM link_attempts WHERE code = ? AND at > ?")
+    .bind(code, now - 60 * 60 * 1000).first();
+  if (tries && tries.n >= 10) return json({ error: "too_many_attempts" }, 429);
+  const failed = async (body, status) => {
+    await env.DB.prepare("INSERT INTO link_attempts (code, at) VALUES (?, ?)").bind(code, now).run();
+    if (Math.random() < 0.05) {
+      await env.DB.prepare("DELETE FROM link_attempts WHERE at < ?").bind(now - 24 * 60 * 60 * 1000).run();
+    }
+    return json(body, status);
+  };
   const device = await env.DB.prepare("SELECT * FROM devices WHERE code = ?").bind(code).first();
   const owner = await env.DB.prepare("SELECT * FROM devices WHERE code = ?").bind(ownerCode).first();
-  if (!device || !owner) return json({ error: "unknown_code" }, 404);
-  if (!owner.subscription_id) return json({ error: "no_subscription" }, 409);
+  if (!device) return json({ error: "unknown_code" }, 404);
+  if (!owner) return await failed({ error: "unknown_code" }, 404);
+  if (!owner.subscription_id) return await failed({ error: "no_subscription" }, 409);
   const sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE id = ?").bind(owner.subscription_id).first();
-  if (!sub || sub.expires_at <= now) return json({ error: "no_subscription" }, 409);
+  if (!sub || sub.expires_at <= now) return await failed({ error: "no_subscription" }, 409);
   if (device.subscription_id === sub.id) return json({ ok: true });
   const used = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM devices WHERE subscription_id = ? AND last_seen > ?"
