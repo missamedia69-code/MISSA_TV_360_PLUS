@@ -1496,9 +1496,10 @@ Genre: %2$s
 Game licence: %4$s
 Engine: %5$s (%6$s)</string>
     <string name="missa_admin_lock_title">Extension settings locked</string>
-    <string name="missa_admin_lock_desc">Enter the administrator code to change the extensions.</string>
+    <string name="missa_admin_lock_desc">Enter the access code to change the extensions.</string>
     <string name="missa_admin_lock_hint">Code</string>
     <string name="missa_admin_lock_wrong">Wrong code</string>
+    <string name="missa_admin_lock_buy">Want to install your own extensions? Buy the access code for 5,000 FCFA from MISSA TV.</string>
     <string name="missa_ext_config_export">Export configuration (MISSA TV)</string>
     <string name="missa_ext_config_export_done">Configuration of %1$d extensions saved in the backup folder (Downloads by default)</string>
     <string name="missa_ext_config_export_empty">No installed extension to export</string>

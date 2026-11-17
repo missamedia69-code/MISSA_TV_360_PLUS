@@ -1454,9 +1454,10 @@ Genre : %2$s
 Licence du jeu : %4$s
 Moteur : %5$s (%6$s)</string>
     <string name="missa_admin_lock_title">Réglages des extensions verrouillés</string>
-    <string name="missa_admin_lock_desc">Saisissez le code administrateur pour modifier les extensions.</string>
+    <string name="missa_admin_lock_desc">Saisissez le code d\'accès pour modifier les extensions.</string>
     <string name="missa_admin_lock_hint">Code</string>
     <string name="missa_admin_lock_wrong">Code incorrect</string>
+    <string name="missa_admin_lock_buy">Vous voulez installer vos propres extensions ? Achetez le code d\'accès pour 5 000 FCFA auprès de MISSA TV.</string>
     <string name="missa_ext_config_export">Exporter la configuration (MISSA TV)</string>
     <string name="missa_ext_config_export_done">Configuration de %1$d extensions enregistrée dans le dossier de sauvegarde (Téléchargements par défaut)</string>
     <string name="missa_ext_config_export_empty">Aucune extension installée à exporter</string>

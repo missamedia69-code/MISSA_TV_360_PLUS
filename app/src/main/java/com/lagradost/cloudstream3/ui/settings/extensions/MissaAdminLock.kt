@@ -2,7 +2,8 @@ package com.lagradost.cloudstream3.ui.settings.extensions
 
 import android.text.InputType
 import android.widget.EditText
-import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -44,10 +45,21 @@ object MissaAdminLock {
             hint = ctx.getString(R.string.missa_admin_lock_hint)
             setSingleLine()
         }
-        val box = FrameLayout(ctx).apply {
+        // Offre commerciale : le client peut acheter le code pour installer ses propres extensions.
+        val buyInfo = TextView(ctx).apply {
+            text = ctx.getString(R.string.missa_admin_lock_buy)
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        val box = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
             val pad = (20 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, 0)
             addView(input)
+            addView(buyInfo, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = pad / 2 })
         }
         fun leave() {
             if (fragment.isAdded) runCatching { fragment.findNavController().popBackStack() }
