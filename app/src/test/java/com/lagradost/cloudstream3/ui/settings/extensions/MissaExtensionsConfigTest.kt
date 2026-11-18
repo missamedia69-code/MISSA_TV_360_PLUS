@@ -38,6 +38,18 @@ class MissaExtensionsConfigTest {
     }
 
     @Test
+    fun `legacy MISSA extension is removed only after MediaTri has been installed`() {
+        val repo = "https://missatv.pages.dev/extensions/depot/repo.json"
+        val wanted = setOf("MediaTri".lowercase())
+        assertTrue(MissaExtensionsConfig.shouldRetireLegacyMissaPlugin(repo, wanted, true))
+        assertTrue(!MissaExtensionsConfig.shouldRetireLegacyMissaPlugin(repo, wanted, false))
+        assertTrue(!MissaExtensionsConfig.shouldRetireLegacyMissaPlugin(
+            "https://other.example/repo.json", wanted, true))
+        assertTrue(!MissaExtensionsConfig.shouldRetireLegacyMissaPlugin(
+            repo, wanted + "multisources fr-en", true))
+    }
+
+    @Test
     fun `the published configuration is readable`() {
         val file = generateSequence(File("").absoluteFile) { it.parentFile }
             .map { File(it, "extensions/config.json") }

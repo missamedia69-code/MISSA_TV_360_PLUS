@@ -283,6 +283,15 @@ object MissaExtensionsConfig {
                 if (ok) changed = true
             }
 
+            // Migration ciblée : MediaTri remplace MultiSources FR-EN uniquement dans le
+            // dépôt MISSA. Ne retirer l'ancienne extension qu'après installation de la nouvelle.
+            // « exclusif » reste false : ne jamais supprimer les dépôts tiers de l'utilisateur.
+            if (shouldRetireLegacyMissaPlugin(repoUrl, wantedNames,
+                    PluginManager.getPluginPath(activity, "MediaTri", repoUrl).isFile)) {
+                val legacy = PluginManager.getPluginPath(activity, "MultiSources FR-EN", repoUrl)
+                if (legacy.isFile && PluginManager.deletePlugin(legacy)) changed = true
+            }
+
             // Fichiers d'extension de ce dépôt qui ne figurent plus dans la configuration.
             val folder = PluginManager.getPluginPath(activity, "x", repoUrl).parentFile
             folder?.listFiles { f -> f.extension == "cs3" }?.forEach { file ->
@@ -304,4 +313,13 @@ object MissaExtensionsConfig {
         }
         return changed
     }
+
+    /** Une seule migration contrôlée, jamais un nettoyage général des extensions locales. */
+    internal fun shouldRetireLegacyMissaPlugin(
+        repositoryUrl: String,
+        wantedNames: Set<String>,
+        newPluginInstalled: Boolean
+    ): Boolean = repositoryUrl == MissaContentSource.SITE + "extensions/depot/repo.json" &&
+        "MediaTri".lowercase(Locale.ROOT) in wantedNames &&
+        "MultiSources FR-EN".lowercase(Locale.ROOT) !in wantedNames && newPluginInstalled
 }
