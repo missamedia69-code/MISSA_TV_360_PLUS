@@ -2162,6 +2162,38 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         }
     }
 
+    // ------------------------------------------------------------------ bloqueur de pop-up
+    // Les extensions ne peuvent pas ouvrir d'elles-mêmes de fenêtres (boîtes de dialogue,
+    // pages web, autres applications) : voir MissaPopupBlocker.
+    private var popupSafeWindowManager: WindowManager? = null
+
+    override fun getSystemService(name: String): Any? {
+        val service = super.getSystemService(name)
+        if (name == Context.WINDOW_SERVICE && service is WindowManager) {
+            return popupSafeWindowManager
+                ?: com.lagradost.cloudstream3.utils.MissaPopupBlocker.wrap(service)
+                    .also { popupSafeWindowManager = it }
+        }
+        return service
+    }
+
+    override fun startActivity(intent: Intent?) {
+        if (com.lagradost.cloudstream3.utils.MissaPopupBlocker.blockIntent(intent)) return
+        super.startActivity(intent)
+    }
+
+    override fun startActivity(intent: Intent?, options: Bundle?) {
+        if (com.lagradost.cloudstream3.utils.MissaPopupBlocker.blockIntent(intent)) return
+        super.startActivity(intent, options)
+    }
+
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
+    override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
+        if (com.lagradost.cloudstream3.utils.MissaPopupBlocker.blockIntent(intent)) return
+        super.startActivityForResult(intent, requestCode, options)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         app.initClient(this, ignoreSSL = false)
         @OptIn(UnsafeSSL::class)

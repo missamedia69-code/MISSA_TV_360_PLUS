@@ -70,6 +70,18 @@ class ExceptionHandler(
 
 class CloudStreamApp : Application(), SingletonImageLoader.Factory {
 
+    // Bloqueur de pop-up : une extension qui ouvre une page ou une autre application
+    // avec le contexte de l'application est refusée (voir MissaPopupBlocker).
+    override fun startActivity(intent: Intent?) {
+        if (com.lagradost.cloudstream3.utils.MissaPopupBlocker.blockIntent(intent)) return
+        super.startActivity(intent)
+    }
+
+    override fun startActivity(intent: Intent?, options: android.os.Bundle?) {
+        if (com.lagradost.cloudstream3.utils.MissaPopupBlocker.blockIntent(intent)) return
+        super.startActivity(intent, options)
+    }
+
     override fun onCreate() {
         super.onCreate()
         // If we want to initialize Coil as early as possible, maybe when
