@@ -80,14 +80,10 @@ et installées automatiquement sur tous les appareils.
 4. Fusionnez sur `main` : au démarrage suivant, chaque appareil ajoute le dépôt MISSA, installe
    l'extension et applique ses univers.
 
-**MediaTri** (nom interne `MediaTri`, version 1) remplace `MultiSources FR-EN`. Son
-archive est publiée sous `extensions/depot/MediaTri.cs3` ; le site Cloudflare la copie
-au même chemin et l'application peut se rabattre sur GitHub. La configuration garde
-`"exclusif": false` pour ne pas toucher aux autres dépôts. Sur une version de l'app
-qui contient la migration, l'ancienne extension MISSA est retirée seulement après
-l'installation de MediaTri ; avec une version antérieure de l'APK, les deux peuvent
-coexister temporairement. Seules les métadonnées nécessaires du `manifest.json`
-ont été consultées pour cette publication ; le code de l'extension n'a pas été audité.
+**MediaTri** a été retiré du dépôt MISSA à la demande du responsable : `config.json` ne
+liste plus aucune extension. Les appareils qui l'avaient déjà le gardent (configuration
+« ajout seulement ») jusqu'à la prochaine configuration exportée depuis l'application
+(`"exclusif": true`), qui retire tout ce qu'elle ne liste pas.
 
 À chaque démarrage, les extensions déjà installées doivent être **chargées en mémoire**,
 mais elles ne doivent pas être téléchargées à nouveau si leur fichier est identique à
