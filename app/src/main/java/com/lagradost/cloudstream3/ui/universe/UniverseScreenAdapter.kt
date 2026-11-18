@@ -196,10 +196,15 @@ internal class UniverseHubCardAdapter(
                 // l'icône, le titre et le sous-titre.
                 val minH = (88 * itemView.resources.displayMetrics.density).toInt()
                 val h = maxOf(HomeChildItemAdapter.landscapeHeight, minH)
+                // Hauteur minimale et non fixe : avec une hauteur imposée, le nombre de titres
+                // était coupé (grande police du téléphone, gros chiffres).
+                itemView.minimumHeight = h
                 val lp = itemView.layoutParams
-                if (w > 0 && lp != null && (lp.width != w || lp.height != h)) {
+                if (w > 0 && lp != null &&
+                    (lp.width != w || lp.height != ViewGroup.LayoutParams.WRAP_CONTENT)
+                ) {
                     lp.width = w
-                    lp.height = h
+                    lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
                     itemView.layoutParams = lp
                 }
             }

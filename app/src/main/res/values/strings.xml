@@ -925,6 +925,15 @@
     <string name="universe_live_badge">LIVE</string>
 
     <!-- Plurals (I18N-01) -->
+    <!-- Pendant le chargement des extensions : un minimum, pas encore le total. -->
+    <plurals name="missa_titles_count_partial">
+        <item quantity="one">%d+ title</item>
+        <item quantity="other">%d+ titles</item>
+    </plurals>
+    <plurals name="missa_stations_count_partial">
+        <item quantity="one">%d+ station</item>
+        <item quantity="other">%d+ stations</item>
+    </plurals>
     <plurals name="missa_titles_count">
         <item quantity="one">%d title</item>
         <item quantity="other">%d titles</item>
