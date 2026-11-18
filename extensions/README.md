@@ -51,3 +51,41 @@ Musiques, Jeunesse et Documentaires (YouTube), TV en direct (`tv/chaines.m3u`) e
 n'affichent pas le contenu des extensions.
 
 **Ne publiez que des extensions dont vous avez le droit de diffuser les contenus.**
+
+## Publier vos propres extensions (.cs3)
+
+Vos extensions compilées peuvent être hébergées ici même, dans **le dépôt d'extensions MISSA**,
+et installées automatiquement sur tous les appareils.
+
+1. Déposez le fichier dans **`extensions/depot/`** (par exemple `extensions/depot/MaSource.cs3`).
+2. Décrivez-le dans **`extensions/depot/extensions.json`** :
+
+   ```json
+   [
+     {
+       "fichier": "MaSource.cs3",
+       "nom": "Ma Source",
+       "univers": ["films", "series"],
+       "types": ["Movie", "TvSeries"],
+       "langue": "fr",
+       "description": "Films et séries de Ma Source"
+     }
+   ]
+   ```
+
+3. Lancez **`python3 extensions/outils/depot.py`** (ou demandez-le à Claude) : il vérifie le
+   fichier (archive valide, `manifest.json`, code compilé, version), puis génère
+   `extensions/depot/repo.json` et `plugins.json`, et ajoute l'extension à `config.json` avec
+   ses univers, **sans toucher aux entrées des autres dépôts**.
+4. Fusionnez sur `main` : au démarrage suivant, chaque appareil ajoute le dépôt MISSA, installe
+   l'extension et applique ses univers.
+
+**Mise à jour d'une extension** : remplacez le `.cs3` par une version recompilée avec un
+numéro `version` plus grand (dans son manifest), relancez l'outil : les appareils la mettent à
+jour tout seuls.
+
+**Important** : `config.json` s'impose aux appareils. S'il ne contient que vos extensions
+MISSA, les extensions des autres dépôts sont retirées des appareils synchronisés. Exportez
+d'abord votre configuration complète depuis l'application (menu ⋮ → « Exporter la
+configuration ») et placez-la dans `config.json` **avant** de lancer l'outil.
+
