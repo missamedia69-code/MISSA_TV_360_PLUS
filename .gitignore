@@ -227,3 +227,4 @@ fabric.properties
 gradle/gradle-daemon-jvm.properties
 
 # End of https://www.toptal.com/developers/gitignore/api/kotlin,java,android,androidstudio,visualstudiocode
+cle-signature-MISSA/
