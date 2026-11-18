@@ -103,7 +103,8 @@ def main():
             "language": m.get("langue") or "fr",
             "iconUrl": m.get("icone"),
             "fileSize": len(octets),
-            "fileHash": hashlib.sha256(octets).hexdigest(),
+            # Même format que l'application (RepositoryManager.sha256) : « sha256-<hex> ».
+            "fileHash": "sha256-" + hashlib.sha256(octets).hexdigest(),
         })
         entrees.append({"depot": REPO_URL, "nomDepot": "MISSA TV", "extension": interne,
                         "nom": m.get("nom") or interne, "univers": univers})

@@ -241,7 +241,11 @@ object RepositoryManager {
 
             if (expectedFileHash != null) {
                 val downloadHash = sha256(tempFile)
-                if (expectedFileHash != downloadHash) {
+                // MISSA : empreinte acceptée avec ou sans le préfixe « sha256- », en majuscules
+                // ou minuscules (le dépôt MISSA l'écrivait sans préfixe : l'extension était
+                // refusée comme « fichier abîmé » et ne s'installait pas toute seule).
+                fun norm(h: String) = h.trim().lowercase().removePrefix("sha256-")
+                if (norm(expectedFileHash) != norm(downloadHash)) {
                     tempFile.delete()
                     throw IllegalStateException("Extension hash mismatch when validating '${file.name}'! Expected: '$expectedFileHash', got: '$downloadHash'.")
                 }
