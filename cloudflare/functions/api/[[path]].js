@@ -18,6 +18,15 @@
 
 const DAY = 24 * 60 * 60 * 1000;
 const TRIAL_MS = DAY;
+/**
+ * Durée de l'essai : 24 h par défaut. La variable TRIAL_MINUTES (variable GitHub
+ * MISSA_TRIAL_MINUTES, recopiée sur Cloudflare) la remplace, par exemple 7 pour un test.
+ * Comptée depuis le premier contact de l'appareil, pour les appareils existants aussi.
+ */
+function trialMs(env) {
+  const minutes = Number(env.TRIAL_MINUTES);
+  return Number.isFinite(minutes) && minutes > 0 && minutes <= 60 * 24 * 30 ? minutes * 60 * 1000 : TRIAL_MS;
+}
 const GRACE_MS = DAY;
 const MAX_DEVICES = 2;
 // Un appareil sans nouvelles depuis 30 jours ne compte plus dans la limite des 2 appareils
@@ -110,7 +119,7 @@ async function deviceState(env, deviceId, now, request) {
       .bind(device.subscription_id).first();
     expiresAt = sub ? sub.expires_at : 0;
   }
-  const trialEndsAt = device.first_seen + TRIAL_MS;
+  const trialEndsAt = device.first_seen + trialMs(env);
   const graceEndsAt = expiresAt ? expiresAt + GRACE_MS : 0;
   let state;
   if (expiresAt > now) state = "active";

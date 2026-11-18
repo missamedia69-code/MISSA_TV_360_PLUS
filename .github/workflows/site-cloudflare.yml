@@ -9,6 +9,8 @@ name: Site vitrine (Cloudflare Pages)
 # Paiements (SasPay, ou KPay sans clé SasPay), secrets facultatifs du dépôt, recopiés sur
 # Cloudflare à chaque publication :
 #   SASPAY_SECRET_KEY, SASPAY_WEBHOOK_SECRET, KPAY_API_KEY, KPAY_SECRET_KEY, KPAY_WEBHOOK_SECRET, MISSA_ADMIN_TOKEN
+# Variable du dépôt (onglet Variables) : MISSA_TRIAL_MINUTES = durée de l'essai en minutes
+# (absente = 24 h ; 7 pour un test rapide).
 # Variable du dépôt (onglet Variables) : MISSA_LICENCE_ENFORCED = 1 pour activer le blocage
 # après l'essai de 24 h dans l'application. Sans elle, l'application reste libre.
 #
@@ -115,9 +117,10 @@ jobs:
           KPAY_WEBHOOK_SECRET: ${{ secrets.KPAY_WEBHOOK_SECRET }}
           ADMIN_TOKEN: ${{ secrets.MISSA_ADMIN_TOKEN }}
           LICENCE_ENFORCED: ${{ vars.MISSA_LICENCE_ENFORCED }}
+          TRIAL_MINUTES: ${{ vars.MISSA_TRIAL_MINUTES }}
         run: |
           set -euo pipefail
-          for NAME in SASPAY_SECRET_KEY SASPAY_WEBHOOK_SECRET KPAY_API_KEY KPAY_SECRET_KEY KPAY_WEBHOOK_SECRET ADMIN_TOKEN LICENCE_ENFORCED; do
+          for NAME in SASPAY_SECRET_KEY SASPAY_WEBHOOK_SECRET KPAY_API_KEY KPAY_SECRET_KEY KPAY_WEBHOOK_SECRET ADMIN_TOKEN LICENCE_ENFORCED TRIAL_MINUTES; do
             VALUE="${!NAME:-}"
             if [[ -n "$VALUE" ]]; then
               printf '%s' "$VALUE" | npx --yes wrangler@3 pages secret put "$NAME" --project-name="$PROJECT" >/dev/null
