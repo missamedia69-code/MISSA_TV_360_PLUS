@@ -1337,6 +1337,9 @@ Source : %6$s</string>
     <string name="radio_favorites_empty">Aucun favori pour l’instant. Maintenez OK (ou appui long) sur une station pour l’ajouter.</string>
     <string name="radio_section_missa">Sélection MISSA</string>
     <string name="radio_section_popular">Les plus écoutées</string>
+    <string name="universe_row_from_extensions">Depuis vos extensions</string>
+    <string name="universe_chip_from_extensions">Extensions</string>
+    <string name="radio_section_extensions">Depuis vos extensions</string>
     <string name="radio_crumb_count">%1$s · %2$s stations</string>
     <string name="radio_crumb_search">Recherche : %1$s</string>
     <string name="radio_option_play">Écouter</string>

@@ -41,6 +41,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -132,6 +133,10 @@ class MediaUniverseViewModel : ViewModel() {
         private const val TAG = "MissaCatalog"
 
         private const val PROVIDER_MAINPAGE_TIMEOUT_MS = 14_000L
+        /** Rangée des contenus d'extensions dans les univers YouTube (Documentaires, Enfants, Musiques). */
+        private const val EXT_ROW_KEY = "missa_from_extensions"
+        /** Affichage progressif du catalogue pendant la récolte des extensions. */
+        private const val PROGRESSIVE_PUBLISH_MS = 2_000L
         private const val SEARCH_PROVIDER_TIMEOUT_MS = 15_000L
         private const val DETAIL_TIMEOUT_MS = 3_200L
         /**
@@ -737,6 +742,7 @@ class MediaUniverseViewModel : ViewModel() {
             val resume = loadResumeListSafe()
             val online = isNetworkConnected()
 
+            var progressivePublisher: Job? = null
             try {
                 clearCachesForReload()
                 val selectedProviders = selectProvidersForCatalog(requireMainPage = true)
@@ -795,9 +801,41 @@ class MediaUniverseViewModel : ViewModel() {
                 val secondaryWave = selectedProviders.filterNot { it.second }.map { it.first }
 
                 val harvested = ArrayList<RawHarvestedItem>(256)
+
+                // MISSA : affichage progressif. Toutes les extensions compatibles sont
+                // cumulées (jusqu'à 40) : attendre la plus lente avant d'afficher quoi que ce
+                // soit pouvait prendre près de 2 minutes (40 extensions, 5 à la fois, 14 s
+                // de délai chacune). Le catalogue se remplit maintenant au fil des réponses,
+                // toutes les 2 secondes, dès la première extension qui répond.
+                val liveItems = java.util.Collections.synchronizedList(ArrayList<RawHarvestedItem>(256))
+                val onItems: (List<RawHarvestedItem>) -> Unit = { items -> liveItems.addAll(items) }
+                var publishedRaw = 0
+                progressivePublisher = launch {
+                    while (true) {
+                        delay(PROGRESSIVE_PUBLISH_MS)
+                        val copy = synchronized(liveItems) { ArrayList(liveItems) }
+                        if (copy.size == publishedRaw) continue
+                        publishedRaw = copy.size
+                        val partial = withContext(Dispatchers.Default) { normalizeAndDeduplicate(copy) }
+                        // Un catalogue déjà affiché (cache) n'est remplacé que par plus riche.
+                        if (partial.isEmpty() || partial.size < existingEntries.size) continue
+                        _catalogSnapshot.value = UnifiedCatalogSnapshot(
+                            isLoading = true,
+                            hasError = false,
+                            isOffline = false,
+                            activeProviderCount = activeCount,
+                            loadedProvidersCount = completedCounter.get(),
+                            totalProvidersCount = totalSelected,
+                            entries = partial,
+                            resumeWatching = resume,
+                            updatedAtMs = System.currentTimeMillis()
+                        )
+                    }
+                }
+
                 if (preferredWave.isNotEmpty()) {
                     harvested.addAll(
-                        harvestProvidersMainPages(preferredWave, isPreferred = true) {
+                        harvestProvidersMainPages(preferredWave, isPreferred = true, onProviderItems = onItems) {
                             val done = completedCounter.incrementAndGet()
                             val prev = _catalogSnapshot.value ?: return@harvestProvidersMainPages
                             _catalogSnapshot.postValue(
@@ -837,7 +875,7 @@ class MediaUniverseViewModel : ViewModel() {
                 }
                 if (secondaryWave.isNotEmpty()) {
                     harvested.addAll(
-                        harvestProvidersMainPages(secondaryWave, isPreferred = false) {
+                        harvestProvidersMainPages(secondaryWave, isPreferred = false, onProviderItems = onItems) {
                             val done = completedCounter.incrementAndGet()
                             val prev = _catalogSnapshot.value ?: return@harvestProvidersMainPages
                             _catalogSnapshot.postValue(
@@ -849,6 +887,8 @@ class MediaUniverseViewModel : ViewModel() {
                         }
                     )
                 }
+
+                progressivePublisher?.cancelAndJoin()
 
                 // PERF A2 : idem, sur le rendu complet.
                 val baseEntries = withContext(Dispatchers.Default) {
@@ -948,6 +988,9 @@ class MediaUniverseViewModel : ViewModel() {
                 // Was a bare catch(_) - a crashing catalog load looked exactly like an empty one.
                 Log.e(TAG, "Catalog load failed, keeping ${_catalogSnapshot.value?.entries?.size ?: 0} cached entries", e)
                 publishHarvestFallback(resume)
+            } finally {
+                // Jamais de publication partielle après la fin (ou l'échec) de la récolte.
+                progressivePublisher?.cancel()
             }
         }
     }
@@ -1115,8 +1158,25 @@ class MediaUniverseViewModel : ViewModel() {
         // "music" is 100% exclusively powered by YouTube (DirectMusicPlayerManager) and "kids" is
         // 100% exclusively powered by YouTube Kids (DirectKidsPlayerManager) — zero plugin entries.
         // "documentaries" (Documentaires & Live) est lui aussi 100 % YouTube (DirectDocsPlayerManager).
-        val universeEntries = if (universeId == "music" || universeId == "kids" || universeId == "documentaries") {
-            emptyList()
+        // MISSA : ces trois univers restent alimentés par YouTube ; s'y ajoute le contenu des
+        // extensions que l'utilisateur a RÉGLÉES EXPLICITEMENT sur cet univers (jamais celles en
+        // Auto : aucun contenu deviné dans Enfants). Voir MissaExtensionGroups.
+        val explicitOnly = universeId in MissaExtensionGroups.EXPLICIT_ONLY_GROUPS
+        val universeEntries = if (explicitOnly) {
+            val explicitNames = MissaExtensionGroups.explicitApiNames(universeId)
+            if (explicitNames.isEmpty()) {
+                emptyList()
+            } else {
+                baseSourceEntries.mapNotNull { entry ->
+                    val mine = entry.sources.filter { it.apiName in explicitNames }
+                    if (mine.isEmpty()) return@mapNotNull null
+                    val matchesLocalFilter = overrideEntries != null || searchQuery.isBlank() ||
+                        entry.primary.name.contains(searchQuery.trim(), ignoreCase = true)
+                    if (!matchesLocalFilter) return@mapNotNull null
+                    if (entry.primary.apiName in explicitNames) entry.copy(sources = mine)
+                    else entry.copy(primary = mine.first(), sources = mine)
+                }
+            }
         } else {
             baseSourceEntries.filter { entry ->
                 val inUniverse = universeId == "home" || entry.universes.contains(universeId)
@@ -1141,9 +1201,12 @@ class MediaUniverseViewModel : ViewModel() {
         }
 
         val availableSources = when (universeId) {
-            "music" -> listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC)
-            "kids" -> listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS)
-            "documentaries" -> listOf(MissaDocsProviders.PROVIDER_YOUTUBE)
+            "music" -> (listOf(MissaMusicProviders.PROVIDER_YOUTUBE_MUSIC) +
+                universeEntries.flatMap { e -> e.sources.map { it.apiName } }).distinct()
+            "kids" -> (listOf(MissaKidsProviders.PROVIDER_YOUTUBE_KIDS) +
+                universeEntries.flatMap { e -> e.sources.map { it.apiName } }).distinct()
+            "documentaries" -> (listOf(MissaDocsProviders.PROVIDER_YOUTUBE) +
+                universeEntries.flatMap { e -> e.sources.map { it.apiName } }).distinct()
             else -> (
                 (overrideEntries ?: snapshot.entries)
                     .filter { universeId == "home" || it.universes.contains(universeId) }
@@ -1584,6 +1647,22 @@ class MediaUniverseViewModel : ViewModel() {
                 url = entryUrl
             )
             val categories = categorizeEntry(universeId, entry, sectionName, tags, durationMinutes)
+            // Univers YouTube : un contenu d'extension que les rangées de l'univers ne savent
+            // pas classer va dans « Depuis vos extensions » au lieu de disparaître.
+            if (categories.isEmpty() && explicitOnly) {
+                val bucket = buckets.getOrPut(EXT_ROW_KEY) {
+                    BucketData(
+                        key = EXT_ROW_KEY,
+                        rowTitle = resolveStr(ctx, R.string.universe_row_from_extensions, "Extensions"),
+                        chipLabel = resolveStr(ctx, R.string.universe_chip_from_extensions, "Extensions"),
+                        rank = 850,
+                        isHorizontal = universeId == "documentaries"
+                    )
+                }
+                if (bucket.items.size < 60 && bucket.items.none { it.url == entry.primary.url }) {
+                    bucket.items.add(entry.primary)
+                }
+            }
             for (cat in categories) {
                 val bucket = buckets.getOrPut(cat.id) {
                     BucketData(
@@ -2216,6 +2295,7 @@ class MediaUniverseViewModel : ViewModel() {
     private suspend fun harvestProvidersMainPages(
         providers: List<MainAPI>,
         isPreferred: Boolean,
+        onProviderItems: (List<RawHarvestedItem>) -> Unit = {},
         onProviderFinished: () -> Unit
     ): List<RawHarvestedItem> = coroutineScope {
         val semaphore = Semaphore(MissaDeviceProfile.parallelism(normal = 5, light = 2))
@@ -2265,6 +2345,8 @@ class MediaUniverseViewModel : ViewModel() {
                 // failure: site moved, selector broke, geo-block, or the 14s timeout hit.
                 if (items.isEmpty()) {
                     Log.w(TAG, "Provider '${api.name}' yielded no items (empty response or timeout)")
+                } else {
+                    onProviderItems(items)
                 }
                 onProviderFinished()
                 items

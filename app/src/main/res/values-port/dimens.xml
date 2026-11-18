@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Téléphone tenu en hauteur : la bannière « À la une » passe sur deux étages
+     (visuel + textes, puis boutons) au lieu d'une seule ligne trop étroite où le
+     badge s'affichait lettre par lettre. Les tablettes et TV (sw600dp) gardent
+     leurs propres valeurs, qui priment sur l'orientation. -->
+<resources>
+    <dimen name="missa_hero_height">200dp</dimen>
+</resources>

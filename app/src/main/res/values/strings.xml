@@ -1381,6 +1381,9 @@ Source: %6$s</string>
     <string name="radio_favorites_empty">No favorite yet. Hold OK (or long-press) on a station to add it.</string>
     <string name="radio_section_missa">MISSA selection</string>
     <string name="radio_section_popular">Most listened</string>
+    <string name="universe_row_from_extensions">From your extensions</string>
+    <string name="universe_chip_from_extensions">Extensions</string>
+    <string name="radio_section_extensions">From your extensions</string>
     <string name="radio_crumb_count">%1$s · %2$s stations</string>
     <string name="radio_crumb_search">Search: %1$s</string>
     <string name="radio_option_play">Listen</string>

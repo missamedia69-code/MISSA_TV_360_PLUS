@@ -11,6 +11,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.ui.result.START_ACTION_RESUME_LATEST
+import com.lagradost.cloudstream3.utils.AppContextUtils.loadSearchResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +49,8 @@ class RadioFragment : MissaLogoScreenFragment() {
     private var returnFocusKey: String? = null
 
     private var featured: List<RadioStationPreset> = emptyList()
+    /** Stations des extensions réglées sur le groupe « Radio » (lues par l'extension). */
+    private var extStations: List<MissaLiveTv.Channel> = MissaExtensionRadio.cached()
     private var countries: List<MissaRadioBrowse.Country> = emptyList()
 
     // Liste paginée du pays / thème / recherche ouvert.
@@ -125,6 +129,13 @@ class RadioFragment : MissaLogoScreenFragment() {
             featured = DirectRadioPlayerManager.allPresetStations()
             if (!isAdded) return@launch
             setStatus(null)
+            if (selectedTab == TAB_FEATURED && drill == null) render()
+        }
+        // Stations des extensions : ajoutées dès qu'elles arrivent, sans retarder l'annuaire.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val ext = runCatching { MissaExtensionRadio.channels() }.getOrDefault(emptyList())
+            if (!isAdded || ext == extStations) return@launch
+            extStations = ext
             if (selectedTab == TAB_FEATURED && drill == null) render()
         }
     }
@@ -288,10 +299,24 @@ class RadioFragment : MissaLogoScreenFragment() {
     }
 
     private fun buildFeatured(ctx: Context, favIds: Set<String>): List<LogoGridItem> {
-        if (featured.isEmpty()) return emptyList()
+        val ext = extStations
+        if (featured.isEmpty() && ext.isEmpty()) return emptyList()
         val curatedIds = MissaRadioProviders.curatedInstantStations.mapTo(HashSet()) { it.id }
         val (mine, rest) = featured.partition { it.isCustom || it.id in curatedIds }
         return buildList {
+            if (ext.isNotEmpty()) {
+                add(LogoGridItem.Header("h:ext", ctx.getString(R.string.radio_section_extensions)))
+                ext.forEach { ch ->
+                    add(
+                        LogoGridItem.Logo(
+                            key = EXT_PREFIX + ch.id,
+                            title = ch.name,
+                            logos = listOfNotNull(ch.logo),
+                            description = listOfNotNull(ch.name, ch.provider).joinToString(", ")
+                        )
+                    )
+                }
+            }
             if (mine.isNotEmpty()) {
                 add(LogoGridItem.Header("h:missa", ctx.getString(R.string.radio_section_missa)))
                 mine.forEach { add(stationItem(ctx, it, favIds)) }
@@ -361,6 +386,14 @@ class RadioFragment : MissaLogoScreenFragment() {
 
     override fun onItemClick(item: LogoGridItem) {
         val ctx = context ?: return
+        if (item.key.startsWith(EXT_PREFIX)) {
+            val ch = extStations.firstOrNull { EXT_PREFIX + it.id == item.key } ?: return
+            val source = ch.source ?: return
+            // Station d'extension : c'est l'extension qui fournit le flux.
+            DirectRadioPlayerManager.stop()
+            activity?.loadSearchResult(source, START_ACTION_RESUME_LATEST)
+            return
+        }
         when {
             item.key.startsWith("country:") -> {
                 val iso = item.key.removePrefix("country:")
@@ -466,5 +499,6 @@ class RadioFragment : MissaLogoScreenFragment() {
         private const val TAB_FAVORITES = "favorites"
         private const val TAB_COUNTRIES = "countries"
         private const val TAB_THEMES = "themes"
+        private const val EXT_PREFIX = "ext:"
     }
 }
