@@ -133,7 +133,13 @@ class MediaUniverseViewModel : ViewModel() {
         private const val PROVIDER_MAINPAGE_TIMEOUT_MS = 14_000L
         private const val SEARCH_PROVIDER_TIMEOUT_MS = 15_000L
         private const val DETAIL_TIMEOUT_MS = 3_200L
-        private const val MAX_PROVIDERS_TO_HARVEST = 28
+        /**
+         * Nombre maximal d'extensions interrogées pour le catalogue et la recherche. Toutes les
+         * extensions compatibles sont cumulées jusqu'à cette limite (les réglées et préférées
+         * d'abord, en 1re vague affichée tout de suite, puis les autres). Appareil léger : moins.
+         */
+        private val MAX_PROVIDERS_TO_HARVEST: Int
+            get() = if (MissaDeviceProfile.isLowRam()) 16 else 40
         // PERF-OOM (2026-11-04): the first catalogue load used to walk the heap from 54 MB to
         // 174/198 MB (12% free) in under two seconds and the app was killed while "loading".
         // The bulk of that was full LoadResponse objects (a single series carries thousands of
@@ -2192,12 +2198,11 @@ class MediaUniverseViewModel : ViewModel() {
                 .filter { it.name in preferredNames && it.name !in assignedNames }
                 .map { it to true }
 
-            val specialtyTypes = setOf(TvType.Live, TvType.Podcast, TvType.Audio, TvType.Music, TvType.AudioBook, TvType.Cartoon)
+            // MISSA : toutes les autres extensions compatibles sont cumulées (2e vague). Avant,
+            // dès 8 extensions réglées/préférées, les autres étaient écartées sauf Live/Audio :
+            // installer une nouvelle extension de films ou séries n'ajoutait alors rien.
             val remaining = allCompatible
                 .filterNot { it.name in preferredNames || it.name in assignedNames }
-                .filter { api ->
-                    (assigned.size + preferred.size) < 8 || api.supportedTypes.any { it in specialtyTypes }
-                }
                 .map { it to false }
 
             (assigned + preferred + remaining).take(MAX_PROVIDERS_TO_HARVEST)

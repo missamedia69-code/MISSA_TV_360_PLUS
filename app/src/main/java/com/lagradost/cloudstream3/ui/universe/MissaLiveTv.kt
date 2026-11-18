@@ -55,7 +55,11 @@ object MissaLiveTv {
         val userAgent: String? = null,
         val referer: String? = null,
         /** Qualité mesurée (tvg-quality) : « HD », « SD » ou null. */
-        val quality: String? = null
+        val quality: String? = null,
+        /** Chaîne apportée par une extension : élément à ouvrir avec l'extension. */
+        val source: com.lagradost.cloudstream3.SearchResponse? = null,
+        /** Nom de l'extension qui fournit la chaîne (null pour la liste M3U). */
+        val provider: String? = null
     )
 
     // ------------------------------------------------------------------ Lecture du M3U
