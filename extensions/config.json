@@ -5,8 +5,8 @@
     {
       "depot": "https://missatv.pages.dev/extensions/depot/repo.json",
       "nomDepot": "MISSA TV",
-      "extension": "MultiSources FR-EN",
-      "nom": "MultiSources FR-EN",
+      "extension": "MediaTri",
+      "nom": "MediaTri",
       "univers": [
         "films",
         "series"

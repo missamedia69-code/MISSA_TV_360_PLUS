@@ -1,10 +1,10 @@
 [
   {
-    "fichier": "MultiSources-FR-EN.cs3",
-    "nom": "MultiSources FR-EN",
+    "fichier": "MediaTri.cs3",
+    "nom": "MediaTri",
     "univers": ["films", "series"],
     "types": ["Movie", "TvSeries"],
     "langue": "fr",
-    "description": "Extension MISSA TV : films et séries (FR / EN)"
+    "description": "Extension MISSA TV : films et séries"
   }
 ]
