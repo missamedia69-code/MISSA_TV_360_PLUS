@@ -13,12 +13,12 @@ class PluginArtifactTest {
             file.writeText("release-one")
             fun hash(text: String) = "sha256-" + MessageDigest.getInstance("SHA-256")
                 .digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
-            assertTrue(PluginManager.isCurrentArtifact(file, hash("release-one")))
-            assertTrue(PluginManager.isCurrentArtifact(file, hash("release-one").uppercase()))
-            assertFalse(PluginManager.isCurrentArtifact(file, hash("release-two")))
-            assertFalse(PluginManager.isCurrentArtifact(file, null))
+            assertTrue(PluginArtifact.isCurrent(file, hash("release-one")))
+            assertTrue(PluginArtifact.isCurrent(file, hash("release-one").uppercase()))
+            assertFalse(PluginArtifact.isCurrent(file, hash("release-two")))
+            assertFalse(PluginArtifact.isCurrent(file, null))
             file.delete()
-            assertFalse(PluginManager.isCurrentArtifact(file, hash("release-one")))
+            assertFalse(PluginArtifact.isCurrent(file, hash("release-one")))
         } finally {
             file.delete()
         }
