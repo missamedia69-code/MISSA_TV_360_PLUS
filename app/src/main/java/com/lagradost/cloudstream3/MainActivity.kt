@@ -2404,11 +2404,19 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                     // extensions et univers. Avant le chargement des extensions en ligne.
                     runCatching { MissaExtensionsConfig.sync(this@MainActivity) }
                         .onFailure { logError(it) }
+                    val now = System.currentTimeMillis()
+                    val lastCheck = getKey<Long>("missa_plugin_update_check_v1") ?: 0L
+                    val checkDue = lastCheck <= 0L || now < lastCheck ||
+                        now - lastCheck >= 6L * 60L * 60L * 1000L
                     if (settingsManager.getBoolean(
                             getString(R.string.auto_update_plugins_key),
                             true
-                        )
+                        ) && checkDue
                     ) {
+                        // Loading installed plugins is required at every launch; querying every
+                        // repository and downloading their archives is not. An explicit update
+                        // from the Extensions screen remains available at any time.
+                        setKey("missa_plugin_update_check_v1", now)
                         PluginManager.___DO_NOT_CALL_FROM_A_PLUGIN_updateAllOnlinePluginsAndLoadThem(
                             this@MainActivity
                         )

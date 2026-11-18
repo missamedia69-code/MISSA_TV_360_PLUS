@@ -18,6 +18,10 @@ abstract class BasePlugin {
      * @param element MainAPI provider you want to register
      */
     fun registerMainAPI(element: MainAPI) {
+        if (ExcludedSources.contains(element.name)) {
+            Log.i(PLUGIN_TAG, "Skipping excluded source ${element.name}")
+            return
+        }
         Log.i(PLUGIN_TAG, "Adding ${element.name} (${element.mainUrl}) MainAPI")
         element.sourcePlugin = this.filename
         APIHolder.allProviders.add(element)

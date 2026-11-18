@@ -242,6 +242,17 @@ object PluginManager {
         }
     }
 
+    /** A persisted plugin version can be stale if loading the extension failed after download.
+     * When the on-disk bytes already match the repository's SHA-256, downloading them again
+     * cannot fix a load error and should not consume bandwidth on every app launch.
+     */
+    internal fun isCurrentArtifact(file: File, expectedHash: String?): Boolean {
+        if (!file.isFile || expectedHash.isNullOrBlank()) return false
+        fun clean(value: String) = value.trim().lowercase(java.util.Locale.ROOT).removePrefix("sha256-")
+        return runCatching { clean(RepositoryManager.sha256(file)) == clean(expectedHash) }
+            .getOrDefault(false)
+    }
+
     // var allCurrentOutDatedPlugins: Set<OnlinePluginData> = emptySet()
 
     suspend fun loadSinglePlugin(context: Context, apiName: String): Boolean {
@@ -310,16 +321,21 @@ object PluginManager {
                 //updatedPlugins.add(activity.getString(R.string.single_plugin_disabled, pluginData.onlineData.second.name))
                 unloadPlugin(pluginData.savedData.filePath)
             } else if (pluginData.isOutdated) {
-                downloadPlugin(
-                    activity,
-                    pluginData.onlineData.plugin.url,
-                    pluginData.onlineData.plugin.fileHash,
-                    pluginData.savedData.internalName,
-                    File(pluginData.savedData.filePath),
-                    true
-                ).let { success ->
-                    if (success)
-                        updatedPlugins.add(pluginData.onlineData.plugin.name)
+                val file = File(pluginData.savedData.filePath)
+                if (isCurrentArtifact(file, pluginData.onlineData.plugin.fileHash)) {
+                    Log.i(TAG, "Skipping unchanged plugin ${pluginData.savedData.internalName}")
+                } else {
+                    downloadPlugin(
+                        activity,
+                        pluginData.onlineData.plugin.url,
+                        pluginData.onlineData.plugin.fileHash,
+                        pluginData.savedData.internalName,
+                        file,
+                        true
+                    ).let { success ->
+                        if (success)
+                            updatedPlugins.add(pluginData.onlineData.plugin.name)
+                    }
                 }
             }
         }

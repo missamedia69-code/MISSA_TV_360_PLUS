@@ -16,6 +16,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
+import com.lagradost.cloudstream3.plugins.ExcludedSources
 import com.lagradost.cloudstream3.plugins.PluginManager
 import com.lagradost.cloudstream3.plugins.RepositoryManager
 import com.lagradost.cloudstream3.ui.universe.MissaContentSource
@@ -261,6 +262,15 @@ object MissaExtensionsConfig {
                 RepositoryManager.addRepository(RepositoryData(name, url))
             }
         }
+
+        // Les extensions autonomes explicitement exclues ne doivent plus rester installées.
+        // On ne touche pas aux autres fichiers d'un dépôt : une source rejetée peut aussi
+        // faire partie d'une extension qui fournit plusieurs sources utiles.
+        PluginManager.getPluginsOnline().filter { ExcludedSources.contains(it.internalName) }
+            .forEach { installed ->
+                val file = File(installed.filePath)
+                if (file.isFile && PluginManager.deletePlugin(file)) changed = true
+            }
 
         // 2. Extensions : installation de celles qui manquent, retrait des autres.
         wantedRepos.forEach { repoUrl ->

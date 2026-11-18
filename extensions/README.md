@@ -89,6 +89,14 @@ l'installation de MediaTri ; avec une version antérieure de l'APK, les deux peu
 coexister temporairement. Seules les métadonnées nécessaires du `manifest.json`
 ont été consultées pour cette publication ; le code de l'extension n'a pas été audité.
 
+À chaque démarrage, les extensions déjà installées doivent être **chargées en mémoire**,
+mais elles ne doivent pas être téléchargées à nouveau si leur fichier est identique à
+celui du dépôt (empreinte SHA-256). L'application espace également les contrôles de
+mises à jour automatiques d'au moins 6 heures. La source « All for U » est exclue à
+l'enregistrement, et son extension autonome en ligne est retirée si son nom interne
+correspond ; cela ne modifie pas le code compilé d'autres extensions qui pourraient
+contenir plusieurs sources.
+
 **Mise à jour d'une extension** : remplacez le `.cs3` par une version recompilée avec un
 numéro `version` plus grand (dans son manifest), relancez l'outil : les appareils la mettent à
 jour tout seuls.
