@@ -9,7 +9,10 @@
       "nom": "MediaTri",
       "univers": [
         "films",
-        "series"
+        "series",
+        "shorts",
+        "sports",
+        "podcasts"
       ]
     }
   ]
