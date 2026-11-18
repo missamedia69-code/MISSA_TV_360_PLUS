@@ -2,18 +2,13 @@ package com.lagradost.cloudstream3.utils
 
 import android.content.Intent
 import android.util.Log
-import android.view.View
-import android.view.ViewGroup
-import android.view.WindowManager
-import java.util.Collections
-import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Bloqueur de pop-up des extensions.
  *
- * Certaines extensions ouvrent d'elles-mêmes des fenêtres (publicités, pages web, boîtes de
- * dialogue) pendant qu'elles chargent un catalogue ou une vidéo. On reconnaît ces appels à
+ * Certaines extensions ouvrent d'elles-mêmes des fenêtres (publicités, pages web)
+ * pendant qu'elles chargent un catalogue ou une vidéo. On reconnaît ces appels à
  * leur origine : le code d'une extension (.cs3) est chargé par son propre chargeur de classes,
  * que l'application ne connaît pas. Si une demande d'ouverture de fenêtre vient de ce code,
  * elle est refusée, sauf si elle répond directement à un appui de l'utilisateur sur un bouton
@@ -21,8 +16,12 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Ce qui est bloqué :
  *  - ouverture du navigateur ou de la page web intégrée (openBrowser, openWebView) ;
- *  - lancement d'une autre application ou d'une page (Intent VIEW) ;
- *  - boîtes de dialogue et fenêtres flottantes ajoutées à l'écran.
+ *  - lancement d'une autre application ou d'une page (Intent VIEW).
+ *
+ * Les boîtes de dialogue ne sont pas filtrées : remplacer le gestionnaire de fenêtres de
+ * l'activité (version 4.8.2) cassait le démarrage (écran noir), car une copie ne transmet
+ * pas les fonctions « par défaut » d'Android comme la mesure de l'écran.
+ * En cas d'erreur, le bloqueur laisse passer (il ne doit jamais gêner l'application).
  */
 object MissaPopupBlocker {
     private const val TAG = "MissaPopupBlocker"
@@ -35,8 +34,18 @@ object MissaPopupBlocker {
     var blockedCount: Int = 0
         private set
 
-    /** Vrai si cette classe appartient à l'application (et non à une extension). */
+    /**
+     * Code du système ou du moteur web (WebView, chargé à part) : jamais une extension,
+     * même si l'application ne peut pas charger la classe elle-même.
+     */
+    private val systemPrefixes = listOf(
+        "android.", "androidx.", "com.android.", "java.", "javax.", "dalvik.", "libcore.",
+        "sun.", "kotlin.", "kotlinx.", "org.chromium.", "com.google.", "org.json.", "org.apache."
+    )
+
+    /** Vrai si cette classe appartient à l'application ou au système (et non à une extension). */
     private fun isAppClass(name: String): Boolean = known.getOrPut(name) {
+        if (systemPrefixes.any { name.startsWith(it) }) return@getOrPut true
         try {
             Class.forName(name, false, appLoader)
             true
@@ -49,7 +58,13 @@ object MissaPopupBlocker {
      * Vrai si l'appel en cours vient d'une extension sans appui direct de l'utilisateur
      * (aucun clic en cours dans la pile d'appels).
      */
-    fun isUnwantedPopup(): Boolean {
+    fun isUnwantedPopup(): Boolean = try {
+        fromExtensionWithoutClick()
+    } catch (_: Throwable) {
+        false
+    }
+
+    private fun fromExtensionWithoutClick(): Boolean {
         val stack = Thread.currentThread().stackTrace
         var fromExtension = false
         for (frame in stack) {
@@ -80,36 +95,4 @@ object MissaPopupBlocker {
     /** Vrai si cet Intent est une pop-up d'extension à refuser. */
     fun blockIntent(intent: Intent?): Boolean =
         isPopupIntent(intent) && block("lien ${intent?.data?.host}")
-
-    /**
-     * Enveloppe du gestionnaire de fenêtres d'une activité : les boîtes de dialogue et fenêtres
-     * flottantes demandées par une extension ne sont jamais affichées. Les fenêtres refusées
-     * sont mémorisées pour que leur fermeture ultérieure ne provoque pas d'erreur.
-     */
-    fun wrap(base: WindowManager): WindowManager = object : WindowManager by base {
-        private val refused: MutableSet<View> = Collections.newSetFromMap(WeakHashMap())
-
-        override fun addView(view: View, params: ViewGroup.LayoutParams?) {
-            if (block("fenêtre")) {
-                synchronized(refused) { refused.add(view) }
-                return
-            }
-            base.addView(view, params)
-        }
-
-        override fun updateViewLayout(view: View, params: ViewGroup.LayoutParams?) {
-            if (synchronized(refused) { view in refused }) return
-            base.updateViewLayout(view, params)
-        }
-
-        override fun removeView(view: View) {
-            if (synchronized(refused) { refused.remove(view) }) return
-            base.removeView(view)
-        }
-
-        override fun removeViewImmediate(view: View) {
-            if (synchronized(refused) { refused.remove(view) }) return
-            base.removeViewImmediate(view)
-        }
-    }
 }
