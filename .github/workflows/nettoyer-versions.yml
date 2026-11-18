@@ -1,0 +1,41 @@
+name: Supprimer d'anciennes versions
+
+# Supprime les versions (releases GitHub) et leurs étiquettes, données à la main.
+# La dernière version publiée n'est jamais supprimée : le site pointe dessus.
+# Lancement : onglet Actions → « Supprimer d'anciennes versions » → Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: 'Étiquettes à supprimer, séparées par des espaces (ex. v4.8.0 v4.8.1)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  nettoyer:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      VERSIONS: ${{ inputs.versions }}
+    steps:
+      - name: Supprimer
+        run: |
+          latest=$(gh release view --json tagName -q .tagName)
+          echo "Dernière version (conservée) : $latest"
+          for tag in $VERSIONS; do
+            if [ "$tag" = "$latest" ]; then
+              echo "::warning::$tag est la dernière version : conservée"
+              continue
+            fi
+            if gh release view "$tag" >/dev/null 2>&1; then
+              gh release delete "$tag" --cleanup-tag --yes && echo "Supprimée : $tag"
+            else
+              echo "Introuvable : $tag"
+            fi
+          done
+          echo "Versions restantes :"
+          gh release list --limit 50
