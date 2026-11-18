@@ -1885,13 +1885,14 @@ class MediaUniverseViewModel : ViewModel() {
                     "radio" -> {
                         val pluginCount = snapshot.entries.count { it.universes.contains("radio") }
                         val total = pluginCount + DirectRadioPlayerManager.allPresetStations().size
-                        // AUDIT H10: while the harvest is still running snapshot.entries only
-                        // holds a partial page, so this is a floor and not the size of the
-                        // universe - printing it showed "16 titres" for a universe of 302.
-                        val badge = if (total > 0 && !snapshot.isLoading) {
-                            ctx?.resources?.getQuantityString(R.plurals.missa_stations_count, total, total)
-                        } else {
-                            null
+                        // AUDIT H10 : pendant la récolte, snapshot.entries n'est qu'un minimum.
+                        // MISSA : on l'affiche quand même, suivi de « + » (« 302+ stations »),
+                        // au lieu d'une carte vide pendant tout le chargement des extensions.
+                        val badge = when {
+                            total <= 0 -> null
+                            snapshot.isLoading && pluginCount > 0 ->
+                                ctx?.resources?.getQuantityString(R.plurals.missa_stations_count_partial, total, total)
+                            else -> ctx?.resources?.getQuantityString(R.plurals.missa_stations_count, total, total)
                         }
                         UniverseHubCardItem(
                             definition = uni,
@@ -1902,11 +1903,12 @@ class MediaUniverseViewModel : ViewModel() {
                     }
                     else -> {
                         val count = snapshot.entries.count { it.universes.contains(uni.id) }
-                        // AUDIT H10: same floor rule as the radio card, see above.
-                        val badge = if (count > 0 && !snapshot.isLoading) {
-                            ctx?.resources?.getQuantityString(R.plurals.missa_titles_count, count, count)
-                        } else {
-                            null
+                        // AUDIT H10 : même règle que la carte Radio, voir plus haut (« 1 992+ titres »).
+                        val badge = when {
+                            count <= 0 -> null
+                            snapshot.isLoading ->
+                                ctx?.resources?.getQuantityString(R.plurals.missa_titles_count_partial, count, count)
+                            else -> ctx?.resources?.getQuantityString(R.plurals.missa_titles_count, count, count)
                         }
                         UniverseHubCardItem(
                             definition = uni,
