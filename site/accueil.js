@@ -14,16 +14,57 @@
   // Anciennes ancres du site (avant les onglets).
   ["captures", "preview"].forEach(function (k) { if (ids.indexOf(k) === -1) aliases[k] = ids[2]; });
   var current = -1;
+  var reduceMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   // Apparition en cascade : chaque bloc du panneau reçoit son rang.
   ids.forEach(function (id, n) {
     var panel = panelOf(n);
-    var blocks = panel.querySelectorAll(".head, .home-card, .home-side, .feat, .fam, .plan, .step-card, .faq details, .picks, .tv-big, .cta.center, .note, .marquee");
+    var blocks = panel.querySelectorAll(".head, .home-card, .home-side, .fam, .plan, .step-card, .faq details, .picks, .tv-big, .cta.center, .note");
     for (var i = 0; i < blocks.length; i++) {
       blocks[i].setAttribute("data-rise", "");
       blocks[i].style.setProperty("--d", i);
     }
   });
+
+  // Blocs du bas de l'accueil (atouts, mur de chaînes, bandeau) : ils apparaissent
+  // quand on les atteint en faisant défiler, au lieu d'être animés hors de l'écran.
+  var lowBlocks = document.querySelectorAll(".points, .feat, .chan-head, .chan-rows, .chan-stats, .marquee");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("seen"); io.unobserve(en.target); }
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.12 });
+    var featRank = 0;
+    for (var b = 0; b < lowBlocks.length; b++) {
+      var el = lowBlocks[b];
+      el.classList.add("reveal");
+      if (el.classList.contains("feat")) el.style.setProperty("--rd", featRank++);
+      io.observe(el);
+    }
+  }
+
+  // Tarifs : les prix « comptent » jusqu'à leur valeur à l'ouverture de l'onglet.
+  var prices = Array.prototype.slice.call(document.querySelectorAll(".price b")).map(function (el) {
+    var txt = el.textContent, n = parseInt(txt.replace(/[^0-9]/g, ""), 10);
+    return isNaN(n) ? null : { el: el, txt: txt, n: n };
+  }).filter(Boolean);
+  function countPrices() {
+    if (reduceMotion) return;
+    prices.forEach(function (p, k) {
+      var t0 = null, dur = 1100 + k * 200;
+      p.el.classList.remove("done");
+      var sep = p.txt.indexOf(",") !== -1 ? "," : "\u00a0";
+      function fmt(v) { return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, sep); }
+      function step(ts) {
+        if (t0 === null) t0 = ts;
+        var x = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - x, 3);
+        p.el.textContent = x < 1 ? fmt(Math.round(p.n * e)) : p.txt;
+        if (x < 1) requestAnimationFrame(step); else p.el.classList.add("done");
+      }
+      requestAnimationFrame(step);
+    });
+  }
 
   function moveInk() {
     var t = tabs[current];
@@ -53,6 +94,7 @@
     });
     current = index;
     moveInk();
+    if (panelOf(index).id === "p-tarifs") countPrices();
     // Onglet visible dans la barre (écrans étroits), sans faire défiler la page.
     var bar = tabs[index].parentNode, t = tabs[index];
     if (t.offsetLeft < bar.scrollLeft) bar.scrollLeft = t.offsetLeft - 8;
