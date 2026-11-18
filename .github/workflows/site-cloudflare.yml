@@ -28,6 +28,7 @@ on:
       - 'tv/chaines.m3u'
       - 'game/catalogue.json'
       - 'extensions/config.json'
+      - 'extensions/depot/**'
       # Jeux : copiés dans le stockage Cloudflare R2 (voir « Jeux sur R2 »).
       - 'game/rom/**'
       - 'game/neogeo/**'
@@ -170,7 +171,7 @@ jobs:
           # Fichiers de démarrage de l'application : servis par Cloudflare (serveurs en Afrique),
           # GitHub reste la source en secours. Même chemin que dans le dépôt.
           # Les jeux (game/rom, plus de 25 Mo) restent sur GitHub : limite de Cloudflare Pages.
-          for F in tv/chaines.m3u game/catalogue.json extensions/config.json; do
+          for F in tv/chaines.m3u game/catalogue.json extensions/config.json extensions/depot/repo.json extensions/depot/plugins.json extensions/depot/*.cs3; do
             if [[ -f "$F" ]]; then
               mkdir -p "cloudflare/public/$(dirname "$F")"
               cp "$F" "cloudflare/public/$F"

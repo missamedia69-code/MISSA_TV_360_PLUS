@@ -1,6 +1,6 @@
 [
   {
-    "url": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/extensions/depot/MultiSources-FR-EN.cs3",
+    "url": "https://missatv.pages.dev/extensions/depot/MultiSources-FR-EN.cs3",
     "status": 1,
     "version": 1,
     "apiVersion": 1,
@@ -10,7 +10,7 @@
       "MISSA Media"
     ],
     "description": "Extension MISSA TV : films et séries (FR / EN)",
-    "repositoryUrl": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/extensions/depot/repo.json",
+    "repositoryUrl": "https://missatv.pages.dev/extensions/depot/repo.json",
     "tvTypes": [
       "Movie",
       "TvSeries"

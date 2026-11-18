@@ -24,7 +24,9 @@ META = os.path.join(DEPOT, "extensions.json")
 REPO_JSON = os.path.join(DEPOT, "repo.json")
 PLUGINS_JSON = os.path.join(DEPOT, "plugins.json")
 CONFIG = os.path.join(RACINE, "extensions", "config.json")
-BASE_URL = "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/extensions/depot/"
+# Adresse principale : le site Cloudflare (serveurs en Afrique). L'application se rabat
+# automatiquement sur la même adresse chez GitHub (branche main) si le site ne répond pas.
+BASE_URL = "https://missatv.pages.dev/extensions/depot/"
 REPO_URL = BASE_URL + "repo.json"
 UNIVERS = {"films", "series", "shorts", "sports", "podcasts", "none"}
 TYPES = {"Movie", "AnimeMovie", "TvSeries", "Cartoon", "Anime", "OVA", "Torrent", "Documentary",
@@ -111,7 +113,9 @@ def main():
 
     # config.json : on remplace les entrées de ce dépôt, on garde celles des autres dépôts.
     config = charger_json(CONFIG, {"version": 1, "extensions": []})
-    autres = [e for e in config.get("extensions", []) if e.get("depot") != REPO_URL]
+    # Le dépôt MISSA, sous l'une ou l'autre de ses adresses (site ou GitHub), est remplacé.
+    anciens = {REPO_URL, "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/extensions/depot/repo.json"}
+    autres = [e for e in config.get("extensions", []) if e.get("depot") not in anciens]
     # « exclusif » conservé tel quel (export complet de l'appli) ; absent = ajout seulement :
     # les appareils installent ces extensions sans retirer les autres.
     config = {"version": 1, "exclusif": bool(config.get("exclusif", False)), "extensions": autres + entrees}

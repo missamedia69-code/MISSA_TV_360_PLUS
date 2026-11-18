@@ -16,6 +16,7 @@ import com.lagradost.cloudstream3.plugins.PluginManager.getPluginSanitizedFileNa
 import com.lagradost.cloudstream3.plugins.PluginManager.unloadPlugin
 import com.lagradost.cloudstream3.ui.settings.extensions.REPOSITORIES_KEY
 import com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData
+import com.lagradost.cloudstream3.ui.universe.MissaContentSource
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
@@ -159,21 +160,35 @@ object RepositoryManager {
     }
 
     suspend fun parseRepository(url: String): Repository? {
-        return safeAsync {
+        val repo = safeAsync {
             // Take manifestVersion and such into account later
             app.get(convertRawGitUrl(url), cacheTime = 15, cacheUnit = TimeUnit.MINUTES)
+                .parsedSafe<Repository>()
+        }
+        if (repo != null) return repo
+        // MISSA : dépôt d'extensions MISSA hébergé deux fois (site Cloudflare et GitHub).
+        val mirror = MissaContentSource.mirrorOf(url) ?: return null
+        return safeAsync {
+            app.get(convertRawGitUrl(mirror), cacheTime = 15, cacheUnit = TimeUnit.MINUTES)
                 .parsedSafe<Repository>()
         }
     }
 
     private suspend fun parsePlugins(pluginUrls: String): List<SitePlugin> {
         // Take manifestVersion and such into account later
+        val first = fetchPlugins(pluginUrls)
+        if (!first.isNullOrEmpty()) return first
+        // MISSA : liste d'extensions MISSA indisponible sur un hôte -> l'autre.
+        return MissaContentSource.mirrorOf(pluginUrls)?.let { fetchPlugins(it) }.orEmpty()
+    }
+
+    private suspend fun fetchPlugins(pluginUrls: String): List<SitePlugin>? {
         return try {
             app.get(convertRawGitUrl(pluginUrls), cacheTime = 15, cacheUnit = TimeUnit.MINUTES)
                 .parsed<Array<SitePlugin>>().toList()
         } catch (t: Throwable) {
             logError(t)
-            emptyList()
+            null
         }
     }
 
@@ -191,6 +206,19 @@ object RepositoryManager {
     }
 
     suspend fun downloadPluginToFile(
+        context: Context,
+        pluginUrl: String,
+        file: File,
+        expectedFileHash: String?
+    ): File? {
+        downloadPluginToFileFrom(context, pluginUrl, file, expectedFileHash)?.let { return it }
+        // MISSA : extension MISSA introuvable ou abîmée sur un hôte (site Cloudflare / GitHub) :
+        // même fichier sur l'autre, vérifié par la même empreinte.
+        val mirror = MissaContentSource.mirrorOf(pluginUrl) ?: return null
+        return downloadPluginToFileFrom(context, mirror, file, expectedFileHash)
+    }
+
+    private suspend fun downloadPluginToFileFrom(
         context: Context,
         pluginUrl: String,
         file: File,

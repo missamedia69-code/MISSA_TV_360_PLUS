@@ -3,7 +3,7 @@
   "description": "Extensions officielles de MISSA TV 360 PLUS",
   "manifestVersion": 1,
   "pluginLists": [
-    "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/extensions/depot/plugins.json"
+    "https://missatv.pages.dev/extensions/depot/plugins.json"
   ],
   "iconUrl": null
 }
