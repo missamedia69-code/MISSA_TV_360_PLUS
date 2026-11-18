@@ -2,9 +2,18 @@
   {
     "fichier": "MediaTri.cs3",
     "nom": "MediaTri",
-    "univers": ["films", "series"],
-    "types": ["Movie", "TvSeries"],
+    "univers": [
+      "films",
+      "series",
+      "shorts",
+      "sports",
+      "podcasts"
+    ],
+    "types": [
+      "Movie",
+      "TvSeries"
+    ],
     "langue": "fr",
-    "description": "Extension MISSA TV : films et séries"
+    "description": "Extension MISSA TV : tous les univers"
   }
 ]
