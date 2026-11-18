@@ -200,6 +200,35 @@ html:not(.js) .tv-shot:first-child { opacity: 1; transform: none; filter: none; 
 .track span:nth-child(3n+2) { color: #7ff0b0; border-color: rgba(47,211,122,.3); }
 @keyframes scroll { to { transform: translateX(calc(-50% - 7px)); } }
 
+/* ---------------------------------------------------------------- mur de chaînes
+   Deux rangées de logos qui défilent en sens contraire, bords fondus. Survol : la rangée
+   ralentit et le logo se soulève avec une lueur aux couleurs de l'appli. */
+.chan { grid-column: 1 / -1; min-width: 0; max-width: 100%; margin-top: 14px; padding: clamp(18px, 3vw, 30px) 0; position: relative; }
+.chan-head { text-align: center; max-width: 720px; margin: 0 auto 18px; padding: 0 16px; }
+.chan-head h2 { font-size: clamp(1.5rem, 3.2vw, 2.2rem); }
+.chan-head p { color: var(--muted); margin: 10px 0 0; }
+.chan-rows { display: grid; gap: 14px; min-width: 0; width: 100%;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); overflow: hidden; }
+.chan-row { list-style: none; margin: 0; padding: 6px 0; display: flex; gap: 14px; width: max-content;
+  animation: chanScroll 70s linear infinite; }
+.chan-row.rev { animation-direction: reverse; animation-duration: 82s; }
+.chan-rows:hover .chan-row { animation-play-state: paused; }
+.ch { flex: 0 0 auto; width: clamp(128px, 15vw, 176px); aspect-ratio: 240 / 155; border-radius: 16px; overflow: hidden;
+  background: #000; border: 1px solid var(--line); box-shadow: 0 8px 22px rgba(0,0,0,.45);
+  transition: transform .45s var(--spring), box-shadow .45s var(--ease), border-color .45s var(--ease); }
+.ch img { width: 100%; height: 100%; object-fit: cover; }
+.ch:hover { transform: translateY(-6px) scale(1.05); border-color: rgba(47,211,122,.55);
+  box-shadow: 0 14px 34px rgba(0,0,0,.55), 0 0 0 1px rgba(47,211,122,.25), 0 0 28px rgba(245,184,0,.18); }
+.chan-row .ch:nth-child(5n+2):hover { border-color: rgba(245,184,0,.6); }
+@keyframes chanScroll { to { transform: translateX(calc(-50% - 7px)); } }
+.chan-stats { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 20px auto 0; padding: 0 16px; }
+.chan-stats li { display: grid; gap: 2px; text-align: center; padding: 12px 20px; border-radius: 16px; border: 1px solid var(--line); background: var(--glass); min-width: 170px; }
+.chan-stats b { color: var(--y-2); font-size: 1.05rem; }
+.chan-stats span { color: var(--muted); font-size: .9rem; }
+.chan-note { text-align: center; color: var(--muted); font-size: .78rem; opacity: .75; margin: 12px 0 0; }
+@media (max-width: 640px) { .ch { width: 116px; border-radius: 12px; } .chan-stats li { min-width: 140px; } }
+
 /* ---------------------------------------------------------------- univers */
 .fams { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .fam h3 { font-size: 1.3rem; margin-bottom: 14px; }
@@ -291,5 +320,5 @@ html:not(.js) .tv-shot:first-child { opacity: 1; transform: none; filter: none; 
 
 /* Mouvement réduit : on garde les fondus, on coupe les mouvements continus. */
 @media (prefers-reduced-motion: reduce) {
-  .glow::before, .glow::after, .track, .tv-wrap, .grad, .plan-y, .btn-primary::after, .btn-g::after { animation: none !important; }
+  .glow::before, .glow::after, .track, .chan-row, .tv-wrap, .grad, .plan-y, .btn-primary::after, .btn-g::after { animation: none !important; }
 }
