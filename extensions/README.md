@@ -3,9 +3,9 @@
 L'application lit **`extensions/config.json`** (branche `main`) à chaque démarrage et s'y
 conforme sur tous les appareils, sans nouvelle version de l'APK :
 
-- les **dépôts** de la liste sont ajoutés, les autres sont retirés ;
-- les **extensions** de la liste sont installées (puis mises à jour comme d'habitude), les
-  autres extensions de ces dépôts sont désinstallées ;
+- les **dépôts** de la liste sont ajoutés (les autres retirés si `"exclusif": true`) ;
+- les **extensions** de la liste sont installées, puis mises à jour comme d'habitude (les
+  autres extensions de ces dépôts désinstallées si `"exclusif": true`) ;
 - chaque extension diffuse dans les **univers** indiqués.
 
 Tant que ce fichier n'existe pas (ou s'il ne contient aucune extension valide), rien n'est
@@ -84,8 +84,10 @@ et installées automatiquement sur tous les appareils.
 numéro `version` plus grand (dans son manifest), relancez l'outil : les appareils la mettent à
 jour tout seuls.
 
-**Important** : `config.json` s'impose aux appareils. S'il ne contient que vos extensions
-MISSA, les extensions des autres dépôts sont retirées des appareils synchronisés. Exportez
-d'abord votre configuration complète depuis l'application (menu ⋮ → « Exporter la
-configuration ») et placez-la dans `config.json` **avant** de lancer l'outil.
+**Ajout seulement ou configuration complète** (`"exclusif"` dans `config.json`) :
+
+- `"exclusif": false` (par défaut) : les appareils **installent** les extensions listées et
+  appliquent leurs univers, **sans retirer** les autres extensions déjà présentes.
+- `"exclusif": true` (mis automatiquement par « Exporter la configuration ») : le fichier
+  décrit **toutes** les extensions ; les dépôts et extensions absents sont retirés.
 

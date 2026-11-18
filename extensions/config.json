@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "exclusif": false,
+  "extensions": [
+    {
+      "depot": "https://raw.githubusercontent.com/missamedia69-code/MISSA_TV_360_PLUS/main/extensions/depot/repo.json",
+      "nomDepot": "MISSA TV",
+      "extension": "MultiSources FR-EN",
+      "nom": "MultiSources FR-EN",
+      "univers": [
+        "films",
+        "series"
+      ]
+    }
+  ]
+}

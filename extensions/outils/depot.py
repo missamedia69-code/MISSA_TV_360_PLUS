@@ -112,7 +112,9 @@ def main():
     # config.json : on remplace les entrées de ce dépôt, on garde celles des autres dépôts.
     config = charger_json(CONFIG, {"version": 1, "extensions": []})
     autres = [e for e in config.get("extensions", []) if e.get("depot") != REPO_URL]
-    config = {"version": 1, "extensions": autres + entrees}
+    # « exclusif » conservé tel quel (export complet de l'appli) ; absent = ajout seulement :
+    # les appareils installent ces extensions sans retirer les autres.
+    config = {"version": 1, "exclusif": bool(config.get("exclusif", False)), "extensions": autres + entrees}
 
     sorties = {REPO_JSON: texte(repo), PLUGINS_JSON: texte(plugins)}
     if plugins or os.path.isfile(CONFIG):
