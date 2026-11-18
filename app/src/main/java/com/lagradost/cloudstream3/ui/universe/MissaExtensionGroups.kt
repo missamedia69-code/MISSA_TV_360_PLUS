@@ -27,8 +27,9 @@ data class AssignableGroup(
  *
  * Priorité : provider > extension > Auto.
  * "music", "kids" et "documentaries" ne sont JAMAIS proposés : ces univers sont 100 % YouTube.
- * "live_tv" (liste tv/chaines.m3u) et "radio" (annuaire Radio Browser) non plus : ils ont leur
- * propre source et n'affichent pas le contenu des extensions.
+ * "live_tv" et "radio" non plus : la TV en direct cumule automatiquement la liste
+ * tv/chaines.m3u et les chaînes de toutes les extensions « Live » (MissaExtensionLiveTv) ;
+ * la radio lit l'annuaire Radio Browser.
  */
 object MissaExtensionGroups {
     private const val FOLDER = "missa_ext_groups_v1"

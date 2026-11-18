@@ -19,6 +19,8 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.UIHelper.navigate
+import com.lagradost.cloudstream3.ui.result.START_ACTION_RESUME_LATEST
+import com.lagradost.cloudstream3.utils.AppContextUtils.loadSearchResult
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import kotlinx.coroutines.launch
 import java.text.Collator
@@ -43,7 +45,15 @@ class LiveTvFragment : MissaLogoScreenFragment() {
     override val eyebrowRes = R.string.universe_eyebrow_live_tv
     override val titleRes = R.string.universe_live_tv_title
 
+    /** Chaînes affichées : liste M3U du dépôt + chaînes des extensions « Live » (cumulées). */
     private var channels: List<MissaLiveTv.Channel> = emptyList()
+    private var m3uChannels: List<MissaLiveTv.Channel> = emptyList()
+    private var extChannels: List<MissaLiveTv.Channel> = MissaExtensionLiveTv.cached()
+
+    private fun mergeChannels() {
+        val seen = HashSet<String>()
+        channels = (m3uChannels + extChannels).filter { seen.add(it.url) }
+    }
     private var drill: Drill? = null
     private var returnFocusKey: String? = null
     /** Chaînes de la liste affichée, dans l'ordre : sert à retrouver la chaîne d'une tuile. */
@@ -67,7 +77,8 @@ class LiveTvFragment : MissaLogoScreenFragment() {
         super.onViewCreated(view, savedInstanceState)
         MissaLiveTv.updates.observe(viewLifecycleOwner) { stamp ->
             if (stamp != null && stamp > 0L) {
-                channels = MissaLiveTv.cachedChannels()
+                m3uChannels = MissaLiveTv.cachedChannels()
+                mergeChannels()
                 onListChanged()
             }
         }
@@ -94,13 +105,22 @@ class LiveTvFragment : MissaLogoScreenFragment() {
     private fun load() {
         if (channels.isNotEmpty()) {
             onListChanged()
-            return
+        } else {
+            setStatus(getString(R.string.radio_loading))
         }
-        setStatus(getString(R.string.radio_loading))
         viewLifecycleOwner.lifecycleScope.launch {
             val ctx = context ?: return@launch
-            channels = MissaLiveTv.channels(ctx)
-            if (!isAdded) return@launch
+            if (m3uChannels.isEmpty()) {
+                m3uChannels = MissaLiveTv.channels(ctx)
+                mergeChannels()
+                if (!isAdded) return@launch
+                onListChanged()
+            }
+            // Puis les chaînes des extensions installées, ajoutées à la liste dès qu'elles arrivent.
+            val ext = MissaExtensionLiveTv.channels()
+            if (!isAdded || ext == extChannels) return@launch
+            extChannels = ext
+            mergeChannels()
             onListChanged()
         }
     }
@@ -110,7 +130,13 @@ class LiveTvFragment : MissaLogoScreenFragment() {
         Toast.makeText(ctx, R.string.live_tv_refreshing, Toast.LENGTH_SHORT).show()
         viewLifecycleOwner.lifecycleScope.launch {
             val changed = MissaLiveTv.refresh(ctx)
+            val ext = MissaExtensionLiveTv.channels(force = true)
             if (!isAdded) return@launch
+            if (ext != extChannels) {
+                extChannels = ext
+                mergeChannels()
+                onListChanged()
+            }
             Toast.makeText(
                 ctx,
                 if (changed) R.string.live_tv_refreshed else R.string.live_tv_up_to_date,
@@ -121,11 +147,12 @@ class LiveTvFragment : MissaLogoScreenFragment() {
 
     private fun onListChanged() {
         setCounter(resources.getQuantityString(R.plurals.live_tv_channel_count, channels.size, channels.size))
+        // Liste modifiée (chaînes d'extensions arrivées) : on garde l'onglet et la position.
         if (pendingRestore) {
             pendingRestore = false
             render(focusKey = lastOpenedKey, restoreScroll = true)
         } else {
-            render()
+            render(focusKey = if (grid.hasFocus()) lastOpenedKey else null)
         }
     }
 
@@ -193,7 +220,7 @@ class LiveTvFragment : MissaLogoScreenFragment() {
                 title = ch.name,
                 logos = listOfNotNull(ch.logo),
                 favorite = ch.url in favs,
-                description = listOfNotNull(ch.name, ch.quality, ch.groups.firstOrNull()).joinToString(", ")
+                description = listOfNotNull(ch.name, ch.quality, ch.groups.firstOrNull(), ch.provider).joinToString(", ")
             )
         }
     }
@@ -286,7 +313,7 @@ class LiveTvFragment : MissaLogoScreenFragment() {
             }
         )
         AlertDialog.Builder(ctx)
-            .setTitle(listOfNotNull(ch.name, ch.quality).joinToString(" · "))
+            .setTitle(listOfNotNull(ch.name, ch.quality, ch.provider).joinToString(" · "))
             .setItems(options.map { it.first }.toTypedArray()) { _, which -> options[which].second() }
             .show()
     }
@@ -295,6 +322,11 @@ class LiveTvFragment : MissaLogoScreenFragment() {
         val act = activity ?: return
         // La radio s'arrête : on ne veut pas deux sons à la fois.
         DirectRadioPlayerManager.stop()
+        // Chaîne d'extension : c'est l'extension qui fournit le flux (comme dans les autres univers).
+        ch.source?.let { source ->
+            act.loadSearchResult(source, START_ACTION_RESUME_LATEST)
+            return
+        }
         act.navigate(
             R.id.global_to_navigation_player,
             GeneratorPlayer.newInstance(LiveChannelGenerator(ch), 0),

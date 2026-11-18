@@ -1,0 +1,23 @@
+[
+  {
+    "url": "https://missatv.pages.dev/extensions/depot/MultiSources-FR-EN.cs3",
+    "status": 1,
+    "version": 1,
+    "apiVersion": 1,
+    "name": "MultiSources FR-EN",
+    "internalName": "MultiSources FR-EN",
+    "authors": [
+      "MISSA Media"
+    ],
+    "description": "Extension MISSA TV : films et séries (FR / EN)",
+    "repositoryUrl": "https://missatv.pages.dev/extensions/depot/repo.json",
+    "tvTypes": [
+      "Movie",
+      "TvSeries"
+    ],
+    "language": "fr",
+    "iconUrl": null,
+    "fileSize": 435083,
+    "fileHash": "4dc81c1a7191aec31a10ceb3546918492f904002a48c98420545c631e57f9e79"
+  }
+]

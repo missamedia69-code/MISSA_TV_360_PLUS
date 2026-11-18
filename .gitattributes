@@ -7,3 +7,4 @@ gradlew.bat text eol=crlf
 # Univers Jeux : ROM, émulateurs et archives, fichiers binaires jamais convertis
 game/rom/** binary
 game/**/*.zip binary
+extensions/depot/*.cs3 binary

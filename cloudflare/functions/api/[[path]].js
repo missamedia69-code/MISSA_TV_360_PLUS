@@ -18,6 +18,15 @@
 
 const DAY = 24 * 60 * 60 * 1000;
 const TRIAL_MS = DAY;
+/**
+ * Durée de l'essai : 24 h par défaut. La variable TRIAL_MINUTES (variable GitHub
+ * MISSA_TRIAL_MINUTES, recopiée sur Cloudflare) la remplace, par exemple 7 pour un test.
+ * Comptée depuis le premier contact de l'appareil, pour les appareils existants aussi.
+ */
+function trialMs(env) {
+  const minutes = Number(env.TRIAL_MINUTES);
+  return Number.isFinite(minutes) && minutes > 0 && minutes <= 60 * 24 * 30 ? minutes * 60 * 1000 : TRIAL_MS;
+}
 const GRACE_MS = DAY;
 const MAX_DEVICES = 2;
 // Un appareil sans nouvelles depuis 30 jours ne compte plus dans la limite des 2 appareils
@@ -81,7 +90,12 @@ async function licence(request, env) {
   }
   // Notification KPay perdue ? On demande l'état des paiements récents directement à KPay.
   await reconcilePending(env, deviceId, now);
-  return json(await deviceState(env, deviceId, now, request));
+  const st = await deviceState(env, deviceId, now, request);
+  // Formules proposées sur l'écran de blocage de l'appli (prix fixés ici, jamais par l'appli).
+  st.plans = ["m1", "m3", "m6", "year"].map((id) => ({
+    id, amount: PLANS[id].amount, currency: PLANS[id].currency, days: PLANS[id].days, label: PLANS[id].label,
+  }));
+  return json(st);
 }
 
 async function createDevice(env, deviceId, model, now) {
@@ -105,7 +119,7 @@ async function deviceState(env, deviceId, now, request) {
       .bind(device.subscription_id).first();
     expiresAt = sub ? sub.expires_at : 0;
   }
-  const trialEndsAt = device.first_seen + TRIAL_MS;
+  const trialEndsAt = device.first_seen + trialMs(env);
   const graceEndsAt = expiresAt ? expiresAt + GRACE_MS : 0;
   let state;
   if (expiresAt > now) state = "active";
@@ -196,12 +210,24 @@ async function link(request, env) {
   const ownerCode = normCode(body.ownerCode);
   if (!code || !ownerCode || code === ownerCode) return json({ error: "bad_request" }, 400);
   const now = Date.now();
+  // Anti-devinette : au plus 10 essais ratés par appareil et par heure.
+  const tries = await env.DB.prepare("SELECT COUNT(*) AS n FROM link_attempts WHERE code = ? AND at > ?")
+    .bind(code, now - 60 * 60 * 1000).first();
+  if (tries && tries.n >= 10) return json({ error: "too_many_attempts" }, 429);
+  const failed = async (body, status) => {
+    await env.DB.prepare("INSERT INTO link_attempts (code, at) VALUES (?, ?)").bind(code, now).run();
+    if (Math.random() < 0.05) {
+      await env.DB.prepare("DELETE FROM link_attempts WHERE at < ?").bind(now - 24 * 60 * 60 * 1000).run();
+    }
+    return json(body, status);
+  };
   const device = await env.DB.prepare("SELECT * FROM devices WHERE code = ?").bind(code).first();
   const owner = await env.DB.prepare("SELECT * FROM devices WHERE code = ?").bind(ownerCode).first();
-  if (!device || !owner) return json({ error: "unknown_code" }, 404);
-  if (!owner.subscription_id) return json({ error: "no_subscription" }, 409);
+  if (!device) return json({ error: "unknown_code" }, 404);
+  if (!owner) return await failed({ error: "unknown_code" }, 404);
+  if (!owner.subscription_id) return await failed({ error: "no_subscription" }, 409);
   const sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE id = ?").bind(owner.subscription_id).first();
-  if (!sub || sub.expires_at <= now) return json({ error: "no_subscription" }, 409);
+  if (!sub || sub.expires_at <= now) return await failed({ error: "no_subscription" }, 409);
   if (device.subscription_id === sub.id) return json({ ok: true });
   const used = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM devices WHERE subscription_id = ? AND last_seen > ?"

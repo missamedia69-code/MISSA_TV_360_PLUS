@@ -34,6 +34,7 @@ import androidx.core.text.toSpanned
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Format.NO_VALUE
 import androidx.media3.common.MimeTypes
@@ -50,6 +51,8 @@ import com.lagradost.cloudstream3.APIHolder.getApiFromNameNull
 import com.lagradost.cloudstream3.CloudStreamApp
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.CommonActivity.showToast
+import com.lagradost.cloudstream3.ui.result.START_ACTION_RESUME_LATEST
+import com.lagradost.cloudstream3.utils.AppContextUtils.loadSearchResult
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.getAniListId
 import com.lagradost.cloudstream3.LoadResponse.Companion.getImdbId
@@ -185,6 +188,56 @@ class GeneratorPlayer : FullScreenPlayer() {
     private val nextMeta: Any? get() = viewModel.state.generatorState?.nextMeta
 
     private var isPlayerActive: AtomicBoolean = AtomicBoolean(false)
+
+    /**
+     * MISSA : démarrage automatique. Une extension peut interroger une dizaine de serveurs ;
+     * attendre la fin de toutes les recherches faisait patienter 1 à 2 minutes alors qu'un lien
+     * jouable était souvent trouvé en quelques secondes. Dès le premier lien utilisable, on
+     * laisse [AUTO_START_DELAY_MS] aux autres serveurs pour proposer mieux (tri par qualité),
+     * puis la lecture démarre ; la recherche continue en arrière-plan et les autres liens
+     * restent disponibles dans « Sources ».
+     */
+    private var autoStartJob: Job? = null
+    private val AUTO_START_DELAY_MS = 4_000L
+
+    /**
+     * MISSA : jamais de chargement sans fin. Si aucun lien utilisable n'est arrivé après
+     * [NO_LINK_TIMEOUT_MS], ou si tous les liens ont échoué, on cherche le même titre dans les
+     * autres extensions installées ([MissaSourceFallback]) et on l'ouvre.
+     */
+    private val NO_LINK_TIMEOUT_MS = 25_000L
+    private var watchdogJob: Job? = null
+    private var fallbackTriggered = false
+    private var successRecorded = false
+
+    private fun triggerFallback() {
+        if (fallbackTriggered) return
+        fallbackTriggered = true
+        watchdogJob?.cancel()
+        val page = viewModel.state.generatorState?.response
+        val act = activity
+        MissaProviderHealth.recordFailure(page?.apiName)
+        if (page == null || act == null) {
+            finishNoLinks()
+            return
+        }
+        showToast(R.string.missa_fallback_searching, Toast.LENGTH_LONG)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val alternatives = runCatching { MissaSourceFallback.findAlternatives(page) }.getOrDefault(emptyList())
+            if (!isAdded || isPlayerActive.get()) return@launch // un lien a fini par arriver
+            val alt = alternatives.firstOrNull()
+            if (alt == null) {
+                showToast(R.string.missa_fallback_none, Toast.LENGTH_LONG)
+                act.popCurrentPage()
+                return@launch
+            }
+            showToast(getString(R.string.missa_fallback_found, alt.apiName), Toast.LENGTH_LONG)
+            act.popCurrentPage()
+            // Film : lecture directe. Série : fiche de l'autre extension (choix de l'épisode).
+            val isMovie = MissaSourceFallback.family(page.type) == MissaSourceFallback.Family.MOVIE
+            act.loadSearchResult(alt, if (isMovie) START_ACTION_RESUME_LATEST else 0)
+        }
+    }
     private var isNextEpisode: Boolean = false // this is used to reset the watch time
 
     private var preferredAutoSelectSubtitles: String? = null // null means do nothing, "" means none
@@ -1588,6 +1641,15 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     private fun noLinksFound() {
+        // MISSA : avant d'abandonner, on essaie le même titre dans une autre extension.
+        if (!fallbackTriggered && viewModel.state.generatorState?.response != null) {
+            triggerFallback()
+            return
+        }
+        finishNoLinks()
+    }
+
+    private fun finishNoLinks() {
         viewModel.forceClearCache = true
         val hiddenLinks = viewModel.state.sortLinks(currentQualityProfile).count { !it.shouldUseLink }
 
@@ -1606,6 +1668,17 @@ class GeneratorPlayer : FullScreenPlayer() {
         }
 
         activity?.popCurrentPage()
+    }
+
+    /** Démarrage automatique : premier lien utilisable qui n'a pas déjà échoué. */
+    private fun autoStartPlayer() {
+        if (isPlayerActive.get()) return
+        val failed = viewModel.state.erroredLinks
+        val link = viewModel.state.sortLinks(currentQualityProfile)
+            .firstOrNull { it.shouldUseLink && it.link !in failed }?.link ?: return
+        if (!isPlayerActive.compareAndSet(false, true)) return
+        loadLink(link, false)
+        showPlayerMetadata()
     }
 
     private fun startPlayer() {
@@ -1707,6 +1780,18 @@ class GeneratorPlayer : FullScreenPlayer() {
     override fun nextMirror() {
         val nextLink = getNextLink()
         if (nextLink == null) {
+            // MISSA : lecture lancée tôt (démarrage automatique) et la recherche continue :
+            // on attend le prochain lien au lieu de quitter le lecteur.
+            // (Pas releasePlayer() : il effacerait la liste des liens en échec, et le même lien
+            // serait relancé en boucle.)
+            if (viewModel.state.loading is Resource.Loading) {
+                player.release()
+                currentSelectedLink = null
+                isPlayerActive.set(false)
+                binding?.playerLoadingOverlay?.isVisible = true
+                autoStartJob = null
+                return
+            }
             noLinksFound()
             return
         }
@@ -1723,6 +1808,12 @@ class GeneratorPlayer : FullScreenPlayer() {
     var maxEpisodeSet: Int? = null
     var hasRequestedStamps: Boolean = false
     override fun playerPositionChanged(position: Long, duration: Long) {
+        // MISSA : la vidéo avance, l'extension a fourni un lien lisible.
+        if (!successRecorded && position > 0L) {
+            successRecorded = true
+            watchdogJob?.cancel()
+            MissaProviderHealth.recordSuccess(viewModel.state.generatorState?.response?.apiName)
+        }
         // Don't save livestream data
         if ((currentMeta as? ResultEpisode)?.tvType?.isLiveStream() == true) return
 
@@ -2340,10 +2431,25 @@ class GeneratorPlayer : FullScreenPlayer() {
 
             when (loading) {
                 is Resource.Loading -> {
+                    autoStartJob?.cancel()
+                    autoStartJob = null
+                    successRecorded = false
+                    fallbackTriggered = false
+                    watchdogJob?.cancel()
+                    watchdogJob = viewLifecycleOwner.lifecycleScope.launch {
+                        delay(NO_LINK_TIMEOUT_MS)
+                        val usable = viewModel.state.sortLinks(currentQualityProfile).any { it.shouldUseLink }
+                        if (instance == viewModel.state.instance && !isPlayerActive.get() && !usable) {
+                            triggerFallback()
+                        }
+                    }
                     releasePlayer()
                 }
 
                 is Resource.Success -> {
+                    autoStartJob?.cancel()
+                    autoStartJob = null
+                    watchdogJob?.cancel()
                     // provider returned false
                     //if (it.value != true) {
                     //    showToast(activity, R.string.unexpected_error, Toast.LENGTH_SHORT)
@@ -2385,6 +2491,16 @@ class GeneratorPlayer : FullScreenPlayer() {
                     }
                 ) {
                     startPlayer()
+                }
+            }
+
+            // MISSA : premier lien utilisable → lecture automatique quelques secondes après.
+            if (usableLinks > 0 && !isPlayerActive.get() && autoStartJob == null) {
+                autoStartJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(AUTO_START_DELAY_MS)
+                    if (instance == viewModel.state.instance && !isPlayerActive.get()) {
+                        safe { autoStartPlayer() }
+                    }
                 }
             }
 

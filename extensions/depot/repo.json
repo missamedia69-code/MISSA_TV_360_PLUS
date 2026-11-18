@@ -1,0 +1,9 @@
+{
+  "name": "MISSA TV",
+  "description": "Extensions officielles de MISSA TV 360 PLUS",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://missatv.pages.dev/extensions/depot/plugins.json"
+  ],
+  "iconUrl": null
+}

@@ -54,6 +54,9 @@ object MissaExtensionsConfig {
     private const val LOCAL_FILE = "config.json"
     private const val ETAG_KEY = "missa_ext_config_etag_v1"
     private const val SYNC_DISABLED_KEY = "missa_ext_config_sync_disabled_v1"
+    private const val LAST_CHECK_KEY = "missa_ext_config_last_check_v1"
+    /** Le fichier est relu au plus toutes les 15 min (redémarrages rapprochés : pas de réseau). */
+    private const val CHECK_EVERY_MS = 15L * 60 * 1000
     private const val MAX_BYTES = 1024 * 1024
     const val EXPORT_FILE_NAME = "missa_extensions_config"
 
@@ -111,6 +114,8 @@ object MissaExtensionsConfig {
         }
         return JSONObject().apply {
             put("version", 1)
+            // Export complet depuis l'appareil du responsable : il décrit toutes les extensions.
+            put("exclusif", true)
             put("extensions", list)
         }.toString(2) + "\n"
     }
@@ -178,12 +183,22 @@ object MissaExtensionsConfig {
     suspend fun sync(activity: Activity): Boolean = withContext(Dispatchers.IO) {
         if (isSyncDisabled()) return@withContext false
         mutex.withLock {
-            download(activity)
+            // Ce passage retarde le chargement des extensions : on ne va sur le réseau que si la
+            // dernière vérification date de plus de 15 min, avec des délais courts.
+            val now = System.currentTimeMillis()
+            val last = getKey<Long>(LAST_CHECK_KEY) ?: 0L
+            if (now - last > CHECK_EVERY_MS || now < last) {
+                download(activity)
+                setKey(LAST_CHECK_KEY, now)
+            }
             val text = localFile(activity).takeIf { it.isFile }?.readText() ?: return@withLock false
             val entries = parse(text) ?: return@withLock false
             // Une liste vide (fichier abîmé, mal rempli) ne doit pas tout désinstaller.
             if (entries.isEmpty()) return@withLock false
-            apply(activity, entries)
+            // « exclusif » : le fichier décrit TOUTES les extensions (export complet) et ce qui
+            // n'y figure pas est retiré. Sinon (par défaut) : ajout seulement, rien n'est retiré.
+            val exclusive = runCatching { JSONObject(text).optBoolean("exclusif", false) }.getOrDefault(false)
+            apply(activity, entries, exclusive)
         }
     }
 
@@ -200,8 +215,8 @@ object MissaExtensionsConfig {
         val etag = if (file.exists()) getKey<String>(etagKey) else null
         val conn = runCatching { URL(url).openConnection() as HttpURLConnection }.getOrNull() ?: return false
         try {
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 15_000
+            conn.connectTimeout = 4_000
+            conn.readTimeout = 8_000
             conn.setRequestProperty("User-Agent", "MISSA-TV-360")
             if (etag != null) conn.setRequestProperty("If-None-Match", etag)
             val code = conn.responseCode
@@ -228,13 +243,13 @@ object MissaExtensionsConfig {
         }
     }
 
-    private suspend fun apply(activity: Activity, entries: List<Entry>): Boolean {
+    private suspend fun apply(activity: Activity, entries: List<Entry>, exclusive: Boolean): Boolean {
         var changed = false
         val wantedRepos = entries.map { it.repositoryUrl }.distinct()
 
         // 1. Dépôts : ajout de ceux du fichier, retrait des autres (et de leurs extensions).
         val current = RepositoryManager.getRepositories()
-        current.filter { it.url !in wantedRepos }.forEach { repo ->
+        current.filter { exclusive && it.url !in wantedRepos }.forEach { repo ->
             RepositoryManager.removeRepository(activity, repo)
             changed = true
         }
@@ -274,7 +289,7 @@ object MissaExtensionsConfig {
                 val keep = wanted.any {
                     PluginManager.getPluginPath(activity, it.internalName, repoUrl).absolutePath == file.absolutePath
                 }
-                if (!keep && wantedNames.isNotEmpty()) {
+                if (exclusive && !keep && wantedNames.isNotEmpty()) {
                     if (PluginManager.deletePlugin(file)) changed = true
                 }
             }

@@ -12,9 +12,12 @@
         <exclude domain="sharedpref" path="missa_accounts.xml" />
         <!-- Catalogues re-téléchargeables : plusieurs centaines de Ko (PERF A5). -->
         <exclude domain="sharedpref" path="missa_catalogue_cache.xml" />
+        <!-- Licence : propre à cet appareil. -->
+        <exclude domain="sharedpref" path="missa_licence.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="missa_accounts.xml" />
         <exclude domain="sharedpref" path="missa_catalogue_cache.xml" />
+        <exclude domain="sharedpref" path="missa_licence.xml" />
     </device-transfer>
 </data-extraction-rules>

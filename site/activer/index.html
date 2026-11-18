@@ -117,9 +117,12 @@
     redirect: ["Ouverture de la page de paiement…", "Opening the payment page…"],
     waiting: ["Paiement reçu ? Vérification en cours… Cette page se met à jour toute seule.", "Payment done? Checking… This page updates by itself."],
     done: ["C'est activé ! Vous pouvez revenir à l'application.", "Activated! You can go back to the app."],
+    second: ["Votre abonnement couvre 2 appareils. Sur le 2e, choisissez « J'ai déjà un abonnement » et entrez ce code : ",
+             "Your subscription covers 2 devices. On the second one, choose “I already have a subscription” and enter this code: "],
     failed: ["Le paiement n'a pas abouti. Vous pouvez réessayer.", "The payment did not go through. You can try again."],
     linked: ["Appareil associé. Revenez à l'application.", "Device linked. Go back to the app."],
     noSub: ["Cet appareil n'a pas d'abonnement actif.", "That device has no active subscription."],
+    locked: ["Trop d'essais. Réessayez dans une heure.", "Too many attempts. Try again in an hour."],
     tooMany: ["Cet abonnement est déjà utilisé sur 2 appareils.", "This subscription is already used on 2 devices."]
   };
   function t(k) { return T[k][en ? 1 : 0]; }
@@ -133,6 +136,9 @@
   var params = new URLSearchParams(location.search);
   var code = (params.get("code") || "").toUpperCase();
   var back = params.get("retour") === "1";
+  // QR code de l'écran de blocage de la TV : la formule est déjà choisie, on lance le paiement.
+  var autoPlan = params.get("plan");
+  var autoDone = false;
   var poll = null;
 
   function api(path, opts) {
@@ -153,6 +159,11 @@
         : d.state === "trial" ? t("until") + new Date(d.trialEndsAt).toLocaleString(en ? "en-GB" : "fr-FR") : "";
       if (d.plans) { plans = d.plans; $("pYear").textContent = money(d.plans.year); selectMonths(months); }
       if (!d.paymentsReady) msg("payMsg", t("notReady"), "err");
+      if (d.state === "active") msg("linkMsg", t("second") + d.code, "ok");
+      if (autoPlan && !autoDone && !back && d.paymentsReady && d.state !== "active" && /^(m[1-9]|year)$/.test(autoPlan)) {
+        autoDone = true;
+        startPay(autoPlan);
+      }
       if (back) {
         var s = (params.get("status") || "").toUpperCase();
         if (d.state === "active") { msg("payMsg", t("done"), "ok"); stopPoll(); }
@@ -182,22 +193,23 @@
   }
   selectMonths(1);
 
+  function startPay(plan) {
+    msg("payMsg", t("redirect"));
+    api("pay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code, plan: plan }) })
+      .then(function (d) {
+        if (d.gatewayUrl) { location.href = d.gatewayUrl; return; }
+        msg("payMsg", d.error === "payments_not_configured" ? t("notReady") : d.error === "unknown_code" ? t("badCode") : t("kpay"), "err");
+      }).catch(function () { msg("payMsg", t("net"), "err"); });
+  }
   document.querySelectorAll(".pay").forEach(function (b) {
-    b.addEventListener("click", function () {
-      msg("payMsg", t("redirect"));
-      api("pay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code, plan: b.getAttribute("data-plan") }) })
-        .then(function (d) {
-          if (d.gatewayUrl) { location.href = d.gatewayUrl; return; }
-          msg("payMsg", d.error === "payments_not_configured" ? t("notReady") : d.error === "unknown_code" ? t("badCode") : t("kpay"), "err");
-        }).catch(function () { msg("payMsg", t("net"), "err"); });
-    });
+    b.addEventListener("click", function () { startPay(b.getAttribute("data-plan")); });
   });
 
   $("linkGo").addEventListener("click", function () {
     api("link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: code, ownerCode: $("ownerInput").value }) })
       .then(function (d) {
         if (d.ok) { msg("linkMsg", t("linked"), "ok"); load(); return; }
-        msg("linkMsg", d.error === "too_many_devices" ? t("tooMany") : d.error === "no_subscription" ? t("noSub") : d.error === "unknown_code" || d.error === "bad_request" ? t("badCode") : t("net"), "err");
+        msg("linkMsg", d.error === "too_many_attempts" ? t("locked") : d.error === "too_many_devices" ? t("tooMany") : d.error === "no_subscription" ? t("noSub") : d.error === "unknown_code" || d.error === "bad_request" ? t("badCode") : t("net"), "err");
       }).catch(function () { msg("linkMsg", t("net"), "err"); });
   });
 

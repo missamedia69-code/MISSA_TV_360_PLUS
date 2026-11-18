@@ -32,3 +32,11 @@ CREATE TABLE IF NOT EXISTS payments (
   last_check   INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS payments_device ON payments(device_id, status);
+
+-- Tentatives ratées d'association d'un 2e appareil (anti-devinette des codes) :
+-- au plus 10 par appareil et par heure.
+CREATE TABLE IF NOT EXISTS link_attempts (
+  code  TEXT NOT NULL,
+  at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS link_attempts_code ON link_attempts(code, at);

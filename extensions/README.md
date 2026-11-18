@@ -3,9 +3,9 @@
 L'application lit **`extensions/config.json`** (branche `main`) à chaque démarrage et s'y
 conforme sur tous les appareils, sans nouvelle version de l'APK :
 
-- les **dépôts** de la liste sont ajoutés, les autres sont retirés ;
-- les **extensions** de la liste sont installées (puis mises à jour comme d'habitude), les
-  autres extensions de ces dépôts sont désinstallées ;
+- les **dépôts** de la liste sont ajoutés (les autres retirés si `"exclusif": true`) ;
+- les **extensions** de la liste sont installées, puis mises à jour comme d'habitude (les
+  autres extensions de ces dépôts désinstallées si `"exclusif": true`) ;
 - chaque extension diffuse dans les **univers** indiqués.
 
 Tant que ce fichier n'existe pas (ou s'il ne contient aucune extension valide), rien n'est
@@ -51,3 +51,43 @@ Musiques, Jeunesse et Documentaires (YouTube), TV en direct (`tv/chaines.m3u`) e
 n'affichent pas le contenu des extensions.
 
 **Ne publiez que des extensions dont vous avez le droit de diffuser les contenus.**
+
+## Publier vos propres extensions (.cs3)
+
+Vos extensions compilées peuvent être hébergées ici même, dans **le dépôt d'extensions MISSA**,
+et installées automatiquement sur tous les appareils.
+
+1. Déposez le fichier dans **`extensions/depot/`** (par exemple `extensions/depot/MaSource.cs3`).
+2. Décrivez-le dans **`extensions/depot/extensions.json`** :
+
+   ```json
+   [
+     {
+       "fichier": "MaSource.cs3",
+       "nom": "Ma Source",
+       "univers": ["films", "series"],
+       "types": ["Movie", "TvSeries"],
+       "langue": "fr",
+       "description": "Films et séries de Ma Source"
+     }
+   ]
+   ```
+
+3. Lancez **`python3 extensions/outils/depot.py`** (ou demandez-le à Claude) : il vérifie le
+   fichier (archive valide, `manifest.json`, code compilé, version), puis génère
+   `extensions/depot/repo.json` et `plugins.json`, et ajoute l'extension à `config.json` avec
+   ses univers, **sans toucher aux entrées des autres dépôts**.
+4. Fusionnez sur `main` : au démarrage suivant, chaque appareil ajoute le dépôt MISSA, installe
+   l'extension et applique ses univers.
+
+**Mise à jour d'une extension** : remplacez le `.cs3` par une version recompilée avec un
+numéro `version` plus grand (dans son manifest), relancez l'outil : les appareils la mettent à
+jour tout seuls.
+
+**Ajout seulement ou configuration complète** (`"exclusif"` dans `config.json`) :
+
+- `"exclusif": false` (par défaut) : les appareils **installent** les extensions listées et
+  appliquent leurs univers, **sans retirer** les autres extensions déjà présentes.
+- `"exclusif": true` (mis automatiquement par « Exporter la configuration ») : le fichier
+  décrit **toutes** les extensions ; les dépôts et extensions absents sont retirés.
+

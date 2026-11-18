@@ -34,6 +34,18 @@ object MissaContentSource {
         return SITE + "jeux/" + rest
     }
 
+    private const val GITHUB_MAIN = "https://raw.githubusercontent.com/$REPO/main/"
+
+    /**
+     * Copie de secours d'un fichier MISSA : site Cloudflare ↔ GitHub (branche main), même
+     * chemin. Null pour toute autre adresse (extensions de tiers, etc.).
+     */
+    fun mirrorOf(url: String): String? = when {
+        url.startsWith(SITE) -> GITHUB_MAIN + url.removePrefix(SITE)
+        url.startsWith(GITHUB_MAIN) -> SITE + url.removePrefix(GITHUB_MAIN)
+        else -> null
+    }
+
     /** Adresses à essayer dans l'ordre pour [path] (chemin dans le dépôt, ex. tv/chaines.m3u). */
     fun urls(path: String): List<String> =
         if (BuildConfig.MISSA_CONTENT_BRANCH == "main") listOf(SITE + path, githubUrl(path))

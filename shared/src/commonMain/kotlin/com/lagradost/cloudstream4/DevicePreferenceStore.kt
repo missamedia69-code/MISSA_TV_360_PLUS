@@ -196,7 +196,8 @@ class GeneralPreferences(preferences: PreferenceStore) {
     val batterOptimization = preferences.getBoolean("battery_optimisation_key", false)
 
     /** Please note that it used R.array.dns_pref before, this was a bug and caused this setting to be language sensitive **/
-    val dns = preferences.getInt("dns_key", 0)
+    // MISSA : DNS sécurisé Cloudflare par défaut (même valeur que RequestsHelper).
+    val dns = preferences.getInt("dns_key", 2)
 
     /** Very weird setKey based usage, just having this setting might not do it */
     val jsdelivrProxy = preferences.getBoolean("jsdelivr_proxy_key", false)
