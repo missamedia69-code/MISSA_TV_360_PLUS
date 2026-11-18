@@ -5,7 +5,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/universe_card_root"
     android:layout_width="@dimen/missa_hub_card_width"
-    android:layout_height="@dimen/missa_hub_card_height"
+    android:layout_height="wrap_content"
+    android:minHeight="@dimen/missa_hub_card_height"
     android:layout_marginEnd="10dp"
     android:background="@drawable/missa_universe_card_bg"
     android:clickable="true"
@@ -55,10 +56,14 @@
          it is the one thing that tells the viewer what the card actually holds.
          AUDIT H10: it is hidden while the harvest is still running, because the count
          read on a partial page is a floor and not the size of the universe. -->
+    <!-- Hauteur souple : la carte s'agrandit au lieu de couper le nombre de titres
+         (police agrandie du téléphone, gros chiffres). -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="2dp"
         android:gravity="start|center_vertical"
         android:orientation="vertical">
 
@@ -67,6 +72,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
+            android:includeFontPadding="true"
             android:maxLines="1"
             android:textAppearance="@style/TextAppearance.Missa.CardCount"
             android:visibility="gone"

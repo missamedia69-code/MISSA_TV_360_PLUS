@@ -45,23 +45,26 @@ class MissaExtensionGroupsTest {
         assertEquals(emptySet<String>(), MissaExtensionGroups.normalize(listOf("none")))
         assertEquals(emptySet<String>(), MissaExtensionGroups.normalize(listOf("films", "NONE")))
         assertEquals(setOf("films", "series"), MissaExtensionGroups.normalize(listOf(" Films ", "SERIES")))
-        // music et kids sont 100% YouTube : jamais assignables
-        assertNull(MissaExtensionGroups.normalize(listOf("music", "kids")))
-        assertEquals(setOf("films"), MissaExtensionGroups.normalize(listOf("music", "films")))
+        // tous les univers de contenu sont assignables ; « games » et les inconnus non
+        assertEquals(setOf("music", "kids"), MissaExtensionGroups.normalize(listOf("music", "kids")))
+        assertNull(MissaExtensionGroups.normalize(listOf("games", "inconnu")))
+        assertEquals(setOf("films"), MissaExtensionGroups.normalize(listOf("games", "films")))
     }
 
     @Test
-    fun `assignable groups exclude universes that have their own single source`() {
+    fun `every content universe is assignable except games`() {
         val ids = MissaExtensionGroups.ASSIGNABLE_GROUPS.map { it.id }
-        // music, kids et documentaries sont 100 % YouTube, live_tv lit tv/chaines.m3u et radio
-        // l'annuaire Radio Browser : jamais assignables. home n'est pas un groupe, c'est la vue
-        // qui les contient tous.
-        for (own in listOf("music", "kids", "documentaries", "live_tv", "radio", "home")) {
-            assertTrue(own !in ids)
-        }
-        assertEquals(listOf("films", "series", "shorts", "sports", "podcasts"), ids)
+        // Une extension peut alimenter n'importe quel univers de contenu. Jeux n'en est pas un
+        // (catalogue de jeux à part) et home n'est pas un groupe : c'est la vue qui les contient tous.
+        assertEquals(
+            listOf("films", "series", "documentaries", "shorts", "kids", "live_tv", "sports", "music", "podcasts", "radio"),
+            ids
+        )
+        assertTrue("games" !in ids && "home" !in ids)
         // et rien que des identifiants d'univers qui existent vraiment
         assertTrue(ids.all { id -> MissaUniverses.NAVIGATION_UNIVERSES.any { it.id == id } })
+        // les univers YouTube n'acceptent que des extensions réglées explicitement
+        assertEquals(setOf("documentaries", "kids", "music"), MissaExtensionGroups.EXPLICIT_ONLY_GROUPS)
     }
 
     @Test

@@ -26,10 +26,15 @@ data class AssignableGroup(
  *  - setOf("films")  -> uniquement ces groupes
  *
  * Priorité : provider > extension > Auto.
- * "music", "kids" et "documentaries" ne sont JAMAIS proposés : ces univers sont 100 % YouTube.
- * "live_tv" et "radio" non plus : la TV en direct cumule automatiquement la liste
- * tv/chaines.m3u et les chaînes de toutes les extensions « Live » (MissaExtensionLiveTv) ;
- * la radio lit l'annuaire Radio Browser.
+ * Tous les univers de contenu sont proposés (seul Jeux ne l'est pas : une extension ne
+ * fournit pas de jeux). Ce que chaque univers fait d'une extension qui lui est confiée :
+ *  - Films, Séries, Courts, Sports, Podcasts : son contenu est trié par le crible
+ *    (MissaContentSieve), comme avant ;
+ *  - Documentaires, Enfants, Musiques : ces univers restent alimentés par YouTube, et le
+ *    contenu des extensions RÉGLÉES EXPLICITEMENT sur eux s'y ajoute (jamais celui des
+ *    extensions en Auto : pas de contenu deviné dans l'univers Enfants) ;
+ *  - TV en direct : chaînes de l'extension, en plus de tv/chaines.m3u (MissaExtensionLiveTv) ;
+ *  - Radio : stations de l'extension, en plus de l'annuaire (MissaExtensionRadio).
  */
 object MissaExtensionGroups {
     private const val FOLDER = "missa_ext_groups_v1"
@@ -42,10 +47,23 @@ object MissaExtensionGroups {
     val ASSIGNABLE_GROUPS: List<AssignableGroup> = listOf(
         AssignableGroup("films", R.string.universe_films_title),
         AssignableGroup("series", R.string.universe_series_title),
+        AssignableGroup("documentaries", R.string.universe_documentaries_title),
         AssignableGroup("shorts", R.string.universe_shorts_title),
+        AssignableGroup("kids", R.string.universe_kids_title),
+        AssignableGroup("live_tv", R.string.universe_live_tv_title),
         AssignableGroup("sports", R.string.universe_sports_title),
-        AssignableGroup("podcasts", R.string.universe_podcasts_title)
+        AssignableGroup("music", R.string.universe_music_title),
+        AssignableGroup("podcasts", R.string.universe_podcasts_title),
+        AssignableGroup("radio", R.string.universe_radio_title)
     )
+
+    /** Univers alimentés par YouTube, où seules les extensions réglées explicitement s'ajoutent. */
+    val EXPLICIT_ONLY_GROUPS: Set<String> = setOf("documentaries", "kids", "music")
+
+    /** Noms des sources (providers) réglées explicitement sur [group]. */
+    fun explicitApiNames(group: String): Set<String> = APIHolder.apis.withLock {
+        APIHolder.apis.filter { resolveForApi(it)?.contains(group) == true }.mapTo(HashSet()) { it.name }
+    }
 
     /** Incrémenté à chaque modification : force le rechargement du catalogue (voir computeProviderSignature). */
     @Volatile
