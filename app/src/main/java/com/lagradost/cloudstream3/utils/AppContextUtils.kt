@@ -583,6 +583,8 @@ object AppContextUtils {
     }
 
     fun openWebView(fragment: Fragment?, url: String) {
+        // Bloqueur de pop-up : page web ouverte par une extension sans clic de l'utilisateur.
+        if (MissaPopupBlocker.block("page web")) return
         if (fragment?.context?.hasWebView() == true)
             safe {
                 fragment
@@ -598,7 +600,7 @@ object AppContextUtils {
         url: String,
         fallbackWebview: Boolean = false,
         fragment: Fragment? = null,
-    ) = (this.getActivity() ?: activity)?.runOnUiThread {
+    ) = (if (MissaPopupBlocker.block("navigateur")) null else (this.getActivity() ?: activity))?.runOnUiThread {
         try {
             val intent = Intent(Intent.ACTION_VIEW)
             intent.data = url.toUri()

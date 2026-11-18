@@ -2,7 +2,7 @@
   {
     "url": "https://missatv.pages.dev/extensions/depot/MediaTri.cs3",
     "status": 1,
-    "version": 1,
+    "version": 2,
     "apiVersion": 1,
     "name": "MediaTri",
     "internalName": "MediaTri",
@@ -17,7 +17,7 @@
     ],
     "language": "fr",
     "iconUrl": null,
-    "fileSize": 21320,
-    "fileHash": "sha256-3c265829e9df4d0e7295eaafaf36fe6b15fb6a6e07ef11bf7a2e337e2ba063cf"
+    "fileSize": 21330,
+    "fileHash": "sha256-c02bc185dfa10bbcf42b58187b3205f14bc926d0e78b9eae658811e677dfe54f"
   }
 ]

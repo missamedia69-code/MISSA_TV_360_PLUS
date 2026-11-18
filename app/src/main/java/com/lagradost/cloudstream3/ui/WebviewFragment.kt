@@ -64,6 +64,15 @@ class WebviewFragment : BaseFragment<FragmentWebviewBinding>(
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
+            // Pas de nouvelles fenêtres (window.open, liens « target=_blank » publicitaires) :
+            // la page reste seule à l'écran.
+            settings.javaScriptCanOpenWindowsAutomatically = false
+            settings.setSupportMultipleWindows(true)
+            webChromeClient = object : android.webkit.WebChromeClient() {
+                override fun onCreateWindow(
+                    view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?
+                ): Boolean = false
+            }
 
             loadUrl(url)
         }
