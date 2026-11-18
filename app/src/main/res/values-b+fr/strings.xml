@@ -1478,4 +1478,7 @@ Moteur : %5$s (%6$s)</string>
     <string name="missa_activation_link_full">Cet abonnement est déjà utilisé sur 2 appareils.</string>
     <string name="missa_activation_second_device">Votre abonnement couvre 2 appareils. Pour activer le deuxième, choisissez « J\'ai déjà un abonnement » sur celui-ci et entrez ce code :\n\n%1$s</string>
     <string name="missa_activation_link_locked">Trop d\'essais. Réessayez dans une heure.</string>
+    <string name="missa_fallback_searching">Cette source ne répond pas. Recherche du même titre dans vos autres extensions…</string>
+    <string name="missa_fallback_none">Aucune autre extension ne propose ce titre pour le moment.</string>
+    <string name="missa_fallback_found">Lecture avec l\'extension %1$s</string>
 </resources>

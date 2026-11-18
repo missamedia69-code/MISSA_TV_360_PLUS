@@ -1,24 +1,60 @@
 package com.lagradost.cloudstream3.network
 
+import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.dnsoverhttps.DnsOverHttps
 import java.net.InetAddress
+import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
 
 /**
  * Based on https://github.com/tachiyomiorg/tachiyomi/blob/master/app/src/main/java/eu/kanade/tachiyomi/network/DohProviders.kt
  */
 
 fun OkHttpClient.Builder.addGenericDns(url: String, ips: List<String>) = dns(
-    DnsOverHttps
-        .Builder()
-        .client(build())
-        .url(url.toHttpUrl())
-        .bootstrapDnsHosts(
-            ips.map { InetAddress.getByName(it) }
-        )
-        .build()
+    ResilientDns(
+        DnsOverHttps
+            .Builder()
+            // Délais courts : si le serveur DNS sécurisé est injoignable, on bascule vite.
+            .client(build().newBuilder().connectTimeout(3, TimeUnit.SECONDS).readTimeout(4, TimeUnit.SECONDS).build())
+            .url(url.toHttpUrl())
+            .bootstrapDnsHosts(
+                ips.map { InetAddress.getByName(it) }
+            )
+            .build()
+    )
 )
+
+/**
+ * MISSA : DNS sécurisé (contourne les blocages DNS des fournisseurs d'accès) qui ne casse
+ * jamais le réseau. Si le serveur DNS sécurisé est injoignable (réseau qui le bloque), la
+ * résolution passe par le DNS normal de l'appareil, et le DNS sécurisé est mis de côté
+ * 5 minutes pour ne pas ralentir chaque requête.
+ */
+class ResilientDns(private val secure: Dns) : Dns {
+    @Volatile
+    private var secureDownUntil = 0L
+
+    override fun lookup(hostname: String): List<InetAddress> {
+        val now = System.currentTimeMillis()
+        if (now >= secureDownUntil) {
+            try {
+                val result = secure.lookup(hostname)
+                if (result.isNotEmpty()) return result
+            } catch (e: UnknownHostException) {
+                // Nom inconnu pour le DNS sécurisé, ou serveur injoignable : on demande au DNS
+                // normal. Si lui trouve, c'est que le DNS sécurisé est en panne : pause 5 min.
+                val system = Dns.SYSTEM.lookup(hostname)
+                if (e.cause != null) secureDownUntil = now + 5 * 60_000L
+                return system
+            } catch (e: Exception) {
+                secureDownUntil = now + 5 * 60_000L
+            }
+        }
+        return Dns.SYSTEM.lookup(hostname)
+    }
+}
 
 fun OkHttpClient.Builder.addGoogleDns() = (
         addGenericDns(

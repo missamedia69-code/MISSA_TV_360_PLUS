@@ -1520,4 +1520,7 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_activation_link_full">This subscription is already used on 2 devices.</string>
     <string name="missa_activation_second_device">Your subscription covers 2 devices. To activate the second one, choose “I already have a subscription” on it and enter this code:\n\n%1$s</string>
     <string name="missa_activation_link_locked">Too many attempts. Try again in an hour.</string>
+    <string name="missa_fallback_searching">This source is not responding. Looking for the same title in your other extensions…</string>
+    <string name="missa_fallback_none">No other extension offers this title right now.</string>
+    <string name="missa_fallback_found">Playing with the %1$s extension</string>
 </resources>

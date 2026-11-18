@@ -30,6 +30,7 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.ui.APIRepository
+import com.lagradost.cloudstream3.ui.player.MissaProviderHealth
 import com.lagradost.cloudstream3.ui.home.HomeViewModel
 import com.lagradost.cloudstream3.utils.AppContextUtils.filterProviderByPreferredMedia
 import com.lagradost.cloudstream3.utils.DataStoreHelper
@@ -2194,8 +2195,11 @@ class MediaUniverseViewModel : ViewModel() {
                 .map { it to true }
             val assignedNames = assigned.map { it.first.name }.toSet()
 
+            // MISSA : à l'intérieur de chaque groupe, les extensions qui lisent bien sur cet
+            // appareil passent d'abord (bulletin de santé, MissaProviderHealth).
             val preferred = allCompatible
                 .filter { it.name in preferredNames && it.name !in assignedNames }
+                .sortedByDescending { MissaProviderHealth.score(it.name) }
                 .map { it to true }
 
             // MISSA : toutes les autres extensions compatibles sont cumulées (2e vague). Avant,
@@ -2203,6 +2207,7 @@ class MediaUniverseViewModel : ViewModel() {
             // installer une nouvelle extension de films ou séries n'ajoutait alors rien.
             val remaining = allCompatible
                 .filterNot { it.name in preferredNames || it.name in assignedNames }
+                .sortedByDescending { MissaProviderHealth.score(it.name) }
                 .map { it to false }
 
             (assigned + preferred + remaining).take(MAX_PROVIDERS_TO_HARVEST)
