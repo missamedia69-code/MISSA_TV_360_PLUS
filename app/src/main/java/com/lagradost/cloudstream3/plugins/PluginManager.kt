@@ -310,16 +310,21 @@ object PluginManager {
                 //updatedPlugins.add(activity.getString(R.string.single_plugin_disabled, pluginData.onlineData.second.name))
                 unloadPlugin(pluginData.savedData.filePath)
             } else if (pluginData.isOutdated) {
-                downloadPlugin(
-                    activity,
-                    pluginData.onlineData.plugin.url,
-                    pluginData.onlineData.plugin.fileHash,
-                    pluginData.savedData.internalName,
-                    File(pluginData.savedData.filePath),
-                    true
-                ).let { success ->
-                    if (success)
-                        updatedPlugins.add(pluginData.onlineData.plugin.name)
+                val file = File(pluginData.savedData.filePath)
+                if (PluginArtifact.isCurrent(file, pluginData.onlineData.plugin.fileHash)) {
+                    Log.i(TAG, "Skipping unchanged plugin ${pluginData.savedData.internalName}")
+                } else {
+                    downloadPlugin(
+                        activity,
+                        pluginData.onlineData.plugin.url,
+                        pluginData.onlineData.plugin.fileHash,
+                        pluginData.savedData.internalName,
+                        file,
+                        true
+                    ).let { success ->
+                        if (success)
+                            updatedPlugins.add(pluginData.onlineData.plugin.name)
+                    }
                 }
             }
         }
