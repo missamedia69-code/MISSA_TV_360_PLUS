@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Administration — MISSA TV 360 PLUS</title>
+  <!-- Page réservée au responsable : offrir des jours d'abonnement à un appareil (le sien,
+       un testeur, un client au service après-vente) sans passer par le paiement.
+       Rien n'est secret dans cette page : la protection est le mot de passe administrateur
+       (secret GitHub MISSA_ADMIN_TOKEN, recopié sur Cloudflare), vérifié par le serveur. -->
+  <style>
+    :root { --bg:#0b0f14; --card:#141b23; --line:#243040; --text:#eef3f8; --muted:#9aa8b6; --green:#2FD37A; --red:#ff6b6b; --yellow:#f5b800; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+      font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; display:flex; justify-content:center; padding:24px 16px; }
+    main { width:100%; max-width:520px; }
+    h1 { font-size:1.4rem; margin:8px 0 4px; }
+    .brand { color:var(--muted); font-weight:600; letter-spacing:.04em; text-decoration:none; }
+    .brand strong { color:var(--green); }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-top:16px; }
+    .muted { color:var(--muted); font-size:.92rem; }
+    label { display:block; font-weight:600; margin:14px 0 6px; }
+    input { font:inherit; width:100%; padding:12px; border-radius:12px; border:1px solid var(--line); background:#0f151c; color:var(--text); }
+    #code { text-transform:uppercase; font-family:ui-monospace,Menlo,Consolas,monospace; letter-spacing:.06em; }
+    .check { display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:400; color:var(--muted); }
+    .check input { width:auto; }
+    .days { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    button { font:inherit; cursor:pointer; border-radius:12px; border:1px solid var(--line); background:#1b2430; color:var(--text); padding:12px; width:100%; }
+    .days button[aria-pressed="true"] { background:var(--green); color:#04130a; border-color:var(--green); font-weight:700; }
+    .primary { background:var(--green); color:#04130a; border:0; font-weight:700; margin-top:18px; padding:14px; }
+    .primary:disabled { opacity:.5; cursor:wait; }
+    button:focus-visible, input:focus-visible { outline:3px solid var(--green); outline-offset:2px; }
+    .msg { margin-top:14px; min-height:1.5em; }
+    .msg.err { color:var(--red); }
+    .msg.ok { color:var(--green); }
+    .state { display:inline-block; padding:3px 10px; border-radius:999px; font-size:.85rem; font-weight:600; background:#223; margin-left:6px; }
+    .state.active { background:rgba(47,211,122,.15); color:var(--green); }
+    .state.blocked { background:rgba(255,107,107,.15); color:var(--red); }
+    .state.trial, .state.grace { background:rgba(245,184,0,.15); color:var(--yellow); }
+  </style>
+</head>
+<body>
+<main>
+  <a class="brand" href="../">MISSA TV <strong>360+</strong></a>
+  <h1>Offrir des jours d'abonnement</h1>
+  <p class="muted">Pour vos appareils de test, un testeur ou un client au service après-vente : l'appareil est débloqué sans paiement, en quelques secondes.</p>
+
+  <form class="card" id="form" autocomplete="off">
+    <label for="token">Mot de passe administrateur</label>
+    <input id="token" type="password" required autocomplete="current-password" spellcheck="false">
+    <label class="check"><input id="remember" type="checkbox"> Se souvenir sur cet appareil</label>
+
+    <label for="code">Code de l'appareil</label>
+    <input id="code" required placeholder="MISSA-XXXXXX" inputmode="text" spellcheck="false">
+    <p class="muted" id="codeInfo">Affiché par l'application sur l'écran de fin d'essai (« Votre code »).</p>
+
+    <label>Durée offerte</label>
+    <div class="days" id="days">
+      <button type="button" data-days="1">1 jour</button>
+      <button type="button" data-days="7">7 jours</button>
+      <button type="button" data-days="30" aria-pressed="true">1 mois</button>
+      <button type="button" data-days="90">3 mois</button>
+      <button type="button" data-days="365">1 an</button>
+      <button type="button" data-days="3650">10 ans</button>
+    </div>
+
+    <button class="primary" id="go" type="submit">Débloquer l'appareil</button>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+  </form>
+
+  <p class="muted">Les jours s'ajoutent à l'abonnement en cours, s'il y en a un. L'abonnement vaut pour 2 appareils, comme un abonnement payé.</p>
+</main>
+<script>
+(function () {
+  "use strict";
+  var KEY = "missa_admin_token";
+  var $ = function (id) { return document.getElementById(id); };
+  var days = 30;
+
+  try { var saved = localStorage.getItem(KEY); if (saved) { $("token").value = saved; $("remember").checked = true; } } catch (e) {}
+  var fromUrl = new URLSearchParams(location.search).get("code");
+  if (fromUrl) $("code").value = fromUrl;
+
+  Array.prototype.forEach.call($("days").querySelectorAll("button"), function (b) {
+    b.addEventListener("click", function () {
+      days = Number(b.getAttribute("data-days"));
+      Array.prototype.forEach.call($("days").querySelectorAll("button"), function (o) {
+        o.setAttribute("aria-pressed", o === b ? "true" : "false");
+      });
+    });
+  });
+
+  function normCode(v) {
+    var s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (s.indexOf("MISSA") === 0) s = s.slice(5);
+    return /^[2-9A-HJ-NP-Z]{6}$/.test(s) ? "MISSA-" + s : null;
+  }
+  function fmtDate(ms) {
+    return new Date(ms).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  }
+  var LABELS = { active: "abonné", trial: "en essai", grace: "abonnement expiré (délai de grâce)", blocked: "bloqué" };
+  function say(text, kind) { var m = $("msg"); m.textContent = text; m.className = "msg" + (kind ? " " + kind : ""); }
+
+  // État actuel de l'appareil dès que le code est complet.
+  var lookupTimer = null;
+  $("code").addEventListener("input", function () {
+    clearTimeout(lookupTimer);
+    var code = normCode($("code").value);
+    var info = $("codeInfo");
+    if (!code) { info.textContent = "Affiché par l'application sur l'écran de fin d'essai (« Votre code »)."; return; }
+    lookupTimer = setTimeout(function () {
+      fetch("/api/code?code=" + encodeURIComponent(code)).then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+        .then(function (res) {
+          if (res[0] === 404) { info.textContent = "Code inconnu : vérifiez-le sur l'écran de l'appareil."; return; }
+          var j = res[1];
+          info.innerHTML = "";
+          info.appendChild(document.createTextNode("État actuel :"));
+          var s = document.createElement("span"); s.className = "state " + j.state; s.textContent = LABELS[j.state] || j.state;
+          info.appendChild(s);
+          if (j.state === "active" && j.expiresAt) info.appendChild(document.createTextNode(" jusqu'au " + fmtDate(j.expiresAt)));
+        }).catch(function () {});
+    }, 400);
+  });
+  if (fromUrl) $("code").dispatchEvent(new Event("input"));
+
+  $("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var token = $("token").value.trim();
+    var code = normCode($("code").value);
+    if (!code) { say("Code d'appareil invalide (format MISSA-XXXXXX).", "err"); return; }
+    try { if ($("remember").checked) localStorage.setItem(KEY, token); else localStorage.removeItem(KEY); } catch (err) {}
+    $("go").disabled = true;
+    say("Envoi…");
+    fetch("/api/admin/grant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ code: code, days: days })
+    }).then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (res) {
+        var st = res[0], j = res[1];
+        if (st === 403) say("Mot de passe refusé, ou mot de passe administrateur pas encore configuré sur le serveur.", "err");
+        else if (st === 404) say("Code inconnu : vérifiez-le sur l'écran de l'appareil.", "err");
+        else if (st !== 200) say("Erreur du serveur (" + st + "). Réessayez.", "err");
+        else {
+          say("C'est fait : " + code + " est abonné jusqu'au " + fmtDate(j.expiresAt) + ". L'application se débloque d'elle-même dans quelques secondes (sinon, fermez-la et rouvrez-la).", "ok");
+          $("code").dispatchEvent(new Event("input"));
+        }
+      }).catch(function () { say("Pas de connexion au serveur. Réessayez.", "err"); })
+      .then(function () { $("go").disabled = false; });
+  });
+})();
+</script>
+</body>
+</html>
