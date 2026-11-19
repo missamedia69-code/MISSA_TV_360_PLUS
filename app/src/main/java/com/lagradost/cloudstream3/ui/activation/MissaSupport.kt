@@ -112,9 +112,11 @@ object MissaSupport {
                 }
                 val index = (group.checkedRadioButtonId - 0x5100).coerceIn(0, categories.lastIndex)
                 val category = categories[index].first
+                // Champs lus ici, sur le thread de l'interface : jamais depuis l'envoi en arrière-plan.
+                val contactText = contact.text?.toString()?.trim().orEmpty()
                 sendButton.isEnabled = false
                 ioSafe {
-                    val result = postMessage(code, category, text, contact.text?.toString()?.trim().orEmpty())
+                    val result = postMessage(code, category, text, contactText)
                     main {
                         sendButton.isEnabled = true
                         when (result) {
