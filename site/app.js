@@ -9,8 +9,10 @@
   var REPO = "missamedia69-code/MISSA_TV_360_PLUS";
   var EN = (document.documentElement.lang || "fr").toLowerCase().indexOf("en") === 0;
   var T = EN
-    ? { locale: "en-GB", mb: " MB", version: "Version ", published: "released on ", android: "Android 6 and later" }
-    : { locale: "fr-FR", mb: " Mo", version: "Version ", published: "publiée le ", android: "Android 6 et plus" };
+    ? { locale: "en-GB", mb: " MB", version: "Version ", published: "released on ", android: "Android 6 and later",
+        downloads: function (n) { return n + (n === "1" ? " download" : " downloads"); } }
+    : { locale: "fr-FR", mb: " Mo", version: "Version ", published: "publiée le ", android: "Android 6 et plus",
+        downloads: function (n) { return n + (n === "1" ? " téléchargement" : " téléchargements"); } };
   var API = "https://api.github.com/repos/" + REPO + "/releases/latest";
 
   // L'adresse de la page, à saisir dans l'application Downloader sur une TV.
@@ -45,12 +47,8 @@
       }
       if (!apk) return;
 
-      ["download-btn", "download-btn-2"].forEach(function (id) {
-        var btn = document.getElementById(id);
-        if (btn) btn.href = apk.browser_download_url;
-      });
-      var more = document.querySelectorAll("a[data-apk]");
-      for (var j = 0; j < more.length; j++) more[j].href = apk.browser_download_url;
+      // Les boutons gardent leur lien /api/dl : le serveur compte le téléchargement puis
+      // renvoie vers l'APK de la dernière version (GitHub). Rien à changer ici.
 
       var meta = document.getElementById("release-meta");
       if (meta) {
@@ -61,7 +59,27 @@
         if (date) parts.push(T.published + date);
         parts.push(T.android);
         meta.textContent = parts.join(" · ");
+        meta.setAttribute("data-base", meta.textContent);
+        showDownloads();
       }
     })
     .catch(function () { /* on garde le lien de secours */ });
+
+  // Nombre de téléchargements (compté par le serveur à chaque appui sur « Télécharger »).
+  var downloads = null;
+  function showDownloads() {
+    var meta = document.getElementById("release-meta");
+    if (!meta || downloads === null || downloads < 1) return;
+    var base = meta.getAttribute("data-base") || meta.textContent;
+    meta.setAttribute("data-base", base);
+    meta.textContent = base + " · " + T.downloads(downloads.toLocaleString(T.locale));
+  }
+  fetch("/api/stats")
+    .then(function (res) { return res.ok ? res.json() : null; })
+    .then(function (st) {
+      if (!st || typeof st.downloads !== "number") return;
+      downloads = st.downloads;
+      showDownloads();
+    })
+    .catch(function () {});
 })();
