@@ -49,3 +49,19 @@ CREATE TABLE IF NOT EXISTS downloads (
 CREATE INDEX IF NOT EXISTS downloads_at ON downloads(at);
 CREATE INDEX IF NOT EXISTS devices_first_seen ON devices(first_seen);
 CREATE INDEX IF NOT EXISTS devices_last_seen ON devices(last_seen);
+
+-- Messages des utilisateurs (« Aide et contact » de l'appli, page Contact du site).
+CREATE TABLE IF NOT EXISTS tickets (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  at           INTEGER NOT NULL,
+  code         TEXT,                     -- code de l'appareil (absent depuis le site)
+  category     TEXT NOT NULL,            -- probleme, paiement, contenu, suggestion, autre
+  message      TEXT NOT NULL,
+  contact      TEXT,                     -- WhatsApp, téléphone ou e-mail laissé par l'utilisateur
+  app_version  TEXT,
+  model        TEXT,
+  source       TEXT NOT NULL,            -- app ou site
+  status       TEXT NOT NULL DEFAULT 'open'
+);
+CREATE INDEX IF NOT EXISTS tickets_status ON tickets(status, at);
+CREATE INDEX IF NOT EXISTS tickets_code ON tickets(code, at);

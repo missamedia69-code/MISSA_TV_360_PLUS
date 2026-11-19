@@ -44,6 +44,14 @@
     .stat b { display:block; font-size:1.5rem; line-height:1.2; }
     .stat span { color:var(--muted); font-size:.85rem; }
     .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+    .ticket { background:#0f151c; border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px; }
+    .ticket.done { opacity:.55; }
+    .ticket .head { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:.85rem; color:var(--muted); }
+    .ticket .cat { background:rgba(245,184,0,.15); color:var(--yellow); border-radius:999px; padding:2px 8px; font-weight:600; }
+    .ticket p { margin:8px 0; white-space:pre-wrap; word-break:break-word; }
+    .ticket .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .ticket .row a, .ticket .row button { width:auto; padding:8px 12px; font-size:.9rem; }
+    .ticket .row a { color:var(--green); border:1px solid var(--line); border-radius:12px; text-decoration:none; }
   </style>
 </head>
 <body>
@@ -93,6 +101,17 @@
       <button type="button" id="csv">Liste des appareils (Excel)</button>
     </div>
     <div class="msg" id="stmsg" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="card" aria-labelledby="tk-title">
+    <h2 id="tk-title">Messages des utilisateurs</h2>
+    <p class="muted">Envoyés depuis « Aide et contact » de l'application ou la page Contact du site.</p>
+    <div class="actions">
+      <button type="button" id="tk-open">Messages à traiter</button>
+      <button type="button" id="tk-all">Tous les messages</button>
+    </div>
+    <div class="msg" id="tkmsg" role="status" aria-live="polite"></div>
+    <div id="tickets"></div>
   </section>
 </main>
 <script>
@@ -193,6 +212,75 @@
           : "Téléchargement impossible. Réessayez.", "err");
       });
   });
+
+  var CATS = { probleme: "Problème", paiement: "Paiement", contenu: "Contenu", suggestion: "Suggestion", autre: "Autre" };
+  function sayTk(text, kind) { var m = $("tkmsg"); m.textContent = text; m.className = "msg" + (kind ? " " + kind : ""); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function loadTickets(all) {
+    if (!token()) { sayTk("Entrez d'abord le mot de passe administrateur.", "err"); return; }
+    sayTk("Chargement…");
+    fetch("/api/admin/tickets" + (all ? "?status=all" : ""), { headers: { "Authorization": "Bearer " + token() } })
+      .then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (res) {
+        if (res[0] === 403) { sayTk("Mot de passe refusé, ou pas encore configuré sur le serveur.", "err"); return; }
+        if (res[0] !== 200) { sayTk("Erreur du serveur (" + res[0] + ").", "err"); return; }
+        var list = $("tickets"); list.innerHTML = "";
+        var j = res[1];
+        sayTk(j.open + (j.open > 1 ? " messages à traiter." : " message à traiter."));
+        j.tickets.forEach(function (t) {
+          var box = el("div", "ticket" + (t.status === "done" ? " done" : ""));
+          var head = el("div", "head");
+          head.appendChild(el("span", "cat", CATS[t.category] || t.category));
+          head.appendChild(el("span", null, new Date(t.at).toLocaleString("fr-FR")));
+          if (t.code) head.appendChild(el("span", null, t.code));
+          if (t.model) head.appendChild(el("span", null, t.model));
+          if (t.app_version) head.appendChild(el("span", null, "v" + t.app_version));
+          head.appendChild(el("span", null, t.source === "site" ? "site" : "appli"));
+          box.appendChild(head);
+          box.appendChild(el("p", null, t.message));
+          var row = el("div", "row");
+          if (t.contact) {
+            var digits = t.contact.replace(/[^0-9]/g, "");
+            if (t.contact.indexOf("@") > 0) {
+              var mail = el("a", null, "Répondre par e-mail");
+              mail.href = "mailto:" + encodeURIComponent(t.contact) + "?subject=" + encodeURIComponent("MISSA TV 360 PLUS");
+              row.appendChild(mail);
+            } else if (digits.length >= 8) {
+              var wa = el("a", null, "Répondre sur WhatsApp");
+              wa.href = "https://wa.me/" + (digits.length === 9 ? "237" + digits : digits);
+              wa.target = "_blank"; wa.rel = "noopener";
+              row.appendChild(wa);
+            } else {
+              row.appendChild(el("span", "muted", "Contact : " + t.contact));
+            }
+          }
+          if (t.code) {
+            var gift = el("button", null, "Offrir des jours");
+            gift.type = "button";
+            gift.addEventListener("click", function () {
+              $("code").value = t.code; $("code").dispatchEvent(new Event("input"));
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+            row.appendChild(gift);
+          }
+          var toggle = el("button", null, t.status === "done" ? "Rouvrir" : "Marquer comme traité");
+          toggle.type = "button";
+          toggle.addEventListener("click", function () {
+            fetch("/api/admin/tickets", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token() },
+              body: JSON.stringify({ id: t.id, status: t.status === "done" ? "open" : "done" })
+            }).then(function () { loadTickets(all); });
+          });
+          row.appendChild(toggle);
+          box.appendChild(row);
+          list.appendChild(box);
+        });
+      }).catch(function () { sayTk("Pas de connexion au serveur.", "err"); });
+  }
+  $("tk-open").addEventListener("click", function () { loadTickets(false); });
+  $("tk-all").addEventListener("click", function () { loadTickets(true); });
 
   $("form").addEventListener("submit", function (e) {
     e.preventDefault();

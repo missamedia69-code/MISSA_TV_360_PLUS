@@ -63,18 +63,65 @@
       </article>
     </div>
 
-    <h2>Signaler un bug</h2>
+    <h2>Nous écrire directement</h2>
+    <p>Un problème, une question de paiement, une suggestion ? Votre message arrive directement chez l'équipe.
+      Dans l'application, le même formulaire se trouve dans <strong>Paramètres → Aide et contact</strong>.</p>
+
+    <form class="card support-form" id="support-form">
+      <label for="sf-cat">Sujet</label>
+      <select id="sf-cat">
+        <option value="probleme">Un problème avec l'application</option>
+        <option value="paiement">Paiement ou abonnement</option>
+        <option value="contenu">Un film, une série ou une chaîne</option>
+        <option value="suggestion">Une suggestion</option>
+        <option value="autre">Autre chose</option>
+      </select>
+      <label for="sf-msg">Message</label>
+      <textarea id="sf-msg" rows="5" required minlength="5" maxlength="2000" placeholder="Décrivez ici…"></textarea>
+      <label for="sf-contact">WhatsApp, téléphone ou e-mail (pour vous répondre)</label>
+      <input id="sf-contact" maxlength="80" autocomplete="tel">
+      <label for="sf-code">Code de l'appareil (facultatif, ex. MISSA-7K2Q9P)</label>
+      <input id="sf-code" maxlength="14" spellcheck="false">
+      <button class="btn btn-primary" type="submit" id="sf-send">Envoyer</button>
+      <p class="hint" id="sf-msgout" role="status" aria-live="polite"></p>
+    </form>
+    <style>
+      .support-form label { display:block; font-weight:600; margin:14px 0 6px; }
+      .support-form select, .support-form textarea, .support-form input { width:100%; box-sizing:border-box; font:inherit;
+        padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:rgba(0,0,0,.25); color:inherit; }
+      .support-form button { margin-top:16px; }
+      #sf-code { text-transform:uppercase; }
+    </style>
+    <script>
+    (function () {
+      var f = document.getElementById("support-form"); if (!f || !window.fetch) return;
+      var out = document.getElementById("sf-msgout"), btn = document.getElementById("sf-send");
+      f.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var msg = document.getElementById("sf-msg").value.trim();
+        if (msg.length < 5) { out.textContent = "Écrivez quelques mots de plus."; return; }
+        btn.disabled = true; out.textContent = "Envoi…";
+        fetch("/api/support", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: document.getElementById("sf-cat").value, message: msg,
+            contact: document.getElementById("sf-contact").value.trim(),
+            code: document.getElementById("sf-code").value.trim() || null, source: "site" }) })
+          .then(function (r) {
+            if (r.ok) { out.textContent = "Message envoyé, merci ! Nous vous répondrons au plus vite."; f.reset(); }
+            else if (r.status === 429) out.textContent = "Trop de messages pour le moment : réessayez plus tard, ou écrivez-nous sur WhatsApp.";
+            else out.textContent = "Message non envoyé. Réessayez, ou écrivez-nous sur WhatsApp.";
+          })
+          .catch(function () { out.textContent = "Pas de connexion. Réessayez, ou écrivez-nous sur WhatsApp."; })
+          .then(function () { btn.disabled = false; });
+      });
+    })();
+    </script>
+
     <p>
-      Vous pouvez aussi ouvrir un ticket sur
-      <a href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/issues">GitHub</a>. Les tickets sont publics :
-      n'y indiquez aucune information personnelle.
-    </p>
-    <p>
-      Précisez votre appareil (téléphone, tablette, TV ou box et sa marque), la version de
-      l'application (Réglages → À propos) et ce qui s'est passé.
+      Pour un problème, précisez votre appareil (téléphone, tablette, TV ou box et sa marque) et la
+      version de l'application (Paramètres, en bas de l'écran).
     </p>
 
-    <p class="updated">Dernière mise à jour : 9 novembre 2026</p>
+    <p class="updated">Dernière mise à jour : 19 novembre 2026</p>
     </div>
   </div>
 </main>

@@ -94,6 +94,7 @@ class MissaActivationActivity : AppCompatActivity() {
         }
         link.setOnClickListener { askOwnerCode() }
         quit.setOnClickListener { finishAffinity() }
+        findViewById<MaterialButton>(R.id.activation_help).setOnClickListener { MissaSupport.show(this) }
         // Retour ne contourne pas le blocage : il ferme l'application.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = finishAffinity()
