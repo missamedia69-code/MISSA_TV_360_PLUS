@@ -1493,4 +1493,23 @@ Moteur : %5$s (%6$s)</string>
     <string name="missa_fallback_searching">Cette source ne répond pas. Recherche du même titre dans vos autres extensions…</string>
     <string name="missa_fallback_none">Aucune autre extension ne propose ce titre pour le moment.</string>
     <string name="missa_fallback_found">Lecture avec l\'extension %1$s</string>
+    <!-- Aide et contact (MissaSupport) -->
+    <string name="missa_support_title">Aide et contact</string>
+    <string name="missa_support_need_help">Besoin d\'aide ? Écrivez-nous</string>
+    <string name="missa_support_settings_subtitle">Signaler un problème, poser une question, proposer une idée</string>
+    <string name="missa_support_intro">Votre message arrive directement chez l\'équipe MISSA TV. Laissez un numéro WhatsApp ou un e-mail si vous voulez une réponse.</string>
+    <string name="missa_support_your_code">Code de votre appareil : %1$s (envoyé avec le message)</string>
+    <string name="missa_support_cat_problem">Un problème avec l\'application</string>
+    <string name="missa_support_cat_payment">Paiement ou abonnement</string>
+    <string name="missa_support_cat_content">Un film, une série ou une chaîne</string>
+    <string name="missa_support_cat_suggestion">Une suggestion</string>
+    <string name="missa_support_cat_other">Autre chose</string>
+    <string name="missa_support_message_hint">Décrivez ici…</string>
+    <string name="missa_support_contact_hint">WhatsApp, téléphone ou e-mail (facultatif)</string>
+    <string name="missa_support_send">Envoyer</string>
+    <string name="missa_support_whatsapp">WhatsApp</string>
+    <string name="missa_support_too_short">Écrivez quelques mots de plus.</string>
+    <string name="missa_support_sent">Message envoyé, merci ! Nous vous répondrons au plus vite.</string>
+    <string name="missa_support_too_many">Trop de messages aujourd\'hui. Réessayez demain, ou passez par WhatsApp.</string>
+    <string name="missa_support_failed">Message non envoyé (pas de connexion ?). Réessayez, ou passez par WhatsApp.</string>
 </resources>

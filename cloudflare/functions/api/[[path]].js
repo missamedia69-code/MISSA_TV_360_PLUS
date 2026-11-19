@@ -66,6 +66,9 @@ export async function onRequest(context) {
     if (path === "/admin/grant" && request.method === "POST") return await adminGrant(request, env);
     if (path === "/admin/stats" && request.method === "GET") return await adminStats(request, env);
     if (path === "/admin/devices.csv" && request.method === "GET") return await adminDevicesCsv(request, env);
+    if (path === "/support" && request.method === "POST") return cors(await support(request, env));
+    if (path === "/admin/tickets" && request.method === "GET") return await adminTickets(request, env);
+    if (path === "/admin/tickets" && request.method === "POST") return await adminTicketUpdate(request, env);
     if (path === "/dl" && request.method === "GET") return await download(request, env);
     if (path === "/stats" && request.method === "GET") return cors(await publicStats(env));
     return json({ error: "not_found" }, 404);
@@ -500,6 +503,55 @@ async function publicStats(env) {
   return new Response(JSON.stringify({ downloads: d ? d.n : 0, installs: i ? i.n : 0 }), {
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" },
   });
+}
+
+// ---------------------------------------------------------------- messages des utilisateurs
+
+// Formulaire « Aide et contact » de l'appli (et de la page Contact du site) : problème,
+// paiement, suggestion... Lu par le responsable dans la page /admin/.
+const TICKET_CATEGORIES = ["probleme", "paiement", "contenu", "suggestion", "autre"];
+
+async function support(request, env) {
+  const body = await readJson(request);
+  const message = String(body.message || "").trim().slice(0, 2000);
+  if (message.length < 5) return json({ error: "message_too_short" }, 400);
+  const category = TICKET_CATEGORIES.includes(body.category) ? body.category : "autre";
+  const contact = String(body.contact || "").trim().slice(0, 80) || null;
+  const code = body.code ? normCode(body.code) : null;
+  const source = body.source === "site" ? "site" : "app";
+  const now = Date.now();
+  // Anti-abus : 5 messages par appareil et par jour ; 30 par heure sans code (site).
+  const recent = code
+    ? await env.DB.prepare("SELECT COUNT(*) AS n FROM tickets WHERE code = ? AND at > ?").bind(code, now - DAY).first()
+    : await env.DB.prepare("SELECT COUNT(*) AS n FROM tickets WHERE code IS NULL AND at > ?").bind(now - 60 * 60 * 1000).first();
+  if (recent && recent.n >= (code ? 5 : 30)) return json({ error: "too_many" }, 429);
+  const res = await env.DB.prepare(
+    "INSERT INTO tickets (at, code, category, message, contact, app_version, model, source, status) " +
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open')"
+  ).bind(now, code, category, message, contact,
+    String(body.appVersion || "").slice(0, 30) || null,
+    String(body.model || "").slice(0, 80) || null, source).run();
+  return json({ ok: true, id: res && res.meta ? res.meta.last_row_id : null });
+}
+
+async function adminTickets(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "forbidden" }, 403);
+  const status = new URL(request.url).searchParams.get("status") === "all" ? null : "open";
+  const { results } = await (status
+    ? env.DB.prepare("SELECT * FROM tickets WHERE status = 'open' ORDER BY at DESC LIMIT 200")
+    : env.DB.prepare("SELECT * FROM tickets ORDER BY at DESC LIMIT 200")).all();
+  const open = await env.DB.prepare("SELECT COUNT(*) AS n FROM tickets WHERE status = 'open'").first();
+  return json({ open: open ? open.n : 0, tickets: results || [] });
+}
+
+async function adminTicketUpdate(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "forbidden" }, 403);
+  const body = await readJson(request);
+  const id = Number(body.id);
+  const status = body.status === "open" ? "open" : "done";
+  if (!Number.isInteger(id) || id <= 0) return json({ error: "bad_request" }, 400);
+  await env.DB.prepare("UPDATE tickets SET status = ? WHERE id = ?").bind(status, id).run();
+  return json({ ok: true });
 }
 
 // ---------------------------------------------------------------- support

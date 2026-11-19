@@ -68,6 +68,7 @@ import coil3.compose.AsyncImage
 import com.lagradost.cloudstream3.BuildConfig
 import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.R
+import com.lagradost.cloudstream3.ui.activation.MissaSupport
 import com.lagradost.cloudstream3.utils.DataStoreHelper
 import com.lagradost.cloudstream3.utils.DataStoreHelper.profileImages
 import com.lagradost.cloudstream3.utils.GitInfo.currentCommitHash
@@ -271,6 +272,14 @@ object SettingsFragmentScreen : Screen {
                             screens.forEach { settingsTab ->
                                 SettingsTab(settingsTab)
                             }
+                            // MISSA : canal pour écrire à l'équipe (problème, paiement, idée).
+                            TextPreferenceWidget(
+                                title = stringResource(R.string.missa_support_title),
+                                icon = painterResource(R.drawable.baseline_help_outline_24),
+                                subtitle = stringResource(R.string.missa_support_settings_subtitle),
+                                onPreferenceClick = {
+                                    activity?.let { MissaSupport.show(it) }
+                                })
                             BuildStamp()
                         }
                     })
