@@ -14,7 +14,7 @@
 //   KPAY_API_KEY, KPAY_SECRET_KEY   ancien prestataire KPay, utilisé seulement sans clé SasPay
 //   KPAY_WEBHOOK_SECRET             secret de signature des notifications KPay (secret)
 //   LICENCE_ENFORCED                "1" pour activer le blocage dans l'appli ; sinon tout est libre
-//   ADMIN_TOKEN                     facultatif : pour offrir des jours à un client (support)
+//   ADMIN_TOKEN                     facultatif : page /admin/ (jours offerts, statistiques, export)
 
 const DAY = 24 * 60 * 60 * 1000;
 const TRIAL_MS = DAY;
@@ -64,6 +64,10 @@ export async function onRequest(context) {
     if (path === "/kpay-webhook" && request.method === "POST") return await webhook(request, env);
     if (path === "/saspay-webhook" && request.method === "POST") return await saspayWebhook(request, env);
     if (path === "/admin/grant" && request.method === "POST") return await adminGrant(request, env);
+    if (path === "/admin/stats" && request.method === "GET") return await adminStats(request, env);
+    if (path === "/admin/devices.csv" && request.method === "GET") return await adminDevicesCsv(request, env);
+    if (path === "/dl" && request.method === "GET") return await download(request, env);
+    if (path === "/stats" && request.method === "GET") return cors(await publicStats(env));
     return json({ error: "not_found" }, 404);
   } catch (e) {
     console.error(e && e.stack ? e.stack : e);
@@ -471,11 +475,105 @@ async function saspayWebhook(request, env) {
   return new Response("OK");
 }
 
+// ---------------------------------------------------------------- téléchargements
+
+// Le bouton « Télécharger l'APK » du site passe par /api/dl : une ligne est ajoutée dans la
+// table downloads (date et pays seulement, jamais l'adresse IP), puis le navigateur est
+// renvoyé vers l'APK de la dernière version sur GitHub. Si la base ne répond pas, le
+// téléchargement se fait quand même.
+const APK_URL = "https://github.com/missamedia69-code/MISSA_TV_360_PLUS/releases/latest/download/MISSA-TV-360-PLUS.apk";
+
+async function download(request, env) {
+  try {
+    const country = (request.cf && request.cf.country) || null;
+    await env.DB.prepare("INSERT INTO downloads (at, country) VALUES (?, ?)").bind(Date.now(), country).run();
+  } catch (e) {
+    console.error("download count", e);
+  }
+  return new Response(null, { status: 302, headers: { location: APK_URL, "cache-control": "no-store" } });
+}
+
+/** Chiffres affichés sur le site : téléchargements et appareils (gardés 5 min en cache). */
+async function publicStats(env) {
+  const d = await env.DB.prepare("SELECT COUNT(*) AS n FROM downloads").first();
+  const i = await env.DB.prepare("SELECT COUNT(*) AS n FROM devices").first();
+  return new Response(JSON.stringify({ downloads: d ? d.n : 0, installs: i ? i.n : 0 }), {
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" },
+  });
+}
+
 // ---------------------------------------------------------------- support
 
-async function adminGrant(request, env) {
+function isAdmin(request, env) {
   const auth = request.headers.get("authorization") || "";
-  if (!env.ADMIN_TOKEN || !timingSafeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`)) {
+  return !!env.ADMIN_TOKEN && timingSafeEqual(auth, `Bearer ${env.ADMIN_TOKEN}`);
+}
+
+/** Tableau de bord du responsable (page /admin/). */
+async function adminStats(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "forbidden" }, 403);
+  const now = Date.now();
+  const trialEnd = trialMs(env);
+  const one = async (sql, ...args) => {
+    const row = await env.DB.prepare(sql).bind(...args).first();
+    return row ? row.n || 0 : 0;
+  };
+  return json({
+    downloads: await one("SELECT COUNT(*) AS n FROM downloads"),
+    downloads7d: await one("SELECT COUNT(*) AS n FROM downloads WHERE at > ?", now - 7 * DAY),
+    downloadsToday: await one("SELECT COUNT(*) AS n FROM downloads WHERE at > ?", now - DAY),
+    devices: await one("SELECT COUNT(*) AS n FROM devices"),
+    newDevices7d: await one("SELECT COUNT(*) AS n FROM devices WHERE first_seen > ?", now - 7 * DAY),
+    activeToday: await one("SELECT COUNT(*) AS n FROM devices WHERE last_seen > ?", now - DAY),
+    active7d: await one("SELECT COUNT(*) AS n FROM devices WHERE last_seen > ?", now - 7 * DAY),
+    inTrial: await one(
+      "SELECT COUNT(*) AS n FROM devices d WHERE d.first_seen + ? > ? AND NOT EXISTS " +
+      "(SELECT 1 FROM subscriptions s WHERE s.id = d.subscription_id)", trialEnd, now),
+    subscribed: await one(
+      "SELECT COUNT(*) AS n FROM devices d JOIN subscriptions s ON s.id = d.subscription_id WHERE s.expires_at > ?", now),
+    payments: await one("SELECT COUNT(*) AS n FROM payments WHERE status = 'COMPLETED' AND is_test = 0"),
+    revenue: await one("SELECT COALESCE(SUM(amount), 0) AS n FROM payments WHERE status = 'COMPLETED' AND is_test = 0"),
+    serverTime: now,
+  });
+}
+
+/** Liste des appareils au format CSV (s'ouvre dans Excel). */
+async function adminDevicesCsv(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "forbidden" }, 403);
+  const now = Date.now();
+  const { results } = await env.DB.prepare(
+    "SELECT d.code, d.model, d.first_seen, d.last_seen, s.expires_at, s.owner_code " +
+    "FROM devices d LEFT JOIN subscriptions s ON s.id = d.subscription_id ORDER BY d.first_seen DESC"
+  ).all();
+  const date = (ms) => (ms ? new Date(ms).toISOString().replace("T", " ").slice(0, 16) : "");
+  const cell = (v) => {
+    const t = String(v == null ? "" : v);
+    return /[";\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  const lines = [["N°", "Code appareil", "Modèle", "Première ouverture (UTC)", "Dernière ouverture (UTC)",
+    "État", "Abonné jusqu'au (UTC)", "Abonnement de"].join(";")];
+  const trial = trialMs(env);
+  (results || []).forEach((r, i) => {
+    let state;
+    if (r.expires_at && r.expires_at > now) state = "abonné";
+    else if (r.expires_at && r.expires_at + GRACE_MS > now) state = "délai de grâce";
+    else if (!r.expires_at && r.first_seen + trial > now) state = "essai";
+    else state = "bloqué";
+    lines.push([(results.length - i), r.code, r.model, date(r.first_seen), date(r.last_seen), state,
+      date(r.expires_at), r.owner_code && r.owner_code !== r.code ? r.owner_code : ""].map(cell).join(";"));
+  });
+  // BOM UTF-8 + « ; » : Excel en français ouvre le fichier directement avec les accents.
+  return new Response("\ufeff" + lines.join("\r\n") + "\r\n", {
+    headers: {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="missatv-appareils-${new Date(now).toISOString().slice(0, 10)}.csv"`,
+      "cache-control": "no-store",
+    },
+  });
+}
+
+async function adminGrant(request, env) {
+  if (!isAdmin(request, env)) {
     return json({ error: "forbidden" }, 403);
   }
   const body = await readJson(request);

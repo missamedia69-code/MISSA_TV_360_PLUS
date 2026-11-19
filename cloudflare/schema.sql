@@ -40,3 +40,12 @@ CREATE TABLE IF NOT EXISTS link_attempts (
   at    INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS link_attempts_code ON link_attempts(code, at);
+
+-- Téléchargements de l'APK depuis le bouton du site (/api/dl) : date et pays seulement.
+CREATE TABLE IF NOT EXISTS downloads (
+  at       INTEGER NOT NULL,
+  country  TEXT
+);
+CREATE INDEX IF NOT EXISTS downloads_at ON downloads(at);
+CREATE INDEX IF NOT EXISTS devices_first_seen ON devices(first_seen);
+CREATE INDEX IF NOT EXISTS devices_last_seen ON devices(last_seen);

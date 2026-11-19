@@ -38,6 +38,12 @@
     .state.active { background:rgba(47,211,122,.15); color:var(--green); }
     .state.blocked { background:rgba(255,107,107,.15); color:var(--red); }
     .state.trial, .state.grace { background:rgba(245,184,0,.15); color:var(--yellow); }
+    h2 { font-size:1.15rem; margin:0 0 4px; }
+    .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:12px; }
+    .stat { background:#0f151c; border:1px solid var(--line); border-radius:12px; padding:12px; }
+    .stat b { display:block; font-size:1.5rem; line-height:1.2; }
+    .stat span { color:var(--muted); font-size:.85rem; }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
   </style>
 </head>
 <body>
@@ -70,6 +76,24 @@
   </form>
 
   <p class="muted">Les jours s'ajoutent à l'abonnement en cours, s'il y en a un. L'abonnement vaut pour 2 appareils, comme un abonnement payé.</p>
+
+  <section class="card" aria-labelledby="st-title">
+    <h2 id="st-title">Statistiques</h2>
+    <p class="muted">Téléchargements comptés depuis le bouton du site ; appareils = installations qui ont ouvert l'application au moins une fois.</p>
+    <div class="stats" id="stats" hidden>
+      <div class="stat"><b id="s-downloads">–</b><span>téléchargements (<span id="s-dl7">–</span> en 7 jours)</span></div>
+      <div class="stat"><b id="s-devices">–</b><span>appareils (<span id="s-new7">–</span> nouveaux en 7 jours)</span></div>
+      <div class="stat"><b id="s-active">–</b><span>actifs aujourd'hui (<span id="s-active7">–</span> en 7 jours)</span></div>
+      <div class="stat"><b id="s-trial">–</b><span>en essai</span></div>
+      <div class="stat"><b id="s-subs">–</b><span>abonnés</span></div>
+      <div class="stat"><b id="s-revenue">–</b><span>FCFA encaissés (<span id="s-payments">–</span> paiements)</span></div>
+    </div>
+    <div class="actions">
+      <button type="button" id="refresh">Afficher / actualiser</button>
+      <button type="button" id="csv">Liste des appareils (Excel)</button>
+    </div>
+    <div class="msg" id="stmsg" role="status" aria-live="polite"></div>
+  </section>
 </main>
 <script>
 (function () {
@@ -123,6 +147,52 @@
     }, 400);
   });
   if (fromUrl) $("code").dispatchEvent(new Event("input"));
+
+  function token() { return $("token").value.trim(); }
+  function sayStats(text, kind) { var m = $("stmsg"); m.textContent = text; m.className = "msg" + (kind ? " " + kind : ""); }
+  function fmt(n) { return Number(n || 0).toLocaleString("fr-FR"); }
+
+  $("refresh").addEventListener("click", function () {
+    if (!token()) { sayStats("Entrez d'abord le mot de passe administrateur.", "err"); return; }
+    sayStats("Chargement…");
+    fetch("/api/admin/stats", { headers: { "Authorization": "Bearer " + token() } })
+      .then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (res) {
+        if (res[0] === 403) { sayStats("Mot de passe refusé, ou pas encore configuré sur le serveur.", "err"); return; }
+        if (res[0] !== 200) { sayStats("Erreur du serveur (" + res[0] + ").", "err"); return; }
+        var j = res[1];
+        $("s-downloads").textContent = fmt(j.downloads); $("s-dl7").textContent = fmt(j.downloads7d);
+        $("s-devices").textContent = fmt(j.devices); $("s-new7").textContent = fmt(j.newDevices7d);
+        $("s-active").textContent = fmt(j.activeToday); $("s-active7").textContent = fmt(j.active7d);
+        $("s-trial").textContent = fmt(j.inTrial); $("s-subs").textContent = fmt(j.subscribed);
+        $("s-revenue").textContent = fmt(j.revenue); $("s-payments").textContent = fmt(j.payments);
+        $("stats").hidden = false;
+        sayStats("");
+      }).catch(function () { sayStats("Pas de connexion au serveur.", "err"); });
+  });
+
+  $("csv").addEventListener("click", function () {
+    if (!token()) { sayStats("Entrez d'abord le mot de passe administrateur.", "err"); return; }
+    sayStats("Préparation du fichier…");
+    fetch("/api/admin/devices.csv", { headers: { "Authorization": "Bearer " + token() } })
+      .then(function (r) {
+        if (r.status === 403) throw new Error("403");
+        if (!r.ok) throw new Error(String(r.status));
+        return r.blob();
+      })
+      .then(function (blob) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "missatv-appareils-" + new Date().toISOString().slice(0, 10) + ".csv";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+        sayStats("Fichier téléchargé : ouvrez-le avec Excel ou Google Sheets.", "ok");
+      })
+      .catch(function (err) {
+        sayStats(err && err.message === "403" ? "Mot de passe refusé, ou pas encore configuré sur le serveur."
+          : "Téléchargement impossible. Réessayez.", "err");
+      });
+  });
 
   $("form").addEventListener("submit", function (e) {
     e.preventDefault();
