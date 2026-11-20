@@ -50,27 +50,70 @@
   <div class="legal">
     <div class="wrap narrow">
 
-    <div class="grid-2 contact-cards">
+    <div class="contact-cards">
       <article class="card">
         <h3>By email</h3>
         <p><a href="mailto:missamedia69@gmail.com">missamedia69@gmail.com</a></p>
-        <p class="hint">For questions, support and content reports.</p>
-      </article>
-      <article class="card">
-        <h3>By WhatsApp</h3>
-        <p><a href="https://wa.me/237652996161" rel="noopener">+237 652 99 61 61</a></p>
-        <p class="hint">For installation help.</p>
+        <p class="hint">For questions, support, installation help and content reports.</p>
       </article>
     </div>
 
-    <h2>Report a bug</h2>
+    <h2>Write to us directly</h2>
+    <p>A problem, a payment question, a suggestion? Your message goes straight to the team.
+      In the app, the same form is in <strong>Settings → Help &amp; contact</strong>.</p>
+
+    <form class="card support-form" id="support-form">
+      <label for="sf-cat">Subject</label>
+      <select id="sf-cat">
+        <option value="probleme">A problem with the app</option>
+        <option value="paiement">Payment or subscription</option>
+        <option value="contenu">A film, series or channel</option>
+        <option value="suggestion">A suggestion</option>
+        <option value="autre">Something else</option>
+      </select>
+      <label for="sf-msg">Message</label>
+      <textarea id="sf-msg" rows="5" required minlength="5" maxlength="2000" placeholder="Describe it here…"></textarea>
+      <label for="sf-contact">Your e-mail or number (so we can answer)</label>
+      <input id="sf-contact" maxlength="80" autocomplete="email">
+      <label for="sf-code">Device code (optional, e.g. MISSA-7K2Q9P)</label>
+      <input id="sf-code" maxlength="14" spellcheck="false">
+      <button class="btn btn-primary" type="submit" id="sf-send">Send</button>
+      <p class="hint" id="sf-msgout" role="status" aria-live="polite"></p>
+    </form>
+    <style>
+      .support-form label { display:block; font-weight:600; margin:14px 0 6px; }
+      .support-form select, .support-form textarea, .support-form input { width:100%; box-sizing:border-box; font:inherit;
+        padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:rgba(0,0,0,.25); color:inherit; }
+      .support-form button { margin-top:16px; }
+      #sf-code { text-transform:uppercase; }
+    </style>
+    <script>
+    (function () {
+      var f = document.getElementById("support-form"); if (!f || !window.fetch) return;
+      var out = document.getElementById("sf-msgout"), btn = document.getElementById("sf-send");
+      f.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var msg = document.getElementById("sf-msg").value.trim();
+        if (msg.length < 5) { out.textContent = "Please write a few more words."; return; }
+        btn.disabled = true; out.textContent = "Sending…";
+        fetch("/api/support", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: document.getElementById("sf-cat").value, message: msg,
+            contact: document.getElementById("sf-contact").value.trim(),
+            code: document.getElementById("sf-code").value.trim() || null, source: "site" }) })
+          .then(function (r) {
+            if (r.ok) { out.textContent = "Message sent, thank you! We will answer as soon as possible."; f.reset(); }
+            else if (r.status === 429) out.textContent = "Too many messages right now: try again later, or e-mail us.";
+            else out.textContent = "Message not sent. Try again, or e-mail us.";
+          })
+          .catch(function () { out.textContent = "No connection. Try again, or e-mail us."; })
+          .then(function () { btn.disabled = false; });
+      });
+    })();
+    </script>
+
     <p>
-      You can also open an issue on <a href="https://github.com/missamedia69-code/MISSA_TV_360_PLUS/issues">GitHub</a>. Issues are public:
-      do not include any personal information.
-    </p>
-    <p>
-      Tell us your device (phone, tablet, TV or box and its brand), the app version
-      (Settings → About) and what happened.
+      For a problem, tell us your device (phone, tablet, TV or box and its brand) and the
+      app version (bottom of the Settings screen).
     </p>
 
     <p class="updated">Last updated: November 9, 2026</p>

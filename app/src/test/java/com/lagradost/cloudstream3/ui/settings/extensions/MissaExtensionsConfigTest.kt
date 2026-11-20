@@ -55,15 +55,29 @@ class MissaExtensionsConfigTest {
         val file = generateSequence(File("").absoluteFile) { it.parentFile }
             .map { File(it, "extensions/config.json") }
             .firstOrNull { it.isFile } ?: return
-        val list = MissaExtensionsConfig.parse(file.readText())
+        // Vérifications générales, valables pour toute configuration exportée : pas de
+        // nombre d'extensions écrit en dur, sinon chaque nouvel export ferait échouer la CI.
+        val text = file.readText()
+        val list = MissaExtensionsConfig.parse(text)
         assertNotNull(list)
-        assertEquals(47, list!!.size)
-        assertEquals(12, list.map { it.repositoryUrl }.distinct().size)
-        assertEquals(47, list.distinctBy { it.repositoryUrl to it.internalName }.size)
-        assertTrue(list.all { it.repositoryUrl.startsWith("https://") })
-        assertTrue(list.any { "kids" in (it.universes ?: emptySet()) })
-        assertTrue(list.any { "live_tv" in (it.universes ?: emptySet()) })
+        assertTrue(list!!.all { it.repositoryUrl.startsWith("https://") })
+        assertEquals(list.size, list.distinctBy { it.repositoryUrl to it.internalName }.size)
         assertFalse(list.any { it.internalName.equals("All for U", ignoreCase = true) })
-        assertTrue(org.json.JSONObject(file.readText()).getBoolean("exclusif"))
+        // Chaque univers écrit dans le fichier doit être reconnu par l'application : un nom
+        // inconnu serait ignoré sans bruit et l'extension tomberait en « Auto ».
+        val raw = org.json.JSONObject(text).getJSONArray("extensions")
+        for (i in 0 until raw.length()) {
+            val o = raw.getJSONObject(i)
+            val declared = o.optJSONArray("univers")
+                ?.let { arr -> (0 until arr.length()).map { arr.getString(it) } }.orEmpty()
+            val entry = list.firstOrNull {
+                it.repositoryUrl == o.getString("depot").trim() && it.internalName == o.getString("extension").trim()
+            } ?: continue
+            when {
+                declared.isEmpty() -> assertNull(entry.universes)
+                declared == listOf("none") -> assertEquals(emptySet<String>(), entry.universes)
+                else -> assertEquals("univers de ${o.getString("extension")}", declared.toSet(), entry.universes)
+            }
+        }
     }
 }
