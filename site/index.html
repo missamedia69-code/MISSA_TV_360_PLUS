@@ -53,6 +53,7 @@
         <a class="btn btn-ghost" href="#installer">Comment l'installer</a>
       </div>
       <p class="meta" id="release-meta" aria-live="polite">Android 6 et plus · Téléphone, tablette et TV</p>
+      <p class="warn-old" data-android-warn hidden>Votre appareil semble utiliser Android <span data-android-version></span> : l'application demande Android 6 ou plus récent et ne pourra pas s'installer.</p>
     </div>
     <div class="home-side">
       <div class="tv-wrap"><div class="tv" data-carousel>
@@ -141,9 +142,21 @@
   <section class="panel" id="p-installer" role="tabpanel" aria-labelledby="t-installer">
     <div class="head"><h2>Installée en quelques minutes</h2><p>Directement depuis ce site, sur tous les appareils Android.</p></div>
     <div class="steps">
-      <article class="card step-card acc-g"><h3>Téléphone ou tablette</h3><ol><li>Appuyez sur <strong>Télécharger l'APK</strong> depuis votre appareil.</li><li>Ouvrez le fichier téléchargé.</li><li>Si Android le demande, autorisez votre navigateur à <strong>installer des applications inconnues</strong>.</li><li>Appuyez sur <strong>Installer</strong>. C'est prêt.</li></ol></article>
+      <article class="card step-card acc-g"><h3>Téléphone ou tablette</h3><ol><li>Appuyez sur <strong>Télécharger l'APK</strong> depuis votre appareil.</li><li>Ouvrez le fichier téléchargé.</li><li>Si Android le demande, autorisez votre navigateur à <strong>installer des applications inconnues</strong>.</li><li>Appuyez sur <strong>Installer</strong>.</li><li>Si Play Protect affiche <strong>« Application inconnue »</strong> ou <strong>« Bloquée »</strong> : appuyez sur <strong>Plus de détails</strong>, puis <strong>Installer quand même</strong>.</li></ol></article>
       <article class="card step-card acc-y"><h3>Android TV, box ou Fire TV</h3><ol><li>Installez l'application gratuite <strong>Downloader</strong> depuis la boutique de la TV.</li><li>Dans Downloader, saisissez l'adresse :<br><code id="site-url">missatv.pages.dev</code></li><li>Sélectionnez <strong>Télécharger l'APK</strong> avec la télécommande.</li><li>Autorisez Downloader à installer des applications inconnues, puis <strong>Installer</strong>.</li></ol></article>
     </div>
+    <article class="card fix-card acc-n" id="depannage">
+      <h3>« L'application n'a pas été installée » ou « package non valide » ?</h3>
+      <ul>
+        <li><strong>Une ancienne version est déjà installée</strong> (version d'essai, copie reçue par un ami) : désinstallez-la, puis installez celle du site. Android refuse de mettre à jour une application qui ne vient pas de la même source.</li>
+        <li><strong>Le téléchargement s'est arrêté avant la fin</strong> : le fichier doit peser environ <span data-apk-size>72 Mo</span>. Supprimez-le et téléchargez-le de nouveau, de préférence en Wi-Fi, depuis ce site (pas par WhatsApp ou Bluetooth).</li>
+        <li><strong>Pas assez de place</strong> : gardez au moins 300 Mo libres.</li>
+        <li><strong>Téléphone Samsung</strong> : désactivez le <strong>Bloqueur automatique</strong> (Paramètres › Sécurité et confidentialité), installez, puis réactivez-le si vous voulez.</li>
+        <li><strong>Android 5 ou plus ancien</strong> : l'application demande Android 6 ou plus récent (Paramètres › À propos du téléphone › Version d'Android).</li>
+      </ul>
+      <p class="fix-more">Toujours bloqué ? <a href="contact.html">Écrivez-nous</a> avec une capture de l'écran d'erreur et le modèle du téléphone.</p>
+    </article>
+    <p class="warn-old" data-android-warn hidden>Votre appareil semble utiliser Android <span data-android-version></span> : l'application demande Android 6 ou plus récent et ne pourra pas s'installer.</p>
     <div class="cta center">
       <a class="btn btn-primary" id="download-btn-2" href="/api/dl">Télécharger l'APK</a>
     </div>
@@ -156,7 +169,8 @@
       <details><summary>Combien coûte l'application ?</summary><p>Vous l'essayez gratuitement pendant 24 heures. Ensuite, l'abonnement coûte 1 000 FCFA par mois (de 1 à 9 mois) ou 10 000 FCFA pour un an, pour 2 appareils, payable par Mobile Money ou carte via SasPay.</p></details>
       <details><summary>Comment j'active l'application ?</summary><p>À la fin de l'essai, l'application affiche un code et, sur TV, un QR code. Scannez-le ou ouvrez missatv.pages.dev/activer, choisissez la durée et payez : l'application se débloque toute seule en quelques secondes.</p></details>
       <details><summary>D'où viennent les films et les séries ?</summary><p>MISSA TV 360 PLUS n'héberge et ne fournit aucun film, série ni chaîne, ni aucune source ou extension. Les univers vidéo se remplissent avec les extensions que vous choisissez d'ajouter, sous votre seule responsabilité. Radios et podcasts fonctionnent tout de suite.</p></details>
-      <details><summary>Android affiche « application inconnue », est-ce normal ?</summary><p>Oui : Android l'affiche pour toute application installée hors du Play Store. Téléchargez-la uniquement depuis ce site ou la page GitHub officielle.</p></details>
+      <details><summary>Android affiche « application inconnue », est-ce normal ?</summary><p>Oui : Android et Google Play Protect l'affichent pour toute application installée hors du Play Store, même sans danger. Appuyez sur « Plus de détails » puis « Installer quand même ». Téléchargez-la uniquement depuis ce site ou la page GitHub officielle : le fichier officiel est signé « MISSA Media ».</p></details>
+      <details><summary>L'installation échoue (« package non valide »), que faire ?</summary><p>Le plus souvent, une ancienne version venue d'ailleurs est déjà installée, ou le téléchargement s'est interrompu. Désinstallez l'ancienne version, téléchargez de nouveau depuis ce site et réessayez. Tous les cas sont détaillés dans <a href="#depannage">Installer › Installation impossible</a>.</p></details>
       <details><summary>Quels appareils sont compatibles ?</summary><p>Téléphones, tablettes, Android TV, box Android et Fire TV sous Android 6 ou plus récent.</p></details>
     </div>
   </section>

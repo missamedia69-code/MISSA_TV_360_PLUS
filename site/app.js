@@ -35,6 +35,19 @@
     }
   }
 
+  // Android 5 ou plus ancien : l'application ne peut pas s'installer, on le dit tout de suite.
+  // (Les navigateurs récents annoncent toujours « Android 10 » : seuls les vieux appareils
+  // donnent leur vraie version, ce qui suffit ici.)
+  var droid = /Android (\d+)(?:\.(\d+))?/.exec(navigator.userAgent || "");
+  if (droid && parseInt(droid[1], 10) < 6) {
+    var warns = document.querySelectorAll("[data-android-warn]");
+    for (var w = 0; w < warns.length; w++) {
+      var slot = warns[w].querySelector("[data-android-version]");
+      if (slot) slot.textContent = droid[1] + (droid[2] ? "." + droid[2] : "");
+      warns[w].hidden = false;
+    }
+  }
+
   if (!window.fetch) return;
 
   fetch(API, { headers: { Accept: "application/vnd.github+json" } })
@@ -55,6 +68,9 @@
         var parts = [T.version + String(release.tag_name || "").replace(/^v/i, "")];
         var size = formatSize(apk.size);
         if (size) parts.push(size);
+        // Taille attendue du fichier, rappelée dans « Installation impossible ».
+        var sizeSlots = document.querySelectorAll("[data-apk-size]");
+        for (var k = 0; size && k < sizeSlots.length; k++) sizeSlots[k].textContent = size;
         var date = formatDate(release.published_at);
         if (date) parts.push(T.published + date);
         parts.push(T.android);
