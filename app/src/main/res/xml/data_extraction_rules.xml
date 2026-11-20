@@ -1,23 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    SECURITE S1 : règles d'extraction Android 12+ (android:dataExtractionRules).
+    Règles d'extraction Android 12+ (android:dataExtractionRules).
     Pour Android 6 à 11, voir backup_descriptor.xml.
 
-    Les réglages, les favoris et l'historique restent sauvegardés ; seuls les secrets et les
-    gros catalogues sont exclus, dans le cloud comme lors d'un transfert direct.
+    MISSA : rien n'est sauvegardé dans le cloud ni copié lors d'un transfert vers un nouveau
+    téléphone (à partir d'Android 12, allowBackup="false" ne bloque plus le transfert direct :
+    il faut l'exclure ici). Une installation neuve ne reçoit que la configuration des
+    extensions ; l'historique, « Reprendre » et les favoris passent par la sauvegarde manuelle
+    de l'application (Paramètres → Mises à jour → Sauvegarde / Restaurer).
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- Jetons de connexion : jamais dans le cloud. -->
-        <exclude domain="sharedpref" path="missa_accounts.xml" />
-        <!-- Catalogues re-téléchargeables : plusieurs centaines de Ko (PERF A5). -->
-        <exclude domain="sharedpref" path="missa_catalogue_cache.xml" />
-        <!-- Licence : propre à cet appareil. -->
-        <exclude domain="sharedpref" path="missa_licence.xml" />
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
     </cloud-backup>
     <device-transfer>
-        <exclude domain="sharedpref" path="missa_accounts.xml" />
-        <exclude domain="sharedpref" path="missa_catalogue_cache.xml" />
-        <exclude domain="sharedpref" path="missa_licence.xml" />
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
     </device-transfer>
 </data-extraction-rules>
