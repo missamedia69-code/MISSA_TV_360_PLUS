@@ -1554,4 +1554,29 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_support_sent">Message sent, thank you! We will answer you as soon as possible.</string>
     <string name="missa_support_too_many">Too many messages today. Please try again tomorrow, or e-mail us.</string>
     <string name="missa_support_failed">Message not sent (no connection?). Try again, or e-mail us.</string>
+    <!-- Mon abonnement et rappel de fin (MissaSubscription) -->
+    <string name="missa_sub_title">My subscription</string>
+    <string name="missa_sub_settings_subtitle">Status, end date, code for your 2nd device, renewal</string>
+    <string name="missa_sub_unknown">Status not available yet: connect to the internet and open this screen again.</string>
+    <string name="missa_sub_free">Free access: no subscription is required at the moment.</string>
+    <string name="missa_sub_active">Subscribed until %1$s.</string>
+    <string name="missa_sub_grace">Your subscription has ended. Grace period until %1$s: renew now to keep watching.</string>
+    <string name="missa_sub_trial">Free trial until %1$s.</string>
+    <string name="missa_sub_expired">Your subscription or trial has ended.</string>
+    <string name="missa_sub_code">Your device code: %1$s</string>
+    <string name="missa_sub_second_device">A subscription covers 2 devices: on the second one, choose “I already have a subscription” and enter this code.</string>
+    <string name="missa_sub_renew">Subscribe / renew</string>
+    <string name="missa_sub_close">Close</string>
+    <string name="missa_sub_later">Later</string>
+    <string name="missa_sub_copy_code">Copy the code</string>
+    <string name="missa_sub_code_copied">Code %1$s copied</string>
+    <string name="missa_sub_reminder_trial_title">Your free trial is ending</string>
+    <string name="missa_sub_reminder_trial">Your free trial ends on %1$s. Subscribe now to keep watching without interruption.</string>
+    <string name="missa_sub_reminder_title">Your subscription is ending soon</string>
+    <string name="missa_sub_reminder">Your subscription ends on %1$s. Renew now to keep watching without interruption.</string>
+    <plurals name="missa_ext_installing">
+        <item quantity="one">Preparing your contents: installing %d extension…</item>
+        <item quantity="other">Preparing your contents: installing %d extensions…</item>
+    </plurals>
+    <string name="missa_ext_installed">Your contents are ready.</string>
 </resources>

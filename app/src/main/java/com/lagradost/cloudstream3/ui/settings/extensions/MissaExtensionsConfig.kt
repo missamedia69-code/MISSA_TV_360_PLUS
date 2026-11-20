@@ -293,6 +293,22 @@ object MissaExtensionsConfig {
         // Plusieurs dépôts et plusieurs extensions à la fois (au premier démarrage, une
         // configuration complète en compte des dizaines : une par une, l'installation
         // prenait plusieurs minutes avant que le moindre contenu n'apparaisse).
+        // Premier démarrage : les univers restent vides le temps de l'installation. On le dit,
+        // pour que l'utilisateur n'en conclue pas que l'application est vide ou bloquée.
+        val toInstall = entries.count {
+            !PluginManager.getPluginPath(activity, it.internalName, it.repositoryUrl).exists()
+        }
+        if (toInstall > 0) {
+            withContext(Dispatchers.Main) {
+                runCatching {
+                    Toast.makeText(
+                        activity,
+                        activity.resources.getQuantityString(R.plurals.missa_ext_installing, toInstall, toInstall),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
         val repoSlots = Semaphore(3)
         val downloadSlots = Semaphore(4)
         var installed = 0
@@ -359,6 +375,13 @@ object MissaExtensionsConfig {
         }
         Log.i(TAG, "Configuration appliquée : ${entries.size} extension(s), $installed installée(s), " +
             "$failed en échec (nouvel essai au prochain démarrage)")
+        if (toInstall > 0 && installed > 0) {
+            withContext(Dispatchers.Main) {
+                runCatching {
+                    Toast.makeText(activity, R.string.missa_ext_installed, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
         return changed.get()
     }
 

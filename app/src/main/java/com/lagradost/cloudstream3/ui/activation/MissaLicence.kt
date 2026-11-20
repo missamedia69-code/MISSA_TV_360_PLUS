@@ -226,6 +226,26 @@ object MissaLicence {
     }
 
     /** Pour n'afficher le rappel « délai de grâce » qu'une fois par jour. */
+    /**
+     * Rappel avant la fin de l'essai (moins de 3 h) ou de l'abonnement (moins de 3 jours).
+     * Renvoie le moment de fin (heure du serveur) quand il faut prévenir, au plus une fois
+     * toutes les 10 h ; null sinon.
+     */
+    fun takeExpiryReminder(ctx: Context, now: Long = System.currentTimeMillis()): Long? {
+        val s = snapshot(ctx) ?: return null
+        if (!s.enforced) return null
+        val serverNow = now + s.serverOffset
+        val endsAt = when {
+            s.expiresAt > serverNow -> s.expiresAt.takeIf { it - serverNow < 3 * 24 * HOUR }
+            s.expiresAt == 0L && s.trialEndsAt > serverNow -> s.trialEndsAt.takeIf { it - serverNow < 3 * HOUR }
+            else -> null
+        } ?: return null
+        val p = prefs(ctx)
+        if (now - p.getLong("expiryShown", 0) < 10 * HOUR) return null
+        p.edit { putLong("expiryShown", now) }
+        return endsAt
+    }
+
     fun takeGraceReminder(ctx: Context, now: Long = System.currentTimeMillis()): Boolean {
         val p = prefs(ctx)
         if (now - p.getLong("graceShown", 0) < 20 * HOUR) return false

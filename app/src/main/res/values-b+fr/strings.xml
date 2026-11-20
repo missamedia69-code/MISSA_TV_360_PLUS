@@ -1512,4 +1512,29 @@ Moteur : %5$s (%6$s)</string>
     <string name="missa_support_sent">Message envoyé, merci ! Nous vous répondrons au plus vite.</string>
     <string name="missa_support_too_many">Trop de messages aujourd\'hui. Réessayez demain, ou écrivez-nous par e-mail.</string>
     <string name="missa_support_failed">Message non envoyé (pas de connexion ?). Réessayez, ou écrivez-nous par e-mail.</string>
+    <!-- Mon abonnement et rappel de fin (MissaSubscription) -->
+    <string name="missa_sub_title">Mon abonnement</string>
+    <string name="missa_sub_settings_subtitle">État, date de fin, code du 2e appareil, renouvellement</string>
+    <string name="missa_sub_unknown">État pas encore disponible : connectez-vous à Internet puis rouvrez cet écran.</string>
+    <string name="missa_sub_free">Accès libre : aucun abonnement n\'est demandé pour le moment.</string>
+    <string name="missa_sub_active">Abonné jusqu\'au %1$s.</string>
+    <string name="missa_sub_grace">Votre abonnement est terminé. Délai de grâce jusqu\'au %1$s : renouvelez maintenant pour continuer.</string>
+    <string name="missa_sub_trial">Essai gratuit jusqu\'au %1$s.</string>
+    <string name="missa_sub_expired">Votre abonnement ou votre essai est terminé.</string>
+    <string name="missa_sub_code">Code de votre appareil : %1$s</string>
+    <string name="missa_sub_second_device">Un abonnement vaut pour 2 appareils : sur le second, choisissez « J\'ai déjà un abonnement » et saisissez ce code.</string>
+    <string name="missa_sub_renew">S\'abonner / renouveler</string>
+    <string name="missa_sub_close">Fermer</string>
+    <string name="missa_sub_later">Plus tard</string>
+    <string name="missa_sub_copy_code">Copier le code</string>
+    <string name="missa_sub_code_copied">Code %1$s copié</string>
+    <string name="missa_sub_reminder_trial_title">Votre essai gratuit se termine</string>
+    <string name="missa_sub_reminder_trial">Votre essai gratuit se termine le %1$s. Abonnez-vous maintenant pour continuer sans interruption.</string>
+    <string name="missa_sub_reminder_title">Votre abonnement se termine bientôt</string>
+    <string name="missa_sub_reminder">Votre abonnement se termine le %1$s. Renouvelez maintenant pour continuer sans interruption.</string>
+    <plurals name="missa_ext_installing">
+        <item quantity="one">Préparation de vos contenus : installation de %d extension…</item>
+        <item quantity="other">Préparation de vos contenus : installation de %d extensions…</item>
+    </plurals>
+    <string name="missa_ext_installed">Vos contenus sont prêts.</string>
 </resources>

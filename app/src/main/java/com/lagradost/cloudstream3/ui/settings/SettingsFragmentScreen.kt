@@ -69,6 +69,7 @@ import com.lagradost.cloudstream3.BuildConfig
 import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.ui.activation.MissaSupport
+import com.lagradost.cloudstream3.ui.activation.MissaSubscription
 import com.lagradost.cloudstream3.utils.DataStoreHelper
 import com.lagradost.cloudstream3.utils.DataStoreHelper.profileImages
 import com.lagradost.cloudstream3.utils.GitInfo.currentCommitHash
@@ -272,6 +273,14 @@ object SettingsFragmentScreen : Screen {
                             screens.forEach { settingsTab ->
                                 SettingsTab(settingsTab)
                             }
+                            // MISSA : état de l'abonnement, code du 2e appareil, renouvellement.
+                            TextPreferenceWidget(
+                                title = stringResource(R.string.missa_sub_title),
+                                icon = painterResource(R.drawable.encrypted_24px),
+                                subtitle = stringResource(R.string.missa_sub_settings_subtitle),
+                                onPreferenceClick = {
+                                    activity?.let { MissaSubscription.show(it) }
+                                })
                             // MISSA : canal pour écrire à l'équipe (problème, paiement, idée).
                             TextPreferenceWidget(
                                 title = stringResource(R.string.missa_support_title),
