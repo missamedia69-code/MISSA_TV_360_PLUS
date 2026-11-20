@@ -91,6 +91,27 @@ class NeoGeoPlayerActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_PROG_GREEN -> KeyEvent.KEYCODE_BUTTON_START
             else -> null
         }
+
+        /**
+         * Manette Bluetooth ou à fil : boutons physiques -> boutons Neo Geo, à la même place que
+         * sur une manette d'arcade. Android nomme A le bouton du bas, B celui de droite, X celui
+         * de gauche et Y celui du haut ; le cœur attend la disposition « RetroPad » (A et B, X et
+         * Y inversés). Avant, la touche était transmise telle quelle : le bouton du bas donnait B.
+         * Gâchettes : L1/L2 = pièce (beaucoup de manettes n'ont pas de Select), R1/R2 = START.
+         */
+        internal fun gamepadToPad(code: Int): Int? = when (code) {
+            KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B // bas    -> A
+            KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A // droite -> B
+            KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y // gauche -> C
+            KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X // haut   -> D
+            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_L2,
+            KeyEvent.KEYCODE_BUTTON_SELECT -> KeyEvent.KEYCODE_BUTTON_SELECT
+            KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_R2,
+            KeyEvent.KEYCODE_BUTTON_START -> KeyEvent.KEYCODE_BUTTON_START
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> code
+            else -> null
+        }
     }
 
     private var retroView: GLRetroView? = null
@@ -263,26 +284,6 @@ class NeoGeoPlayerActivity : AppCompatActivity() {
         val mapped = remoteToPad(code) ?: return super.dispatchKeyEvent(event)
         if (event.repeatCount == 0) view.sendKeyEvent(event.action, mapped, 0)
         return true
-    }
-
-    /**
-     * Manette Bluetooth ou à fil : boutons physiques -> boutons Neo Geo, à la même place que
-     * sur une manette d'arcade. Android nomme A le bouton du bas, B celui de droite, X celui
-     * de gauche et Y celui du haut ; le cœur attend la disposition « RetroPad » (A et B, X et
-     * Y inversés). Avant, la touche était transmise telle quelle : le bouton du bas donnait B.
-     * Gâchettes : L1/L2 = pièce (beaucoup de manettes n'ont pas de Select), R1/R2 = START.
-     */
-    private fun gamepadToPad(code: Int): Int? = when (code) {
-        KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B // bas    -> A
-        KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A // droite -> B
-        KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y // gauche -> C
-        KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X // haut   -> D
-        KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_L2,
-        KeyEvent.KEYCODE_BUTTON_SELECT -> KeyEvent.KEYCODE_BUTTON_SELECT
-        KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_R2,
-        KeyEvent.KEYCODE_BUTTON_START -> KeyEvent.KEYCODE_BUTTON_START
-        in DPAD_KEYS -> code
-        else -> null
     }
 
     /** Deux manettes = deux joueurs (Neo Geo : jeux de combat à deux). Tactile et télécommande : joueur 1. */
