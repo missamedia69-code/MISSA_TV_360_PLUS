@@ -35,6 +35,9 @@ import com.swordfish.libretrodroid.Variable
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.Date
+import java.text.DateFormat
+import android.widget.Toast
 
 /**
  * Écran de jeu Neo Geo : moteur natif Geolith (via LibretroDroid), plein écran, hors ligne.
@@ -48,6 +51,8 @@ import java.io.File
  *    5 = pièce, 0 / Lecture / Menu = START, Retour = menu pause ;
  *  - **téléphone / tablette** : manette tactile ([NeoGeoTouchPad]), Retour = menu pause.
  * Les sauvegardes du jeu (SRAM) sont gardées à la sortie et rechargées au lancement suivant.
+ * Menu pause : « Sauvegarder ici » garde l'état exact de la partie (niveau, vies, position),
+ * « Reprendre ma sauvegarde » y revient, même après avoir quitté le jeu.
  */
 class NeoGeoPlayerActivity : AppCompatActivity() {
 
@@ -83,6 +88,8 @@ class NeoGeoPlayerActivity : AppCompatActivity() {
     private lateinit var status: TextView
     private var game: MissaGames.Game? = null
     private var sramFile: File? = null
+    /** Sauvegarde rapide (état complet de la partie), une par jeu. */
+    private var stateFile: File? = null
     private var started = false
 
     private val backCallback = object : OnBackPressedCallback(true) {
@@ -134,6 +141,7 @@ class NeoGeoPlayerActivity : AppCompatActivity() {
         val lowRam = MissaDeviceProfile.isLowRam(this)
         val saves = MissaGames.savesDir(this)
         sramFile = File(saves, g.id + ".srm")
+        stateFile = File(saves, g.id + ".state")
         val data = GLRetroViewData(this).apply {
             coreFilePath = MissaGames.coreFile(this@NeoGeoPlayerActivity, engine).absolutePath
             gameFilePath = MissaGames.gameFile(this@NeoGeoPlayerActivity, g).absolutePath
@@ -231,6 +239,8 @@ class NeoGeoPlayerActivity : AppCompatActivity() {
         }
         // Manette : on transmet la touche telle quelle (A/B/X/Y, croix, Start, Select...).
         if (isFromGamepad(event) && (KeyEvent.isGamepadButton(code) || code in DPAD_KEYS)) {
+            // Vraie manette utilisée : la manette tactile ne sert plus et cache le jeu.
+            touchPad?.let { if (it.isVisible) { it.releaseAll(); it.isVisible = false } }
             if (event.repeatCount == 0) view.sendKeyEvent(event.action, code, 0)
             return true
         }
@@ -262,17 +272,25 @@ class NeoGeoPlayerActivity : AppCompatActivity() {
         // Pause : le jeu avance image par image dans le rendu GL ; arrêter le rendu l'arrête.
         view.audioEnabled = false
         view.onPause()
-        val options = listOf(
-            getString(R.string.neogeo_resume) to { },
+        val saved = stateFile?.takeIf { it.isFile && it.length() > 0 }
+        val options = buildList<Pair<String, () -> Unit>> {
+            add(getString(R.string.neogeo_resume) to { })
+            // Rendu arrêté (onPause ci-dessus) : l'état se lit et s'écrit directement, sans
+            // attendre le fil du jeu (même principe que la SRAM dans saveSram).
+            add(getString(R.string.neogeo_save_state) to { saveState() })
+            if (saved != null) {
+                val whenText = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(saved.lastModified()))
+                add(getString(R.string.neogeo_load_state, whenText) to { loadState(saved) })
+            }
             // La réinitialisation passe par le fil du jeu : il doit tourner à nouveau.
-            getString(R.string.neogeo_restart) to {
+            add(getString(R.string.neogeo_restart) to {
                 view.onResume()
                 view.audioEnabled = true
                 view.reset()
-            },
-            getString(R.string.neogeo_controls) to { showControls() },
-            getString(R.string.neogeo_quit) to { quitGame() }
-        )
+            })
+            add(getString(R.string.neogeo_controls) to { showControls() })
+            add(getString(R.string.neogeo_quit) to { quitGame() })
+        }
         AlertDialog.Builder(this)
             .setTitle(game?.title)
             .setItems(options.map { it.first }.toTypedArray()) { _, which -> options[which].second() }
@@ -284,6 +302,27 @@ class NeoGeoPlayerActivity : AppCompatActivity() {
                 }
             }
             .show()
+    }
+
+    private fun saveState() {
+        val view = retroView ?: return
+        val file = stateFile ?: return
+        val ok = runCatching {
+            val bytes = view.serializeState(useEmulationThread = false)
+            if (bytes.isEmpty()) return@runCatching false
+            val tmp = File(file.parentFile, file.name + ".tmp")
+            tmp.writeBytes(bytes)
+            tmp.renameTo(file)
+        }.getOrDefault(false)
+        Toast.makeText(this, if (ok) R.string.neogeo_state_saved else R.string.neogeo_state_error, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun loadState(file: File) {
+        val view = retroView ?: return
+        val ok = runCatching {
+            view.unserializeState(file.readBytes(), useEmulationThread = false)
+        }.getOrDefault(false)
+        Toast.makeText(this, if (ok) R.string.neogeo_state_loaded else R.string.neogeo_state_error, Toast.LENGTH_SHORT).show()
     }
 
     private fun showControls() {
