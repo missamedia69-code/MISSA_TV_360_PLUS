@@ -8,6 +8,15 @@ conforme sur tous les appareils, sans nouvelle version de l'APK :
   autres extensions de ces dépôts désinstallées si `"exclusif": true`) ;
 - chaque extension diffuse dans les **univers** indiqués.
 
+La configuration actuelle est la sauvegarde du 20 novembre 2026 : 47 extensions dans
+12 dépôts, avec `"exclusif": true`. Lors de la première ouverture avec accès réseau,
+l'application télécharge `extensions/config.json` depuis le site (ou GitHub en secours),
+installe les extensions disponibles et applique leurs univers. Les dépôts et extensions
+absents de la sauvegarde sont retirés ; une extension temporairement introuvable est
+réessayée lors d'un prochain démarrage. Le fichier est vérifié au plus toutes les 15 minutes.
+Sans réseau, l'application réutilise la dernière configuration mise en cache et réessaie
+ultérieurement. Une installation neuve a besoin du réseau pour télécharger les extensions.
+
 Tant que ce fichier n'existe pas (ou s'il ne contient aucune extension valide), rien n'est
 modifié sur les appareils.
 
@@ -44,7 +53,7 @@ démarrage suivant : menu **⋮** → **Ne plus synchroniser les extensions sur 
 |---|---|
 | `depot` | adresse HTTPS du dépôt (`repo.json`) |
 | `extension` | nom interne de l'extension dans ce dépôt |
-| `univers` | `films`, `series`, `shorts` (courts métrages), `sports`, `podcasts` ; `[]` = automatique ; `["none"]` = n'apparaît dans aucun univers |
+| `univers` | `films`, `series`, `documentaries`, `shorts`, `kids`, `live_tv`, `sports`, `music`, `podcasts`, `radio` ; `[]` = automatique ; `["none"]` = n'apparaît dans aucun univers |
 | `nomDepot`, `nom` | facultatifs, pour s'y retrouver |
 
 Musiques, Jeunesse et Documentaires (YouTube), TV en direct (`tv/chaines.m3u`) et Radio

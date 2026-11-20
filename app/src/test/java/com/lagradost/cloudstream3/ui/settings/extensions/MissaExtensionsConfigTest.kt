@@ -1,6 +1,7 @@
 package com.lagradost.cloudstream3.ui.settings.extensions
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -56,6 +57,13 @@ class MissaExtensionsConfigTest {
             .firstOrNull { it.isFile } ?: return
         val list = MissaExtensionsConfig.parse(file.readText())
         assertNotNull(list)
-        assertTrue(list!!.all { it.repositoryUrl.startsWith("https://") })
+        assertEquals(47, list!!.size)
+        assertEquals(12, list.map { it.repositoryUrl }.distinct().size)
+        assertEquals(47, list.distinctBy { it.repositoryUrl to it.internalName }.size)
+        assertTrue(list.all { it.repositoryUrl.startsWith("https://") })
+        assertTrue(list.any { "kids" in (it.universes ?: emptySet()) })
+        assertTrue(list.any { "live_tv" in (it.universes ?: emptySet()) })
+        assertFalse(list.any { it.internalName.equals("All for U", ignoreCase = true) })
+        assertTrue(org.json.JSONObject(file.readText()).getBoolean("exclusif"))
     }
 }

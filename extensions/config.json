@@ -1,5 +1,457 @@
 {
   "version": 1,
-  "exclusif": false,
-  "extensions": []
+  "exclusif": true,
+  "extensions": [
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/self-similarity\/MegaRepo\/builds\/repo.json",
+      "nomDepot": "Mega repository",
+      "extension": "MegaProvider",
+      "nom": "MegaProvider",
+      "univers": []
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/SaurabhKaperwan\/CSX\/builds\/CS.json",
+      "nomDepot": "Megix Repo(Hindi & English)",
+      "extension": "CineStream",
+      "nom": "CineStream",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/SaurabhKaperwan\/CSX\/builds\/CS.json",
+      "nomDepot": "Megix Repo(Hindi & English)",
+      "extension": "MoviesDrive",
+      "nom": "MoviesDrive",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Abodabodd\/re-3arabi\/refs\/heads\/main\/repo.json",
+      "nomDepot": "3rabi عربي",
+      "extension": "Aia2tv 2",
+      "nom": "Asia2tv 2",
+      "univers": [
+        "shorts"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Abodabodd\/re-3arabi\/refs\/heads\/main\/repo.json",
+      "nomDepot": "3rabi عربي",
+      "extension": "Animewitcher",
+      "nom": "AnimeWitcher",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Abodabodd\/re-3arabi\/refs\/heads\/main\/repo.json",
+      "nomDepot": "3rabi عربي",
+      "extension": "Carateen",
+      "nom": "Carateen",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Abodabodd\/re-3arabi\/refs\/heads\/main\/repo.json",
+      "nomDepot": "3rabi عربي",
+      "extension": "Egy",
+      "nom": "EgyWatch",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Abodabodd\/re-3arabi\/refs\/heads\/main\/repo.json",
+      "nomDepot": "3rabi عربي",
+      "extension": "Topcinema",
+      "nom": "TopCinema",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Abodabodd\/re-3arabi\/refs\/heads\/main\/repo.json",
+      "nomDepot": "3rabi عربي",
+      "extension": "TVgarden",
+      "nom": "TVgarden(Famelack)",
+      "univers": [
+        "live_tv"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Abodabodd\/re-3arabi\/refs\/heads\/main\/repo.json",
+      "nomDepot": "3rabi عربي",
+      "extension": "Yacintv",
+      "nom": "Yacintv",
+      "univers": [
+        "live_tv"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/DieGon7771\/ItaliaInStreaming\/builds\/repo.json",
+      "nomDepot": "DieGon Repository",
+      "extension": "TV",
+      "nom": "TV",
+      "univers": [
+        "live_tv"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/TeKuma25\/IndoStream\/builds\/repo.json",
+      "nomDepot": "Indostream Repo",
+      "extension": "IndoTV",
+      "nom": "IndoTV",
+      "univers": [
+        "live_tv"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Kraptor123\/cs-Karma\/refs\/heads\/master\/repo.json",
+      "nomDepot": "cs-karma",
+      "extension": "Movix",
+      "nom": "Movix",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Kraptor123\/cs-Karma\/refs\/heads\/master\/repo.json",
+      "nomDepot": "cs-karma",
+      "extension": "Supercartoons",
+      "nom": "Supercartoons",
+      "univers": [
+        "kids"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Kraptor123\/cs-Karma\/refs\/heads\/master\/repo.json",
+      "nomDepot": "cs-karma",
+      "extension": "WatchWrestling",
+      "nom": "WatchWrestling",
+      "univers": [
+        "sports"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Kraptor123\/cs-Karma\/refs\/heads\/master\/repo.json",
+      "nomDepot": "cs-karma",
+      "extension": "Wcoflix",
+      "nom": "Wcoflix",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Kraptor123\/cs-Karma\/refs\/heads\/master\/repo.json",
+      "nomDepot": "cs-karma",
+      "extension": "Yablom",
+      "nom": "Yablom",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/redblacker8\/storm-ext\/refs\/heads\/builds\/repo.json",
+      "nomDepot": "Storm-ext Fork by redblacker8",
+      "extension": "AllCalidadProvider",
+      "nom": "AllCalidadProvider",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/redblacker8\/storm-ext\/refs\/heads\/builds\/repo.json",
+      "nomDepot": "Storm-ext Fork by redblacker8",
+      "extension": "PpvProvider",
+      "nom": "PpvProvider",
+      "univers": [
+        "sports"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/redblacker8\/storm-ext\/refs\/heads\/builds\/repo.json",
+      "nomDepot": "Storm-ext Fork by redblacker8",
+      "extension": "SportsBiteProvider",
+      "nom": "SportsBiteProvider",
+      "univers": [
+        "sports"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "DamiTVProvider",
+      "nom": "DamiTVProvider",
+      "univers": [
+        "live_tv"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "EliteStreams",
+      "nom": "EliteStreams",
+      "univers": [
+        "sports"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "JustPlay",
+      "nom": "JustPlay",
+      "univers": [
+        "films",
+        "series",
+        "sports"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "LIVETVProvider",
+      "nom": "LIVETVProvider",
+      "univers": [
+        "live_tv"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "Movy",
+      "nom": "Movy",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "NetNaija",
+      "nom": "NetNaija",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "NetNaija-box",
+      "nom": "NetNaija-box",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "Play4u",
+      "nom": "Play4u",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "RaghavAnime",
+      "nom": "RaghavAnime",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "RaghavAnimeKitsu",
+      "nom": "RaghavAnimeKitsu",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/KSHITIJ8473\/raghav\/builds\/repo.json",
+      "nomDepot": "raghav repo",
+      "extension": "ReAnime",
+      "nom": "ReAnime",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/mouradchaouche\/cloudstream-frenchrepo\/main\/repo.json",
+      "nomDepot": "AMSC French",
+      "extension": "WiflixProvider",
+      "nom": "✔️ Wiflix - Flemmix",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/mouradchaouche\/cloudstream-frenchrepo\/main\/repo.json",
+      "nomDepot": "AMSC French",
+      "extension": "FrenchAnime",
+      "nom": "✔️ French Anime",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/mouradchaouche\/cloudstream-frenchrepo\/main\/repo.json",
+      "nomDepot": "AMSC French",
+      "extension": "FsMirrorLol",
+      "nom": "✔️ FsMirrorLol - Frenchstream",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/mouradchaouche\/cloudstream-frenchrepo\/main\/repo.json",
+      "nomDepot": "AMSC French",
+      "extension": "1Jour1Film",
+      "nom": "❌ 1Jour1Film",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/mouradchaouche\/cloudstream-frenchrepo\/main\/repo.json",
+      "nomDepot": "AMSC French",
+      "extension": "Coflix",
+      "nom": "✔️ Coflix !!",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/mouradchaouche\/cloudstream-frenchrepo\/main\/repo.json",
+      "nomDepot": "AMSC French",
+      "extension": "Frembed",
+      "nom": "✔️ Frembed FR",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/mouradchaouche\/cloudstream-frenchrepo\/main\/repo.json",
+      "nomDepot": "AMSC French",
+      "extension": "Witv",
+      "nom": "✔️ WITV IPTV",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/yorik100\/Cloudstream\/refs\/heads\/builds\/repo.json",
+      "nomDepot": "French providers repository",
+      "extension": "Flemmix",
+      "nom": "Flemmix\/Wiflix",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/yorik100\/Cloudstream\/refs\/heads\/builds\/repo.json",
+      "nomDepot": "French providers repository",
+      "extension": "Frembed",
+      "nom": "Frembed",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Faisal0786\/Desi\/main\/repo.json",
+      "nomDepot": "Desi Extensions",
+      "extension": "Anizone",
+      "nom": "Anizone",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/raw.githubusercontent.com\/Faisal0786\/Desi\/main\/repo.json",
+      "nomDepot": "Desi Extensions",
+      "extension": "WatchDrama",
+      "nom": "WatchDrama",
+      "univers": [
+        "shorts"
+      ]
+    },
+    {
+      "depot": "https:\/\/cs.eclipsia.dpdns.org\/repo.json",
+      "nomDepot": "Eclipsia",
+      "extension": "Eclipsia",
+      "nom": "Eclipsia",
+      "univers": []
+    },
+    {
+      "depot": "https:\/\/cs.eclipsia.dpdns.org\/repo.json",
+      "nomDepot": "Eclipsia",
+      "extension": "EclipsiaAnime",
+      "nom": "EclipsiaAnime",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/cs.eclipsia.dpdns.org\/repo.json",
+      "nomDepot": "Eclipsia",
+      "extension": "EclipsiaBDIX",
+      "nom": "EclipsiaBDIX",
+      "univers": [
+        "films",
+        "series"
+      ]
+    },
+    {
+      "depot": "https:\/\/cs.eclipsia.dpdns.org\/repo.json",
+      "nomDepot": "Eclipsia",
+      "extension": "LiveSports",
+      "nom": "LiveSports",
+      "univers": [
+        "sports"
+      ]
+    },
+    {
+      "depot": "https:\/\/cs.eclipsia.dpdns.org\/repo.json",
+      "nomDepot": "Eclipsia",
+      "extension": "NetMirror",
+      "nom": "NetMirror",
+      "univers": [
+        "films",
+        "series"
+      ]
+    }
+  ]
 }
