@@ -1402,9 +1402,15 @@ object DirectMusicPlayerManager {
         }
 
         if (enabled) {
-            val vSize = exo.videoSize
-            if (activeTrackUsingVideoSource && vSize.width > 0 && vSize.height > 0 && exo.playbackState != Player.STATE_IDLE) {
-                updateState { it.copy(hasRenderedVideo = true, isBuffering = false, hasError = false) }
+            // MISSA : la piste en cours contient déjà l'image (clip lancé en mode vidéo, puis
+            // passé en audio) : on réactive simplement la piste vidéo, le son ne s'arrête pas.
+            // L'image revient au premier rendu (onRenderedFirstFrame).
+            if (activeTrackUsingVideoSource && exo.playbackState != Player.STATE_IDLE &&
+                exo.playbackState != Player.STATE_ENDED
+            ) {
+                val vSize = exo.videoSize
+                val alreadyShowing = vSize.width > 0 && vSize.height > 0
+                updateState { it.copy(hasRenderedVideo = alreadyShowing, isBuffering = false, hasError = false) }
                 if (!exo.isPlaying) {
                     exo.play()
                 }
@@ -1412,13 +1418,19 @@ object DirectMusicPlayerManager {
                 startCurrentQueueTrack(appCtx, resumePositionMs = resumePos, autoPlay = true)
             }
         } else {
+            // MISSA : passage clip vidéo -> musique sans coupure. Avant, la piste était relancée
+            // depuis un autre fichier (audio seul) : nouvelle mise en mémoire tampon, une à trois
+            // secondes de silence, parfois une nouvelle recherche en ligne. La piste vidéo vient
+            // d'être désactivée (setTrackTypeDisabled ci-dessus) : le même flux continue, en son
+            // seul, à la même seconde. Le morceau suivant partira directement en audio seul.
             videoWatchdogRunnable?.let { mainHandler.removeCallbacks(it) }
             videoWatchdogRunnable = null
-            activeVideoCandidates = emptyList()
-            activeVideoCandidateIndex = 0
-            updateState { it.copy(hasRenderedVideo = false) }
-            if (activeTrackUsingVideoSource) {
+            updateState { it.copy(hasRenderedVideo = false, isBuffering = false) }
+            if (activeTrackUsingVideoSource && exo.playbackState == Player.STATE_IDLE) {
+                // Lecture déjà arrêtée (erreur) : on repart proprement en audio seul.
                 activeTrackUsingVideoSource = false
+                activeVideoCandidates = emptyList()
+                activeVideoCandidateIndex = 0
                 if (activeCandidateUrls.isNotEmpty()) {
                     startExoPureAudioUri(
                         context = appCtx,

@@ -1539,7 +1539,7 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_support_title">Help &amp; contact</string>
     <string name="missa_support_need_help">Need help? Write to us</string>
     <string name="missa_support_settings_subtitle">Report a problem, ask a question, suggest an idea</string>
-    <string name="missa_support_intro">Your message goes straight to the MISSA TV team. Leave a WhatsApp number or an e-mail if you want a reply.</string>
+    <string name="missa_support_intro">Your message goes straight to the MISSA TV team. Leave your e-mail or number if you want a reply.</string>
     <string name="missa_support_your_code">Your device code: %1$s (sent with the message)</string>
     <string name="missa_support_cat_problem">A problem with the app</string>
     <string name="missa_support_cat_payment">Payment or subscription</string>
@@ -1547,11 +1547,11 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_support_cat_suggestion">A suggestion</string>
     <string name="missa_support_cat_other">Something else</string>
     <string name="missa_support_message_hint">Describe it here…</string>
-    <string name="missa_support_contact_hint">WhatsApp, phone or e-mail (optional)</string>
+    <string name="missa_support_contact_hint">Your e-mail or number (optional)</string>
+    <string name="missa_support_email">E-mail</string>
     <string name="missa_support_send">Send</string>
-    <string name="missa_support_whatsapp">WhatsApp</string>
     <string name="missa_support_too_short">Write a few more words.</string>
     <string name="missa_support_sent">Message sent, thank you! We will answer you as soon as possible.</string>
-    <string name="missa_support_too_many">Too many messages today. Please try again tomorrow, or use WhatsApp.</string>
-    <string name="missa_support_failed">Message not sent (no connection?). Try again, or use WhatsApp.</string>
+    <string name="missa_support_too_many">Too many messages today. Please try again tomorrow, or e-mail us.</string>
+    <string name="missa_support_failed">Message not sent (no connection?). Try again, or e-mail us.</string>
 </resources>

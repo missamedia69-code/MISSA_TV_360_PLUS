@@ -2,6 +2,7 @@ package com.lagradost.cloudstream3.ui.activation
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.text.InputType
 import android.view.Gravity
@@ -20,21 +21,20 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.Coroutines.main
-import java.net.URLEncoder
 
 /**
  * « Aide et contact » : l'utilisateur écrit au responsable depuis l'application (problème,
  * paiement, contenu, suggestion). Le message part au serveur (/api/support) avec le code de
  * l'appareil, la version et le modèle, et se lit dans la page /admin/ du site.
- * WhatsApp reste proposé pour une réponse immédiate.
+ * L'e-mail de l'assistance reste proposé (seul moyen de contact public du responsable).
  *
  * Accessible depuis Paramètres et depuis l'écran de fin d'essai (où l'on ne peut rien
  * faire d'autre, et où se posent les questions de paiement).
  */
 object MissaSupport {
     private const val SUPPORT_URL = "https://missatv.pages.dev/api/support"
-    /** Numéro WhatsApp public de l'assistance (page Contact du site). */
-    private const val WHATSAPP = "237652996161"
+    /** Adresse e-mail publique de l'assistance (page Contact du site). */
+    private const val SUPPORT_EMAIL = "missamedia69@gmail.com"
 
     private val categories = listOf(
         "probleme" to R.string.missa_support_cat_problem,
@@ -95,13 +95,13 @@ object MissaSupport {
             .setTitle(R.string.missa_support_title)
             .setView(ScrollView(activity).apply { addView(box) })
             .setPositiveButton(R.string.missa_support_send, null)
-            .setNeutralButton(R.string.missa_support_whatsapp, null)
+            .setNeutralButton(R.string.missa_support_email, null)
             .setNegativeButton(R.string.cancel, null)
             .create()
 
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                openWhatsApp(activity, code, message.text?.toString().orEmpty())
+                openEmail(activity, code, message.text?.toString().orEmpty())
             }
             val sendButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             sendButton.setOnClickListener {
@@ -154,19 +154,21 @@ object MissaSupport {
         0
     }
 
-    private fun openWhatsApp(activity: Activity, code: String?, draft: String) {
-        val text = buildString {
-            append("Bonjour MISSA TV 360 PLUS. ")
-            code?.let { append("Mon code : $it. ") }
-            append("Version ${BuildConfig.VERSION_NAME}. ")
-            append(draft)
-        }.trim()
-        val url = "https://wa.me/$WHATSAPP?text=" + URLEncoder.encode(text, "UTF-8")
+    private fun openEmail(activity: Activity, code: String?, draft: String) {
+        val body = buildString {
+            append(draft.trim())
+            append("\n\n---\n")
+            code?.let { append("Code : $it\n") }
+            append("Version : ${BuildConfig.VERSION_NAME}\n")
+            append("Appareil : ${model()}\n")
+        }
+        val uri = "mailto:$SUPPORT_EMAIL?subject=" + Uri.encode("MISSA TV 360 PLUS") +
+            "&body=" + Uri.encode(body)
         try {
-            activity.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+            activity.startActivity(Intent(Intent.ACTION_SENDTO, uri.toUri()))
         } catch (e: Exception) {
             logError(e)
-            Toast.makeText(activity, "WhatsApp : +$WHATSAPP", Toast.LENGTH_LONG).show()
+            Toast.makeText(activity, SUPPORT_EMAIL, Toast.LENGTH_LONG).show()
         }
     }
 }

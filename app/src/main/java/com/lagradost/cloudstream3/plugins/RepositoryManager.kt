@@ -231,12 +231,29 @@ object RepositoryManager {
             // Prevent corrupting the plugin file if the operation fails
             val tempFile = File.createTempFile(file.name, ".tmp", context.cacheDir)
 
-            val body = app.get(convertRawGitUrl(pluginUrl)).okhttpResponse.body
+            val response = app.get(convertRawGitUrl(pluginUrl)).okhttpResponse
+            // MISSA : une page d'erreur (404, 500, page d'accueil d'un hébergeur...) était
+            // enregistrée comme extension quand le dépôt ne donne pas d'empreinte : le fichier
+            // cassé restait sur l'appareil et l'extension n'était plus jamais retéléchargée.
+            if (!response.isSuccessful) {
+                response.close()
+                tempFile.delete()
+                throw IllegalStateException("Extension download failed (HTTP ${response.code}): $pluginUrl")
+            }
+            val body = response.body
 
             body.byteStream().use { body ->
                 tempFile.outputStream().use { fileSteam ->
                     body.copyTo(fileSteam)
                 }
+            }
+
+            // Une extension .cs3 est une archive ZIP : elle commence par « PK ».
+            val magic = ByteArray(2)
+            val read = tempFile.inputStream().use { it.read(magic) }
+            if (read < 2 || magic[0] != 'P'.code.toByte() || magic[1] != 'K'.code.toByte()) {
+                tempFile.delete()
+                throw IllegalStateException("Downloaded file is not an extension archive: $pluginUrl")
             }
 
             if (expectedFileHash != null) {

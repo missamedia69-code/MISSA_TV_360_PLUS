@@ -22,6 +22,11 @@ import com.lagradost.cloudstream3.plugins.RepositoryManager
 import com.lagradost.cloudstream3.ui.universe.MissaContentSource
 import com.lagradost.cloudstream3.ui.universe.MissaExtensionGroups
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -31,6 +36,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Configuration des extensions tenue dans le dépôt : `extensions/config.json`.
@@ -245,14 +251,25 @@ object MissaExtensionsConfig {
     }
 
     private suspend fun apply(activity: Activity, entries: List<Entry>, exclusive: Boolean): Boolean {
-        var changed = false
+        val changed = AtomicBoolean(false)
         val wantedRepos = entries.map { it.repositoryUrl }.distinct()
+
+        // 0. Univers de chaque extension, AVANT son installation : dès qu'elle est chargée, le
+        // catalogue la range au bon endroit (avant, les univers n'étaient écrits qu'après toutes
+        // les installations, et le premier catalogue pouvait partir avec des univers « Auto »).
+        // Écrits seulement s'ils diffèrent ; le fichier de l'extension n'a pas besoin d'exister.
+        entries.forEach { entry ->
+            val path = PluginManager.getPluginPath(activity, entry.internalName, entry.repositoryUrl).absolutePath
+            if (MissaExtensionGroups.getForExtension(path) != entry.universes) {
+                MissaExtensionGroups.setForExtension(path, entry.universes)
+            }
+        }
 
         // 1. Dépôts : ajout de ceux du fichier, retrait des autres (et de leurs extensions).
         val current = RepositoryManager.getRepositories()
         current.filter { exclusive && it.url !in wantedRepos }.forEach { repo ->
             RepositoryManager.removeRepository(activity, repo)
-            changed = true
+            changed.set(true)
         }
         wantedRepos.forEach { url ->
             if (current.none { it.url == url }) {
@@ -269,59 +286,80 @@ object MissaExtensionsConfig {
         PluginManager.getPluginsOnline().filter { ExcludedSources.contains(it.internalName) }
             .forEach { installed ->
                 val file = File(installed.filePath)
-                if (file.isFile && PluginManager.deletePlugin(file)) changed = true
+                if (file.isFile && PluginManager.deletePlugin(file)) changed.set(true)
             }
 
         // 2. Extensions : installation de celles qui manquent, retrait des autres.
-        wantedRepos.forEach { repoUrl ->
-            val wanted = entries.filter { it.repositoryUrl == repoUrl }
-            val wantedNames = wanted.map { it.internalName.lowercase(Locale.ROOT) }.toSet()
-            val missing = wanted.filter { !PluginManager.getPluginPath(activity, it.internalName, repoUrl).exists() }
-            val repoData = RepositoryManager.getRepositories().firstOrNull { it.url == repoUrl } ?: return@forEach
-            val online = if (missing.isEmpty()) emptyList()
-            else runCatching { RepositoryManager.getRepoPlugins(repoData) }.getOrNull().orEmpty()
+        // Plusieurs dépôts et plusieurs extensions à la fois (au premier démarrage, une
+        // configuration complète en compte des dizaines : une par une, l'installation
+        // prenait plusieurs minutes avant que le moindre contenu n'apparaisse).
+        val repoSlots = Semaphore(3)
+        val downloadSlots = Semaphore(4)
+        var installed = 0
+        var failed = 0
+        val counterLock = Any()
+        coroutineScope {
+            wantedRepos.map { repoUrl ->
+                async(Dispatchers.IO) {
+                    repoSlots.withPermit {
+                        val wanted = entries.filter { it.repositoryUrl == repoUrl }
+                        val wantedNames = wanted.map { it.internalName.lowercase(Locale.ROOT) }.toSet()
+                        val missing = wanted.filter {
+                            !PluginManager.getPluginPath(activity, it.internalName, repoUrl).exists()
+                        }
+                        val repoData = RepositoryManager.getRepositories().firstOrNull { it.url == repoUrl }
+                            ?: return@withPermit
+                        val online = if (missing.isEmpty()) emptyList()
+                        else runCatching { RepositoryManager.getRepoPlugins(repoData) }.getOrNull().orEmpty()
+                        if (missing.isNotEmpty() && online.isEmpty()) {
+                            Log.w(TAG, "Dépôt injoignable ou vide, nouvel essai au prochain démarrage : $repoUrl")
+                        }
 
-            missing.forEach { entry ->
-                val plugin = online.firstOrNull { it.plugin.internalName.equals(entry.internalName, true) }?.plugin
-                if (plugin == null) {
-                    Log.w(TAG, "Extension introuvable dans ${entry.repositoryUrl} : ${entry.internalName}")
-                    return@forEach
-                }
-                val ok = PluginManager.downloadPlugin(
-                    activity, plugin.url, plugin.fileHash, plugin.internalName, repoUrl, true
-                )
-                if (ok) changed = true
-            }
+                        missing.map { entry ->
+                            async {
+                                val plugin = online.firstOrNull {
+                                    it.plugin.internalName.equals(entry.internalName, true)
+                                }?.plugin
+                                if (plugin == null) {
+                                    Log.w(TAG, "Extension introuvable dans ${entry.repositoryUrl} : ${entry.internalName}")
+                                    synchronized(counterLock) { failed++ }
+                                    return@async
+                                }
+                                val ok = downloadSlots.withPermit {
+                                    PluginManager.downloadPlugin(
+                                        activity, plugin.url, plugin.fileHash, plugin.internalName, repoUrl, true
+                                    )
+                                }
+                                synchronized(counterLock) { if (ok) installed++ else failed++ }
+                                if (ok) changed.set(true)
+                            }
+                        }.awaitAll()
 
-            // Migration ciblée : MediaTri remplace MultiSources FR-EN uniquement dans le
-            // dépôt MISSA. Ne retirer l'ancienne extension qu'après installation de la nouvelle.
-            // « exclusif » reste false : ne jamais supprimer les dépôts tiers de l'utilisateur.
-            if (shouldRetireLegacyMissaPlugin(repoUrl, wantedNames,
-                    PluginManager.getPluginPath(activity, "MediaTri", repoUrl).isFile)) {
-                val legacy = PluginManager.getPluginPath(activity, "MultiSources FR-EN", repoUrl)
-                if (legacy.isFile && PluginManager.deletePlugin(legacy)) changed = true
-            }
+                        // Migration ciblée : MediaTri remplace MultiSources FR-EN uniquement dans le
+                        // dépôt MISSA. Ne retirer l'ancienne extension qu'après installation de la nouvelle.
+                        if (shouldRetireLegacyMissaPlugin(repoUrl, wantedNames,
+                                PluginManager.getPluginPath(activity, "MediaTri", repoUrl).isFile)) {
+                            val legacy = PluginManager.getPluginPath(activity, "MultiSources FR-EN", repoUrl)
+                            if (legacy.isFile && PluginManager.deletePlugin(legacy)) changed.set(true)
+                        }
 
-            // Fichiers d'extension de ce dépôt qui ne figurent plus dans la configuration.
-            val folder = PluginManager.getPluginPath(activity, "x", repoUrl).parentFile
-            folder?.listFiles { f -> f.extension == "cs3" }?.forEach { file ->
-                val keep = wanted.any {
-                    PluginManager.getPluginPath(activity, it.internalName, repoUrl).absolutePath == file.absolutePath
+                        // Fichiers d'extension de ce dépôt qui ne figurent plus dans la configuration.
+                        val folder = PluginManager.getPluginPath(activity, "x", repoUrl).parentFile
+                        folder?.listFiles { f -> f.extension == "cs3" }?.forEach { file ->
+                            val keep = wanted.any {
+                                PluginManager.getPluginPath(activity, it.internalName, repoUrl).absolutePath == file.absolutePath
+                            }
+                            if (exclusive && !keep && wantedNames.isNotEmpty()) {
+                                if (PluginManager.deletePlugin(file)) changed.set(true)
+                            }
+                        }
+                    }
                 }
-                if (exclusive && !keep && wantedNames.isNotEmpty()) {
-                    if (PluginManager.deletePlugin(file)) changed = true
-                }
-            }
+            }.awaitAll()
         }
-
-        // 3. Univers de chaque extension (écrits seulement s'ils diffèrent).
-        entries.forEach { entry ->
-            val path = PluginManager.getPluginPath(activity, entry.internalName, entry.repositoryUrl).absolutePath
-            if (MissaExtensionGroups.getForExtension(path) != entry.universes) {
-                MissaExtensionGroups.setForExtension(path, entry.universes)
-            }
-        }
-        return changed
+        Log.i(TAG, "Configuration appliquée : ${entries.size} extension(s), $installed installée(s), " +
+            "$failed en échec (nouvel essai au prochain démarrage)")
+        return changed.get()
     }
 
     /** Une seule migration contrôlée, jamais un nettoyage général des extensions locales. */
