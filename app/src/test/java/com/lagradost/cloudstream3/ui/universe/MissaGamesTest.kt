@@ -122,6 +122,19 @@ class MissaGamesTest {
         assertEquals(KeyEvent.KEYCODE_BUTTON_START, NeoGeoPlayerActivity.remoteToPad(KeyEvent.KEYCODE_MENU))
         assertEquals(KeyEvent.KEYCODE_DPAD_UP, NeoGeoPlayerActivity.remoteToPad(KeyEvent.KEYCODE_DPAD_UP))
         assertNull(NeoGeoPlayerActivity.remoteToPad(KeyEvent.KEYCODE_VOLUME_UP))
+        // Télécommandes sans chiffres
+        assertEquals(KeyEvent.KEYCODE_BUTTON_A, NeoGeoPlayerActivity.remoteToPad(KeyEvent.KEYCODE_MEDIA_REWIND)) // B
+        assertEquals(KeyEvent.KEYCODE_BUTTON_Y, NeoGeoPlayerActivity.remoteToPad(KeyEvent.KEYCODE_CHANNEL_UP)) // C
+        assertEquals(KeyEvent.KEYCODE_BUTTON_X, NeoGeoPlayerActivity.remoteToPad(KeyEvent.KEYCODE_CHANNEL_DOWN)) // D
+        // Manette physique : bas / droite / gauche / haut = A / B / C / D (disposition RetroPad du cœur)
+        assertEquals(KeyEvent.KEYCODE_BUTTON_B, NeoGeoPlayerActivity.gamepadToPad(KeyEvent.KEYCODE_BUTTON_A))
+        assertEquals(KeyEvent.KEYCODE_BUTTON_A, NeoGeoPlayerActivity.gamepadToPad(KeyEvent.KEYCODE_BUTTON_B))
+        assertEquals(KeyEvent.KEYCODE_BUTTON_Y, NeoGeoPlayerActivity.gamepadToPad(KeyEvent.KEYCODE_BUTTON_X))
+        assertEquals(KeyEvent.KEYCODE_BUTTON_X, NeoGeoPlayerActivity.gamepadToPad(KeyEvent.KEYCODE_BUTTON_Y))
+        assertEquals(KeyEvent.KEYCODE_BUTTON_SELECT, NeoGeoPlayerActivity.gamepadToPad(KeyEvent.KEYCODE_BUTTON_L1))
+        assertEquals(KeyEvent.KEYCODE_BUTTON_START, NeoGeoPlayerActivity.gamepadToPad(KeyEvent.KEYCODE_BUTTON_R2))
+        assertEquals(KeyEvent.KEYCODE_DPAD_LEFT, NeoGeoPlayerActivity.gamepadToPad(KeyEvent.KEYCODE_DPAD_LEFT))
+        assertNull(NeoGeoPlayerActivity.gamepadToPad(KeyEvent.KEYCODE_BUTTON_THUMBL))
     }
 
     @Test
