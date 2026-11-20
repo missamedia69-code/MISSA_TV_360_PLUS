@@ -34,6 +34,8 @@ object MissaLicenceGate {
                 if (verdict == MissaLicence.Verdict.GRACE && MissaLicence.takeGraceReminder(activity)) {
                     Toast.makeText(activity, R.string.missa_activation_grace, Toast.LENGTH_LONG).show()
                 }
+                // Fin d'essai ou d'abonnement proche : rappel avec « Renouveler » (pas de blocage surprise).
+                if (verdict == MissaLicence.Verdict.OPEN) MissaSubscription.maybeRemind(activity)
                 delay(60_000)
             }
         }

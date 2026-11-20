@@ -1394,11 +1394,40 @@ object DirectMusicPlayerManager {
             exo.playWhenReady && exo.playbackState != Player.STATE_IDLE && exo.playbackState != Player.STATE_ENDED
         }
 
+        // MISSA : en mode audio, on ne coupe l'image que lorsque ça économise vraiment des
+        // données. Sinon on la garde (sans l'afficher) pour que le retour au clip soit immédiat.
+        val activeKind = if (activeTrackUsingVideoSource) {
+            activeVideoCandidates.getOrNull(activeVideoCandidateIndex)?.kind
+        } else {
+            null
+        }
         runCatching {
-            exo.trackSelectionParameters = exo.trackSelectionParameters
-                .buildUpon()
-                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, !enabled)
-                .build()
+            val params = exo.trackSelectionParameters.buildUpon()
+            if (enabled) {
+                params.setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, false)
+                // Même plafond que startExoVideoCandidate pour le flux adaptatif (économie de
+                // données) ; aucun plafond pour les autres sources.
+                if (activeKind == MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE) {
+                    params.setMaxVideoSize(640, 360)
+                } else {
+                    params.clearVideoSizeConstraints()
+                }
+            } else {
+                when (activeKind) {
+                    // Image et son dans le même fichier : couper l'image n'économise aucune
+                    // donnée. Elle reste décodée sans être affichée : retour au clip instantané.
+                    MissaMusicProviders.VideoClipSourceKind.MUXED_PROGRESSIVE ->
+                        params.setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, false)
+                    // Flux adaptatif : image gardée en toute petite qualité (quelques Ko/s) ;
+                    // au retour, elle réapparaît tout de suite puis la qualité remonte.
+                    MissaMusicProviders.VideoClipSourceKind.HLS_ADAPTIVE ->
+                        params.setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, false).setMaxVideoSize(256, 144)
+                    // Image et son séparés : couper l'image économise vraiment des données
+                    // (un court rechargement de l'image reste nécessaire au retour).
+                    else -> params.setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true)
+                }
+            }
+            exo.trackSelectionParameters = params.build()
         }
 
         if (enabled) {
@@ -1576,6 +1605,8 @@ object DirectMusicPlayerManager {
             exo.trackSelectionParameters = exo.trackSelectionParameters
                 .buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, !preferVideoClip)
+                // Limite de qualité éventuellement posée en mode audio (flux adaptatif) : levée.
+                .clearVideoSizeConstraints()
                 .build()
         }
 
