@@ -53,6 +53,7 @@
         <a class="btn btn-ghost" href="#install">How to install</a>
       </div>
       <p class="meta" id="release-meta" aria-live="polite">Android 6 and later · Phone, tablet and TV</p>
+      <p class="warn-old" data-android-warn hidden>Your device seems to run Android <span data-android-version></span>: the app needs Android 6 or later and will not install.</p>
     </div>
     <div class="home-side">
       <div class="tv-wrap"><div class="tv" data-carousel>
@@ -141,9 +142,21 @@
   <section class="panel" id="p-install" role="tabpanel" aria-labelledby="t-install">
     <div class="head"><h2>Installed in minutes</h2><p>Straight from this site, on any Android device.</p></div>
     <div class="steps">
-      <article class="card step-card acc-g"><h3>Phone or tablet</h3><ol><li>Tap <strong>Download the APK</strong> on your device.</li><li>Open the downloaded file.</li><li>If Android asks, allow your browser to <strong>install unknown apps</strong>.</li><li>Tap <strong>Install</strong>. Done.</li></ol></article>
+      <article class="card step-card acc-g"><h3>Phone or tablet</h3><ol><li>Tap <strong>Download the APK</strong> on your device.</li><li>Open the downloaded file.</li><li>If Android asks, allow your browser to <strong>install unknown apps</strong>.</li><li>Tap <strong>Install</strong>.</li><li>If Play Protect shows <strong>“Unknown app”</strong> or <strong>“Blocked”</strong>: tap <strong>More details</strong>, then <strong>Install anyway</strong>.</li></ol></article>
       <article class="card step-card acc-y"><h3>Android TV, box or Fire TV</h3><ol><li>Install the free <strong>Downloader</strong> app from your TV's store.</li><li>In Downloader, enter the address:<br><code id="site-url">missatv.pages.dev/en</code></li><li>Select <strong>Download the APK</strong> with the remote.</li><li>Allow Downloader to install unknown apps, then <strong>Install</strong>.</li></ol></article>
     </div>
+    <article class="card fix-card acc-n" id="troubleshooting">
+      <h3>“App not installed” or “package appears to be invalid”?</h3>
+      <ul>
+        <li><strong>An older copy is already installed</strong> (test build, copy received from a friend): uninstall it, then install the one from this site. Android refuses to update an app that does not come from the same source.</li>
+        <li><strong>The download stopped early</strong>: the file should weigh about <span data-apk-size>72 MB</span>. Delete it and download it again, ideally over Wi-Fi, from this site (not via WhatsApp or Bluetooth).</li>
+        <li><strong>Not enough space</strong>: keep at least 300 MB free.</li>
+        <li><strong>Samsung phone</strong>: turn off <strong>Auto Blocker</strong> (Settings › Security and privacy), install, then turn it back on if you like.</li>
+        <li><strong>Android 5 or older</strong>: the app needs Android 6 or later (Settings › About phone › Android version).</li>
+      </ul>
+      <p class="fix-more">Still stuck? <a href="contact.html">Write to us</a> with a screenshot of the error and your phone model.</p>
+    </article>
+    <p class="warn-old" data-android-warn hidden>Your device seems to run Android <span data-android-version></span>: the app needs Android 6 or later and will not install.</p>
     <div class="cta center">
       <a class="btn btn-primary" id="download-btn-2" href="/api/dl">Download the APK</a>
     </div>
@@ -156,7 +169,8 @@
       <details><summary>How much does the app cost?</summary><p>Try it free for 24 hours. Then the subscription costs 1,000 FCFA per month (1 to 9 months) or 10,000 FCFA for a year, for 2 devices, payable by Mobile Money or card via SasPay.</p></details>
       <details><summary>How do I activate the app?</summary><p>When the trial ends, the app shows a code and, on TV, a QR code. Scan it or open missatv.pages.dev/activer, pick a duration and pay: the app unlocks by itself within seconds.</p></details>
       <details><summary>Where do movies and series come from?</summary><p>MISSA TV 360 PLUS hosts and provides no movies, series or channels, and no sources or extensions. Video universes fill up with the extensions you choose to add, at your own responsibility. Radio and podcasts work right away.</p></details>
-      <details><summary>Android says “unknown app”, is that normal?</summary><p>Yes: Android shows it for any app installed outside the Play Store. Only download it from this site or the official GitHub page.</p></details>
+      <details><summary>Android says “unknown app”, is that normal?</summary><p>Yes: Android and Google Play Protect show it for any app installed outside the Play Store, even a safe one. Tap “More details”, then “Install anyway”. Only download it from this site or the official GitHub page: the official file is signed “MISSA Media”.</p></details>
+      <details><summary>Installation fails (“package invalid”), what should I do?</summary><p>Most often an older copy from elsewhere is already installed, or the download was cut short. Uninstall the old copy, download again from this site and retry. Every case is covered in <a href="#troubleshooting">Install › Troubleshooting</a>.</p></details>
       <details><summary>Which devices are supported?</summary><p>Phones, tablets, Android TV, Android boxes and Fire TV running Android 6 or later.</p></details>
     </div>
   </section>

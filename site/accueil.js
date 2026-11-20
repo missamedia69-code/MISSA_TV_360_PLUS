@@ -19,7 +19,7 @@
   // Apparition en cascade : chaque bloc du panneau reçoit son rang.
   ids.forEach(function (id, n) {
     var panel = panelOf(n);
-    var blocks = panel.querySelectorAll(".head, .home-card, .home-side, .fam, .plan, .step-card, .faq details, .picks, .tv-big, .cta.center, .note");
+    var blocks = panel.querySelectorAll(".head, .home-card, .home-side, .fam, .plan, .step-card, .fix-card, .faq details, .picks, .tv-big, .cta.center, .note");
     for (var i = 0; i < blocks.length; i++) {
       blocks[i].setAttribute("data-rise", "");
       blocks[i].style.setProperty("--d", i);
@@ -106,10 +106,29 @@
     }
   }
 
+  // Ancre placée dans un panneau (#depannage…) : rang de l'onglet qui la contient.
+  function innerTarget(h) {
+    var el = h ? document.getElementById(h) : null;
+    var panel = el && el.closest ? el.closest(".panel") : null;
+    if (!panel || el === panel) return null;
+    for (var n = 0; n < tabs.length; n++) {
+      if (tabs[n].getAttribute("aria-controls") === panel.id) return { i: n, el: el };
+    }
+    return null;
+  }
+  function reveal(t) {
+    show(t.i, false);
+    setTimeout(function () { t.el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }); }, 60);
+  }
+
   function fromHash() {
     var h = decodeURIComponent((location.hash || "").slice(1));
     if (aliases[h]) h = aliases[h];
     var i = ids.indexOf(h);
+    if (i === -1) {
+      var t = innerTarget(h);
+      if (t) { reveal(t); return; }
+    }
     show(i === -1 ? 0 : i, false);
   }
 
@@ -132,7 +151,13 @@
     var h = a.getAttribute("href").slice(1);
     if (aliases[h]) h = aliases[h];
     var i = ids.indexOf(h);
-    if (i !== -1) { e.preventDefault(); show(i, true); }
+    if (i !== -1) { e.preventDefault(); show(i, true); return; }
+    var t = innerTarget(h);
+    if (t) {
+      e.preventDefault();
+      if (history.pushState) history.pushState(null, "", "#" + h);
+      reveal(t);
+    }
   });
 
   window.addEventListener("popstate", fromHash);
@@ -140,7 +165,7 @@
   window.addEventListener("resize", moveInk);
   fromHash();
   // Le navigateur a pu sauter jusqu'à l'ancre (#tarifs…) : on repart du haut de la page.
-  if (location.hash) {
+  if (location.hash && !innerTarget(decodeURIComponent(location.hash.slice(1)))) {
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
     window.scrollTo(0, 0);
     setTimeout(function () { window.scrollTo(0, 0); }, 0);
