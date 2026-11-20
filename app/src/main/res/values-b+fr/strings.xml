@@ -1449,9 +1449,9 @@ Source : %6$s</string>
     <string name="neogeo_restart">Recommencer la partie</string>
     <string name="neogeo_controls">Commandes</string>
     <string name="neogeo_quit">Quitter le jeu</string>
-    <string name="neogeo_controls_text">Manette : croix, A B C D, Select = pièce, Start.
+    <string name="neogeo_controls_text">Manette Bluetooth ou à fil : croix ou stick gauche = directions ; bouton du bas = A, de droite = B, de gauche = C, du haut = D ; L1 / L2 ou Select = pièce, R1 / R2 ou Start = START. Deux manettes = deux joueurs. Bouton central de la manette ou Retour = ce menu.
 
-Télécommande : flèches = manette, OK ou 1 = A, 2 = B, 3 = C, 4 = D, 5 = pièce, 0 / Menu / Lecture = START, Retour = ce menu.
+Télécommande : flèches = directions, OK ou 1 = A, 2 ou retour rapide = B, 3, avance rapide ou chaîne + = C, 4 ou chaîne - = D, 5 = pièce, 0 / Menu / Lecture = START, Retour = ce menu.
 
 Téléphone et tablette : posez le pouce n’importe où sur la moitié gauche de l’écran, le joystick apparaît dessous ; une petite poussée suffit, les diagonales sont larges. Pouce posé entre deux boutons = les deux à la fois (A+B…).
 

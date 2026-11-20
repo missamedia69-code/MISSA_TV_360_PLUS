@@ -1491,9 +1491,9 @@ Source: %6$s</string>
     <string name="neogeo_restart">Restart the game</string>
     <string name="neogeo_controls">Controls</string>
     <string name="neogeo_quit">Quit the game</string>
-    <string name="neogeo_controls_text">Gamepad: D-pad, A B C D, Select = coin, Start.
+    <string name="neogeo_controls_text">Bluetooth or wired gamepad: D-pad or left stick = directions; bottom button = A, right = B, left = C, top = D; L1 / L2 or Select = coin, R1 / R2 or Start = START. Two gamepads = two players. Gamepad home button or Back = this menu.
 
-TV remote: arrows = joystick, OK or 1 = A, 2 = B, 3 = C, 4 = D, 5 = coin, 0 / Menu / Play = START, Back = this menu.
+TV remote: arrows = directions, OK or 1 = A, 2 or rewind = B, 3, fast-forward or channel + = C, 4 or channel - = D, 5 = coin, 0 / Menu / Play = START, Back = this menu.
 
 Phone and tablet: put your thumb anywhere on the left half of the screen, the joystick appears under it; a small push is enough and diagonals are wide. Thumb between two buttons = both at once (A+B…).
 
