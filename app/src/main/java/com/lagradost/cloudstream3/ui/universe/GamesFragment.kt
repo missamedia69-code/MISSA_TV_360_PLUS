@@ -197,6 +197,12 @@ class GamesFragment : Fragment() {
     private fun render() {
         if (!isAdded || !::listAdapter.isInitialized) return
         bindBanner()
+        // Pastille d'information sur la bannière : nombre de jeux du catalogue.
+        view?.findViewById<TextView>(R.id.games_banner_info)?.let { info ->
+            val count = catalogue?.games?.size ?: 0
+            info.isVisible = count > 0
+            if (count > 0) info.text = resources.getQuantityString(R.plurals.universe_games_banner_info, count, count)
+        }
         val cat = catalogue
         if (cat == null) {
             statusView.isVisible = true

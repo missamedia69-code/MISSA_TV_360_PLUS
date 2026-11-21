@@ -68,7 +68,7 @@ minSdk = "23"
 compileSdk = "37"
 targetSdk = "36"
 
-versionCode = "81"
+versionCode = "82"
 versionName = "4.9.0"
 
 [libraries]

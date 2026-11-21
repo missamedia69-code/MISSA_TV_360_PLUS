@@ -23,9 +23,8 @@
             android:paddingEnd="@dimen/missa_section_horizontal_padding"
             android:paddingBottom="8dp">
 
-            <!-- Bannière NEO-GEO Classic Games de l'univers Jeux, avec les informations posées
-                 dessus (état de la manette en haut à droite, aide en bas à droite) : l'en-tête
-                 tient dans la hauteur de la bannière. La bannière sert de titre de l'écran. -->
+            <!-- Bannière NEO-GEO Classic Games de l'univers Jeux (elle sert de titre de l'écran),
+                 libre de texte sauf une pastille d'information (nombre de jeux). -->
             <FrameLayout
                 android:id="@+id/games_banner_box"
                 android:layout_width="wrap_content"
@@ -45,68 +44,87 @@
                     android:src="@drawable/missa_games_banner"
                     app:shapeAppearanceOverlay="@style/ShapeAppearance.Missa.GamesBanner" />
 
+                <!-- Seule pastille posée sur la bannière : le nombre de jeux disponibles. -->
                 <TextView
-                    android:id="@+id/games_controller_badge"
+                    android:id="@+id/games_banner_info"
                     style="@style/TextAppearance.Missa.Caption"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="top|end"
                     android:layout_margin="6dp"
                     android:background="@drawable/missa_banner_overlay_pill_bg"
-                    android:ellipsize="end"
-                    android:maxWidth="@dimen/missa_games_banner_overlay_max_width"
                     android:maxLines="1"
                     android:paddingStart="8dp"
                     android:paddingTop="3dp"
                     android:paddingEnd="8dp"
                     android:paddingBottom="3dp"
-                    android:textColor="?attr/missaAccentSuccess"
-                    android:textSize="11sp"
-                    tools:text="Manette prête" />
-
-                <TextView
-                    android:id="@+id/games_intro"
-                    style="@style/TextAppearance.Missa.Caption"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|end"
-                    android:layout_margin="6dp"
-                    android:background="@drawable/missa_banner_overlay_pill_bg"
-                    android:ellipsize="end"
-                    android:maxWidth="@dimen/missa_games_banner_overlay_max_width"
-                    android:maxLines="1"
-                    android:paddingStart="8dp"
-                    android:paddingTop="3dp"
-                    android:paddingEnd="8dp"
-                    android:paddingBottom="3dp"
-                    android:text="@string/universe_games_intro"
                     android:textColor="@color/white"
-                    android:textSize="11sp" />
+                    android:textSize="11sp"
+                    android:visibility="gone"
+                    tools:text="17 jeux · Neo Geo"
+                    tools:visibility="visible" />
             </FrameLayout>
 
-            <HorizontalScrollView
+            <!-- Rangée compacte sous la bannière : Actualiser (et filtres), puis l'état de la
+                 manette et l'aide, l'un sous l'autre, sur une seule hauteur de bouton. -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:overScrollMode="never"
-                android:scrollbars="none">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <LinearLayout
-                    android:id="@+id/games_filters"
+                <HorizontalScrollView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:overScrollMode="never"
+                    android:scrollbars="none">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/games_refresh_button"
-                        style="@style/Widget.Missa.Button.Secondary"
+                    <LinearLayout
+                        android:id="@+id/games_filters"
                         android:layout_width="wrap_content"
-                        android:layout_height="@dimen/missa_pill_touch_height"
-                        android:layout_marginEnd="10dp"
-                        android:text="@string/universe_games_refresh" />
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/games_refresh_button"
+                            style="@style/Widget.Missa.Button.Secondary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="@dimen/missa_pill_touch_height"
+                            android:layout_marginEnd="10dp"
+                            android:text="@string/universe_games_refresh" />
+                    </LinearLayout>
+                </HorizontalScrollView>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/games_controller_badge"
+                        style="@style/TextAppearance.Missa.Caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="?attr/missaAccentSuccess"
+                        android:textSize="12sp"
+                        tools:text="Commandes tactiles à l'écran" />
+
+                    <TextView
+                        android:id="@+id/games_intro"
+                        style="@style/TextAppearance.Missa.Caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:text="@string/universe_games_intro"
+                        android:textSize="11sp" />
                 </LinearLayout>
-            </HorizontalScrollView>
+            </LinearLayout>
         </LinearLayout>
 
         <View

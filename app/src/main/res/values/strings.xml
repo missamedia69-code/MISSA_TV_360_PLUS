@@ -1640,4 +1640,8 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_devices_refused">This device cannot be removed (it may already have left the subscription).</string>
     <string name="missa_announcement_ok">OK</string>
     <string name="missa_announcement_open">Open</string>
+    <plurals name="universe_games_banner_info">
+        <item quantity="one">%d game · Neo Geo</item>
+        <item quantity="other">%d games · Neo Geo</item>
+    </plurals>
 </resources>
