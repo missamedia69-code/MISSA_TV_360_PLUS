@@ -1,0 +1,99 @@
+name: Publier les ROMs KOF Neo Geo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'game/catalogue.json'
+      - '.github/workflows/publier-roms-kof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publier-roms-kof
+  cancel-in-progress: false
+
+jobs:
+  convert-and-release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: jeux-kof-neo-2026-11
+    steps:
+      - name: Catalogue de la version publiée
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Commit où les dix ZIP ont été déposés. Ils sont retirés de main après
+      # conversion, mais restent récupérables depuis ce commit historique.
+      - name: Archives fournies par le responsable
+        uses: actions/checkout@v4
+        with:
+          ref: 312e945def8bdc9a8347758689f96198e252297d
+          path: rom-source
+          persist-credentials: false
+
+      - name: Construire lithogen (version figée)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init /tmp/lithogen
+          git -C /tmp/lithogen fetch --depth=1 https://github.com/carmiker/lithogen.git ef0f9bd94e31689def44b49e0f8351e0206b622d
+          git -C /tmp/lithogen checkout --detach FETCH_HEAD
+          gcc -O2 -std=c99 -I/tmp/lithogen/src -I/tmp/lithogen/miniz \
+            /tmp/lithogen/src/cli.c /tmp/lithogen/src/zipio.c \
+            /tmp/lithogen/src/lithogen.c /tmp/lithogen/src/neowrite.c \
+            /tmp/lithogen/src/recipes.c /tmp/lithogen/src/regions.c \
+            /tmp/lithogen/src/games_db.c /tmp/lithogen/src/meta_db.c \
+            /tmp/lithogen/src/crypt/*.c /tmp/lithogen/miniz/miniz.c -o /tmp/lithogen-bin
+
+      - name: Convertir, vérifier le catalogue et les archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kof-neo
+          for year in 94 95 96 97 98 99 2000 2001 2002 2003; do
+            input="rom-source/game/rom/kof${year}.zip"
+            output="/tmp/kof-neo/kof${year}.neo"
+            unzip -tq "$input" >/dev/null
+            /tmp/lithogen-bin --strict "$input" -o "$output"
+            test "$(head -c 4 "$output" | od -An -tx1 | tr -d ' \n')" = 4e454f01
+          done
+          python3 - <<'PY'
+          import hashlib, json, os
+          games = {g['id']: g for g in json.load(open('game/catalogue.json'))['jeux']}
+          for year in ('94','95','96','97','98','99','2000','2001','2002','2003'):
+              game = games['kof'+year]
+              path = '/tmp/kof-neo/kof'+year+'.neo'
+              with open(path,'rb') as stream:
+                  digest = hashlib.file_digest(stream,'sha256').hexdigest()
+              assert os.path.getsize(path) == game['bytes'], year + ' : taille différente'
+              assert digest == game['sha256'], year + ' : SHA-256 différent'
+              assert game['url'].endswith('/'+os.path.basename(path)), year
+              print(year, game['bytes'], digest)
+          PY
+
+      - name: Publier les fichiers validés comme pièces jointes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --draft --prerelease \
+              --title 'Jeux King of Fighters — ROM Neo Geo' \
+              --notes 'Dix ROMs KOF 1994–2003 converties depuis les ZIP fournis, validées avec lithogen --strict et SHA-256. Ceci n’est pas un APK.'
+          fi
+          for year in 94 95 96 97 98 99 2000 2001 2002 2003; do
+            gh release upload "$TAG" "/tmp/kof-neo/kof${year}.neo" --clobber
+          done
+          gh release view "$TAG" --json assets --jq '[.assets[].name]' > /tmp/assets.json
+          python3 - <<'PY'
+          import json
+          names = set(json.load(open('/tmp/assets.json')))
+          expected = {'kof'+str(y)+'.neo' for y in (94,95,96,97,98,99,2000,2001,2002,2003)}
+          assert expected <= names, 'Pièces jointes manquantes : ' + str(expected - names)
+          PY
+          # Une prerelease n'écrase pas la dernière release APK du site.
+          gh release edit "$TAG" --draft=false --prerelease

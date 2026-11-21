@@ -160,5 +160,11 @@ class MissaGamesTest {
         assertTrue(cat.engines.values.all { it.pkg.url.startsWith("https://raw.githubusercontent.com/missamedia69-code/") })
         // Des jeux publiés exigent le BIOS du mode choisi.
         if (cat.games.isNotEmpty()) assertNotNull(cat.requiredBios)
+        // Les dix conversions KOF sont servies depuis une release dédiée et les
+        // bannières du catalogue sont aussi leurs vignettes dans la grille.
+        val kof = cat.games.filter { it.id.startsWith("kof") }
+        assertEquals(10, kof.size)
+        assertTrue(kof.all { it.pkg.url.contains("/releases/download/jeux-kof-neo-2026-11/") })
+        assertTrue(kof.all { it.coverUrl?.contains("/game/bannieres/kof") == true })
     }
 }

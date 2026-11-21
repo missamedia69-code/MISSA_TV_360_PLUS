@@ -112,6 +112,20 @@ Les URL des affiches portent une version tirée de leur empreinte SHA-256 afin
 que le cache d'images de l'application récupère la nouvelle illustration après
 une mise à jour, sans télécharger à nouveau les ROMs.
 
+## Série The King of Fighters (1994–2003)
+
+Les dix archives ZIP fournies dans `game/rom/` ont été vérifiées puis converties en
+ROMs TerraOnion `.neo` avec lithogen (version figée, mode `--strict`). Chaque conversion
+est contrôlée par SHA-256 et taille avant publication en pièces jointes de la
+prerelease GitHub `jeux-kof-neo-2026-11`. Le workflow
+`.github/workflows/publier-roms-kof.yml` effectue la publication après fusion sur
+`main`, à partir des archives conservées dans l'historique du commit `312e945`.
+Les ZIP sont ensuite retirés de l'arbre courant du dépôt pour éviter de garder deux
+formats des mêmes jeux. Les nouvelles couvertures `bannieres/kof*.webp` servent
+aussi de vignettes dans la grille ; les liens de téléchargement et les empreintes
+sont dans `catalogue.json` ainsi que dans sa copie embarquée dans l'APK.
+L'ajout au catalogue ne prouve pas l'exécution sur un appareil : à vérifier sur Neo Geo.
+
 ## Ajouter un jeu
 
 1. Déposer le jeu dans `rom/` (par exemple `rom/kof98.neo`).
