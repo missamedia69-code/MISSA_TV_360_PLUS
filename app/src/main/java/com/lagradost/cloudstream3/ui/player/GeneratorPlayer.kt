@@ -148,6 +148,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class GeneratorPlayer : FullScreenPlayer() {
     companion object {
         private const val MISSA_HINT_KEY = "missa_playback_choices_hint_v1"
+        /** Coupure en pleine lecture au-delà de laquelle on change de serveur (s'il y en a un). */
+        private const val STALL_SWITCH_MS = 20_000L
         const val NOTIFICATION_ID = 2326
         const val CHANNEL_ID = 7340
         const val STOP_ACTION = "stopcs3"
@@ -309,6 +311,48 @@ class GeneratorPlayer : FullScreenPlayer() {
         if (player.getIsPlaying()) {
             viewModel.forceClearCache = false
         }
+        watchStall()
+    }
+
+    // ------------------------------------------------------------- Anti-coupures : bascule
+
+    /** Vrai dès que la source en cours a commencé à jouer (les coupures se comptent après). */
+    private var missaSourcePlayed = false
+    private val stallHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var stallCheck: Runnable? = null
+
+    /**
+     * Coupure en pleine lecture qui dure (au-delà de [STALL_SWITCH_MS]) et autre serveur
+     * disponible : on passe au serveur suivant, à la même position, au lieu de laisser
+     * l'utilisateur devant le rond de chargement. Le démarrage d'une source n'est pas
+     * concerné (déjà géré par les erreurs), ni une pause voulue.
+     */
+    private fun watchStall() {
+        when (currentPlayerStatus) {
+            CSPlayerLoading.IsPlaying -> {
+                missaSourcePlayed = true
+                cancelStallCheck()
+            }
+            CSPlayerLoading.IsBuffering -> {
+                if (!missaSourcePlayed || stallCheck != null) return
+                val check = Runnable {
+                    stallCheck = null
+                    if (!isAdded || currentPlayerStatus != CSPlayerLoading.IsBuffering) return@Runnable
+                    if (!hasNextMirror()) return@Runnable
+                    Log.i(TAG, "Coupure de plus de ${STALL_SWITCH_MS / 1000} s : serveur suivant")
+                    showToast(R.string.missa_stall_switch, Toast.LENGTH_SHORT)
+                    nextMirror()
+                }
+                stallCheck = check
+                stallHandler.postDelayed(check, STALL_SWITCH_MS)
+            }
+            else -> cancelStallCheck()
+        }
+    }
+
+    private fun cancelStallCheck() {
+        stallCheck?.let { stallHandler.removeCallbacks(it) }
+        stallCheck = null
     }
 
     private fun noSubtitles(): Boolean {
@@ -569,6 +613,9 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     private fun loadLink(link: VideoLink?, sameEpisode: Boolean) {
         if (link == null) return
+        // Nouvelle source : les coupures se comptent à partir de sa première lecture.
+        missaSourcePlayed = false
+        cancelStallCheck()
         isPlayerActive.set(true)
         // manage UI
         binding?.playerLoadingOverlay?.isVisible = false
@@ -2067,6 +2114,7 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     override fun onDestroy() {
+        cancelStallCheck()
         ResultFragment.updateUI()
         currentVerifyLink?.cancel()
         super.onDestroy()

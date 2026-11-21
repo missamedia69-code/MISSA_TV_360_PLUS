@@ -46,6 +46,7 @@ import androidx.media3.exoplayer.DecoderCounters
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -690,7 +691,9 @@ class CS3IPlayer : IPlayer {
         private const val LOW_RAM_MIN_BUFFER_MS = 15_000
         private const val LOW_RAM_MAX_BUFFER_MS = 30_000
         private const val FAST_START_BUFFER_MS = 1_500
-        private const val FAST_RESUME_BUFFER_MS = 3_000
+        /** Appareil normal : 50 s d'avance au moins, jusqu'à 90 s (au lieu de 50 s au plus). */
+        private const val STEADY_MIN_BUFFER_MS = 50_000
+        private const val STEADY_MAX_BUFFER_MS = 90_000
 
         /**
          * Single shared engine, to minimize the overhead of maintaining many as:
@@ -901,7 +904,18 @@ class CS3IPlayer : IPlayer {
         }
 
         private fun getTrackSelector(context: Context, maxVideoHeight: Int?): TrackSelector {
-            val trackSelector = DefaultTrackSelector(context)
+            // MISSA (anti-coupures) : qualité adaptative prudente. On ne monte en qualité qu'après
+            // 15 s de débit confortable (au lieu de 10 s) et en visant 65 % du débit mesuré (au
+            // lieu de 70 %) : un peu moins de netteté au démarrage, beaucoup moins de coupures.
+            val trackSelector = DefaultTrackSelector(
+                context,
+                AdaptiveTrackSelection.Factory(
+                    /* minDurationForQualityIncreaseMs = */ 15_000,
+                    /* maxDurationForQualityDecreaseMs = */ 25_000,
+                    /* minDurationToRetainAfterDiscardMs = */ 25_000,
+                    /* bandwidthFraction = */ 0.65f
+                )
+            )
             trackSelector.parameters = trackSelector.buildUponParameters()
                 // This will not force higher quality videos to fail
                 // but will make the m3u8 pick the correct preferred
@@ -1282,33 +1296,34 @@ class CS3IPlayer : IPlayer {
                 // Allows any seeking to be +- 0.3s to allow for faster seeking
                 .setSeekParameters(SeekParameters(toleranceBeforeUs, toleranceAfterUs))
                 .setLoadControl(
-                    DefaultLoadControl.Builder()
-                        .setTargetBufferBytes(
-                            if (cacheSize <= 0) {
+                    // MISSA (anti-coupures) : plus d'avance gardée et reprise progressive après
+                    // des coupures rapprochées, voir MissaLoadControl.
+                    run {
+                        val minBufferMs = if (lowRamDevice) LOW_RAM_MIN_BUFFER_MS else STEADY_MIN_BUFFER_MS
+                        val maxBufferMs = (
+                            if (videoBufferMs > 0) videoBufferMs.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                            else if (lowRamDevice) LOW_RAM_MAX_BUFFER_MS else STEADY_MAX_BUFFER_MS
+                        ).coerceAtLeast(minBufferMs)
+                        MissaLoadControl(
+                            minBufferMs = minBufferMs,
+                            maxBufferMs = maxBufferMs,
+                            // Démarrage rapide : l'image part dès 1,5 s de vidéo reçue.
+                            bufferForPlaybackMs = FAST_START_BUFFER_MS,
+                            targetBufferBytes = if (cacheSize <= 0) {
                                 // Appareil léger : 16 Mo de vidéo en avance au plus.
                                 if (lowRamDevice) LOW_RAM_TARGET_BUFFER_BYTES
                                 else DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES
                             } else {
                                 if (cacheSize > Int.MAX_VALUE) Int.MAX_VALUE else cacheSize.toInt()
-                            }
-                        )
-                        .setBackBuffer(
-                            // Appareil léger : on ne garde pas en mémoire la vidéo déjà vue.
-                            if (lowRamDevice) 0 else 30000,
-                            !lowRamDevice
-                        )
-                        .setBufferDurationsMs(
-                            if (lowRamDevice) LOW_RAM_MIN_BUFFER_MS else DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
-                            if (videoBufferMs <= 0) {
-                                if (lowRamDevice) LOW_RAM_MAX_BUFFER_MS else DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
-                            } else {
-                                videoBufferMs.toInt()
                             },
-                            // Démarrage plus rapide : l'image part dès 1,5 s de vidéo reçue (au
-                            // lieu de 2,5 s) et reprend après une coupure dès 3 s (au lieu de 5 s).
-                            FAST_START_BUFFER_MS,
-                            FAST_RESUME_BUFFER_MS
-                        ).build()
+                            // Le temps d'avance prime sur la taille, sauf appareil léger ou
+                            // taille réglée par l'utilisateur (mémoire bornée).
+                            prioritizeTimeOverSizeThresholds = !lowRamDevice && cacheSize <= 0,
+                            // Appareil léger : on ne garde pas en mémoire la vidéo déjà vue.
+                            backBufferDurationMs = if (lowRamDevice) 0 else 30000,
+                            retainBackBufferFromKeyframe = !lowRamDevice
+                        )
+                    }
                 )
 
         // Because "Java rules" the media3 team hates to do open classes so we have to copy paste the entire thing to add a custom extractor
@@ -1330,11 +1345,11 @@ class CS3IPlayer : IPlayer {
             cacheFactory
         }
 
-        val defaultMediaSourceFactory = if (dataSourceFactory != null) {
+        val defaultMediaSourceFactory = (if (dataSourceFactory != null) {
             DefaultMediaSourceFactory(dataSourceFactory, extractorFactor)
         } else {
             DefaultMediaSourceFactory(context, extractorFactor)
-        }
+        }).setLoadErrorHandlingPolicy(MissaLoadErrorPolicy)
 
         // If there is only one item then treat it as normal, if multiple: concatenate the items.
         val videoMediaSource = if (mediaItemSlices.size == 1) {
@@ -1359,6 +1374,7 @@ class CS3IPlayer : IPlayer {
                             .build(drmCallback)
 
                         DashMediaSource.Factory(client)
+                            .setLoadErrorHandlingPolicy(MissaLoadErrorPolicy)
                             .setDrmSessionManagerProvider { manager }
                             .createMediaSource(item.mediaItem)
                     }
@@ -1380,6 +1396,7 @@ class CS3IPlayer : IPlayer {
                             .build(drmCallback)
 
                         DashMediaSource.Factory(client)
+                            .setLoadErrorHandlingPolicy(MissaLoadErrorPolicy)
                             .setDrmSessionManagerProvider { manager }
                             .createMediaSource(item.mediaItem)
                     }
@@ -1839,7 +1856,9 @@ class CS3IPlayer : IPlayer {
             try {
                 val mediaItem = getMediaItem(MimeTypes.AUDIO_UNKNOWN, audio.url)
                 val dataSourceFactory = createOnlineSource(audio.headers, interceptor)
-                DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(mediaItem)
+                DefaultMediaSourceFactory(dataSourceFactory)
+                    .setLoadErrorHandlingPolicy(MissaLoadErrorPolicy)
+                    .createMediaSource(mediaItem)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to create audio source for ${audio.url}: ${e.message}")
                 null
