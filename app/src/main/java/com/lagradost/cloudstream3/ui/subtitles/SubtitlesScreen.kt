@@ -176,9 +176,10 @@ object SubtitlesScreen : SearchableSettings {
         val androidStore = AndroidPreferenceStore(LocalContext.current)
 
         val subtitlesFilterSubLang = androidStore.getBoolean("filter_sub_lang_key", false)
-        val autoSelectSubtitles = dataStore.getString(SUBTITLE_AUTO_SELECT_KEY, "en")
+        val appLanguage = com.lagradost.cloudstream3.ui.player.MissaLanguageDefaults.appLanguage()
+        val autoSelectSubtitles = dataStore.getString(SUBTITLE_AUTO_SELECT_KEY, appLanguage)
         val downloadSubsLanguage =
-            dataStore.getObjectFromString(SUBTITLE_DOWNLOAD_KEY, setOf("en"), serializer = { obj ->
+            dataStore.getObjectFromString(SUBTITLE_DOWNLOAD_KEY, setOf(appLanguage), serializer = { obj ->
                 obj.toList().toJsonLiteral()
             }, deserializer = { json ->
                 parseJson<List<String>>(json).toSet()

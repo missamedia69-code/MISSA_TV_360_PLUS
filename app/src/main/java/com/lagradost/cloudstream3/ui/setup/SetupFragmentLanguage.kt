@@ -11,7 +11,6 @@ import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.databinding.FragmentSetupLanguageBinding
 import com.lagradost.cloudstream3.mvvm.safe
-import com.lagradost.cloudstream3.plugins.PluginManager
 import com.lagradost.cloudstream3.R
 import com.lagradost.cloudstream3.ui.BaseFragment
 import com.lagradost.cloudstream3.ui.settings.appLanguages
@@ -64,19 +63,16 @@ class SetupFragmentLanguage : BaseFragment<FragmentSetupLanguageBinding>(
                     }
                 }
 
+                // MISSA : premier lancement en une seule page. Les extensions et leurs univers
+                // s'installent tout seuls (configuration du site), la disposition téléphone/TV
+                // est détectée automatiquement, et langues des sources et types de contenus
+                // gardent leurs valeurs par défaut (modifiables dans les Paramètres). Les pages
+                // suivantes de l'assistant d'origine n'étaient qu'un détour, et la page
+                // « Extensions » laissait croire qu'il fallait ajouter des dépôts soi-même.
+                nextBtt.setText(R.string.missa_setup_start)
                 nextBtt.setOnClickListener {
-                    // If no plugins go to plugins page
-                    val nextDestination = if (
-                        PluginManager.getPluginsOnline().isEmpty()
-                        && PluginManager.getPluginsLocal().isEmpty()
-                    //&& PREBUILT_REPOSITORIES.isNotEmpty()
-                    ) R.id.action_navigation_global_to_navigation_setup_extensions
-                    else R.id.action_navigation_setup_language_to_navigation_setup_provider_languages
-
-                    findNavController().navigate(
-                        nextDestination,
-                        SetupFragmentExtensions.newInstance(true)
-                    )
+                    setKey(HAS_DONE_SETUP_KEY, true)
+                    findNavController().navigate(R.id.navigation_home)
                 }
 
                 skipBtt.setOnClickListener {

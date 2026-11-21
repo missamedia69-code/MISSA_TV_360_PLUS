@@ -284,8 +284,22 @@ class GeneratorPlayer : FullScreenPlayer() {
         maybeShowPlaybackChoicesHint(tracks)
         // Only set the preferred language if it is available.
         // Otherwise, it may give some users audio track init failed!
-        if (tracks.allAudioTracks.any { it.language == preferredAudioTrackLanguage }) {
-            player.setPreferredAudioTrack(preferredAudioTrackLanguage)
+        val wantedAudio = preferredAudioTrackLanguage
+        if (wantedAudio != null) {
+            if (tracks.allAudioTracks.any { it.language == wantedAudio }) {
+                player.setPreferredAudioTrack(wantedAudio)
+            }
+        } else {
+            // MISSA : rien de choisi → piste dans la langue de l'application si la vidéo en a une
+            // (« fr », « fre », « fra »…), sans l'enregistrer comme choix de l'utilisateur.
+            val appLanguage = MissaLanguageDefaults.appLanguage(context)
+            val audio = tracks.allAudioTracks
+            if (audio.size > 1 && !MissaLanguageDefaults.sameLanguage(tracks.currentAudioTrack?.language, appLanguage)) {
+                audio.firstOrNull { MissaLanguageDefaults.sameLanguage(it.language, appLanguage) }?.let { track ->
+                    player.setPreferredAudioTrack(track.language, track.id, track.formatIndex)
+                    preferredAudioTrackLanguage = null
+                }
+            }
         }
         updatePlayerInfo()
     }
@@ -2157,6 +2171,13 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     private fun autoSelectFromSettings(): Boolean {
+        // MISSA : sans choix de l'utilisateur, pas de sous-titres d'office sur une source déjà
+        // en VF (ils doubleraient le son) ; ils restent proposés dans « Langue et qualité ».
+        if (com.lagradost.cloudstream3.CloudStreamApp.getKey<String>(SUBTITLE_AUTO_SELECT_KEY) == null &&
+            currentSelectedLink?.missaVersion().let { it == MissaLinkVersion.VF || it == MissaLinkVersion.MULTI }
+        ) {
+            return false
+        }
         // auto select subtitle based on settings
         val langCode = preferredAutoSelectSubtitles
         val current = player.getCurrentPreferredSubtitle()

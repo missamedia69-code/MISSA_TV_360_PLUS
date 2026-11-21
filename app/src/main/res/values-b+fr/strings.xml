@@ -1572,4 +1572,5 @@ Moteur : %5$s (%6$s)</string>
     <string name="missa_version_vo">Anglais (VO)</string>
     <string name="missa_version_dub">Doublé</string>
     <string name="missa_version_sub">Sous-titré</string>
+    <string name="missa_setup_start">Commencer</string>
 </resources>

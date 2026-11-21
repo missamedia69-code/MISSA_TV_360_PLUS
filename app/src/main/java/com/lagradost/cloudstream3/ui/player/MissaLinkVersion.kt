@@ -55,9 +55,13 @@ enum class MissaLinkVersion(val labelRes: Int) {
             }
         }
 
-        /** Version choisie la dernière fois dans « Langue et qualité » (null = aucune). */
+        /**
+         * Version choisie la dernière fois dans « Langue et qualité ». Tant que l'utilisateur
+         * n'a rien choisi : celle de la langue de l'application (VF pour le français).
+         */
         var preferred: MissaLinkVersion?
             get() = getKey<String>(PREF_KEY)?.let { saved -> entries.firstOrNull { it.name == saved } }
+                ?: runCatching { MissaLanguageDefaults.defaultVersion() }.getOrNull()
             set(value) {
                 if (value == null) removeKey(PREF_KEY) else setKey(PREF_KEY, value.name)
             }
