@@ -20,8 +20,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Numéro de version à publier (ex. 4.8.0)'
+        description: 'Numéro de version à publier (ex. 4.9.1) : le même que versionName dans gradle/libs.versions.toml'
         required: true
+      nouveautes:
+        description: 'Nouveautés affichées dans la fenêtre de mise à jour (séparez les points par ; )'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -52,6 +56,13 @@ jobs:
           fi
           if [[ ! "$TAG" =~ ^v[0-9]+(\.[0-9]+)*([-.][A-Za-z0-9]+)*$ ]]; then
             echo "::error::Numéro de version invalide : $TAG (attendu : v4.8.0)"
+            exit 1
+          fi
+          # L'application compare son numéro (versionName) à l'étiquette : s'ils diffèrent, les
+          # utilisateurs se verraient proposer la même mise à jour sans fin.
+          NAME=$(sed -n 's/^versionName = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          if [[ "v$NAME" != "$TAG" ]]; then
+            echo "::error::L'étiquette $TAG ne correspond pas à versionName ($NAME) dans gradle/libs.versions.toml."
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -105,6 +116,32 @@ jobs:
             exit 1
           fi
 
+      - name: Notes de version
+        shell: bash
+        env:
+          NOUVEAUTES: ${{ github.event.inputs.nouveautes }}
+        run: |
+          {
+            echo "## Nouveautés"
+            if [[ -n "${NOUVEAUTES// /}" ]]; then
+              IFS=';' read -ra ITEMS <<< "$NOUVEAUTES"
+              for item in "${ITEMS[@]}"; do
+                item="$(echo "$item" | sed 's/^ *//;s/ *$//')"
+                if [[ -n "$item" ]]; then echo "- $item"; fi
+              done
+            else
+              echo "- Corrections et améliorations."
+            fi
+            echo
+            echo "## Installer"
+            echo "Téléchargez **$APK_NAME** ci-dessous, ou depuis le site :"
+            echo "https://missatv.pages.dev/"
+            echo
+            echo "Pour vérifier le fichier, comparez son empreinte SHA-256 avec celle du fichier"
+            echo "\`$APK_NAME.sha256\`."
+          } > notes.md
+          cat notes.md
+
       - name: Publier la version
         uses: softprops/action-gh-release@v2
         with:
@@ -114,10 +151,22 @@ jobs:
           files: |
             ${{ env.APK_NAME }}
             ${{ env.APK_NAME }}.sha256
-          body: |
-            ## Installer
-            Téléchargez **${{ env.APK_NAME }}** ci-dessous, ou depuis le site :
-            https://missatv.pages.dev/
+          body_path: notes.md
 
-            Pour vérifier le fichier, comparez son empreinte SHA-256 avec celle du fichier
-            `${{ env.APK_NAME }}.sha256`.
+      - name: Retirer les anciennes versions de l'application
+        # Une seule version de l'application en ligne : la nouvelle. Les autres publications
+        # (ROMs des jeux, étiquettes qui ne commencent pas par « v » + chiffre) ne sont pas touchées.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          CURRENT: ${{ steps.version.outputs.tag }}
+        run: |
+          gh api "repos/$GH_REPO/releases" --paginate -q '.[] | "\(.id) \(.tag_name)"' |
+          while read -r id tag; do
+            if [[ "$tag" =~ ^v[0-9] && "$tag" != "$CURRENT" ]]; then
+              gh api -X DELETE "repos/$GH_REPO/releases/$id"
+              echo "Version retirée : $tag"
+              gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$tag" >/dev/null 2>&1 || true
+            fi
+          done

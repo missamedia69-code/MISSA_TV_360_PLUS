@@ -97,8 +97,16 @@ object GithubReleases : GithubRepository {
         return GithubFile(
             digest = foundAsset.digest,
             downloadUrl = foundAsset.browserDownloadUrl,
-            displayName = foundAsset.name.substringBeforeLast("."),
-            changeLog = latestRelease.body,
+            // Le fichier s'appelle toujours MISSA-TV-360-PLUS.apk (lien fixe du site) : le
+            // numéro de version vient de l'étiquette (v4.9.1 → 4.9.1).
+            displayName = if (prerelease) {
+                foundAsset.name.substringBeforeLast(".")
+            } else {
+                latestRelease.tagName.removePrefix("v")
+            },
+            // Dans l'application, seules les nouveautés : pas les consignes d'installation.
+            changeLog = latestRelease.body.substringBefore("## Installer").trim()
+                .ifBlank { latestRelease.body },
             tagName = latestRelease.tagName,
             nodeId = latestRelease.nodeId
         )

@@ -14,6 +14,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -26,6 +27,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lagradost.cloudstream3.mvvm.getStackTracePretty
 import com.lagradost.cloudstream3.ui.settings.ApkUpdater
 import com.lagradost.cloudstream3.ui.settings.GithubReleases
+import com.lagradost.cloudstream3.ui.settings.MissaAppUpdateCheck
 import com.lagradost.cloudstream3.ui.settings.GithubReleases.APK_CONTENT_TYPE
 import com.lagradost.cloudstream3.ui.settings.GithubReleases.APK_PRERELEASE
 import com.lagradost.cloudstream3.ui.settings.GithubReleases.APK_REPOSITORY
@@ -37,6 +39,7 @@ import com.lagradost.cloudstream4.compose.Screen
 import com.lagradost.cloudstream4.compose.WhiteButton
 import com.lagradost.cloudstream4.rememberAppSettings
 import com.lagradost.cloudstream4.viewmodels.GithubAction
+import com.lagradost.cloudstream4.viewmodels.GithubAction.AutoSearchForUpdate
 import com.lagradost.cloudstream4.viewmodels.GithubAction.Dismiss
 import com.lagradost.cloudstream4.viewmodels.GithubAction.SearchForUpdate
 import com.lagradost.cloudstream4.viewmodels.GithubAction.SkipUpdate
@@ -45,6 +48,7 @@ import com.lagradost.cloudstream4.viewmodels.GithubState
 import com.lagradost.cloudstream4.viewmodels.GithubUpdateDialogState
 import com.lagradost.cloudstream4.viewmodels.GithubViewModel
 import com.mihon.material.padding
+import kotlinx.coroutines.delay
 
 object MainActivityScreen : Screen {
     @Composable
@@ -78,6 +82,13 @@ object MainActivityScreen : Screen {
     fun GithubView() {
         val updateViewModel = githubViewModel() ?: return
         val state by updateViewModel.state.collectAsState()
+        val activity = LocalActivity.current
+        LaunchedEffect(updateViewModel) {
+            delay(MissaAppUpdateCheck.START_DELAY_MS)
+            if (activity != null && MissaAppUpdateCheck.shouldCheckNow(activity)) {
+                updateViewModel.onAction(AutoSearchForUpdate)
+            }
+        }
         GithubState(state, updateViewModel::onAction)
     }
 

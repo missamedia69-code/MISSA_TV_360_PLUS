@@ -290,8 +290,8 @@ class GithubViewModel(
             contentType = remoteContentType
         )
 
-        // If on stable, only check that the display name matches
-        if (!prerelease && release.displayName == versionName) {
+        // Stable : on ne propose que une version plus récente (jamais la même ni une plus ancienne).
+        if (!prerelease && !isNewerVersion(release.displayName, versionName)) {
             updateState {
                 copy(dialog = baseDialog.copy(state = GithubUpdateDialogState.NoUpdateFound))
             }
@@ -318,4 +318,24 @@ class GithubViewModel(
             )
         }
     }
+}
+
+/**
+ * Vrai si [remote] (« v4.9.1 », « 4.9.1 ») est plus récente que [local] (« 4.9.0 »), chiffre par
+ * chiffre. Un numéro illisible n'est jamais considéré comme plus récent : pas de fausse alerte.
+ */
+fun isNewerVersion(remote: String, local: String): Boolean {
+    fun parts(v: String): List<Int> = Regex("""\d+""")
+        .findAll(v.trim().removePrefix("v").substringBefore('-'))
+        .map { it.value.toIntOrNull() ?: 0 }
+        .toList()
+    val r = parts(remote)
+    val l = parts(local)
+    if (r.isEmpty()) return false
+    for (i in 0 until maxOf(r.size, l.size)) {
+        val a = r.getOrElse(i) { 0 }
+        val b = l.getOrElse(i) { 0 }
+        if (a != b) return a > b
+    }
+    return false
 }
