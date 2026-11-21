@@ -170,7 +170,7 @@ class MissaPlaybackPanel(private val context: Context, private val isTv: Boolean
                 bottomMargin = dp(6f)
             })
             for (action in content.actions) {
-                body.addView(MaterialButton(context, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                body.addView(MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle).apply {
                     text = action.label
                     isAllCaps = false
                     gravity = Gravity.START or Gravity.CENTER_VERTICAL
