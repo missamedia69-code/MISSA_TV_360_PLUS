@@ -111,8 +111,8 @@
     <string name="episode_action_auto_download">Téléchargement automatique</string>
     <string name="episode_action_download_mirror">Télécharger depuis le miroir</string>
     <string name="episode_action_reload_links">Recharger les liens</string>
-    <string name="no_update_found">Pas de mise-à-jour trouvés</string>
-    <string name="check_for_update">Vérifier les mise-à-jour</string>
+    <string name="no_update_found">Vous avez déjà la dernière version</string>
+    <string name="check_for_update">Vérifier les mises à jour</string>
     <string name="video_lock">Verouiller</string>
     <string name="video_aspect_ratio_resize">Redimensionner</string>
     <string name="video_source">Source</string>
@@ -121,7 +121,7 @@
     <string name="update">Mettre à jour</string>
     <string name="dns_pref_summary">Utile pour contourner les bloquages des FAI</string>
     <string name="download_path_pref">Emplacement de téléchargement</string>
-    <string name="new_update_format" formatted="true">Nouvelle mise à jour trouvée ! \n%1$s -&gt; %2$s</string>
+    <string name="new_update_format" formatted="true">Nouvelle version disponible\n%1$s → %2$s</string>
     <string name="filler" formatted="true">Épisode spécial</string>
     <string name="watch_quality_pref">Qualité de visionnage préférée (WiFi)</string>
     <string name="video_buffer_size_settings">Taille de la mémoire cache</string>
@@ -340,7 +340,7 @@
     <string name="subtitles_remove_captions">Enlever les sous-titres pour sourds et malentendants</string>
     <string name="automatic_plugin_download">Télécharger automatiquement les plugins</string>
     <string name="poster_ui_settings">Activer ou désactiver les éléments du poster</string>
-    <string name="skip_update">Ignorer cette mise-à-jour</string>
+    <string name="skip_update">Ignorer cette version</string>
     <string name="error_invalid_data">Données invalides</string>
     <string name="subtitles_encoding">Encodage des sous titres</string>
     <string name="category_providers">Fournisseurs</string>
