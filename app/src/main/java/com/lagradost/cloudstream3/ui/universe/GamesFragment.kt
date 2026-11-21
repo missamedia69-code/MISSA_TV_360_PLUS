@@ -178,8 +178,25 @@ class GamesFragment : Fragment() {
         }
     }
 
+    /** Bannière NEO GEO en haut de l'univers : celle du catalogue si elle existe. */
+    private var bannerShown: String? = null
+    private fun bindBanner() {
+        val banner = view?.findViewById<ImageView>(R.id.games_banner) ?: return
+        val url = catalogue?.bannerUrl
+        if (url == bannerShown && banner.drawable != null) return
+        bannerShown = url
+        if (url == null) {
+            banner.setImageResource(R.drawable.missa_games_banner)
+        } else {
+            banner.loadImage(url) {
+                error { getImageFromDrawable(banner.context, R.drawable.missa_games_banner) }
+            }
+        }
+    }
+
     private fun render() {
         if (!isAdded || !::listAdapter.isInitialized) return
+        bindBanner()
         val cat = catalogue
         if (cat == null) {
             statusView.isVisible = true

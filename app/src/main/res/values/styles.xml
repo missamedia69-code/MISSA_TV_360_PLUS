@@ -1338,4 +1338,9 @@
         <item name="iconSize">20dp</item>
         <item name="rippleColor">?attr/missaRippleColor</item>
     </style>
+    <!-- Bannière de l'univers Jeux : coins arrondis -->
+    <style name="ShapeAppearance.Missa.GamesBanner" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">14dp</item>
+    </style>
 </resources>

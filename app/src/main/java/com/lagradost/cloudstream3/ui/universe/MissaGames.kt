@@ -95,7 +95,12 @@ object MissaGames {
         val bios: List<BiosFile>,
         /** « mvs » (arcade, neogeo.zip) ou « aes » (console, aes.zip). */
         val mode: String,
-        val games: List<Game>
+        val games: List<Game>,
+        /**
+         * Bannière en haut de l'univers Jeux (« banniereUrl » du catalogue). Absente : celle
+         * fournie avec l'application. Permet de la changer sans nouvelle version.
+         */
+        val bannerUrl: String? = null
     ) {
         /** Moteur adapté à cet appareil : la première architecture qu'il sait exécuter. */
         fun engineForDevice(abis: Array<String> = Build.SUPPORTED_ABIS): Engine? =
@@ -207,7 +212,8 @@ object MissaGames {
             }
         }
         val mode = root.optString("mode", "mvs").lowercase(Locale.ROOT).takeIf { it == "aes" } ?: "mvs"
-        return Catalogue(engines, bios, mode, games)
+        val bannerUrl = root.optString("banniereUrl").takeIf { it.startsWith("https://") }
+        return Catalogue(engines, bios, mode, games, bannerUrl)
     }
 
     // ------------------------------------------------------------------ Fichiers locaux
