@@ -29,7 +29,10 @@ jobs:
     - name: Ensure binary compatibility
       # This is to ensure that your code is backwards compatible.
       # If this fails you need to add a @Prerelease annotation to new code.
-      run: ./gradlew library:checkKotlinAbi
+      # --refresh-dependencies : le cache Gradle restauré peut garder en mémoire un fichier
+      # « introuvable » sur Maven Central (panne passagère du dépôt) et faire échouer toutes
+      # les relances ; on redemande donc l'état des dépendances à chaque fois.
+      run: ./gradlew library:checkKotlinAbi --refresh-dependencies
 
     - name: Run Gradle
       run: ./gradlew assemblePrereleaseDebug lint check
