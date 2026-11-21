@@ -274,11 +274,14 @@ class SubtitlesFragment {
         }
 
         fun getDownloadSubsLanguageTagIETF(): List<String> {
-            return getKey<List<String>>(SUBTITLE_DOWNLOAD_KEY) ?: listOf("en")
+            // MISSA : langue de l'application par défaut (avant : anglais pour tous).
+            return getKey<List<String>>(SUBTITLE_DOWNLOAD_KEY)
+                ?: listOf(com.lagradost.cloudstream3.ui.player.MissaLanguageDefaults.appLanguage())
         }
 
         fun getAutoSelectLanguageTagIETF(): String {
-            return getKey<String>(SUBTITLE_AUTO_SELECT_KEY) ?: "en"
+            return getKey<String>(SUBTITLE_AUTO_SELECT_KEY)
+                ?: com.lagradost.cloudstream3.ui.player.MissaLanguageDefaults.appLanguage()
         }
     }
 }

@@ -1113,7 +1113,7 @@
                             android:nextFocusUp="@id/player_pause_play"
                             android:nextFocusDown="@id/player_tracks_btt"
 
-                            android:text="@string/video_source"
+                            android:text="@string/missa_playback_button"
                             app:icon="@drawable/ic_baseline_playlist_play_24" />
 
                         <com.google.android.material.button.MaterialButton

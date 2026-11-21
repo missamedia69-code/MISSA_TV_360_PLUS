@@ -237,6 +237,11 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         super.onDestroyView()
     }
 
+    /** « Langue et qualité » : panneau simplifié (GeneratorPlayer), sinon l'ancien menu. */
+    open fun showPlaybackChoices() {
+        showMirrorsDialogue()
+    }
+
     open fun showMirrorsDialogue() {
         throw NotImplementedError()
     }
@@ -1193,7 +1198,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
 
             KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_NUMPAD_9, KeyEvent.KEYCODE_9 -> {
-                showMirrorsDialogue()
+                showPlaybackChoices()
             }
             // OpenSubtitles shortcut
             KeyEvent.KEYCODE_O, KeyEvent.KEYCODE_NUMPAD_8, KeyEvent.KEYCODE_8 -> {
@@ -1546,7 +1551,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
 
             playerSourcesBtt.setOnClickListener {
-                showMirrorsDialogue()
+                showPlaybackChoices()
             }
 
             playerTracksBtt.setOnClickListener {

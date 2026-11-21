@@ -190,7 +190,9 @@ object DirectMusicPlayerManager {
     private const val SHUFFLE_ENABLED_KEY = "missa_music_shuffle_enabled_v1"
     private const val REPEAT_MODE_KEY = "missa_music_repeat_mode_v1"
     private const val VIDEO_CLIP_MODE_KEY = "missa_music_video_clip_mode_v1"
-    private const val REMOTE_CACHE_TTL_MS = 20 * 60_000L // Refresh newest moment releases every 20 minutes
+    // DATA-01 : était 20 min (une trentaine de recherches YouTube à chaque fois). Maintenant
+    // 3 h en Wi-Fi, 8 h sur données mobiles ; « tirer pour actualiser » recharge tout de suite.
+    private val REMOTE_CACHE_TTL_MS: Long get() = MissaDataUsage.MUSIC.maxAgeMs()
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -479,6 +481,8 @@ object DirectMusicPlayerManager {
     }
 
     private fun prefetchTopPlayableTracks(tracks: List<MusicTrackPreset>, count: Int = 2) {
+        // DATA-01 : préchargement de confort, seulement hors données mobiles.
+        if (!MissaDataUsage.allowPrefetch()) return
         val candidates = tracks
             .filter { MissaMusicProviders.isLazyYouTubeAudioScheme(it.streamUrl) && !MissaMusicProviders.hasCachedAudioUrl(it.streamUrl) }
             .take(count)

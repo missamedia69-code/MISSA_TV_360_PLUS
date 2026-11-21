@@ -2388,8 +2388,9 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
         // Univers TV en direct : à chaque démarrage, on récupère la liste tv/chaines.m3u du
         // dépôt GitHub (rien n'est téléchargé si elle n'a pas changé depuis la dernière fois).
         ioSafe { MissaLiveTv.refresh(this@MainActivity) }
-        // Univers Jeux : même principe pour le catalogue game/catalogue.json.
-        ioSafe { MissaGames.refreshCatalogue(this@MainActivity, force = true) }
+        // Univers Jeux : catalogue game/catalogue.json, relu s'il a plus d'une heure (DATA-01 :
+        // il était retéléchargé à chaque ouverture ; l'écran Jeux garde son bouton Actualiser).
+        ioSafe { MissaGames.refreshCatalogue(this@MainActivity, force = false) }
 
         // Safe mode is a diagnostic aid, not a kill switch. It used to guard the whole
         // startup loading block, so a single crash - which writes filesDir/last_error and
@@ -2426,8 +2427,14 @@ class MainActivity : AppCompatActivity(), ColorPickerDialogListener, BiometricCa
                         .onFailure { logError(it) }
                     val now = System.currentTimeMillis()
                     val lastCheck = getKey<Long>("missa_plugin_update_check_v1") ?: 0L
+                    // DATA-01 : toutes les 6 h en Wi-Fi, une fois par jour sur données mobiles.
+                    val updateEvery = if (com.lagradost.cloudstream3.ui.universe.MissaDataUsage.isMetered(this@MainActivity)) {
+                        24L * 60L * 60L * 1000L
+                    } else {
+                        6L * 60L * 60L * 1000L
+                    }
                     val checkDue = lastCheck <= 0L || now < lastCheck ||
-                        now - lastCheck >= 6L * 60L * 60L * 1000L
+                        now - lastCheck >= updateEvery
                     if (settingsManager.getBoolean(
                             getString(R.string.auto_update_plugins_key),
                             true

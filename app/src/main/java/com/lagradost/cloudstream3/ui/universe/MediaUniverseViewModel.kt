@@ -57,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-private data class CachedCatalogSearchResponse(
+internal data class CachedCatalogSearchResponse(
     override val name: String,
     override val url: String,
     override val apiName: String,
@@ -66,7 +66,10 @@ private data class CachedCatalogSearchResponse(
     override var posterHeaders: Map<String, String>? = null,
     override var id: Int? = url.hashCode(),
     override var quality: SearchQuality? = null,
-    override var score: Score? = null
+    override var score: Score? = null,
+    /** Année et nombre d'épisodes de la réponse d'origine (copie gardée sur l'appareil). */
+    val year: Int? = null,
+    val episodes: Int? = null
 ) : SearchResponse
 
 data class RawHarvestedItem(
@@ -180,6 +183,7 @@ class MediaUniverseViewModel : ViewModel() {
         internal fun extractEpisodeCountHint(response: SearchResponse): Int? = when (response) {
             is TvSeriesSearchResponse -> response.episodes
             is AnimeSearchResponse -> response.episodes.values.maxOrNull()
+            is CachedCatalogSearchResponse -> response.episodes
             else -> null
         }
 
@@ -187,6 +191,7 @@ class MediaUniverseViewModel : ViewModel() {
             is MovieSearchResponse -> response.year
             is TvSeriesSearchResponse -> response.year
             is AnimeSearchResponse -> response.year
+            is CachedCatalogSearchResponse -> response.year
             else -> null
         } ?: titleYearRegex.find(response.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
 
@@ -483,14 +488,16 @@ class MediaUniverseViewModel : ViewModel() {
     @Volatile
     private var musicRotationLaunchSeed: Long = Long.MIN_VALUE
 
+    // Extensions (re)chargées : la récolte est refaite, mais chaque extension déjà lue
+    // récemment est reprise de sa copie (MissaMainPageCache) au lieu d'être retéléchargée.
     private val onPluginsLoadedListener: (Boolean) -> Unit = { force ->
-        ensureCatalogLoaded(forceReload = force)
+        ensureCatalogLoaded(forceReload = force, refetchOnline = false)
     }
     private val onMainPluginsLoadedListener: (Boolean) -> Unit = {
         ensureCatalogLoaded(forceReload = false)
     }
     private val onReloadHomeListener: (Boolean) -> Unit = {
-        ensureCatalogLoaded(forceReload = true)
+        ensureCatalogLoaded(forceReload = true, refetchOnline = false)
     }
     private val onBookmarksUpdatedListener: (Boolean) -> Unit = {
         refreshResumeWatching()
@@ -693,26 +700,21 @@ class MediaUniverseViewModel : ViewModel() {
 
     // --- Catalog Harvesting & Enrichment ---
 
-    fun ensureCatalogLoaded(forceReload: Boolean = false) {
+    /**
+     * [forceReload] : refaire la récolte même si le catalogue affiché est récent.
+     * [refetchOnline] : ignorer les copies gardées sur l'appareil et tout retélécharger
+     * (seulement quand l'utilisateur tire pour actualiser). Sans lui, une extension lue depuis
+     * moins de [MissaDataUsage.CATALOGUE] n'est pas réinterrogée.
+     *
+     * DATA-01 : les catalogues Radio, Musique, Enfants, Documentaires et Podcasts ne sont plus
+     * retéléchargés ici à chaque rechargement (ils l'étaient aussi quand une extension se
+     * rechargeait) : chaque écran les actualise lui-même quand on tire pour actualiser.
+     */
+    fun ensureCatalogLoaded(forceReload: Boolean = false, refetchOnline: Boolean = forceReload) {
         if (forceReload) {
             frozenHeroKeysByUniverse.clear()
             // Force the next projection to re-roll the promoted YouTube cards (FRESH-01).
             musicRotationLaunchSeed = Long.MIN_VALUE
-            viewModelScope.launch {
-                DirectRadioPlayerManager.refreshRemotePresetsIfNeeded(force = true)
-            }
-            viewModelScope.launch {
-                DirectMusicPlayerManager.refreshRemoteTracksIfNeeded(force = true)
-            }
-            viewModelScope.launch {
-                DirectKidsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
-            }
-            viewModelScope.launch {
-                DirectDocsPlayerManager.refreshRemoteVideosIfNeeded(force = true)
-            }
-            viewModelScope.launch {
-                DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded(force = true)
-            }
         }
         val current = _catalogSnapshot.value ?: UnifiedCatalogSnapshot()
         val now = System.currentTimeMillis()
@@ -737,6 +739,7 @@ class MediaUniverseViewModel : ViewModel() {
 
         lastLoadedProviderSignature = providerSignature
         catalogJob?.cancel()
+        val mainPageMaxAgeMs = if (refetchOnline) 0L else MissaDataUsage.CATALOGUE.maxAgeMs(context)
         catalogJob = viewModelScope.launch {
             val existingEntries = _catalogSnapshot.value?.entries.orEmpty()
             val resume = loadResumeListSafe()
@@ -835,7 +838,7 @@ class MediaUniverseViewModel : ViewModel() {
 
                 if (preferredWave.isNotEmpty()) {
                     harvested.addAll(
-                        harvestProvidersMainPages(preferredWave, isPreferred = true, onProviderItems = onItems) {
+                        harvestProvidersMainPages(preferredWave, isPreferred = true, maxAgeMs = mainPageMaxAgeMs, onProviderItems = onItems) {
                             val done = completedCounter.incrementAndGet()
                             val prev = _catalogSnapshot.value ?: return@harvestProvidersMainPages
                             _catalogSnapshot.postValue(
@@ -875,7 +878,7 @@ class MediaUniverseViewModel : ViewModel() {
                 }
                 if (secondaryWave.isNotEmpty()) {
                     harvested.addAll(
-                        harvestProvidersMainPages(secondaryWave, isPreferred = false, onProviderItems = onItems) {
+                        harvestProvidersMainPages(secondaryWave, isPreferred = false, maxAgeMs = mainPageMaxAgeMs, onProviderItems = onItems) {
                             val done = completedCounter.incrementAndGet()
                             val prev = _catalogSnapshot.value ?: return@harvestProvidersMainPages
                             _catalogSnapshot.postValue(
@@ -945,7 +948,13 @@ class MediaUniverseViewModel : ViewModel() {
                     val enriched = if (hasEnrichmentHeadroom()) {
                         enrichEntriesWithDetails(
                             baseEntries,
-                            maxHero = if (dataSaver) 3 else MAX_HERO_ENRICH,
+                            // DATA-01 : sur données mobiles, le bandeau garde l'affiche seule
+                            // plutôt que de télécharger 6 fiches complètes à chaque ouverture.
+                            maxHero = when {
+                                MissaDataUsage.isMetered(ctx) -> 0
+                                dataSaver -> 3
+                                else -> MAX_HERO_ENRICH
+                            },
                             maxClassifier = if (dataSaver) 16 else MAX_CLASSIFIER_ENRICH
                         )
                     } else {
@@ -2297,12 +2306,35 @@ class MediaUniverseViewModel : ViewModel() {
     private suspend fun harvestProvidersMainPages(
         providers: List<MainAPI>,
         isPreferred: Boolean,
+        maxAgeMs: Long,
         onProviderItems: (List<RawHarvestedItem>) -> Unit = {},
         onProviderFinished: () -> Unit
     ): List<RawHarvestedItem> = coroutineScope {
         val semaphore = Semaphore(MissaDeviceProfile.parallelism(normal = 5, light = 2))
-        providers.map { api ->
+        val ctx = context
+        val fromCopy = AtomicInteger(0)
+        val result = providers.map { api ->
             async(Dispatchers.IO) {
+                // DATA-01 : copie récente de cette extension = aucune page téléchargée.
+                val cached = MissaMainPageCache.get(ctx, api.name, maxAgeMs)
+                if (cached != null) {
+                    val supportedTypes = api.supportedTypes.toSet()
+                    val forcedUniverses = MissaExtensionGroups.resolveForApi(api)
+                    val items = cached.map { item ->
+                        RawHarvestedItem(
+                            response = item.response,
+                            sectionName = item.sectionName,
+                            isHorizontalSection = item.isHorizontalSection,
+                            providerSupportedTypes = supportedTypes,
+                            isPreferredLanguage = isPreferred,
+                            forcedUniverses = forcedUniverses
+                        )
+                    }
+                    fromCopy.incrementAndGet()
+                    if (items.isNotEmpty()) onProviderItems(items)
+                    onProviderFinished()
+                    return@async items
+                }
                 // The permit block must evaluate to the item list: a trailing statement here
                 // silently turns the whole block into Unit and breaks awaitAll().flatten().
                 val items: List<RawHarvestedItem> = semaphore.withPermit {
@@ -2348,12 +2380,19 @@ class MediaUniverseViewModel : ViewModel() {
                 if (items.isEmpty()) {
                     Log.w(TAG, "Provider '${api.name}' yielded no items (empty response or timeout)")
                 } else {
+                    MissaMainPageCache.put(
+                        ctx,
+                        api.name,
+                        items.map { MissaMainPageCache.Item(it.response, it.sectionName, it.isHorizontalSection) }
+                    )
                     onProviderItems(items)
                 }
                 onProviderFinished()
                 items
             }
         }.awaitAll().flatten()
+        Log.i(TAG, "Main pages: ${providers.size - fromCopy.get()} downloaded, ${fromCopy.get()} from local copy")
+        result
     }
 
     private fun normalizeAndDeduplicate(rawItems: List<RawHarvestedItem>): List<UnifiedCatalogEntry> {
@@ -2374,6 +2413,10 @@ class MediaUniverseViewModel : ViewModel() {
         maxClassifier: Int = MAX_CLASSIFIER_ENRICH
     ): List<UnifiedCatalogEntry> = coroutineScope {
         val apisByName = apis.withLock { apis.associateBy { it.name } }
+        val ctx = context
+        // DATA-01 : fiche déjà lue lors d'une ouverture précédente (version légère gardée).
+        fun memoFor(entry: UnifiedCatalogEntry): MissaDetailsMemo.Lite? =
+            entry.sources.firstNotNullOfOrNull { MissaDetailsMemo.get(ctx, itemIdentity(it)) }
 
         val heroTargets = entries
             .filter { it.details == null && !it.primary.posterUrl.isNullOrBlank() }
@@ -2386,6 +2429,7 @@ class MediaUniverseViewModel : ViewModel() {
                 val url = entry.primary.url
                 entry.details == null &&
                     entry !in heroTargets &&
+                    memoFor(entry) == null &&
                     (MediaUniverseClassifier.shouldLoadDetails("shorts", curType, entry.primary.name, sec, url) ||
                         MediaUniverseClassifier.shouldLoadDetails("kids", curType, entry.primary.name, sec, url) ||
                         MediaUniverseClassifier.shouldLoadDetails("documentaries", curType, entry.primary.name, sec, url) ||
@@ -2404,12 +2448,14 @@ class MediaUniverseViewModel : ViewModel() {
             .take(maxClassifier)
 
         val toFetch = (heroTargets + classifierTargets).distinctBy { it.dedupKey }
-        if (toFetch.isEmpty()) {
+        val hasMemo = entries.any { it.details == null && memoFor(it) != null }
+        if (toFetch.isEmpty() && !hasMemo) {
             Log.d(TAG, "Enrichment skipped: nothing needs details (${entries.size} entries)")
             return@coroutineScope entries
         }
         val enrichOk = AtomicInteger(0)
         val enrichFail = AtomicInteger(0)
+        val newMemo = ConcurrentHashMap<String, MissaDetailsMemo.Lite>()
 
         val semaphore = Semaphore(MAX_PARALLEL_DETAILS)
         toFetch.map { entry ->
@@ -2430,6 +2476,13 @@ class MediaUniverseViewModel : ViewModel() {
                                 Log.w(TAG, "Details null for '${entry.primary.name}' via ${api.name}")
                             } else {
                                 detailsCache[id] = trimLoadedDetails(loaded)
+                                newMemo[id] = MissaDetailsMemo.Lite(
+                                    type = loaded.type,
+                                    tags = loaded.tags.orEmpty().take(12),
+                                    contentRating = loaded.contentRating,
+                                    duration = loaded.duration,
+                                    isSeries = resolveLoadResponseIsSeries(loaded)
+                                )
                                 enrichOk.incrementAndGet()
                             }
                         } catch (cancelled: CancellationException) {
@@ -2451,6 +2504,8 @@ class MediaUniverseViewModel : ViewModel() {
         // cannot slowly grow the heap back up to the kill threshold.
         trimDetailsCache(toFetch.mapTo(HashSet()) { itemIdentity(it.primary) })
 
+        withContext(Dispatchers.IO) { MissaDetailsMemo.putAll(ctx, newMemo) }
+
         Log.i(
             TAG,
             "Enrichment done: ok=${enrichOk.get()} failed=${enrichFail.get()} " +
@@ -2460,15 +2515,27 @@ class MediaUniverseViewModel : ViewModel() {
 
         val refreshed = entries.map { entry ->
             val details = entry.details ?: entry.sources.firstNotNullOfOrNull { src -> detailsCache[itemIdentity(src)] }
-            if (details == null) {
+            // Sans fiche complète en mémoire : la version légère d'une ouverture précédente.
+            val lite = if (details != null) {
+                MissaDetailsMemo.Lite(
+                    type = details.type,
+                    tags = details.tags.orEmpty(),
+                    contentRating = details.contentRating,
+                    duration = details.duration,
+                    isSeries = resolveLoadResponseIsSeries(details)
+                )
+            } else {
+                memoFor(entry)
+            }
+            if (lite == null) {
                 entry
             } else {
-                val seriesLoad = resolveLoadResponseIsSeries(details)
+                val seriesLoad = lite.isSeries
                 val epHint = entry.sources.mapNotNull { extractEpisodeCountHint(it) }.maxOrNull()
                 val sec = entry.sectionHints.joinToString(" ")
-                val tags = details.tags.orEmpty()
+                val tags = lite.tags
                 val updatedType = MediaUniverseClassifier.inferEffectiveType(
-                    rawType = details.type,
+                    rawType = lite.type,
                     title = entry.primary.name,
                     sectionName = sec,
                     url = entry.primary.url,
@@ -2482,8 +2549,8 @@ class MediaUniverseViewModel : ViewModel() {
                     type = updatedType,
                     title = entry.primary.name,
                     tags = tags,
-                    contentRating = details.contentRating,
-                    durationMinutes = details.duration,
+                    contentRating = lite.contentRating,
+                    durationMinutes = lite.duration,
                     sectionName = sec,
                     url = entry.primary.url,
                     episodeCountHint = epHint,
@@ -2500,8 +2567,8 @@ class MediaUniverseViewModel : ViewModel() {
                     universes = updatedUniverses,
                     details = details,
                     cachedTags = tags,
-                    cachedContentRating = details.contentRating,
-                    cachedDuration = details.duration
+                    cachedContentRating = lite.contentRating,
+                    cachedDuration = lite.duration
                 )
             }
         }

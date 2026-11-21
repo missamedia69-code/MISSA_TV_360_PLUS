@@ -1473,9 +1473,12 @@ Genre : %2$s
 Licence du jeu : %4$s
 Moteur : %5$s (%6$s)</string>
     <string name="missa_admin_lock_title">Réglages des extensions verrouillés</string>
-    <string name="missa_admin_lock_desc">Saisissez le code administrateur pour modifier les extensions.</string>
+    <string name="missa_admin_lock_desc">Saisissez le code d\'accès pour modifier les extensions.</string>
     <string name="missa_admin_lock_hint">Code</string>
     <string name="missa_admin_lock_wrong">Code incorrect</string>
+    <string name="missa_admin_lock_buy">Vous voulez installer vos propres extensions ? Achetez le code d\'accès pour 5 000 FCFA en nous écrivant par e-mail :</string>
+    <string name="missa_admin_lock_mail_subject">Achat du code d\'accès aux extensions</string>
+    <string name="missa_admin_lock_mail_body">Bonjour MISSA TV, je souhaite acheter le code d\'accès aux extensions (5 000 FCFA).</string>
     <string name="missa_ext_config_export">Exporter la configuration (MISSA TV)</string>
     <string name="missa_ext_config_export_done">Configuration de %1$d extensions enregistrée dans le dossier de sauvegarde (Téléchargements par défaut)</string>
     <string name="missa_ext_config_export_empty">Aucune extension installée à exporter</string>
@@ -1544,4 +1547,33 @@ Moteur : %5$s (%6$s)</string>
         <item quantity="other">Préparation de vos contenus : installation de %d extensions…</item>
     </plurals>
     <string name="missa_ext_installed">Vos contenus sont prêts.</string>
+    <!-- Lecteur : panneau « Langue et qualité » -->
+    <string name="missa_playback_button">Langue et qualité</string>
+    <string name="missa_playback_panel_title">Langue et qualité</string>
+    <string name="missa_playback_close">Fermer</string>
+    <string name="missa_playback_nothing_to_choose">Une seule version est disponible pour cette vidéo.</string>
+    <string name="missa_playback_language">Langue</string>
+    <string name="missa_playback_language_hint">Votre choix est retenu pour les prochaines vidéos.</string>
+    <string name="missa_playback_audio">Piste audio</string>
+    <string name="missa_playback_subtitles">Sous-titres</string>
+    <string name="missa_playback_subtitles_off">Désactivés</string>
+    <string name="missa_playback_quality">Qualité</string>
+    <string name="missa_playback_quality_auto">Automatique</string>
+    <string name="missa_playback_quality_hint">Une qualité plus basse consomme moins de données.</string>
+    <string name="missa_playback_server">Serveur</string>
+    <string name="missa_playback_server_hint">Si la vidéo coupe ou ne démarre pas, essayez un autre serveur.</string>
+    <string name="missa_playback_server_n">Serveur %d</string>
+    <string name="missa_playback_search_subs">Chercher des sous-titres en ligne</string>
+    <string name="missa_playback_load_subs">Charger un fichier de sous-titres</string>
+    <string name="missa_playback_subs_style">Taille et couleur des sous-titres</string>
+    <string name="missa_playback_advanced">Réglages avancés (sources, profils)</string>
+    <string name="missa_playback_advanced_tracks">Avancé : pistes audio et vidéo</string>
+    <string name="missa_playback_hint">Plusieurs langues ou sous-titres disponibles : touchez « Langue et qualité ».</string>
+    <string name="missa_version_vf">Français (VF)</string>
+    <string name="missa_version_vostfr">VO sous-titrée français</string>
+    <string name="missa_version_multi">Multilingue</string>
+    <string name="missa_version_vo">Anglais (VO)</string>
+    <string name="missa_version_dub">Doublé</string>
+    <string name="missa_version_sub">Sous-titré</string>
+    <string name="missa_setup_start">Commencer</string>
 </resources>

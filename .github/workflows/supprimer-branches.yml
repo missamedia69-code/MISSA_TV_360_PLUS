@@ -1,0 +1,40 @@
+name: Supprimer des branches
+
+# Supprime des branches devenues inutiles (déjà fusionnées ou abandonnées), données à la main.
+# La branche principale (main) n'est jamais supprimée, ni la branche par défaut du dépôt.
+# Lancement : onglet Actions → « Supprimer des branches » → Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branches:
+        description: 'Branches à supprimer, séparées par des espaces (ex. mt arena/1234-missa-tv-360-plus)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  supprimer:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      BRANCHES: ${{ inputs.branches }}
+    steps:
+      - name: Supprimer
+        run: |
+          default=$(gh api "repos/$GH_REPO" -q .default_branch)
+          for b in $BRANCHES; do
+            if [ "$b" = "main" ] || [ "$b" = "$default" ]; then
+              echo "::warning::$b est la branche principale : conservée"
+              continue
+            fi
+            if gh api "repos/$GH_REPO/branches/$b" >/dev/null 2>&1; then
+              gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$b" && echo "Supprimée : $b"
+            else
+              echo "Introuvable : $b"
+            fi
+          done
+          echo "Branches restantes :"
+          gh api "repos/$GH_REPO/branches" --paginate -q '.[].name'
