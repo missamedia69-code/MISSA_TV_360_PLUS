@@ -45,7 +45,8 @@ object DirectKidsPlayerManager {
     private const val PROMOTED_IDS_KEY = "missa_yt_kids_promoted_ids_v1"
 
     /** Disk cache lifetime: a launch always re-rolls the promoted selection anyway. */
-    private const val REMOTE_CACHE_TTL_MS = 45 * 60_000L
+    // DATA-01 : était 45 min. Maintenant 6 h en Wi-Fi, 12 h sur données mobiles.
+    private val REMOTE_CACHE_TTL_MS: Long get() = MissaDataUsage.VIDEOS.maxAgeMs()
     private const val ROW_CAP = 24
     private const val ALL_ROW_CAP = 60
     private const val PROMOTED_MEMORY = 140
@@ -289,6 +290,8 @@ object DirectKidsPlayerManager {
 
     /** Resolves the first [count] streams in the background so playback starts instantly. */
     suspend fun prefetchTopVideos(count: Int = 2) {
+        // DATA-01 : préchargement de confort, seulement hors données mobiles.
+        if (!MissaDataUsage.allowPrefetch()) return
         val top = currentSelection().all.take(count)
         if (top.isEmpty()) return
         ioScope.launch {

@@ -1593,6 +1593,18 @@ class MediaUniverseFragment : Fragment(), UniverseScreenAdapter.Callbacks {
             if (universeId == "documentaries") {
                 DirectDocsPlayerManager.forceRefreshCatalog()
             }
+            // DATA-01 : radios et podcasts ne sont plus rechargés par ensureCatalogLoaded :
+            // seulement quand on actualise leur propre univers (ou l'accueil).
+            if (universeId == "radio" || universeId == "home") {
+                lifecycleScope.launch {
+                    runCatching { DirectRadioPlayerManager.refreshRemotePresetsIfNeeded(force = true) }
+                }
+            }
+            if (universeId == "podcasts" || universeId == "home") {
+                lifecycleScope.launch {
+                    runCatching { DirectPodcastPlayerManager.refreshRemotePresetsIfNeeded(force = true) }
+                }
+            }
             viewModel.ensureCatalogLoaded(forceReload = true)
             if (universeId == "music") {
                 swipeRefresh?.postDelayed({ swipeRefresh?.isRefreshing = false }, 900L)

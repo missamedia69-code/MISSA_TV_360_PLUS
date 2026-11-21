@@ -33,7 +33,8 @@ object DirectDocsPlayerManager {
     private const val PROMOTED_IDS_KEY = "missa_yt_docs_promoted_ids_v1"
 
     /** Les directs changent vite : le catalogue est renouvelé toutes les 30 minutes au plus. */
-    private const val REMOTE_CACHE_TTL_MS = 30 * 60_000L
+    // DATA-01 : était 30 min. Maintenant 6 h en Wi-Fi, 12 h sur données mobiles.
+    private val REMOTE_CACHE_TTL_MS: Long get() = MissaDataUsage.VIDEOS.maxAgeMs()
     private const val ROW_CAP = 24
     private const val ALL_ROW_CAP = 60
     private const val PROMOTED_MEMORY = 140
