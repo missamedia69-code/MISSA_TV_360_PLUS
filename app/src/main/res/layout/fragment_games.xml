@@ -19,85 +19,75 @@
             android:background="?attr/missaSurfaceElevated"
             android:orientation="vertical"
             android:paddingStart="@dimen/missa_section_horizontal_padding"
-            android:paddingTop="12dp"
+            android:paddingTop="10dp"
             android:paddingEnd="@dimen/missa_section_horizontal_padding"
-            android:paddingBottom="10dp">
+            android:paddingBottom="8dp">
 
-            <!-- Bannière NEO-GEO Classic Games de l'univers Jeux : proportions gardées (jamais
-                 rognée), hauteur bornée, calée à gauche sur les grands écrans. -->
-            <com.google.android.material.imageview.ShapeableImageView
-                android:id="@+id/games_banner"
+            <!-- Bannière NEO-GEO Classic Games de l'univers Jeux, avec les informations posées
+                 dessus (état de la manette en haut à droite, aide en bas à droite) : l'en-tête
+                 tient dans la hauteur de la bannière. La bannière sert de titre de l'écran. -->
+            <FrameLayout
+                android:id="@+id/games_banner_box"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="start"
-                android:layout_marginBottom="10dp"
-                android:adjustViewBounds="true"
-                android:contentDescription="@string/universe_games_banner_desc"
-                android:importantForAccessibility="yes"
-                android:maxHeight="@dimen/missa_games_banner_max_height"
-                android:scaleType="fitCenter"
-                android:src="@drawable/missa_games_banner"
-                app:shapeAppearanceOverlay="@style/ShapeAppearance.Missa.GamesBanner" />
+                android:layout_gravity="start">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:layout_width="0dp"
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/games_banner"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        style="@style/TextAppearance.Missa.Badge"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/universe_eyebrow_games"
-                        android:textColor="?attr/missaAccentPrimary" />
-
-                    <TextView
-                        style="@style/TextAppearance.Missa.ScreenTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:accessibilityHeading="true"
-                        android:text="@string/universe_games_title" />
-                </LinearLayout>
+                    android:accessibilityHeading="true"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@string/universe_games_banner_desc"
+                    android:importantForAccessibility="yes"
+                    android:maxHeight="@dimen/missa_games_banner_max_height"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/missa_games_banner"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Missa.GamesBanner" />
 
                 <TextView
                     android:id="@+id/games_controller_badge"
                     style="@style/TextAppearance.Missa.Caption"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/missa_eyebrow_pill_bg"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="6dp"
+                    android:background="@drawable/missa_banner_overlay_pill_bg"
                     android:ellipsize="end"
-                    android:maxWidth="240dp"
-                    android:maxLines="2"
-                    android:paddingStart="10dp"
-                    android:paddingTop="5dp"
-                    android:paddingEnd="10dp"
-                    android:paddingBottom="5dp"
+                    android:maxWidth="@dimen/missa_games_banner_overlay_max_width"
+                    android:maxLines="1"
+                    android:paddingStart="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="3dp"
                     android:textColor="?attr/missaAccentSuccess"
+                    android:textSize="11sp"
                     tools:text="Manette prête" />
-            </LinearLayout>
 
-            <TextView
-                android:id="@+id/games_intro"
-                style="@style/TextAppearance.Missa.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:text="@string/universe_games_intro" />
+                <TextView
+                    android:id="@+id/games_intro"
+                    style="@style/TextAppearance.Missa.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="6dp"
+                    android:background="@drawable/missa_banner_overlay_pill_bg"
+                    android:ellipsize="end"
+                    android:maxWidth="@dimen/missa_games_banner_overlay_max_width"
+                    android:maxLines="1"
+                    android:paddingStart="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="3dp"
+                    android:text="@string/universe_games_intro"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+            </FrameLayout>
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:overScrollMode="never"
                 android:scrollbars="none">
 
