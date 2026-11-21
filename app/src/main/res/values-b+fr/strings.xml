@@ -1578,4 +1578,24 @@ Moteur : %5$s (%6$s)</string>
     <string name="missa_setup_start">Commencer</string>
     <string name="universe_games_banner_desc">NEO-GEO, jeux classiques</string>
     <string name="missa_stall_switch">Connexion lente : passage à un autre serveur…</string>
+    <!-- Mes appareils, annonces -->
+    <string name="missa_devices_title">Mes appareils</string>
+    <string name="missa_devices_loading">Chargement de vos appareils…</string>
+    <string name="missa_devices_network">Pas de connexion au serveur. Réessayez.</string>
+    <string name="missa_devices_none">Aucun abonnement sur cet appareil pour l\'instant.</string>
+    <string name="missa_devices_this">cet appareil</string>
+    <string name="missa_devices_this_hint">C\'est l\'appareil que vous utilisez. Pour libérer une place, retirez l\'autre appareil.</string>
+    <string name="missa_devices_inactive">inactif</string>
+    <string name="missa_devices_seen_today">vu aujourd\'hui</string>
+    <string name="missa_devices_seen_yesterday">vu hier</string>
+    <string name="missa_devices_seen_days">vu il y a %d jours</string>
+    <string name="missa_devices_header">Appareils (%1$d sur %2$d)</string>
+    <string name="missa_devices_limit">Vous avez déjà retiré 3 appareils ces 30 derniers jours. Écrivez-nous (Aide et contact) pour en changer encore.</string>
+    <string name="missa_devices_remove_title">Retirer cet appareil ?</string>
+    <string name="missa_devices_remove_message">« %1$s » n\'utilisera plus votre abonnement et sa place sera libre pour un autre appareil. Retraits restants ce mois-ci : %2$d.</string>
+    <string name="missa_devices_remove">Retirer</string>
+    <string name="missa_devices_removed">Appareil retiré : sa place est libre.</string>
+    <string name="missa_devices_refused">Impossible de retirer cet appareil (il a peut-être déjà quitté l\'abonnement).</string>
+    <string name="missa_announcement_ok">OK</string>
+    <string name="missa_announcement_open">Ouvrir</string>
 </resources>

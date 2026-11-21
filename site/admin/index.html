@@ -21,7 +21,13 @@
     .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-top:16px; }
     .muted { color:var(--muted); font-size:.92rem; }
     label { display:block; font-weight:600; margin:14px 0 6px; }
-    input { font:inherit; width:100%; padding:12px; border-radius:12px; border:1px solid var(--line); background:#0f151c; color:var(--text); }
+    input, textarea, select { font:inherit; width:100%; padding:12px; border-radius:12px; border:1px solid var(--line); background:#0f151c; color:var(--text); }
+    textarea { min-height:110px; resize:vertical; }
+    .ann { background:#0f151c; border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px; }
+    .ann.off { opacity:.55; }
+    .ann b { display:block; }
+    .ann p { margin:6px 0 0; white-space:pre-wrap; word-break:break-word; }
+    .ann .meta { color:var(--muted); font-size:.85rem; margin-top:6px; }
     #code { text-transform:uppercase; font-family:ui-monospace,Menlo,Consolas,monospace; letter-spacing:.06em; }
     .check { display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:400; color:var(--muted); }
     .check input { width:auto; }
@@ -101,6 +107,31 @@
       <button type="button" id="csv">Liste des appareils (Excel)</button>
     </div>
     <div class="msg" id="stmsg" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="card" aria-labelledby="an-title">
+    <h2 id="an-title">Annonce aux utilisateurs</h2>
+    <p class="muted">Affichée une fois sur chaque appareil, à l'ouverture de l'application (maintenance, nouveautés, promotion). Une nouvelle annonce remplace la précédente.</p>
+    <label for="an-t">Titre</label>
+    <input id="an-t" maxlength="80" placeholder="Ex. : Nouvelle version disponible">
+    <label for="an-m">Message</label>
+    <textarea id="an-m" maxlength="1000" placeholder="Ex. : Téléchargez la dernière version sur missatv.pages.dev pour profiter des nouveaux jeux."></textarea>
+    <label for="an-l">Lien (facultatif, https://…)</label>
+    <input id="an-l" maxlength="300" placeholder="https://missatv.pages.dev" inputmode="url" spellcheck="false">
+    <label for="an-d">Durée</label>
+    <select id="an-d">
+      <option value="0">Jusqu'à ce que je l'arrête</option>
+      <option value="1">1 jour</option>
+      <option value="3">3 jours</option>
+      <option value="7" selected>7 jours</option>
+      <option value="30">30 jours</option>
+    </select>
+    <div class="actions">
+      <button type="button" class="primary" id="an-pub" style="margin-top:0">Publier l'annonce</button>
+      <button type="button" id="an-stop">Arrêter l'annonce en cours</button>
+    </div>
+    <div class="msg" id="anmsg" role="status" aria-live="polite"></div>
+    <div id="anns"></div>
   </section>
 
   <section class="card" aria-labelledby="tk-title">
@@ -279,6 +310,52 @@
         });
       }).catch(function () { sayTk("Pas de connexion au serveur.", "err"); });
   }
+  function sayAn(text, kind) { var m = $("anmsg"); m.textContent = text; m.className = "msg" + (kind ? " " + kind : ""); }
+  function loadAnns() {
+    if (!token()) return;
+    fetch("/api/admin/announcements", { headers: { "Authorization": "Bearer " + token() } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) return;
+        var box = $("anns"); box.innerHTML = "";
+        j.announcements.forEach(function (a) {
+          var live = a.active && (!a.ends_at || a.ends_at > j.now);
+          var d = el("div", "ann" + (live ? "" : " off"));
+          d.appendChild(el("b", null, a.title));
+          d.appendChild(el("p", null, a.message));
+          var meta = (live ? "En ligne" : "Terminée") + " · publiée le " + new Date(a.at).toLocaleString("fr-FR");
+          if (a.ends_at) meta += " · jusqu'au " + new Date(a.ends_at).toLocaleString("fr-FR");
+          if (a.link) meta += " · " + a.link;
+          d.appendChild(el("div", "meta", meta));
+          box.appendChild(d);
+        });
+      }).catch(function () {});
+  }
+  function postAnn(payload, done) {
+    if (!token()) { sayAn("Entrez d'abord le mot de passe administrateur (en haut de la page).", "err"); return; }
+    sayAn("Envoi…");
+    fetch("/api/admin/announcements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token() },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
+      .then(function (res) {
+        if (res[0] === 403) sayAn("Mot de passe refusé.", "err");
+        else if (res[1] && res[1].error === "bad_link") sayAn("Le lien doit commencer par https://", "err");
+        else if (res[0] !== 200) sayAn("Titre et message sont obligatoires.", "err");
+        else { sayAn(done, "ok"); loadAnns(); }
+      }).catch(function () { sayAn("Pas de connexion au serveur.", "err"); });
+  }
+  $("an-pub").addEventListener("click", function () {
+    postAnn({ title: $("an-t").value, message: $("an-m").value, link: $("an-l").value, days: Number($("an-d").value) },
+      "Annonce publiée : elle apparaîtra à la prochaine ouverture de l'application (dans les minutes qui suivent).");
+  });
+  $("an-stop").addEventListener("click", function () {
+    postAnn({ action: "stop" }, "Annonce arrêtée : elle ne s'affichera plus.");
+  });
+  $("token").addEventListener("change", loadAnns);
+  if (token()) loadAnns();
+
   $("tk-open").addEventListener("click", function () { loadTickets(false); });
   $("tk-all").addEventListener("click", function () { loadTickets(true); });
 

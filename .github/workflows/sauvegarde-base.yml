@@ -1,0 +1,92 @@
+name: Sauvegarde de la base (D1)
+
+# Chaque nuit, copie complète de la base « missatv » (appareils, abonnements, paiements,
+# messages, annonces) dans le seau Cloudflare R2 PRIVÉ « missatv-sauvegardes » :
+#   d1/missatv-AAAA-MM-JJ.sql.gz   — une par jour, gardées 30 jours.
+# Jamais dans le dépôt GitHub (public) ni dans les fichiers d'action : la base contient les
+# codes des appareils et l'historique des paiements.
+#
+# Lancement manuel : onglet Actions → « Sauvegarde de la base (D1) » → Run workflow.
+#
+# Restaurer (en cas de besoin) :
+#   1. Cloudflare → R2 → missatv-sauvegardes → d1/ → télécharger le fichier du jour voulu ;
+#   2. le décompresser (fichier .sql) ;
+#   3. npx wrangler d1 execute missatv --remote --file=missatv-AAAA-MM-JJ.sql
+#      (de préférence dans une base neuve, puis la relier au site, pour ne rien mélanger).
+#
+# Prérequis : les secrets CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID déjà utilisés pour
+# le site, avec les permissions D1 (Edit) et R2 (Edit) — les mêmes que pour les jeux.
+
+on:
+  schedule:
+    # 02:17 UTC, soit 03:17 au Cameroun : peu d'utilisateurs.
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauvegarde-base
+  cancel-in-progress: false
+
+jobs:
+  sauvegarder:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BUCKET: missatv-sauvegardes
+      KEEP_DAYS: '30'
+    steps:
+      - name: Vérifier les secrets Cloudflare
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "::error::Secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID absents."
+            exit 1
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Exporter la base
+        run: |
+          DAY=$(date -u +%F)
+          FILE="missatv-$DAY.sql"
+          npx --yes wrangler@3 d1 export missatv --remote --output "$FILE"
+          if [[ ! -s "$FILE" ]]; then
+            echo "::error::Export vide : rien n'est envoyé."
+            exit 1
+          fi
+          TABLES=$(grep -c '^CREATE TABLE' "$FILE" || true)
+          ROWS=$(grep -c '^INSERT INTO' "$FILE" || true)
+          gzip -9 "$FILE"
+          echo "FILE=$FILE.gz" >> "$GITHUB_ENV"
+          echo "DAY=$DAY" >> "$GITHUB_ENV"
+          echo "TABLES=$TABLES" >> "$GITHUB_ENV"
+          echo "ROWS=$ROWS" >> "$GITHUB_ENV"
+
+      - name: Envoyer dans le seau privé R2
+        run: |
+          if ! npx --yes wrangler@3 r2 bucket list > r2.log 2>&1; then
+            cat r2.log
+            echo "::error::R2 indisponible : vérifiez la permission R2 de CLOUDFLARE_API_TOKEN."
+            exit 1
+          fi
+          if ! grep -qw "$BUCKET" r2.log; then
+            # Un seau neuf est privé : rien n'y est accessible depuis Internet.
+            npx --yes wrangler@3 r2 bucket create "$BUCKET"
+          fi
+          npx --yes wrangler@3 r2 object put "$BUCKET/d1/$FILE" --file "$FILE" --content-type application/gzip
+          # Rotation : on retire la copie d'il y a KEEP_DAYS jours (si elle existe).
+          OLD=$(date -u -d "$KEEP_DAYS days ago" +%F)
+          npx --yes wrangler@3 r2 object delete "$BUCKET/d1/missatv-$OLD.sql.gz" >/dev/null 2>&1 || true
+          SIZE=$(du -h "$FILE" | cut -f1)
+          {
+            echo "### Sauvegarde de la base du $DAY"
+            echo "- Fichier : \`$BUCKET/d1/$FILE\` ($SIZE)"
+            echo "- Tables : $TABLES · lignes : $ROWS"
+            echo "- Copies gardées : $KEEP_DAYS jours"
+          } >> "$GITHUB_STEP_SUMMARY"

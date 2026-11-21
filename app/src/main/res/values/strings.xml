@@ -1620,4 +1620,24 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_setup_start">Get started</string>
     <string name="universe_games_banner_desc">NEO-GEO Classic Games</string>
     <string name="missa_stall_switch">Slow connection: switching to another server…</string>
+    <!-- Mes appareils, annonces -->
+    <string name="missa_devices_title">My devices</string>
+    <string name="missa_devices_loading">Loading your devices…</string>
+    <string name="missa_devices_network">No connection to the server. Try again.</string>
+    <string name="missa_devices_none">No subscription on this device yet.</string>
+    <string name="missa_devices_this">this device</string>
+    <string name="missa_devices_this_hint">This is the device you are using. To free a place, remove the other device.</string>
+    <string name="missa_devices_inactive">inactive</string>
+    <string name="missa_devices_seen_today">active today</string>
+    <string name="missa_devices_seen_yesterday">active yesterday</string>
+    <string name="missa_devices_seen_days">active %d days ago</string>
+    <string name="missa_devices_header">Devices (%1$d of %2$d)</string>
+    <string name="missa_devices_limit">You have already removed 3 devices in the last 30 days. Write to us (Help and contact) to change devices again.</string>
+    <string name="missa_devices_remove_title">Remove this device?</string>
+    <string name="missa_devices_remove_message">“%1$s” will no longer use your subscription and its place will be free for another device. Removals left this month: %2$d.</string>
+    <string name="missa_devices_remove">Remove</string>
+    <string name="missa_devices_removed">Device removed: its place is free.</string>
+    <string name="missa_devices_refused">This device cannot be removed (it may already have left the subscription).</string>
+    <string name="missa_announcement_ok">OK</string>
+    <string name="missa_announcement_open">Open</string>
 </resources>

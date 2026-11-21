@@ -1,6 +1,6 @@
 name: Supprimer d'anciennes versions
 
-# Supprime les versions (releases GitHub) et leurs étiquettes, données à la main.
+# Supprime les versions (releases GitHub, brouillons compris) et leurs étiquettes, données à la main.
 # La dernière version publiée n'est jamais supprimée : le site pointe dessus.
 # Lancement : onglet Actions → « Supprimer d'anciennes versions » → Run workflow.
 
@@ -31,11 +31,18 @@ jobs:
               echo "::warning::$tag est la dernière version : conservée"
               continue
             fi
-            if gh release view "$tag" >/dev/null 2>&1; then
-              gh release delete "$tag" --cleanup-tag --yes && echo "Supprimée : $tag"
-            else
+            # Recherche dans la liste complète : les brouillons n'ont pas d'étiquette publiée
+            # et « gh release view » ne les trouve pas.
+            ids=$(gh api "repos/$GH_REPO/releases" --paginate -q ".[] | select(.tag_name == \"$tag\") | .id")
+            if [ -z "$ids" ]; then
               echo "Introuvable : $tag"
+              continue
             fi
+            for id in $ids; do
+              gh api -X DELETE "repos/$GH_REPO/releases/$id" && echo "Supprimée : $tag (version $id)"
+            done
+            # Étiquette Git associée, si elle existe.
+            gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$tag" >/dev/null 2>&1 && echo "Étiquette supprimée : $tag" || true
           done
           echo "Versions restantes :"
           gh release list --limit 50
