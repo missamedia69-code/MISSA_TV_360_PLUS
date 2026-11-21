@@ -90,12 +90,110 @@ object MissaSubscription {
             .setMessage(message)
             .setPositiveButton(R.string.missa_sub_renew) { _, _ -> openPayPage(activity, s) }
             .setNegativeButton(R.string.missa_sub_close, null)
-        if (code != null) builder.setNeutralButton(R.string.missa_sub_copy_code) { _, _ -> copyCode(activity, code) }
+        val subscribed = s != null && s.expiresAt > System.currentTimeMillis() + s.serverOffset
+        if (subscribed) {
+            // Abonné : « Mes appareils » (le code se copie aussi depuis cette liste).
+            builder.setNeutralButton(R.string.missa_devices_title) { _, _ -> showDevices(activity) }
+        } else if (code != null) {
+            builder.setNeutralButton(R.string.missa_sub_copy_code) { _, _ -> copyCode(activity, code) }
+        }
         builder.show()
     }
 
+    // ------------------------------------------------------------ Mes appareils
+
+    /**
+     * Appareils de l'abonnement (2 au plus) : on touche un autre appareil pour le retirer
+     * (ancien téléphone, TV changée), sans écrire au support. 3 retraits au plus par 30 jours.
+     */
+    fun showDevices(activity: Activity) {
+        Toast.makeText(activity, R.string.missa_devices_loading, Toast.LENGTH_SHORT).show()
+        ioSafe {
+            val info = MissaLicence.myDevices(activity)
+            main { showDevicesNow(activity, info) }
+        }
+    }
+
+    private fun ago(ctx: Context, ms: Long): String {
+        val days = ((System.currentTimeMillis() - ms) / (24L * 60 * 60 * 1000)).coerceAtLeast(0)
+        return when (days) {
+            0L -> ctx.getString(R.string.missa_devices_seen_today)
+            1L -> ctx.getString(R.string.missa_devices_seen_yesterday)
+            else -> ctx.getString(R.string.missa_devices_seen_days, days.toInt())
+        }
+    }
+
+    private fun showDevicesNow(activity: Activity, info: MissaLicence.Devices?) {
+        if (activity.isFinishing) return
+        if (info == null) {
+            Toast.makeText(activity, R.string.missa_devices_network, Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!info.subscribed || info.devices.isEmpty()) {
+            AlertDialog.Builder(activity)
+                .setTitle(R.string.missa_devices_title)
+                .setMessage(R.string.missa_devices_none)
+                .setPositiveButton(R.string.missa_sub_close, null)
+                .show()
+            return
+        }
+        val labels = info.devices.map { d ->
+            buildString {
+                append(d.model ?: d.code)
+                if (d.current) append(" — ").append(activity.getString(R.string.missa_devices_this))
+                append("\n").append(d.code).append(" · ").append(ago(activity, d.lastSeen))
+                if (d.inactive) append(" · ").append(activity.getString(R.string.missa_devices_inactive))
+            }
+        }.toTypedArray()
+        val myCode = info.devices.firstOrNull { it.current }?.code
+        val builder = AlertDialog.Builder(activity)
+            .setTitle(activity.getString(R.string.missa_devices_header, info.devices.size, info.maxDevices))
+            .setItems(labels) { _, which ->
+                val d = info.devices.getOrNull(which) ?: return@setItems
+                if (d.current) {
+                    Toast.makeText(activity, R.string.missa_devices_this_hint, Toast.LENGTH_LONG).show()
+                } else {
+                    confirmDetach(activity, d, info.detachesLeft)
+                }
+            }
+            .setNegativeButton(R.string.missa_sub_close, null)
+        if (myCode != null) builder.setNeutralButton(R.string.missa_sub_copy_code) { _, _ -> copyCode(activity, myCode) }
+        builder.show()
+    }
+
+    private fun confirmDetach(activity: Activity, d: MissaLicence.Device, left: Int) {
+        if (left <= 0) {
+            AlertDialog.Builder(activity)
+                .setTitle(R.string.missa_devices_title)
+                .setMessage(R.string.missa_devices_limit)
+                .setPositiveButton(R.string.missa_sub_close, null)
+                .show()
+            return
+        }
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.missa_devices_remove_title)
+            .setMessage(activity.getString(R.string.missa_devices_remove_message, d.model ?: d.code, left))
+            .setPositiveButton(R.string.missa_devices_remove) { _, _ ->
+                ioSafe {
+                    val result = MissaLicence.detachDevice(activity, d.code)
+                    main {
+                        val msg = when (result) {
+                            MissaLicence.DetachResult.OK -> R.string.missa_devices_removed
+                            MissaLicence.DetachResult.LIMIT -> R.string.missa_devices_limit
+                            MissaLicence.DetachResult.REFUSED -> R.string.missa_devices_refused
+                            MissaLicence.DetachResult.NETWORK -> R.string.missa_devices_network
+                        }
+                        Toast.makeText(activity, msg, Toast.LENGTH_LONG).show()
+                        if (result == MissaLicence.DetachResult.OK) showDevices(activity)
+                    }
+                }
+            }
+            .setNegativeButton(R.string.missa_sub_later, null)
+            .show()
+    }
+
     /** Vrai si une vidéo est à l'écran : on ne l'interrompt pas pour un rappel. */
-    private fun isPlayerVisible(activity: Activity): Boolean {
+    internal fun isPlayerVisible(activity: Activity): Boolean {
         val fa = activity as? FragmentActivity ?: return false
         fun visit(list: List<Fragment>): Boolean = list.any { f ->
             (f is AbstractPlayerFragment<*> && f.isVisible) || visit(f.childFragmentManager.fragments)

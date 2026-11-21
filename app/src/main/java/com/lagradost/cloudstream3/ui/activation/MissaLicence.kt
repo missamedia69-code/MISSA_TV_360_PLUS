@@ -225,6 +225,75 @@ object MissaLicence {
         }
     }
 
+    // ------------------------------------------------------------ Mes appareils
+
+    data class Device(
+        val code: String,
+        val model: String?,
+        val lastSeen: Long,
+        val current: Boolean,
+        val inactive: Boolean
+    )
+
+    data class Devices(
+        val subscribed: Boolean,
+        val devices: List<Device>,
+        val maxDevices: Int,
+        val detachesLeft: Int
+    )
+
+    /** Appareils de l'abonnement de cet appareil (null : pas de réponse du serveur). */
+    suspend fun myDevices(ctx: Context): Devices? = withContext(Dispatchers.IO) {
+        try {
+            val res = app.post(API_BASE + "devices", json = mapOf("deviceId" to deviceId(ctx)), timeout = 15L)
+            val j = JSONObject(res.text)
+            if (j.has("error")) return@withContext null
+            val arr = j.optJSONArray("devices")
+            val list = (0 until (arr?.length() ?: 0)).mapNotNull { i ->
+                val o = arr?.optJSONObject(i) ?: return@mapNotNull null
+                Device(
+                    code = o.optString("code"),
+                    model = o.optString("model").takeIf { it.isNotBlank() && it != "null" },
+                    lastSeen = o.optLong("lastSeen"),
+                    current = o.optBoolean("current"),
+                    inactive = o.optBoolean("inactive")
+                )
+            }
+            Devices(
+                subscribed = j.optBoolean("subscribed"),
+                devices = list,
+                maxDevices = j.optInt("maxDevices", 2),
+                detachesLeft = j.optInt("detachesLeft", 0)
+            )
+        } catch (e: Exception) {
+            logError(e)
+            null
+        }
+    }
+
+    enum class DetachResult { OK, LIMIT, REFUSED, NETWORK }
+
+    /** Retire l'appareil [code] de l'abonnement (ancien téléphone, TV changée…). */
+    suspend fun detachDevice(ctx: Context, code: String): DetachResult = withContext(Dispatchers.IO) {
+        try {
+            val res = app.post(
+                API_BASE + "devices/detach",
+                json = mapOf("deviceId" to deviceId(ctx), "code" to code),
+                timeout = 15L
+            )
+            val j = runCatching { JSONObject(res.text) }.getOrNull() ?: return@withContext DetachResult.NETWORK
+            when {
+                j.optBoolean("ok") -> DetachResult.OK
+                j.optString("error") == "too_many_detaches" -> DetachResult.LIMIT
+                j.has("error") -> DetachResult.REFUSED
+                else -> DetachResult.NETWORK
+            }
+        } catch (e: Exception) {
+            logError(e)
+            DetachResult.NETWORK
+        }
+    }
+
     /** Pour n'afficher le rappel « délai de grâce » qu'une fois par jour. */
     /**
      * Rappel avant la fin de l'essai (moins de 3 h) ou de l'abonnement (moins de 3 jours).

@@ -71,6 +71,11 @@ export async function onRequest(context) {
     if (path === "/admin/tickets" && request.method === "POST") return await adminTicketUpdate(request, env);
     if (path === "/dl" && request.method === "GET") return await download(request, env);
     if (path === "/stats" && request.method === "GET") return cors(await publicStats(env));
+    if (path === "/announcement" && request.method === "GET") return cors(await announcement(env));
+    if (path === "/admin/announcements" && request.method === "GET") return await adminAnnouncements(request, env);
+    if (path === "/admin/announcements" && request.method === "POST") return await adminAnnouncementSave(request, env);
+    if (path === "/devices" && request.method === "POST") return cors(await myDevices(request, env));
+    if (path === "/devices/detach" && request.method === "POST") return cors(await detachDevice(request, env));
     return json({ error: "not_found" }, 404);
   } catch (e) {
     console.error(e && e.stack ? e.stack : e);
@@ -552,6 +557,123 @@ async function adminTicketUpdate(request, env) {
   if (!Number.isInteger(id) || id <= 0) return json({ error: "bad_request" }, 400);
   await env.DB.prepare("UPDATE tickets SET status = ? WHERE id = ?").bind(status, id).run();
   return json({ ok: true });
+}
+
+// ---------------------------------------------------------------- annonces
+
+// Message affiché à tous les utilisateurs à l'ouverture de l'application (maintenance,
+// nouveautés, promotion), écrit par le responsable dans la page /admin/. Une seule annonce
+// est en ligne à la fois ; chaque appareil ne la voit qu'une fois.
+
+/** Annonce en cours (ou null). Gardée 5 min en cache par le réseau de Cloudflare. */
+async function announcement(env) {
+  const now = Date.now();
+  const row = await env.DB.prepare(
+    "SELECT id, title, message, link FROM announcements WHERE active = 1 AND (ends_at IS NULL OR ends_at > ?) " +
+    "ORDER BY id DESC LIMIT 1"
+  ).bind(now).first();
+  return new Response(JSON.stringify({ announcement: row || null }), {
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" },
+  });
+}
+
+async function adminAnnouncements(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "forbidden" }, 403);
+  const { results } = await env.DB.prepare("SELECT * FROM announcements ORDER BY id DESC LIMIT 20").all();
+  return json({ announcements: results || [], now: Date.now() });
+}
+
+/** Publier une annonce (remplace celle en cours) ou arrêter celle en cours. */
+async function adminAnnouncementSave(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "forbidden" }, 403);
+  const body = await readJson(request);
+  if (body.action === "stop") {
+    await env.DB.prepare("UPDATE announcements SET active = 0 WHERE active = 1").run();
+    return json({ ok: true });
+  }
+  const title = String(body.title || "").trim().slice(0, 80);
+  const message = String(body.message || "").trim().slice(0, 1000);
+  if (!title || message.length < 3) return json({ error: "bad_request" }, 400);
+  let link = String(body.link || "").trim().slice(0, 300) || null;
+  if (link && !/^https:\/\/[^\s]+$/.test(link)) return json({ error: "bad_link" }, 400);
+  const days = Number(body.days);
+  const now = Date.now();
+  const endsAt = Number.isFinite(days) && days > 0 && days <= 365 ? now + days * DAY : null;
+  await env.DB.prepare("UPDATE announcements SET active = 0 WHERE active = 1").run();
+  const res = await env.DB.prepare(
+    "INSERT INTO announcements (at, title, message, link, ends_at, active) VALUES (?, ?, ?, ?, ?, 1)"
+  ).bind(now, title, message, link, endsAt).run();
+  return json({ ok: true, id: res && res.meta ? res.meta.last_row_id : null });
+}
+
+// ---------------------------------------------------------------- appareils de l'abonnement
+
+// « Mes appareils » dans l'application : l'abonné voit les appareils de son abonnement
+// (2 au plus) et peut en retirer un (ancien téléphone, TV changée) sans écrire au support.
+// Seul un appareil de l'abonnement peut le faire (son identifiant n'est connu que de lui).
+// Pour éviter de « prêter » l'abonnement en boucle : 3 retraits au plus par 30 jours.
+const MAX_DETACHES = 3;
+const DETACH_WINDOW_MS = 30 * DAY;
+
+async function subscriptionOf(env, deviceId) {
+  if (!/^[a-f0-9]{64}$/.test(deviceId)) return null;
+  const me = await env.DB.prepare("SELECT * FROM devices WHERE id = ?").bind(deviceId).first();
+  if (!me || !me.subscription_id) return { me, sub: null };
+  const sub = await env.DB.prepare("SELECT * FROM subscriptions WHERE id = ?").bind(me.subscription_id).first();
+  return { me, sub };
+}
+
+async function detachesLeft(env, subId, now) {
+  const used = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM device_detaches WHERE subscription_id = ? AND at > ?"
+  ).bind(subId, now - DETACH_WINDOW_MS).first();
+  return Math.max(0, MAX_DETACHES - (used ? used.n : 0));
+}
+
+async function myDevices(request, env) {
+  const body = await readJson(request);
+  const found = await subscriptionOf(env, String(body.deviceId || ""));
+  if (!found) return json({ error: "bad_device" }, 400);
+  if (!found.me) return json({ error: "unknown_device" }, 404);
+  const now = Date.now();
+  if (!found.sub) return json({ subscribed: false, devices: [], maxDevices: MAX_DEVICES });
+  const { results } = await env.DB.prepare(
+    "SELECT id, code, model, last_seen FROM devices WHERE subscription_id = ? ORDER BY last_seen DESC"
+  ).bind(found.sub.id).all();
+  return json({
+    subscribed: true,
+    expiresAt: found.sub.expires_at,
+    maxDevices: MAX_DEVICES,
+    detachesLeft: await detachesLeft(env, found.sub.id, now),
+    devices: (results || []).map((d) => ({
+      code: d.code,
+      model: d.model || null,
+      lastSeen: d.last_seen,
+      current: d.id === found.me.id,
+      // Sans nouvelles depuis 30 jours : ne compte déjà plus dans la limite.
+      inactive: d.last_seen < now - DEVICE_STALE_MS,
+    })),
+  });
+}
+
+async function detachDevice(request, env) {
+  const body = await readJson(request);
+  const found = await subscriptionOf(env, String(body.deviceId || ""));
+  if (!found) return json({ error: "bad_device" }, 400);
+  if (!found.me || !found.sub) return json({ error: "no_subscription" }, 409);
+  const code = normCode(body.code);
+  if (!code) return json({ error: "bad_request" }, 400);
+  if (code === found.me.code) return json({ error: "self" }, 400);
+  const target = await env.DB.prepare("SELECT id, code, subscription_id FROM devices WHERE code = ?").bind(code).first();
+  if (!target || target.subscription_id !== found.sub.id) return json({ error: "unknown_code" }, 404);
+  const now = Date.now();
+  const left = await detachesLeft(env, found.sub.id, now);
+  if (left <= 0) return json({ error: "too_many_detaches", detachesLeft: 0 }, 429);
+  await env.DB.prepare("UPDATE devices SET subscription_id = NULL WHERE id = ?").bind(target.id).run();
+  await env.DB.prepare(
+    "INSERT INTO device_detaches (subscription_id, device_code, by_code, at) VALUES (?, ?, ?, ?)"
+  ).bind(found.sub.id, target.code, found.me.code, now).run();
+  return json({ ok: true, detachesLeft: left - 1 });
 }
 
 // ---------------------------------------------------------------- support

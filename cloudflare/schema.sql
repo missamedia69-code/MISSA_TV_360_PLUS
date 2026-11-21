@@ -65,3 +65,25 @@ CREATE TABLE IF NOT EXISTS tickets (
 );
 CREATE INDEX IF NOT EXISTS tickets_status ON tickets(status, at);
 CREATE INDEX IF NOT EXISTS tickets_code ON tickets(code, at);
+
+-- Annonces affichées à tous dans l'application (page /admin/ : publier, arrêter).
+-- Une seule active à la fois ; ends_at nul = jusqu'à l'arrêt.
+CREATE TABLE IF NOT EXISTS announcements (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         INTEGER NOT NULL,
+  title      TEXT NOT NULL,
+  message    TEXT NOT NULL,
+  link       TEXT,
+  ends_at    INTEGER,
+  active     INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS announcements_active ON announcements(active, id);
+
+-- Appareils retirés d'un abonnement par l'abonné (« Mes appareils ») : 3 au plus par 30 jours.
+CREATE TABLE IF NOT EXISTS device_detaches (
+  subscription_id TEXT NOT NULL,
+  device_code     TEXT NOT NULL,
+  by_code         TEXT NOT NULL,
+  at              INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS device_detaches_sub ON device_detaches(subscription_id, at);

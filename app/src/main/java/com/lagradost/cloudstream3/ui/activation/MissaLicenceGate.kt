@@ -36,6 +36,8 @@ object MissaLicenceGate {
                 }
                 // Fin d'essai ou d'abonnement proche : rappel avec « Renouveler » (pas de blocage surprise).
                 if (verdict == MissaLicence.Verdict.OPEN) MissaSubscription.maybeRemind(activity)
+                // Annonce du responsable (page /admin/ du site) : une fois par appareil.
+                MissaAnnouncements.maybeShow(activity)
                 delay(60_000)
             }
         }
