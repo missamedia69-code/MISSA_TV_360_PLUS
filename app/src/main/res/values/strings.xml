@@ -1618,4 +1618,5 @@ Engine: %5$s (%6$s)</string>
     <string name="missa_version_dub">Dubbed</string>
     <string name="missa_version_sub">Subtitled</string>
     <string name="missa_setup_start">Get started</string>
+    <string name="universe_games_banner_desc">NEO GEO by SNK, the legendary arcade collection</string>
 </resources>

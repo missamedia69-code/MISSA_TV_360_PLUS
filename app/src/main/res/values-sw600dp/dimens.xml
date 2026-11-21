@@ -15,4 +15,5 @@
     <dimen name="missa_hub_card_width">168dp</dimen>
     <dimen name="missa_hub_card_height">108dp</dimen>
     <dimen name="missa_search_grid_card_min_width">140dp</dimen>
+    <dimen name="missa_games_banner_max_height">140dp</dimen>
 </resources>

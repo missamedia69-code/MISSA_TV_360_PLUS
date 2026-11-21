@@ -71,4 +71,5 @@
     <dimen name="missa_focus_stroke_width">3dp</dimen>
     <dimen name="missa_card_radius">14dp</dimen>
     <dimen name="missa_search_grid_card_min_width">116dp</dimen>
+    <dimen name="missa_games_banner_max_height">120dp</dimen>
 </resources>
