@@ -1598,4 +1598,8 @@ Moteur : %5$s (%6$s)</string>
     <string name="missa_devices_refused">Impossible de retirer cet appareil (il a peut-être déjà quitté l\'abonnement).</string>
     <string name="missa_announcement_ok">OK</string>
     <string name="missa_announcement_open">Ouvrir</string>
+    <plurals name="universe_games_banner_info">
+        <item quantity="one">%d jeu · Neo Geo</item>
+        <item quantity="other">%d jeux · Neo Geo</item>
+    </plurals>
 </resources>
