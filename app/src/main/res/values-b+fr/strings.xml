@@ -1270,8 +1270,8 @@
     <string name="universe_games_description">Jeux d’arcade Neo Geo, téléchargés à la demande et joués hors ligne.</string>
     <string name="universe_card_games_sub">Arcade Neo Geo</string>
     <string name="universe_eyebrow_games">JEUX</string>
-    <string name="universe_games_intro">Touchez un jeu pour le télécharger ou y jouer · appui long : options</string>
-    <string name="universe_games_intro_tv">OK : jouer ou télécharger · OK maintenu : options (infos, supprimer)</string>
+    <string name="universe_games_intro">Toucher : jouer · appui long : options</string>
+    <string name="universe_games_intro_tv">OK : jouer · OK maintenu : options</string>
     <string name="universe_games_tile_progress">%1$d %%</string>
     <string name="universe_games_refresh">Actualiser</string>
     <string name="universe_games_filter_all">Tous</string>
