@@ -23,17 +23,19 @@
             android:paddingEnd="@dimen/missa_section_horizontal_padding"
             android:paddingBottom="10dp">
 
-            <!-- Bannière NEO GEO / SNK de l'univers Jeux (proportions 16:5, hauteur bornée) -->
+            <!-- Bannière NEO-GEO Classic Games de l'univers Jeux : proportions gardées (jamais
+                 rognée), hauteur bornée, calée à gauche sur les grands écrans. -->
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/games_banner"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="start"
                 android:layout_marginBottom="10dp"
                 android:adjustViewBounds="true"
                 android:contentDescription="@string/universe_games_banner_desc"
                 android:importantForAccessibility="yes"
                 android:maxHeight="@dimen/missa_games_banner_max_height"
-                android:scaleType="centerCrop"
+                android:scaleType="fitCenter"
                 android:src="@drawable/missa_games_banner"
                 app:shapeAppearanceOverlay="@style/ShapeAppearance.Missa.GamesBanner" />
 

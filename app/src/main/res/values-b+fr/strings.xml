@@ -1576,6 +1576,6 @@ Moteur : %5$s (%6$s)</string>
     <string name="missa_version_dub">Doublé</string>
     <string name="missa_version_sub">Sous-titré</string>
     <string name="missa_setup_start">Commencer</string>
-    <string name="universe_games_banner_desc">NEO GEO par SNK, la collection arcade légendaire</string>
+    <string name="universe_games_banner_desc">NEO-GEO, jeux classiques</string>
     <string name="missa_stall_switch">Connexion lente : passage à un autre serveur…</string>
 </resources>
