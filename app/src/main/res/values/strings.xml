@@ -1586,4 +1586,32 @@ Engine: %5$s (%6$s)</string>
         <item quantity="other">Preparing your contents: installing %d extensions…</item>
     </plurals>
     <string name="missa_ext_installed">Your contents are ready.</string>
+    <!-- Lecteur : panneau « Langue et qualité » -->
+    <string name="missa_playback_button">Language &amp; quality</string>
+    <string name="missa_playback_panel_title">Language &amp; quality</string>
+    <string name="missa_playback_close">Close</string>
+    <string name="missa_playback_nothing_to_choose">Only one version is available for this video.</string>
+    <string name="missa_playback_language">Language</string>
+    <string name="missa_playback_language_hint">Your choice is remembered for the next videos.</string>
+    <string name="missa_playback_audio">Audio track</string>
+    <string name="missa_playback_subtitles">Subtitles</string>
+    <string name="missa_playback_subtitles_off">Off</string>
+    <string name="missa_playback_quality">Quality</string>
+    <string name="missa_playback_quality_auto">Automatic</string>
+    <string name="missa_playback_quality_hint">A lower quality uses less data.</string>
+    <string name="missa_playback_server">Server</string>
+    <string name="missa_playback_server_hint">If the video stops or won\'t start, try another server.</string>
+    <string name="missa_playback_server_n">Server %d</string>
+    <string name="missa_playback_search_subs">Find subtitles online</string>
+    <string name="missa_playback_load_subs">Load a subtitle file</string>
+    <string name="missa_playback_subs_style">Subtitle size and colour</string>
+    <string name="missa_playback_advanced">Advanced settings (sources, profiles)</string>
+    <string name="missa_playback_advanced_tracks">Advanced: audio and video tracks</string>
+    <string name="missa_playback_hint">Several languages or subtitles available: tap “Language &amp; quality”.</string>
+    <string name="missa_version_vf">French (VF)</string>
+    <string name="missa_version_vostfr">Original, French subtitles</string>
+    <string name="missa_version_multi">Multi-language</string>
+    <string name="missa_version_vo">English (original)</string>
+    <string name="missa_version_dub">Dubbed</string>
+    <string name="missa_version_sub">Subtitled</string>
 </resources>

@@ -289,6 +289,9 @@ interface IPlayer {
     /** If no trackLanguage is set it'll default to first track. Specifying the id allows for track overrides as the language can be identical. */
     fun setPreferredAudioTrack(trackLanguage: String?, id: String? = null, formatIndex: Int? = null)
 
+    /** Qualité vidéo automatique : annule un niveau choisi avec [setMaxVideoSize]. */
+    fun resetVideoQuality() {}
+
     /** Get the current subtitle cues, for use with syncing */
     fun getSubtitleCues(): List<SubtitleCue>
 }

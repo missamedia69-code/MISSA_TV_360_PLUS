@@ -386,6 +386,15 @@ class CS3IPlayer : IPlayer {
             ?: return
     }
 
+    override fun resetVideoQuality() {
+        exoPlayer?.trackSelectionParameters = exoPlayer?.trackSelectionParameters
+            ?.buildUpon()
+            ?.clearOverridesOfType(TRACK_TYPE_VIDEO)
+            ?.clearVideoSizeConstraints()
+            ?.build()
+            ?: return
+    }
+
     override fun setPreferredAudioTrack(trackLanguage: String?, id: String?, formatIndex: Int?) {
         preferredAudioTrackLanguage = trackLanguage
         id?.let { trackId ->

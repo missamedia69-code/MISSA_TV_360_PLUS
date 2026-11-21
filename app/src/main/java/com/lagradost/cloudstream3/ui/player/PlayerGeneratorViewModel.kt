@@ -33,6 +33,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 typealias VideoLink = Pair<ExtractorLink?, ExtractorUri?>
 
+/** Version (VF, VOSTFR…) annoncée dans le nom de la source, ou null. */
+fun VideoLink.missaVersion(): MissaLinkVersion? = MissaLinkVersion.detect(first?.name)
+
 data class GeneratorState(
     val meta: Any?,
     val nextMeta: Any?,
@@ -106,13 +109,18 @@ data class VideoState(
         val hideErrorSources =
             QualityDataHelper.getProfileSetting(qualityProfile, ProfileSettings.HideErrorSources)
 
+        // MISSA : la version choisie dans « Langue et qualité » (VF, VOSTFR…) passe avant la
+        // qualité : une vidéo en français 720p avant la même en VO 1080p. Sans version retenue,
+        // ou si aucune source ne l'annonce, l'ordre reste celui du profil de qualité.
+        val preferredVersion = runCatching { MissaLinkVersion.preferred }.getOrNull()
         return links.map { link ->
             // negative because we want to sort highest quality first
             link.toDisplayLink(qualityProfile, hideNegativeSources, hideErrorSources)
-        }.sortedBy {
-            // negative because we want to sort highest quality first
-            -it.priority
-        }.also { value -> sortedLinks[qualityProfile] = value }
+        }.sortedWith(
+            compareByDescending<DisplayLink> {
+                preferredVersion != null && it.link.missaVersion() == preferredVersion
+            }.thenByDescending { it.priority }
+        ).also { value -> sortedLinks[qualityProfile] = value }
     }
 
     @Contract(pure = true)

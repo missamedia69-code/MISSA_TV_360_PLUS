@@ -147,6 +147,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 @OptIn(UnstableApi::class)
 class GeneratorPlayer : FullScreenPlayer() {
     companion object {
+        private const val MISSA_HINT_KEY = "missa_playback_choices_hint_v1"
         const val NOTIFICATION_ID = 2326
         const val CHANNEL_ID = 7340
         const val STOP_ACTION = "stopcs3"
@@ -277,8 +278,10 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     override fun onTracksInfoChanged() {
         val tracks = player.getVideoTracks()
-        playerBinding?.playerTracksBtt?.isVisible =
-            tracks.allVideoTracks.size > 1 || tracks.allAudioTracks.size > 1
+        // MISSA : pistes audio et qualités sont dans « Langue et qualité » ; l'ancien bouton
+        // « Pistes » reste accessible depuis ses réglages avancés.
+        playerBinding?.playerTracksBtt?.isVisible = false
+        maybeShowPlaybackChoicesHint(tracks)
         // Only set the preferred language if it is available.
         // Otherwise, it may give some users audio track init failed!
         if (tracks.allAudioTracks.any { it.language == preferredAudioTrackLanguage }) {
@@ -1613,6 +1616,256 @@ class GeneratorPlayer : FullScreenPlayer() {
         } catch (e: Exception) {
             logError(e)
         }
+    }
+
+    // ------------------------------------------------------------------ Langue et qualité
+
+    /** Hauteur choisie dans « Qualité » pour un flux adaptatif (null = automatique). */
+    private var missaQualityHeight: Int? = null
+    private var missaPlaybackPanel: MissaPlaybackPanel? = null
+    private var missaHintChecked = false
+
+    /**
+     * Une fois par vidéo, et au plus 3 fois en tout : quand il y a vraiment un choix (plusieurs
+     * langues, pistes audio ou sous-titres), on dit où le faire.
+     */
+    private fun maybeShowPlaybackChoicesHint(tracks: CurrentTracks) {
+        if (missaHintChecked) return
+        val versions = viewModel.state.links.mapNotNull { it.missaVersion() }.distinct().size
+        if (versions < 2 && tracks.allAudioTracks.size < 2 && viewModel.state.subtitles.isEmpty()) return
+        missaHintChecked = true
+        val shown = com.lagradost.cloudstream3.CloudStreamApp.getKey<Int>(MISSA_HINT_KEY) ?: 0
+        if (shown >= 3) return
+        setKey(MISSA_HINT_KEY, shown + 1)
+        showToast(R.string.missa_playback_hint, Toast.LENGTH_LONG)
+    }
+
+    private fun missaAudioLabel(track: AudioTrack): String {
+        val language = (track.language?.trim()?.let { raw ->
+            fromTagToLanguageName(raw)
+                ?: fromTagToLanguageName(raw.replace('_', '-').substringBefore('-').lowercase())
+                ?: raw
+        } ?: track.label ?: "Audio").replaceFirstChar { it.uppercaseChar() }
+        val channels = when (track.channelCount) {
+            null -> null
+            1 -> "Mono"
+            2 -> "Stéréo"
+            6 -> "5.1"
+            8 -> "7.1"
+            else -> null
+        }
+        return listOfNotNull(language, channels).joinToString(" · ")
+    }
+
+    private fun missaServerLabel(ctx: Context, index: Int, link: VideoLink): String {
+        val name = (link.first?.name ?: link.second?.name)?.trim().orEmpty()
+            .ifBlank { ctx.getString(R.string.missa_playback_server_n, index + 1) }
+        val quality = link.first?.quality?.takeIf { it > 0 }?.let { Qualities.getStringByInt(it) }
+            ?.takeIf { it.isNotBlank() && !name.contains(it, ignoreCase = true) }
+        return listOfNotNull("${index + 1}. $name", quality).joinToString(" · ")
+    }
+
+    /** Recharge la source en cours (même position) : nécessaire après certains sous-titres. */
+    private fun missaReloadCurrent() {
+        currentSelectedLink?.let { loadLink(it, true) }
+    }
+
+    override fun showPlaybackChoices() {
+        try {
+            val act = activity ?: return
+            val isPlaying = player.getIsPlaying()
+            player.handleEvent(CSPlayerEvent.Pause, PlayerEventSource.UI)
+            // Choix faits dans ce panneau, affichés tout de suite (le lecteur met un instant
+            // à annoncer la nouvelle piste).
+            var pickedAudio: AudioTrack? = null
+            val panel = MissaPlaybackPanel(act, isLayout(TV or EMULATOR))
+            missaPlaybackPanel = panel
+            panel.show({ buildPlaybackChoices(act, pickedAudio) { pickedAudio = it } }) {
+                missaPlaybackPanel = null
+                if (isPlaying) player.handleEvent(CSPlayerEvent.Play)
+                activity?.hideSystemUI()
+            }
+        } catch (e: Exception) {
+            logError(e)
+            showMirrorsDialogue()
+        }
+    }
+
+    private fun buildPlaybackChoices(
+        ctx: Context,
+        pickedAudio: AudioTrack?,
+        onAudioPicked: (AudioTrack) -> Unit
+    ): MissaPlaybackPanel.Content {
+        val sections = ArrayList<MissaPlaybackPanel.Section>()
+        val currentLink = currentSelectedLink
+        val usable = viewModel.state.sortLinks(currentQualityProfile)
+            .filter { it.shouldUseLink || it.link == currentLink }
+            .map { it.link }
+        val currentVersion = currentLink?.missaVersion()
+
+        // 1. Langue : versions proposées par des sources différentes (VF, VOSTFR…).
+        val versions = usable.mapNotNull { it.missaVersion() }.distinct()
+        if (versions.size >= 2) {
+            sections += MissaPlaybackPanel.Section(
+                ctx.getString(R.string.missa_playback_language),
+                ctx.getString(R.string.missa_playback_language_hint),
+                versions.map { version ->
+                    MissaPlaybackPanel.Option(
+                        ctx.getString(version.labelRes),
+                        selected = version == currentVersion,
+                        closes = true
+                    ) {
+                        MissaLinkVersion.preferred = version
+                        viewModel.state.clearSortedLinksCache()
+                        viewModel.state.sortLinks(currentQualityProfile)
+                            .firstOrNull { (it.shouldUseLink || it.link == currentLink) && it.link.missaVersion() == version }
+                            ?.link
+                            ?.takeIf { it != currentLink }
+                            ?.let { loadLink(it, true) }
+                    }
+                }
+            )
+        }
+
+        // 2. Piste audio : plusieurs langues dans la même vidéo (changement immédiat).
+        val tracks = player.getVideoTracks()
+        val audio = tracks.allAudioTracks
+        if (audio.size >= 2) {
+            val active = pickedAudio ?: tracks.currentAudioTrack
+            sections += MissaPlaybackPanel.Section(
+                ctx.getString(R.string.missa_playback_audio),
+                null,
+                audio.map { track ->
+                    MissaPlaybackPanel.Option(
+                        missaAudioLabel(track),
+                        selected = active != null && track.id == active.id && track.formatIndex == active.formatIndex
+                    ) {
+                        onAudioPicked(track)
+                        player.setPreferredAudioTrack(track.language, track.id, track.formatIndex)
+                    }
+                }
+            )
+        }
+
+        // 3. Sous-titres : par langue, la première version de chaque langue.
+        val subs = sortSubs(viewModel.state.subtitles)
+        if (subs.isNotEmpty()) {
+            val current = currentSelectedSubtitles
+            val byLanguage = subs.groupBy { it.originalName }
+            val options = ArrayList<MissaPlaybackPanel.Option>()
+            options += MissaPlaybackPanel.Option(
+                ctx.getString(R.string.missa_playback_subtitles_off),
+                selected = current == null,
+                closes = true
+            ) {
+                if (noSubtitles()) missaReloadCurrent()
+            }
+            byLanguage.forEach { (name, group) ->
+                options += MissaPlaybackPanel.Option(
+                    name.html().toString().ifBlank { ctx.getString(R.string.missa_playback_subtitles) },
+                    selected = current?.originalName == name,
+                    closes = true
+                ) {
+                    if (setSubtitles(group.first(), true)) missaReloadCurrent()
+                }
+            }
+            sections += MissaPlaybackPanel.Section(ctx.getString(R.string.missa_playback_subtitles), null, options)
+        }
+
+        // 4. Qualité : niveaux du flux adaptatif, sinon qualités des sources de la même langue.
+        val heights = tracks.allVideoTracks
+            .filter { (it.height ?: 0) > 0 }
+            .distinctBy { it.height }
+            .sortedByDescending { it.height }
+        if (heights.size >= 2) {
+            val picked = missaQualityHeight?.takeIf { h -> heights.any { it.height == h } }
+            sections += MissaPlaybackPanel.Section(
+                ctx.getString(R.string.missa_playback_quality),
+                ctx.getString(R.string.missa_playback_quality_hint),
+                listOf(
+                    MissaPlaybackPanel.Option(
+                        ctx.getString(R.string.missa_playback_quality_auto),
+                        selected = picked == null
+                    ) {
+                        missaQualityHeight = null
+                        player.resetVideoQuality()
+                    }
+                ) + heights.map { track ->
+                    val h = track.height ?: 0
+                    MissaPlaybackPanel.Option("${h}p", selected = picked == h) {
+                        missaQualityHeight = h
+                        player.setMaxVideoSize(track.width ?: Int.MAX_VALUE, h, track.id)
+                    }
+                }
+            )
+        } else {
+            val sameVersion = usable.filter { versions.size < 2 || it.missaVersion() == currentVersion }
+            val qualities = sameVersion.mapNotNull { it.first?.quality?.takeIf { q -> q > 0 } }
+                .distinct()
+                .sortedDescending()
+            if (qualities.size >= 2) {
+                sections += MissaPlaybackPanel.Section(
+                    ctx.getString(R.string.missa_playback_quality),
+                    ctx.getString(R.string.missa_playback_quality_hint),
+                    qualities.map { q ->
+                        MissaPlaybackPanel.Option(
+                            Qualities.getStringByInt(q).ifBlank { "${q}p" },
+                            selected = currentLink?.first?.quality == q,
+                            closes = true
+                        ) {
+                            sameVersion.firstOrNull { it.first?.quality == q }
+                                ?.takeIf { it != currentLink }
+                                ?.let { loadLink(it, true) }
+                        }
+                    }
+                )
+            }
+        }
+
+        // 5. Serveur : la liste complète, pour qui veut essayer une autre source.
+        if (usable.size >= 2) {
+            sections += MissaPlaybackPanel.Section(
+                ctx.getString(R.string.missa_playback_server),
+                ctx.getString(R.string.missa_playback_server_hint),
+                usable.mapIndexed { index, link ->
+                    MissaPlaybackPanel.Option(
+                        missaServerLabel(ctx, index, link),
+                        selected = link == currentLink,
+                        closes = true
+                    ) {
+                        loadLink(link, true)
+                    }
+                }
+            )
+        }
+
+        val actions = ArrayList<MissaPlaybackPanel.Action>()
+        if (subsProvidersIsActive) {
+            actions += MissaPlaybackPanel.Action(ctx.getString(R.string.missa_playback_search_subs)) {
+                openOnlineSubPicker(ctx, viewModel.state.generatorState?.response) {
+                    activity?.hideSystemUI()
+                }
+            }
+        }
+        actions += MissaPlaybackPanel.Action(ctx.getString(R.string.missa_playback_load_subs)) {
+            openSubPicker()
+        }
+        actions += MissaPlaybackPanel.Action(ctx.getString(R.string.missa_playback_subs_style)) {
+            safe {
+                val subtitlesFragment = SubtitlesFragmentDialog2()
+                subtitlesFragment.systemBarsAddPadding = true
+                subtitlesFragment.show(this.parentFragmentManager, "SubtitleSettings")
+            }
+        }
+        actions += MissaPlaybackPanel.Action(ctx.getString(R.string.missa_playback_advanced)) {
+            showMirrorsDialogue()
+        }
+        if (tracks.allVideoTracks.size > 1 || audio.size > 1) {
+            actions += MissaPlaybackPanel.Action(ctx.getString(R.string.missa_playback_advanced_tracks)) {
+                showTracksDialogue()
+            }
+        }
+        return MissaPlaybackPanel.Content(sections, actions)
     }
 
     override fun playerError(exception: Throwable) {
